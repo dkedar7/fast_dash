@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "fast_dash"
-version = "0.1.1-alpha.2"
+version = "0.1.1-alpha.3"
 homepage = "https://github.com/dkedar7/fast_dash"
 description = "Create input-output web applications and user interfaces using Plotly Dash lightning fast.."
 authors = ["Kedar Dabhadkar <kdabhadk@gmail.com>"]
