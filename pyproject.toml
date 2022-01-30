@@ -44,6 +44,10 @@ twine  = { version = "^3.3.0", optional = true}
 mkdocs-autorefs = {version = "0.1.1", optional = true}
 pre-commit = {version = "^2.12.0", optional = true}
 toml = {version = "^0.10.2", optional = true}
+Flask = "^2.0.2"
+dash = "^2.1.0"
+plotly = "^5.5.0"
+dash-bootstrap-components = "^1.0.2"
 
 [tool.poetry.extras]
 test = [
