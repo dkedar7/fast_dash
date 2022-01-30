@@ -48,6 +48,7 @@ Flask = "^2.0.2"
 dash = "^2.1.0"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
+livereload = {version = "^2.6.3", optional = true}
 
 [tool.poetry.extras]
 test = [
