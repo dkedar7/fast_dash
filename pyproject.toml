@@ -48,7 +48,7 @@ Flask = "^2.0.2"
 dash = "^2.1.0"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
-livereload = {version = "^2.6.3", optional = true}
+livereload = "^2.6.3"
 
 [tool.poetry.extras]
 test = [
@@ -72,8 +72,6 @@ doc = [
     ]
 
 
-
-[tool.poetry.dev-dependencies]
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
