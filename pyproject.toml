@@ -48,7 +48,6 @@ Flask = "^2.0.2"
 dash = "^2.1.0"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
-livereload = "^2.6.3"
 
 [tool.poetry.extras]
 test = [
@@ -64,6 +63,7 @@ dev = ["tox", "pre-commit", "virtualenv", "pip", "twine", "toml"]
 
 doc = [
     "mkdocs",
+    "livereload",
     "mkdocs-include-markdown-plugin",
     "mkdocs-material",
     "mkdocstrings",
