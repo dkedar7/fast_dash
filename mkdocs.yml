@@ -28,13 +28,13 @@ repo_name: fast-dash
 repo_url: https://github.com/dkedar7/fast-dash
 
 nav:
-  - home: index.md
-  - installation: installation.md
-  - usage: usage.md
-  - modules: api.md
-  - contributing: contributing.md
-  - authors: authors.md
-  - history: history.md
+  - Home: index.md
+  - Installation: installation.md
+  - Usage: usage.md
+  - Modules: api.md
+  - Contributing: contributing.md
+  - Authors: authors.md
+  - History: history.md
 
 plugins:
   - include-markdown
