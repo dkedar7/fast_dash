@@ -1,8 +1,32 @@
 site_name: Fast Dash
-# site_url: http://www.jieyu.ai
-repo_url: https://github.com/dkedar7/fast_dash
-repo_name: fast_dash
-#strict: true
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+
+theme:
+  name: material
+  icon:
+    admonition:
+      note: octicons/tag-16
+      abstract: octicons/checklist-16
+      info: octicons/info-16
+      tip: octicons/squirrel-16
+      success: octicons/check-16
+      question: octicons/question-16
+      warning: octicons/alert-16
+      failure: octicons/x-circle-16
+      danger: octicons/zap-16
+      bug: octicons/bug-16
+      example: octicons/beaker-16
+      quote: octicons/quote-16
+
+  features:
+    - navigation.tracking
+
+repo_name: fast-dash
+repo_url: https://github.com/dkedar7/fast-dash
+
 nav:
   - home: index.md
   - installation: installation.md
@@ -11,64 +35,16 @@ nav:
   - contributing: contributing.md
   - authors: authors.md
   - history: history.md
-theme:
-  name: material
-  language: en
-  #logo: assets/logo.png
-  palette:
-    primary: light blue
-  features:
-    - navigation.indexes
-    - navigation.tabs
-    - navigation.instant
-    - navigation.tabs.sticky
-markdown_extensions:
-  - pymdownx.emoji:
-      emoji_index: !!python/name:materialx.emoji.twemoji
-      emoji_generator: !!python/name:materialx.emoji.to_svg
-  - pymdownx.critic
-  - pymdownx.caret
-  - pymdownx.mark
-  - pymdownx.tilde
-  - pymdownx.tabbed
-  - attr_list
-  - pymdownx.arithmatex:
-      generic: true
-  - pymdownx.highlight:
-      linenums: true
-  - pymdownx.superfences
-  - pymdownx.details
-  - admonition
-  - toc:
-      baselevel: 2
-      permalink: true
-      slugify: !!python/name:pymdownx.slugs.uslugify
-  - meta
+
 plugins:
   - include-markdown
   - search:
       lang: en
   - mkdocstrings:
-      watch:
-        - fast_dash
-extra:
-  social:
-    - icon: fontawesome/brands/twitter
-      # replace with your own tweet link below
-      link: http://www.jieyu.ai
-      name: Tweet
-    - icon: fontawesome/brands/facebook
-      # replace with your own facebook link below
-      link: http://www.jieyu.ai
-      name: Facebook
-    - icon: fontawesome/brands/github
-      link: https://github.com/dkedar7/fast_dash
-      name: Github
-    - icon: material/email
-      link: "mailto:kdabhadk@gmail.com"
-  # to enable disqus, uncomment the following and put your disqus id below
-  # disqus: disqus_id
-# uncomment the following and put your google tracking id below to enable GA
-#google_analytics:
-  #- UA-xxx
-  #- auto
+      handlers:
+          python:
+              setup_commands:
+                  - import sys
+                  - sys.path.append('../')
+              selection:
+                  new_path_syntax: true
