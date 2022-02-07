@@ -8,7 +8,7 @@
 </a>
 
 <a href="https://github.com/dkedar7/fast_dash/actions">
-    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/main.yml/badge.svg?branch=release" alt="CI Status">
+    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg?branch=main" alt="CI Status">
 </a>
 
 <a href="https://fast-dash.readthedocs.io/en/latest/?badge=latest">
