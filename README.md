@@ -8,11 +8,7 @@
 </a>
 
 <a href="https://github.com/dkedar7/fast_dash/actions">
-    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg?branch=main" alt="CI Status">
-</a>
-
-<a href="https://fast-dash.readthedocs.io/en/latest/?badge=latest">
-    <img src="https://readthedocs.org/projects/fast-dash/badge/?version=latest" alt="Documentation Status">
+    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg" alt="CI Status">
 </a>
 
 </p>
@@ -22,7 +18,7 @@ Create input-output web applications and user interfaces using Plotly Dash light
 
 
 * Free software: MIT
-* Documentation: <https://fast-dash.readthedocs.io>
+* Documentation: <https://dkedar7.github.io/fast_dash/>
 
 
 ## Features
