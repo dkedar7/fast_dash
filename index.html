@@ -36,6 +36,10 @@
     
     
     
+      <link rel="stylesheet" href="css/termynal.css">
+    
+      <link rel="stylesheet" href="css/custom.css">
+    
     
       
     
@@ -58,7 +62,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#fast-dash" class="md-skip">
+        <a href="#overview" class="md-skip">
           Skip to content
         </a>
       
@@ -227,6 +231,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#simple-example" class="md-nav__link">
+    Simple example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#features" class="md-nav__link">
     Features
   </a>
@@ -363,6 +374,13 @@
     <ul class="md-nav__list" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#simple-example" class="md-nav__link">
+    Simple example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#features" class="md-nav__link">
     Features
   </a>
@@ -394,7 +412,7 @@
                 
                 
                 <!-- BEGIN INCLUDE ../README.md   -->
-<h1 id="fast-dash">Fast Dash</h1>
+<h1 id="overview">Overview</h1>
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
     <img src="https://img.shields.io/pypi/v/fast_dash.svg"
@@ -402,20 +420,54 @@
 </a>
 
 <a href="https://github.com/dkedar7/fast_dash/actions">
-    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg?branch=main" alt="CI Status">
+    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg" alt="CI Status">
 </a>
 
-<a href="https://fast-dash.readthedocs.io/en/latest/?badge=latest">
-    <img src="https://readthedocs.org/projects/fast-dash/badge/?version=latest" alt="Documentation Status">
+
+<a href="https://github.com/dkedar7/fast_dash/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/dkedar7/fast_dash" alt="MIT License">
 </a>
 
 </p>
 
-<p>Create input-output web applications and user interfaces using Plotly Dash lightning fast.</p>
+<p align="center">
+  <a href="https://dkedar7.github.io/fast_dash/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
+</p>
+<p align="center">
+    <em>Open source, Python-based tool to develop web applications lightining fast.</em>
+</p>
+
+<hr />
 <ul>
-<li>Free software: MIT</li>
-<li>Documentation: <a href="https://fast-dash.readthedocs.io">https://fast-dash.readthedocs.io</a></li>
+<li>Documentation: <a href="https://dkedar7.github.io/fast_dash/">https://dkedar7.github.io/fast_dash/</a></li>
+<li>Source code: <a href="https://github.com/dkedar7/fast_dash/">https://github.com/dkedar7/fast_dash/</a></li>
 </ul>
+<hr />
+<p>Fast Dash is a Python module that makes the development of web applications fast and easy. It is built on top of Plotly Dash and can be used to build web interfaces for Machine Learning models or to showcase any proof of concept withoout the hassle of developing UI from scratch.</p>
+<h2 id="simple-example">Simple example</h2>
+<p>Run your app with three simple steps:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash.App</span> <span class="kn">import</span> <span class="n">App</span>
+<span class="kn">from</span> <span class="nn">fast_dash.Components</span> <span class="kn">import</span> <span class="n">TextInput</span><span class="p">,</span> <span class="n">TextOutput</span>
+
+<span class="c1"># Step 1: Define your callback function</span>
+<span class="k">def</span> <span class="nf">callback_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
+    <span class="c1"># Code to process text</span>
+    <span class="n">processed_text</span> <span class="o">=</span> <span class="n">input_text</span>
+    <span class="k">return</span> <span class="n">processed_text</span>
+
+<span class="c1"># Step 2: Specify the input/ output widgets</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">App</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">callback_fn</span><span class="p">,</span> 
+        <span class="n">inputs</span><span class="o">=</span><span class="p">[</span><span class="n">TextInput</span><span class="p">()],</span> 
+        <span class="n">outputs</span><span class="o">=</span><span class="p">[</span><span class="n">TextOutput</span><span class="p">()],</span> 
+        <span class="n">title</span><span class="o">=</span><span class="s1">&#39;My App&#39;</span><span class="p">)</span>
+
+<span class="c1"># Step 3: Run your app!</span>
+<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+
+<span class="c1"># * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)</span>
+</code></pre></div>
+<p>Output:</p>
+<p><img alt="Simple example" src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/simple_example.gif" /></p>
 <h2 id="features">Features</h2>
 <ul>
 <li>TODO</li>
@@ -487,6 +539,10 @@
           }, typeof search !== "undefined" && search)
         })
       </script>
+      
+        <script src="js/termynal.js"></script>
+      
+        <script src="js/custom.js"></script>
       
     
   </body>
