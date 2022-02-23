@@ -65,6 +65,8 @@ app.run()
 
 Output:
 
+![Simple example](https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/simple_example.gif)
+
 ## Features
 
 * TODO

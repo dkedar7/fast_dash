@@ -48,3 +48,10 @@ plugins:
                   - sys.path.append('../')
               selection:
                   new_path_syntax: true
+
+extra_css:
+  - css/termynal.css
+  - css/custom.css
+extra_javascript:
+  - js/termynal.js
+  - js/custom.js
