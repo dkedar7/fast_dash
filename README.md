@@ -16,6 +16,10 @@
     <img src="https://img.shields.io/github/license/dkedar7/fast_dash" alt="MIT License">
 </a>
 
+<a href="https://dkedar7.github.io/fast_dash/">
+    <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
+</a>
+
 </p>
 
 
@@ -69,8 +73,21 @@ Output:
 
 ## Features
 
-* TODO
+- No need to build UI from scratch
+- Launch an app only by specifying the types of inputs and outputs
+- Flask-based backend allows easy scalability and widespread compatibility
+- Option to customize per one's interest
+
+Some features are coming up in future releases:
+
+- More input and output components
+- Deploy to Heroku
+- and many more.
+
+## Community
+
+Fast Dash is built on open-source. You are encouraged to share your own projects, which will be highlighted on a common community gallery that's upcoming. Join us on [Discord](https://discord.gg/B8nPVfPZ6a).
 
 ## Credits
 
-This package was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and the [zillionare/cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage) project template.
+Fast Dash is build on top of [Plotly Dash](https://github.com/plotly/dash) and the documentation is inspired from [FastAPI's docs](https://fastapi.tiangolo.com/) project template. It is inpired from [gradio](https://github.com/gradio-app/gradio).
