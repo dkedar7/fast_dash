@@ -2,6 +2,8 @@
 Utility functions
 """
 import inspect
+from io import BytesIO
+import base64
 
 import dash_bootstrap_components as dbc
 from dash import html
@@ -46,6 +48,24 @@ def theme_mapper(theme_name):
     return theme
 
 
+def pil_to_b64(img):
+    """
+    Utility to convert PIL image to a base64 string.
+
+    Args:
+        img (PIL.Image): Input image
+
+    Returns:
+        str: Base64 string of the input image
+    """
+    buffered = BytesIO()
+    img.save(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    img_str = f"data:image/png;base64,{img_str}"
+
+    return img_str
+
+
 # Input component utils
 def get_input_names_from_callback_fn(callback_fn):
     """
@@ -82,12 +102,11 @@ def make_input_groups(inputs_with_ids):
 
     input_groups.append(html.H2("Input"))
 
-    for input_ in inputs_with_ids:
+    for idx, input_ in enumerate(inputs_with_ids):
+        label = f"{input_.id}" if input_.label_ is None else input_.label_
+        label = label.replace("_", " ").upper()
         input_groups.append(
-            dbc.Col(
-                [dbc.Label(input_.id.replace("_", " ").upper(), align="end"), input_],
-                align="center",
-            )
+            dbc.Col([dbc.Label(label, align="end"), input_], align="center",)
         )
 
     button_row = html.Div(
@@ -99,7 +118,8 @@ def make_input_groups(inputs_with_ids):
                 id="submit_inputs",
                 n_clicks=0,
             )
-        ]
+        ],
+        style={"padding": "2% 1% 1% 2%"}
     )
 
     input_groups.append(button_row)

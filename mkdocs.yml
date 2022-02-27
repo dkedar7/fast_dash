@@ -26,13 +26,13 @@ theme:
   features:
     - navigation.tracking
 
-repo_name: fast-dash
-repo_url: https://github.com/dkedar7/fast-dash
+repo_name: fast_dash
+repo_url: https://github.com/dkedar7/fast_dash
 
 nav:
   - Home: index.md
   - Installation: installation.md
-  - Usage: usage.md
+  - Tutorial - User guide: usage.md
   - Modules: api.md
   - Contributing: contributing.md
   - Authors: authors.md
@@ -57,6 +57,3 @@ extra_css:
 extra_javascript:
   - js/termynal.js
   - js/custom.js
-
-repo_name: fast-dash
-repo_url: https://github.com/dkedar7/fast-dash/

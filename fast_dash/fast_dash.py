@@ -2,7 +2,7 @@ import dash
 import flask
 from dash.dependencies import Input, Output
 
-from .Components import DefaultLayout, TextInput
+from .Components import DefaultLayout, Text
 from .utils import (
     assign_ids_to_inputs,
     assign_ids_to_outputs,
@@ -12,7 +12,7 @@ from .utils import (
 )
 
 
-class App(object):
+class FastDash(object):
     def __init__(
         self,
         callback_fn=None,
@@ -24,7 +24,7 @@ class App(object):
         github_url=None,
         linkedin_url=None,
         twitter_url=None,
-        theme="YETI",
+        theme="ZEPHYR",
     ):
 
         self.callback_fn = callback_fn
@@ -32,7 +32,7 @@ class App(object):
         self.outputs = outputs
 
         if outputs is None:
-            self.outputs = [TextInput()]
+            self.outputs = [Text()]
 
         self.title = title
         self.title_image_path = title_image_path
@@ -81,8 +81,8 @@ class App(object):
         self.reset_clicks = 0
         self.app_initialized = False
 
-    def run(self):
-        self.app.server.run(port=8080)  # int(os.environ.get('PORT', 8889)))
+    def run(self, port=None):
+        self.app.server.run(port=port)
 
     def set_layout(self):
 
@@ -109,15 +109,13 @@ class App(object):
         @self.app.callback(
             [
                 Output(
-                    component_id=output_.id,
-                    component_property=output_.attributable_property,
+                    component_id=output_.id, component_property=output_.modify_property,
                 )
                 for output_ in self.outputs_with_ids
             ],
             [
                 Input(
-                    component_id=input_.id,
-                    component_property=input_.attributable_property,
+                    component_id=input_.id, component_property=input_.modify_property,
                 )
                 for input_ in self.inputs_with_ids
             ]

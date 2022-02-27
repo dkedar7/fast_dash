@@ -2,8 +2,6 @@ import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from dash import dcc, html
 
-theme_color_code = "#ffffff"  # Indigo
-
 
 class DefaultLayout:
     def __init__(
@@ -189,7 +187,8 @@ class DefaultLayout:
     def generate_footer_container(self):
 
         footer = dbc.NavbarSimple(
-            brand="Made with Dash",
+            brand="Made with Fast Dash",
+            brand_href="https://dkedar7.github.io/fast_dash/",
             color="primary",
             dark=True,
             fluid=True,
@@ -215,92 +214,66 @@ class DefaultLayout:
         self.layout = layout
 
 
-######
-# Define default input components
-######
-
-
-class TextInput(dbc.Input):
+def Fastify(DashComponent, modify_property, label_=None, placeholder=None, **kwargs):
     """
-    Extends dbc.Input
+    Component utility to convert any Dash component into a FastComponent.    
     """
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.attributable_property = "value"
+    class FastComponent(DashComponent):
+        """
+        Extends component
+        """
 
-
-class UploadInput(dcc.Upload):
-    """
-    Extends dcc.Upload
-    """
-
-    def __init__(self, label="Click to upload", **kwargs):
-        super().__init__(
-            children=dbc.Col([label]),
-            style={
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderStyle": "dashed",
-                "borderRadius": "5px",
-                "textAlign": "center",
-            },
+        def __init__(
+            self,
+            modify_property=modify_property,
+            label_=label_,
+            placeholder=placeholder,
             **kwargs
-        )
-        self.attributable_property = "contents"
+        ):
+            super().__init__(**kwargs)
+            self.modify_property = modify_property
+            self.placeholder = placeholder
+            self.label_ = label_
+
+    return FastComponent(
+        modify_property, label_=label_, placeholder=placeholder, **kwargs
+    )
 
 
-class SliderInput(dcc.Slider):
-    """
-    Extends dbc.Input
-    """
+###################################
+# Define default input components #
+###################################
 
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
-        self.attributable_property = "value"
-
-
-######
-# Define default output components
-######
-
-
-class TextOutput(dbc.Input):
-    """
-    Extends dbc.Input
-    """
-
-    def __init__(self, label_=None, **kwargs):
-        super().__init__(**kwargs)
-        self.attributable_property = "value"
-        self.placeholder = None
-        self.label_ = label_
+Text = Fastify(DashComponent=dbc.Input, modify_property="value")
+Slider = Fastify(DashComponent=dcc.Slider, modify_property="value", min=0, max=20, step=1, value=10, tooltip={"placement": "top", "always_visible": True})
+Upload = Fastify(
+    DashComponent=dcc.Upload,
+    modify_property="contents",
+    children=dbc.Col(["Click to upload"]),
+    style={
+        "lineHeight": "60px",
+        "borderWidth": "1px",
+        "borderStyle": "dashed",
+        "borderRadius": "5px",
+        "textAlign": "center",
+    },
+)
 
 
-class ImageOutput(html.Img):
-    """
-    Extends dbc.CardImg
-    """
+####################################
+# Define default output components #
+####################################
 
-    def __init__(self, label_=None, **kwargs):
-        super().__init__(**kwargs, style={"max-width": "100%"})
-        self.attributable_property = "src"
-        self.placeholder = None
-        self.label_ = label_
+TextOutput = Fastify(DashComponent=dbc.Textarea, modify_property="value")
+ImageOutput = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
+GraphOutput = Fastify(
+    DashComponent=dcc.Graph,
+    modify_property="figure",
+    placeholder=(
+        go.Figure()
+        .update_yaxes(visible=False, showticklabels=False)
+        .update_xaxes(visible=False, showticklabels=False)
+    ),
+)
 
-
-class GraphOutput(dcc.Graph):
-    """
-    Extends dcc.Graph
-    """
-
-    def __init__(self, label_=None, **kwargs):
-        super().__init__(**kwargs)
-        self.attributable_property = "figure"
-        self.placeholder = (
-            go.Figure()
-            .update_yaxes(visible=False, showticklabels=False)
-            .update_xaxes(visible=False, showticklabels=False)
-        )
-
-        self.label_ = label_
