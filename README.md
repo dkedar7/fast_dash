@@ -27,7 +27,7 @@
   <a href="https://dkedar7.github.io/fast_dash/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
 </p>
 <p align="center">
-    <em>Open source, Python-based tool to develop web applications lightining fast.</em>
+    <em>Open source, Python-based tool to develop web applications lightning fast.</em>
 </p>
 
 
