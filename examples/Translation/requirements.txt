@@ -1,0 +1,3 @@
+transformers
+torch==1.10.2
+git+https://github.com/dkedar7/fast_dash
