@@ -4,6 +4,7 @@ Utility functions
 import inspect
 from io import BytesIO
 import base64
+import copy
 
 import dash_bootstrap_components as dbc
 from dash import html
@@ -91,7 +92,7 @@ def assign_ids_to_inputs(inputs, callback_fn):
         inputs, get_input_names_from_callback_fn(callback_fn)
     ):
         input_.id = parameter_name
-        inputs_with_ids.append(input_)
+        inputs_with_ids.append(copy.deepcopy(input_))
 
     return inputs_with_ids
 
@@ -139,7 +140,7 @@ def assign_ids_to_outputs(outputs):
 
     for idx, output_ in enumerate(outputs):
         output_.id = f"output-{idx + 1}"
-        outputs_with_ids.append(output_)
+        outputs_with_ids.append(copy.deepcopy(output_))
 
     return outputs_with_ids
 
