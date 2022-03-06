@@ -3,7 +3,7 @@
 
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
-    <img src="https://img.shields.io/pypi/v/fast_dash.svg"
+    <img src="https://img.shields.io/pypi/v/fast_dash?color=%2334D058"
         alt = "Release Status">
 </a>
 
