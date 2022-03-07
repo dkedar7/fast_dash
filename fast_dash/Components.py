@@ -242,11 +242,13 @@ def Fastify(DashComponent, modify_property, label_=None, placeholder=None, **kwa
 
 
 ###################################
-# Define default input components #
+# Define default components #
 ###################################
 
 Text = Fastify(DashComponent=dbc.Input, modify_property="value")
+
 Slider = Fastify(DashComponent=dcc.Slider, modify_property="value", min=0, max=20, step=1, value=10, tooltip={"placement": "top", "always_visible": True})
+
 Upload = Fastify(
     DashComponent=dcc.Upload,
     modify_property="contents",
@@ -260,14 +262,11 @@ Upload = Fastify(
     },
 )
 
+TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
 
-####################################
-# Define default output components #
-####################################
+Image = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
 
-TextOutput = Fastify(DashComponent=dbc.Textarea, modify_property="value")
-ImageOutput = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
-GraphOutput = Fastify(
+Graph = Fastify(
     DashComponent=dcc.Graph,
     modify_property="figure",
     placeholder=(
@@ -276,4 +275,3 @@ GraphOutput = Fastify(
         .update_xaxes(visible=False, showticklabels=False)
     ),
 )
-

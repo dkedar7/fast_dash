@@ -1,0 +1,4 @@
+transformers
+sentencepiece
+torch==1.10.2
+fast-dash
