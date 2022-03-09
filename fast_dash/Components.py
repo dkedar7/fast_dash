@@ -14,6 +14,8 @@ class DefaultLayout:
         github_url=None,
         linkedin_url=None,
         twitter_url=None,
+        navbar=True,
+        footer=True
     ):
 
         self.inputs = inputs
@@ -24,6 +26,8 @@ class DefaultLayout:
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
+        self.navbar = navbar
+        self.footer = footer
 
         # Bring all containers together
         self.navbar_container = self.generate_navbar_container()
@@ -31,17 +35,19 @@ class DefaultLayout:
         self.io_container = self.generate_io_container()
         self.footer_container = self.generate_footer_container()
 
-        self.layout = dbc.Container(
-            [
-                self.navbar_container,
-                self.header_container,
-                self.io_container,
-                self.footer_container,
-            ],
-            fluid=True,
-        )
+        layput_components = [
+            self.navbar_container,
+            self.header_container,
+            self.io_container,
+            self.footer_container,
+        ]
+
+        self.layout = dbc.Container([component for component in layput_components if component is not None], fluid=True,)
 
     def generate_navbar_container(self):
+
+        if self.navbar is False:
+            return None
 
         # 1. Navbar
         social_media_navigation = []
@@ -186,6 +192,9 @@ class DefaultLayout:
 
     def generate_footer_container(self):
 
+        if self.footer is False:
+            return None
+
         footer = dbc.NavbarSimple(
             brand="Made with Fast Dash",
             brand_href="https://dkedar7.github.io/fast_dash/",
@@ -247,7 +256,15 @@ def Fastify(DashComponent, modify_property, label_=None, placeholder=None, **kwa
 
 Text = Fastify(DashComponent=dbc.Input, modify_property="value")
 
-Slider = Fastify(DashComponent=dcc.Slider, modify_property="value", min=0, max=20, step=1, value=10, tooltip={"placement": "top", "always_visible": True})
+Slider = Fastify(
+    DashComponent=dcc.Slider,
+    modify_property="value",
+    min=0,
+    max=20,
+    step=1,
+    value=10,
+    tooltip={"placement": "top", "always_visible": True},
+)
 
 Upload = Fastify(
     DashComponent=dcc.Upload,

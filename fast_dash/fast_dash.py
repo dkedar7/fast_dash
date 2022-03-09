@@ -24,6 +24,8 @@ class FastDash(object):
         github_url=None,
         linkedin_url=None,
         twitter_url=None,
+        navbar=True,
+        footer=True,
         theme="ZEPHYR",
     ):
 
@@ -40,6 +42,8 @@ class FastDash(object):
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
+        self.navbar = navbar
+        self.footer = footer
 
         # Assign IDs to components
         self.inputs_with_ids = assign_ids_to_inputs(self.inputs, self.callback_fn)
@@ -101,6 +105,8 @@ class FastDash(object):
             github_url=self.github_url,
             linkedin_url=self.linkedin_url,
             twitter_url=self.twitter_url,
+            navbar=self.navbar,
+            footer=self.footer
         )
 
         self.app.layout = default_layout.layout
