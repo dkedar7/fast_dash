@@ -9,12 +9,9 @@ dropdown = Fastify(DashComponent=dcc.Dropdown, modify_property='value', options=
 
 def apply_style(image, style):
     "Callback to apply style to image"
-
     image_type, image_content = image.split(',')
     styled_image = stylize_image(image_content, style)
-
     return image, styled_image
-
 
 app = FastDash(callback_fn=apply_style, 
                 inputs=[Upload, dropdown], 
