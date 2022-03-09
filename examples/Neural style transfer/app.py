@@ -17,6 +17,7 @@ app = FastDash(callback_fn=apply_style,
                 inputs=[Upload, dropdown], 
                 outputs=[Image, Image], 
                 title='Neural Style Transfer',
-                title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/example-neural-style-transfer/examples/Neural%20style%20transfer/assets/icon.png',
-                subheader="Apply styles from well-known pieces of art to your own photos")
+                title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/main/examples/Neural%20style%20transfer/assets/icon.png',
+                subheader="Apply styles from well-known pieces of art to your own photos",
+                theme='SKETCHY')
 app.run()
