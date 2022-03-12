@@ -12,4 +12,6 @@ def translate_from_english(english_sentence, select_language):
     return translation
 
 app = FastDash(callback_fn=translate_from_english, inputs=[Text, dropdown], outputs=Text, title='Translate from English')
-app.run()
+
+if __name__ == '__main__':
+    app.run()
