@@ -8,7 +8,7 @@ terminal:
 <div class="termy">
 
 ``` console
-$ pip install fast_dash
+$ pip install fast-dash
 ```
 
 </div>
@@ -50,13 +50,11 @@ $ curl -OJL https://github.com/dkedar7/fast_dash/tarball/main
 
 Once you have a copy of the source, you can install it with:
 
-</div>
 
 ``` console
-$ pip install .
+pip install .
 ```
 
-</div>
 
   [pip]: https://pip.pypa.io
   [Python installation guide]: http://docs.python-guide.org/en/latest/starting/installation/
