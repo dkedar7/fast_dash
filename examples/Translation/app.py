@@ -7,4 +7,6 @@ def translate_to_french(english_sentence):
     return french_translation
 
 app = FastDash(callback_fn=translate_to_french, inputs=Text, outputs=Text, title='Translate to French')
-app.run()
+
+if __name__ == "__main__":
+    app.run()
