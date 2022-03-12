@@ -8,5 +8,5 @@ def translate_to_french(english_sentence):
 
 app = FastDash(callback_fn=translate_to_french, inputs=Text, outputs=Text, title='Translate to French')
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     app.run()
