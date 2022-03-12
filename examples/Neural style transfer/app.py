@@ -20,4 +20,6 @@ app = FastDash(callback_fn=apply_style,
                 title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/main/examples/Neural%20style%20transfer/assets/icon.png',
                 subheader="Apply styles from well-known pieces of art to your own photos",
                 theme='SKETCHY')
-app.run()
+                
+if __name__ == '__main__':
+    app.run()
