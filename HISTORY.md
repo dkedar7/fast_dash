@@ -1,5 +1,12 @@
 # History
 
+## 0.1.3 (2022-03-11)
+
+* Added 3 new examples
+* Make `navbar` and `footer` removable from the app UI
+* Updated documentation structure
+* Added Google Cloud Run deployment docs
+
 ## 0.1.2 (2022-03-06)
 
 * Supports usage of the same FastComponent multiple times via deepcopy.
