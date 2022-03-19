@@ -48,6 +48,9 @@ class FastDash(object):
         # Assign IDs to components
         self.inputs_with_ids = assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = assign_ids_to_outputs(self.outputs)
+        self.ack_mask = [
+            True if input_.ack is not None else False for input_ in self.inputs_with_ids
+        ]
 
         # Default state of outputs
         self.output_state_default = [
@@ -106,7 +109,7 @@ class FastDash(object):
             linkedin_url=self.linkedin_url,
             twitter_url=self.twitter_url,
             navbar=self.navbar,
-            footer=self.footer
+            footer=self.footer,
         )
 
         self.app.layout = default_layout.layout
@@ -115,13 +118,22 @@ class FastDash(object):
         @self.app.callback(
             [
                 Output(
-                    component_id=output_.id, component_property=output_.modify_property,
+                    component_id=output_.id,
+                    component_property=output_.modify_property,
                 )
                 for output_ in self.outputs_with_ids
+            ]
+            + [
+                Output(
+                    component_id=input_.ack.id,
+                    component_property=input_.ack.modify_property,
+                )
+                for input_ in self.inputs_with_ids
             ],
             [
                 Input(
-                    component_id=input_.id, component_property=input_.modify_property,
+                    component_id=input_.id,
+                    component_property=input_.modify_property,
                 )
                 for input_ in self.inputs_with_ids
             ]
@@ -134,6 +146,10 @@ class FastDash(object):
 
             reset_button = args[-2]
             submit_button = args[-1]
+            ack_components = [
+                ack if mask is True else None
+                for mask, ack in zip(self.ack_mask, list(args[:-2]))
+            ]
 
             if submit_button > self.submit_clicks:
                 self.app_initialized = True
@@ -142,18 +158,18 @@ class FastDash(object):
 
                 if isinstance(output_state, tuple):
                     self.output_state = list(output_state)
-                    return output_state
+                    return self.output_state + ack_components
 
                 self.output_state = [output_state]
-                return self.output_state
+                return self.output_state + ack_components
 
             elif reset_button > self.reset_clicks:
                 self.reset_clicks = reset_button
                 self.output_state = self.output_state_default
-                return self.output_state
+                return self.output_state + ack_components
 
             elif self.app_initialized:
-                return self.output_state
+                return self.output_state + ack_components
 
             else:
-                return self.output_state_default
+                return self.output_state_default + ack_components
