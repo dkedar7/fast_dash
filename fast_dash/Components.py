@@ -260,8 +260,11 @@ def Fastify(
 ###################################
 # Define default components #
 ###################################
-
+ 
+##### General components
 Text = Fastify(DashComponent=dbc.Input, modify_property="value")
+
+TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
 
 Slider = Fastify(
     DashComponent=dcc.Slider,
@@ -273,6 +276,8 @@ Slider = Fastify(
     tooltip={"placement": "top", "always_visible": True},
 )
 
+
+##### Input components
 Upload = Fastify(
     DashComponent=dcc.Upload,
     modify_property="contents",
@@ -286,8 +291,24 @@ Upload = Fastify(
     },
 )
 
-TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
+acknowledge_image_component = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
 
+UploadImage = Fastify(
+    DashComponent=dcc.Upload,
+    modify_property="contents",
+    ack=acknowledge_image_component,
+    children=dbc.Col(["Click to upload image"]),
+    style={
+        "lineHeight": "60px",
+        "borderWidth": "1px",
+        "borderStyle": "dashed",
+        "borderRadius": "5px",
+        "textAlign": "center",
+    },
+)
+
+
+##### Output components
 Image = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
 
 Graph = Fastify(
