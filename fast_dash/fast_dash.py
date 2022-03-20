@@ -36,7 +36,7 @@ class FastDash(object):
         if outputs is None:
             self.outputs = [Text()]
 
-        self.title = title
+        self.title = 'Prototype' if title is None else title
         self.title_image_path = title_image_path
         self.subtext = subheader
         self.github_url = github_url
@@ -75,7 +75,7 @@ class FastDash(object):
             ],
         )
         # Define app title
-        self.app.title = title
+        self.app.title = self.title
 
         # Intialize layout
         self.set_layout()
