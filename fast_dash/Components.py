@@ -200,7 +200,7 @@ class DefaultLayout:
 
         footer = dbc.NavbarSimple(
             brand="Made with Fast Dash",
-            brand_href="https://dkedar7.github.io/fast_dash/",
+            brand_href="https://fastdash.app/",
             color="primary",
             dark=True,
             fluid=True,
