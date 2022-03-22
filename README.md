@@ -16,7 +16,7 @@
     <img src="https://img.shields.io/github/license/dkedar7/fast_dash" alt="MIT License">
 </a>
 
-<a href="https://dkedar7.github.io/fast_dash/">
+<a href="https://docs.fastdash.app/">
     <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
 </a>
 
@@ -24,17 +24,17 @@
 
 
 <p align="center">
-  <a href="https://dkedar7.github.io/fast_dash/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
+  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
 </p>
 <p align="center">
-    <em>Open source, Python-based tool to develop web applications lightning fast.</em>
+    <em>Open source, Python-based tool to build ML prototypes lightning fast.</em>
 </p>
 
 
 ---
 
-
-* Documentation: <https://dkedar7.github.io/fast_dash/>
+* Website: <https://fastdash.app/>
+* Documentation: <https://docs.fastdash.app/>
 * Source code: <https://github.com/dkedar7/fast_dash/>
 
 ---

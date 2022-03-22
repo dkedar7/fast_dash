@@ -1,13 +1,15 @@
 """
 Utility functions
 """
-import inspect
-from io import BytesIO
 import base64
 import copy
+import inspect
+from io import BytesIO
 
 import dash_bootstrap_components as dbc
 from dash import html
+
+from .Components import Fastify
 
 
 # Add themes mapper
@@ -106,8 +108,20 @@ def make_input_groups(inputs_with_ids):
     for idx, input_ in enumerate(inputs_with_ids):
         label = f"{input_.id}" if input_.label_ is None else input_.label_
         label = label.replace("_", " ").upper()
+        ack_component = (
+            Fastify(DashComponent=dbc.Col, modify_property="children")
+            if input_.ack is None
+            else input_.ack
+        )
+        ack_component.id = f"{input_.id}_ack"
+
+        input_.ack = ack_component
+
         input_groups.append(
-            dbc.Col([dbc.Label(label, align="end"), input_], align="center",)
+            dbc.Col(
+                [dbc.Label(label, align="end"), input_, ack_component],
+                align="center",
+            )
         )
 
     button_row = html.Div(
@@ -120,7 +134,7 @@ def make_input_groups(inputs_with_ids):
                 n_clicks=0,
             )
         ],
-        style={"padding": "2% 1% 1% 2%"}
+        style={"padding": "2% 1% 1% 2%"},
     )
 
     input_groups.append(button_row)

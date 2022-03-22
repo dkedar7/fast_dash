@@ -15,7 +15,7 @@ class DefaultLayout:
         linkedin_url=None,
         twitter_url=None,
         navbar=True,
-        footer=True
+        footer=True,
     ):
 
         self.inputs = inputs
@@ -42,7 +42,10 @@ class DefaultLayout:
             self.footer_container,
         ]
 
-        self.layout = dbc.Container([component for component in layput_components if component is not None], fluid=True,)
+        self.layout = dbc.Container(
+            [component for component in layput_components if component is not None],
+            fluid=True,
+        )
 
     def generate_navbar_container(self):
 
@@ -113,7 +116,7 @@ class DefaultLayout:
         if self.title is not None:
             header_children.append(
                 dbc.Row(
-                    html.H1(self.title, style={"textAlign": "center"}),
+                    html.H1(self.title, style={"textAlign": "center"}, id="app_title"),
                     style={"padding": "8% 0% 2% 0%"},
                 )
             )
@@ -197,7 +200,7 @@ class DefaultLayout:
 
         footer = dbc.NavbarSimple(
             brand="Made with Fast Dash",
-            brand_href="https://dkedar7.github.io/fast_dash/",
+            brand_href="https://fastdash.app/",
             color="primary",
             dark=True,
             fluid=True,
@@ -223,9 +226,11 @@ class DefaultLayout:
         self.layout = layout
 
 
-def Fastify(DashComponent, modify_property, label_=None, placeholder=None, **kwargs):
+def Fastify(
+    DashComponent, modify_property, ack=None, label_=None, placeholder=None, **kwargs
+):
     """
-    Component utility to convert any Dash component into a FastComponent.    
+    Component utility to convert any Dash component into a FastComponent.
     """
 
     class FastComponent(DashComponent):
@@ -236,25 +241,30 @@ def Fastify(DashComponent, modify_property, label_=None, placeholder=None, **kwa
         def __init__(
             self,
             modify_property=modify_property,
+            ack=ack,
             label_=label_,
             placeholder=placeholder,
             **kwargs
         ):
             super().__init__(**kwargs)
             self.modify_property = modify_property
+            self.ack = ack
             self.placeholder = placeholder
             self.label_ = label_
 
     return FastComponent(
-        modify_property, label_=label_, placeholder=placeholder, **kwargs
+        modify_property, ack=ack, label_=label_, placeholder=placeholder, **kwargs
     )
 
 
 ###################################
 # Define default components #
 ###################################
-
+ 
+##### General components
 Text = Fastify(DashComponent=dbc.Input, modify_property="value")
+
+TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
 
 Slider = Fastify(
     DashComponent=dcc.Slider,
@@ -266,6 +276,8 @@ Slider = Fastify(
     tooltip={"placement": "top", "always_visible": True},
 )
 
+
+##### Input components
 Upload = Fastify(
     DashComponent=dcc.Upload,
     modify_property="contents",
@@ -279,8 +291,24 @@ Upload = Fastify(
     },
 )
 
-TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
+acknowledge_image_component = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
 
+UploadImage = Fastify(
+    DashComponent=dcc.Upload,
+    modify_property="contents",
+    ack=acknowledge_image_component,
+    children=dbc.Col(["Click to upload image"]),
+    style={
+        "lineHeight": "60px",
+        "borderWidth": "1px",
+        "borderStyle": "dashed",
+        "borderRadius": "5px",
+        "textAlign": "center",
+    },
+)
+
+
+##### Output components
 Image = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
 
 Graph = Fastify(
