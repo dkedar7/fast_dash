@@ -16,7 +16,7 @@
     <img src="https://img.shields.io/github/license/dkedar7/fast_dash" alt="MIT License">
 </a>
 
-<a href="https://fastdash.app/">
+<a href="https://docs.fastdash.app/">
     <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
 </a>
 
@@ -33,8 +33,8 @@
 
 ---
 
-
-* Documentation: <https://fastdash.app/>
+* Website: <https://fastdash.app/>
+* Documentation: <https://docs.fastdash.app/>
 * Source code: <https://github.com/dkedar7/fast_dash/>
 
 ---

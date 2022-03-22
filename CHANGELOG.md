@@ -1,8 +1,9 @@
-# Release 0.1.3
+# Release 0.1.4
 
-## 0.1.3 (2022-03-11)
+## 0.1.4 (2022-03-21)
 
-* Added 3 new examples
-* Make `navbar` and `footer` removable from the app UI
-* Updated documentation structure
-* Added Google Cloud Run deployment docs
+* New component property allows setting "acknowledgement" component!
+* Default app title is 'Prototype'.
+* New UploadImage component uses another html.Img component as acknowledgement.
+* Added new Neural Style Transfer example.
+* Added examples to pytest cases.
