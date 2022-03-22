@@ -1,10 +1,10 @@
 [tool]
 [tool.poetry]
 name = "fast_dash"
-version = "0.1.3"
+version = "0.1.4"
 homepage = "https://github.com/dkedar7/fast_dash"
-description = "Create input-output web applications and user interfaces using Plotly Dash lightning fast."
-authors = ["Kedar Dabhadkar <kdabhadk@gmail.com>"]
+description = "Build Machine Learning prototypes web applications lightning fast."
+authors = ["Kedar Dabhadkar <kedar@fastdash.app>"]
 readme = "README.md"
 license =  "MIT"
 classifiers=[
