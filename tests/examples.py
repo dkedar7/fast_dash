@@ -1,5 +1,5 @@
 from fast_dash import FastDash, Fastify
-from fast_dash.Components import Text, Image, Upload, Slider, html, dcc
+from fast_dash.Components import Text, Image, Upload, UploadImage, Slider, html, dcc
 
 
 def example_1_simple_text_to_text():
@@ -65,5 +65,25 @@ def example_4_image_slider_to_image_text():
                         outputs=[Image, Text], 
                         title='Fast Dash example 4',
                         theme='SKETCHY')
+
+    return app
+
+
+def example_5_uploadimage_to_image():
+    "Fast Dash example 5. Input is UploadImage. Output is Image."
+
+    def image_to_image(image):
+        return image
+
+    app = FastDash(callback_fn=image_to_image, 
+                inputs=UploadImage, 
+                outputs=Image,
+                title='Fast Dash example 5',
+                title_image_path='https://tinyurl.com/mr44nn5y',
+                subheader='Build ML prototypes lightning fast!',
+                github_url='https://github.com/dkedar7/fast_dash/',
+                linkedin_url='https://linkedin.com/in/dkedar7/',
+                twitter_url='https://twitter.com/dkedar7/',
+                theme='FLATLY')
 
     return app
