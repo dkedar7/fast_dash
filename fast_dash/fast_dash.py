@@ -88,8 +88,8 @@ class FastDash(object):
         self.reset_clicks = 0
         self.app_initialized = False
 
-    def run(self, port=None):
-        self.app.server.run(port=port)
+    def run(self, **args):
+        self.app.server.run(**args)
 
     def set_layout(self):
 
@@ -119,21 +119,21 @@ class FastDash(object):
             [
                 Output(
                     component_id=output_.id,
-                    component_property=output_.modify_property,
+                    component_property=output_.assign_prop,
                 )
                 for output_ in self.outputs_with_ids
             ]
             + [
                 Output(
                     component_id=input_.ack.id,
-                    component_property=input_.ack.modify_property,
+                    component_property=input_.ack.assign_prop,
                 )
                 for input_ in self.inputs_with_ids
             ],
             [
                 Input(
                     component_id=input_.id,
-                    component_property=input_.modify_property,
+                    component_property=input_.assign_prop,
                 )
                 for input_ in self.inputs_with_ids
             ]
