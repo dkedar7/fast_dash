@@ -5,7 +5,7 @@ from dash import dcc
 from utils import stylize_image, map_style_model_path
 
 # Fastify Dash's dropdown component
-dropdown = Fastify(DashComponent=dcc.Dropdown, modify_property='value', options={x:x for x in map_style_model_path.keys()})
+dropdown = Fastify(DashComponent=dcc.Dropdown(options={x:x for x in map_style_model_path.keys()}), modify_property='value')
 
 def apply_style(image, style):
     "Callback to apply style to image"

@@ -5,7 +5,7 @@ from dash import dcc
 from utils import translate
 
 # Fastify Dash's dropdown component
-dropdown = Fastify(DashComponent=dcc.Dropdown, modify_property='value', options={x:x for x in ['French', 'Spanish', 'German']})
+dropdown = Fastify(DashComponent=dcc.Dropdown(options={x:x for x in ['French', 'Spanish', 'German']}), modify_property='value')
 
 def translate_from_english(english_sentence, select_language):
     translation = translate(english_sentence, select_language)

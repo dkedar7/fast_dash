@@ -2,8 +2,8 @@ from fast_dash import FastDash, Fastify
 from fast_dash.Components import Text, dcc, html
 from utils import render_molecule, data_info
 
-mol_dropdown = Fastify(dcc.Dropdown, 'value', options=[{'label':k, 'value':k} for k in data_info])
-output_div = Fastify(html.Div, 'children')
+mol_dropdown = Fastify(dcc.Dropdown(options=[{'label':k, 'value':k} for k in data_info]), 'value')
+output_div = Fastify(html.Div(), 'children')
 
 app = FastDash(callback_fn=render_molecule, 
                 inputs=mol_dropdown, 

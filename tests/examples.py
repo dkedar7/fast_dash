@@ -57,8 +57,8 @@ def example_4_image_slider_to_image_text():
     def callback_fn(input_text, slider_value):
         return input_text, f"Slider value is {slider_value}"
 
-    ack_image = Fastify(html.Img, 'src', width='100%')
-    fast_upload = Fastify(dcc.Upload, 'contents', ack=ack_image, children=["Click to upload"], style={'borderStyle': 'dashed', 'padding-bottom':'20px'})
+    ack_image = Fastify(html.Img(width='100%'), 'src')
+    fast_upload = Fastify(dcc.Upload(children=["Click to upload"], style={'borderStyle': 'dashed', 'padding-bottom':'20px'}), 'contents', ack=ack_image)
 
     app = FastDash(callback_fn=callback_fn, 
                         inputs=[fast_upload, Slider],
