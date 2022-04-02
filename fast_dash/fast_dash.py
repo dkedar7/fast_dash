@@ -88,8 +88,8 @@ class FastDash(object):
         self.reset_clicks = 0
         self.app_initialized = False
 
-    def run(self, port=None):
-        self.app.server.run(port=port)
+    def run(self, **args):
+        self.app.server.run(**args)
 
     def set_layout(self):
 
