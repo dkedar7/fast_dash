@@ -31,11 +31,7 @@ class FastDash(object):
 
         self.callback_fn = callback_fn
         self.inputs = inputs
-        self.outputs = outputs
-
-        if outputs is None:
-            self.outputs = [Text()]
-
+        self.outputs = [Text] if outputs is None else outputs
         self.title = 'Prototype' if title is None else title
         self.title_image_path = title_image_path
         self.subtext = subheader
