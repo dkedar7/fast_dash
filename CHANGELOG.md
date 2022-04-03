@@ -1,9 +1,7 @@
-# Release 0.1.4
+# Release 0.1.5
 
-## 0.1.4 (2022-03-21)
+## 0.1.5 (2022-04-02)
 
-* New component property allows setting "acknowledgment" component!
-* Default app title is 'Prototype'.
-* New UploadImage component uses another html.Img component as acknowledgment.
-* Added a new Neural Style Transfer example.
-* Added examples to pytest cases.
+* Add examples: Object detection, molecule 3D viewer and UI updates to the existing examples.
+* Easier fastification: Fastify now allows using a complete Dash component as the first argument.
+* Tests: Increase pytest coverage to 95%.
