@@ -687,44 +687,24 @@
 <h3 class="doc doc-heading" id="fast_dash.Components.Fastify">
 
         <code class="highlight language-python">
-Fastify<span class="p">(</span><span class="n">DashComponent</span><span class="p">,</span> <span class="n">modify_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>        </code>
+Fastify<span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">assign_prop</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>        </code>
 
 
       </h3>
 <div class="doc doc-contents ">
-<p>Component utility to convert any Dash component into a FastComponent.</p>
+<p>Modify a Dash component to a FastComponent</p>
 <details class="quote">
 <summary>Source code in <code>fast_dash/Components.py</code></summary>
 <div class="highlight">
-<pre><span></span><code><span class="k">def</span> <span class="nf">Fastify</span><span class="p">(</span>
-    <span class="n">DashComponent</span><span class="p">,</span> <span class="n">modify_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-<span class="p">):</span>
-    <span class="sd">"""</span>
-<span class="sd">    Component utility to convert any Dash component into a FastComponent.</span>
-<span class="sd">    """</span>
+<pre><span></span><code><span class="k">def</span> <span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">assign_prop</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+    <span class="s2">"Modify a Dash component to a FastComponent"</span>
 
-    <span class="k">class</span> <span class="nc">FastComponent</span><span class="p">(</span><span class="n">DashComponent</span><span class="p">):</span>
-        <span class="sd">"""</span>
-<span class="sd">        Extends component</span>
-<span class="sd">        """</span>
+    <span class="n">component</span><span class="o">.</span><span class="n">assign_prop</span> <span class="o">=</span> <span class="n">assign_prop</span>
+    <span class="n">component</span><span class="o">.</span><span class="n">ack</span> <span class="o">=</span> <span class="n">ack</span>
+    <span class="n">component</span><span class="o">.</span><span class="n">label_</span> <span class="o">=</span> <span class="n">label_</span>
+    <span class="n">component</span><span class="o">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="n">placeholder</span>
 
-        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
-            <span class="bp">self</span><span class="p">,</span>
-            <span class="n">modify_property</span><span class="o">=</span><span class="n">modify_property</span><span class="p">,</span>
-            <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span>
-            <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span>
-            <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">kwargs</span>
-        <span class="p">):</span>
-            <span class="nb">super</span><span class="p">()</span><span class="o">.</span><span class="fm">__init__</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">modify_property</span> <span class="o">=</span> <span class="n">modify_property</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">ack</span> <span class="o">=</span> <span class="n">ack</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="n">placeholder</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">label_</span> <span class="o">=</span> <span class="n">label_</span>
-
-    <span class="k">return</span> <span class="n">FastComponent</span><span class="p">(</span>
-        <span class="n">modify_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
-    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">component</span>
 </code></pre>
 </div>
 </details>
