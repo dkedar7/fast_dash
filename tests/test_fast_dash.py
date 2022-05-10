@@ -26,3 +26,21 @@ def test_fdfd001_set_title(dash_duo):
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
     dash_duo.percy_snapshot("bsly001-layout")
+
+
+def test_fdfd002_live_update(dash_duo):
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="App title",
+        update_live=True,
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#app_title", "App title", timeout=4)
+
+    assert dash_duo.find_element("#app_title").text == "App title"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+    dash_duo.percy_snapshot("bsly001-layout")
