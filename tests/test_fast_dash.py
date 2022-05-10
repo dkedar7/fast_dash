@@ -30,7 +30,6 @@ def test_fdfd001_set_title(dash_duo):
     assert dash_duo.find_element("#app_title").text == "App title"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
-
 def test_fdfd002_set_default_title(dash_duo):
     "Test default title"
     app = FastDash(
@@ -107,16 +106,20 @@ def test_fdfd005_multiple_outputs(dash_duo):
     dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
     dash_duo.wait_for_text_to_equal("#output-2", "", timeout=4)
 
+    
+def test_fdfd006_live_update(dash_duo):
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="App title",
+        update_live=True,
+    ).app
 
-# def test_fdfd004_run_app(dash_duo):
-#     app = FastDash(
-#         callback_fn=simple_text_to_text_function,
-#         inputs=Text
-#     )
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#app_title", "App title", timeout=4)
 
-#     dash_duo.start_server(app.app)
-#     dash_duo.wait_for_text_to_equal("#app_title", "Prototype", timeout=4)
+    assert dash_duo.find_element("#app_title").text == "App title"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
 
-#     app.run()
-
-#     assert dash_duo.get_logs() == [], "browser console should contain no error"
+    dash_duo.percy_snapshot("bsly001-layout")

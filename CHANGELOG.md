@@ -1,7 +1,8 @@
-# Release 0.1.5
+# Release 0.1.6
 
-## 0.1.5 (2022-04-02)
+## 0.1.6 (2022-05-09)
 
-* Add examples: Object detection, molecule 3D viewer and UI updates to the existing examples.
-* Easier fastification: Fastify now allows using a complete Dash component as the first argument.
-* Tests: Increase pytest coverage to 95%.
+* Navbar and footer are not thinner than before, which makes them less distracting ;)
+* They no longer stick to the top and bottom respectively. Scrolling on the page makes the navbar dissappear!
+* Update live: New live update option! Setting the argument `update_live=True` removes `Submit` and `Clear` buttons. Any action updates the app right away.
+* New spinners: Finally, Fast Dash now has loading spinners to indicate loading outputs. This comes in handy when executing long running scripts.

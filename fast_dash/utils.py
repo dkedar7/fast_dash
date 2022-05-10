@@ -99,7 +99,7 @@ def assign_ids_to_inputs(inputs, callback_fn):
     return inputs_with_ids
 
 
-def make_input_groups(inputs_with_ids):
+def make_input_groups(inputs_with_ids, update_live):
 
     input_groups = []
 
@@ -119,8 +119,7 @@ def make_input_groups(inputs_with_ids):
 
         input_groups.append(
             dbc.Col(
-                [dbc.Label(label, align="end"), input_, ack_component],
-                align="center",
+                [dbc.Label(label, align="end"), input_, ack_component], align="center",
             )
         )
 
@@ -134,7 +133,9 @@ def make_input_groups(inputs_with_ids):
                 n_clicks=0,
             )
         ],
-        style={"padding": "2% 1% 1% 2%"},
+        style={"padding": "2% 1% 1% 2%"}
+        if update_live == False
+        else dict(display="none"),
     )
 
     input_groups.append(button_row)
@@ -159,7 +160,7 @@ def assign_ids_to_outputs(outputs):
     return outputs_with_ids
 
 
-def make_output_groups(outputs):
+def make_output_groups(outputs, update_live):
 
     output_groups = []
     output_groups.append(html.H2("Output"))
@@ -168,7 +169,13 @@ def make_output_groups(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
         label = label.replace("_", " ").upper()
         output_groups.append(
-            dbc.Col([dbc.Label(label, align="end"), output_], align="center")
+            dbc.Col(
+                [
+                    dbc.Label(label, align="end"),
+                    dbc.Spinner(children=output_, color="primary"),
+                ],
+                align="center",
+            )
         )
 
     button_row = html.Div(
@@ -181,7 +188,10 @@ def make_output_groups(outputs):
                 id="reset_inputs",
                 n_clicks=0,
             )
-        ]
+        ],
+        style={"padding": "2% 1% 1% 2%"}
+        if update_live == False
+        else dict(display="none"),
     )
 
     output_groups.append(button_row)

@@ -45,6 +45,7 @@ class DefaultLayout:
         self.layout = dbc.Container(
             [component for component in layput_components if component is not None],
             fluid=True,
+            style={"padding": "0 0 0 0"},
         )
 
     def generate_navbar_container(self):
@@ -102,10 +103,13 @@ class DefaultLayout:
             color="primary",
             dark=True,
             fluid=True,
-            fixed="top",
+            fixed=None,
+            style={"padding": "0 0 0 0"},
         )
 
-        navbar_container = dbc.Container([navbar], fluid=True)
+        navbar_container = dbc.Container(
+            [navbar], fluid=True, style={"padding": "0 0 0 0"}
+        )
 
         return navbar_container
 
@@ -117,7 +121,7 @@ class DefaultLayout:
             header_children.append(
                 dbc.Row(
                     html.H1(self.title, style={"textAlign": "center"}, id="app_title"),
-                    style={"padding": "8% 0% 2% 0%"},
+                    style={"padding": "2% 0% 2% 0%"},
                 )
             )
 
@@ -204,10 +208,13 @@ class DefaultLayout:
             color="primary",
             dark=True,
             fluid=True,
-            fixed="bottom",
+            fixed=None,
+            style={"padding": "0 0 0 0"},
         )
 
-        footer_container = dbc.Container([footer], fluid=True)
+        footer_container = dbc.Container(
+            [footer], fluid=True, style={"padding": "0 0 0 0"}
+        )
 
         return footer_container
 
@@ -274,7 +281,8 @@ Upload = Fastify(
 )
 
 acknowledge_image_component = Fastify(
-    component=html.Img(width="100%"), assign_prop="src"
+  component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+  assign_prop="src"
 )
 
 UploadImage = Fastify(
