@@ -45,7 +45,7 @@ class DefaultLayout:
         self.layout = dbc.Container(
             [component for component in layput_components if component is not None],
             fluid=True,
-            style={'padding': '0 0 0 0'}
+            style={"padding": "0 0 0 0"},
         )
 
     def generate_navbar_container(self):
@@ -104,10 +104,12 @@ class DefaultLayout:
             dark=True,
             fluid=True,
             fixed=None,
-            style={'padding': '0 0 0 0'}
+            style={"padding": "0 0 0 0"},
         )
 
-        navbar_container = dbc.Container([navbar], fluid=True, style={'padding': '0 0 0 0'})
+        navbar_container = dbc.Container(
+            [navbar], fluid=True, style={"padding": "0 0 0 0"}
+        )
 
         return navbar_container
 
@@ -207,10 +209,12 @@ class DefaultLayout:
             dark=True,
             fluid=True,
             fixed=None,
-            style={'padding': '0 0 0 0'}
+            style={"padding": "0 0 0 0"},
         )
 
-        footer_container = dbc.Container([footer], fluid=True, style={'padding': '0 0 0 0'})
+        footer_container = dbc.Container(
+            [footer], fluid=True, style={"padding": "0 0 0 0"}
+        )
 
         return footer_container
 
@@ -263,7 +267,7 @@ def Fastify(
 ###################################
 # Define default components #
 ###################################
- 
+
 ##### General components
 Text = Fastify(DashComponent=dbc.Input, modify_property="value")
 
@@ -294,7 +298,12 @@ Upload = Fastify(
     },
 )
 
-acknowledge_image_component = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
+acknowledge_image_component = Fastify(
+    DashComponent=html.Img,
+    modify_property="src",
+    width="100%",
+    style={"padding": "1% 0% 0% 0%"},
+)
 
 UploadImage = Fastify(
     DashComponent=dcc.Upload,
