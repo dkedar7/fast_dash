@@ -99,7 +99,7 @@ def assign_ids_to_inputs(inputs, callback_fn):
     return inputs_with_ids
 
 
-def make_input_groups(inputs_with_ids):
+def make_input_groups(inputs_with_ids, update_live):
 
     input_groups = []
 
@@ -133,7 +133,9 @@ def make_input_groups(inputs_with_ids):
                 n_clicks=0,
             )
         ],
-        style={"padding": "2% 1% 1% 2%"},
+        style={"padding": "2% 1% 1% 2%"}
+        if update_live == False
+        else dict(display="none"),
     )
 
     input_groups.append(button_row)
@@ -158,7 +160,7 @@ def assign_ids_to_outputs(outputs):
     return outputs_with_ids
 
 
-def make_output_groups(outputs):
+def make_output_groups(outputs, update_live):
 
     output_groups = []
     output_groups.append(html.H2("Output"))
@@ -186,7 +188,10 @@ def make_output_groups(outputs):
                 id="reset_inputs",
                 n_clicks=0,
             )
-        ]
+        ],
+        style={"padding": "2% 1% 1% 2%"}
+        if update_live == False
+        else dict(display="none"),
     )
 
     output_groups.append(button_row)

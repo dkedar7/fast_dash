@@ -27,16 +27,18 @@ class FastDash(object):
         navbar=True,
         footer=True,
         theme="ZEPHYR",
+        update_live=False,
     ):
 
         self.callback_fn = callback_fn
         self.inputs = inputs
         self.outputs = outputs
+        self.update_live = update_live
 
         if outputs is None:
             self.outputs = [Text()]
 
-        self.title = 'Prototype' if title is None else title
+        self.title = "Prototype" if title is None else title
         self.title_image_path = title_image_path
         self.subtext = subheader
         self.github_url = github_url
@@ -94,10 +96,10 @@ class FastDash(object):
     def set_layout(self):
 
         if self.inputs is not None:
-            input_groups = make_input_groups(self.inputs_with_ids)
+            input_groups = make_input_groups(self.inputs_with_ids, self.update_live)
 
         if self.outputs is not None:
-            output_groups = make_output_groups(self.outputs_with_ids)
+            output_groups = make_output_groups(self.outputs_with_ids, self.update_live)
 
         default_layout = DefaultLayout(
             inputs=input_groups,
@@ -118,8 +120,7 @@ class FastDash(object):
         @self.app.callback(
             [
                 Output(
-                    component_id=output_.id,
-                    component_property=output_.modify_property,
+                    component_id=output_.id, component_property=output_.modify_property,
                 )
                 for output_ in self.outputs_with_ids
             ]
@@ -132,8 +133,7 @@ class FastDash(object):
             ],
             [
                 Input(
-                    component_id=input_.id,
-                    component_property=input_.modify_property,
+                    component_id=input_.id, component_property=input_.modify_property,
                 )
                 for input_ in self.inputs_with_ids
             ]
@@ -151,7 +151,7 @@ class FastDash(object):
                 for mask, ack in zip(self.ack_mask, list(args[:-2]))
             ]
 
-            if submit_button > self.submit_clicks:
+            if submit_button > self.submit_clicks or (self.update_live == True and None not in args):
                 self.app_initialized = True
                 self.submit_clicks = submit_button
                 output_state = self.callback_fn(*args[:-2])
