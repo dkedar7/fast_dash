@@ -1,9 +1,8 @@
-# Release 0.1.4
+# Release 0.1.6
 
-## 0.1.4 (2022-03-21)
+## 0.1.6 (2022-05-09)
 
-* New component property allows setting "acknowledgment" component!
-* Default app title is 'Prototype'.
-* New UploadImage component uses another html.Img component as acknowledgment.
-* Added a new Neural Style Transfer example.
-* Added examples to pytest cases.
+* Navbar and footer are not thinner than before, which makes them less distracting ;)
+* They no longer stick to the top and bottom respectively. Scrolling on the page makes the navbar dissappear!
+* Update live: New live update option! Setting the argument `update_live=True` removes `Submit` and `Clear` buttons. Any action updates the app right away.
+* New spinners: Finally, Fast Dash now has loading spinners to indicate loading outputs. This comes in handy when executing long running scripts.

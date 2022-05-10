@@ -2,7 +2,7 @@
 
 ## Development Lead
 
-* Kedar Dabhadkar <kdabhadk@gmail.com>
+* Kedar Dabhadkar <kedar@fastdash.app>
 
 ## Contributors
 
