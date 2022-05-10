@@ -32,13 +32,10 @@ class FastDash(object):
 
         self.callback_fn = callback_fn
         self.inputs = inputs
-        self.outputs = outputs
+        self.outputs = [Text] if outputs is None else outputs
         self.update_live = update_live
 
-        if outputs is None:
-            self.outputs = [Text()]
-
-        self.title = "Prototype" if title is None else title
+        self.title = 'Prototype' if title is None else title
         self.title_image_path = title_image_path
         self.subtext = subheader
         self.github_url = github_url
@@ -90,8 +87,8 @@ class FastDash(object):
         self.reset_clicks = 0
         self.app_initialized = False
 
-    def run(self, port=None):
-        self.app.server.run(port=port)
+    def run(self, **args):
+        self.app.server.run(**args)
 
     def set_layout(self):
 
@@ -120,20 +117,22 @@ class FastDash(object):
         @self.app.callback(
             [
                 Output(
-                    component_id=output_.id, component_property=output_.modify_property,
+                    component_id=output_.id,
+                    component_property=output_.assign_prop
                 )
                 for output_ in self.outputs_with_ids
             ]
             + [
                 Output(
                     component_id=input_.ack.id,
-                    component_property=input_.ack.modify_property,
+                    component_property=input_.ack.assign_prop,
                 )
                 for input_ in self.inputs_with_ids
             ],
             [
                 Input(
-                    component_id=input_.id, component_property=input_.modify_property,
+                    component_id=input_.id,
+                    component_property=input_.assign_prop
                 )
                 for input_ in self.inputs_with_ids
             ]

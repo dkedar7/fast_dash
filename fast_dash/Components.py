@@ -233,35 +233,15 @@ class DefaultLayout:
         self.layout = layout
 
 
-def Fastify(
-    DashComponent, modify_property, ack=None, label_=None, placeholder=None, **kwargs
-):
-    """
-    Component utility to convert any Dash component into a FastComponent.
-    """
+def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
+    "Modify a Dash component to a FastComponent"
 
-    class FastComponent(DashComponent):
-        """
-        Extends component
-        """
+    component.assign_prop = assign_prop
+    component.ack = ack
+    component.label_ = label_
+    component.placeholder = placeholder
 
-        def __init__(
-            self,
-            modify_property=modify_property,
-            ack=ack,
-            label_=label_,
-            placeholder=placeholder,
-            **kwargs
-        ):
-            super().__init__(**kwargs)
-            self.modify_property = modify_property
-            self.ack = ack
-            self.placeholder = placeholder
-            self.label_ = label_
-
-    return FastComponent(
-        modify_property, ack=ack, label_=label_, placeholder=placeholder, **kwargs
-    )
+    return component
 
 
 ###################################
@@ -269,66 +249,68 @@ def Fastify(
 ###################################
 
 ##### General components
-Text = Fastify(DashComponent=dbc.Input, modify_property="value")
+Text = Fastify(component=dbc.Input(), assign_prop="value")
 
-TextArea = Fastify(DashComponent=dbc.Textarea, modify_property="value")
+TextArea = Fastify(component=dbc.Textarea(), assign_prop="value")
 
 Slider = Fastify(
-    DashComponent=dcc.Slider,
-    modify_property="value",
-    min=0,
-    max=20,
-    step=1,
-    value=10,
-    tooltip={"placement": "top", "always_visible": True},
+    component=dcc.Slider(
+        min=0,
+        max=20,
+        step=1,
+        value=10,
+        tooltip={"placement": "top", "always_visible": True},
+    ),
+    assign_prop="value",
 )
 
 
 ##### Input components
 Upload = Fastify(
-    DashComponent=dcc.Upload,
-    modify_property="contents",
-    children=dbc.Col(["Click to upload"]),
-    style={
-        "lineHeight": "60px",
-        "borderWidth": "1px",
-        "borderStyle": "dashed",
-        "borderRadius": "5px",
-        "textAlign": "center",
-    },
+    component=dcc.Upload(
+        children=dbc.Col(["Click to upload"]),
+        style={
+            "lineHeight": "60px",
+            "borderWidth": "1px",
+            "borderStyle": "dashed",
+            "borderRadius": "5px",
+            "textAlign": "center",
+        },
+    ),
+    assign_prop="contents",
 )
 
 acknowledge_image_component = Fastify(
-    DashComponent=html.Img,
-    modify_property="src",
-    width="100%",
-    style={"padding": "1% 0% 0% 0%"},
+  component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+  assign_prop="src"
 )
 
 UploadImage = Fastify(
-    DashComponent=dcc.Upload,
-    modify_property="contents",
+    component=dcc.Upload(
+        children=dbc.Col(["Click to upload image"]),
+        style={
+            "lineHeight": "60px",
+            "borderWidth": "1px",
+            "borderStyle": "dashed",
+            "borderRadius": "5px",
+            "textAlign": "center",
+        },
+    ),
+    assign_prop="contents",
     ack=acknowledge_image_component,
-    children=dbc.Col(["Click to upload image"]),
-    style={
-        "lineHeight": "60px",
-        "borderWidth": "1px",
-        "borderStyle": "dashed",
-        "borderRadius": "5px",
-        "textAlign": "center",
-    },
 )
 
 
 ##### Output components
-Image = Fastify(DashComponent=html.Img, modify_property="src", width="100%")
+Image = Fastify(component=html.Img(width="100%"), assign_prop="src")
 
 Graph = Fastify(
-    DashComponent=dcc.Graph,
-    modify_property="figure",
+    component=dcc.Graph(),
+    assign_prop="figure",
     placeholder=(
         go.Figure()
         .update_yaxes(visible=False, showticklabels=False)
         .update_xaxes(visible=False, showticklabels=False)
     ),
 )
+

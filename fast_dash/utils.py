@@ -109,7 +109,7 @@ def make_input_groups(inputs_with_ids, update_live):
         label = f"{input_.id}" if input_.label_ is None else input_.label_
         label = label.replace("_", " ").upper()
         ack_component = (
-            Fastify(DashComponent=dbc.Col, modify_property="children")
+            Fastify(component=dbc.Col(), assign_prop="children")
             if input_.ack is None
             else input_.ack
         )

@@ -1,0 +1,11 @@
+name: molecule-3d-env
+channels:
+  - conda-forge
+dependencies:
+  - python=3.8
+  - parmed
+  - pip:
+    - dash-bio
+    - dash-daq
+    - fast-dash
+    - gunicorn

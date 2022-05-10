@@ -1,5 +1,6 @@
 from fast_dash import FastDash, Fastify
 from fast_dash.Components import Text, Image, Upload, UploadImage, Slider, html, dcc
+from fast_dash.utils import pil_to_b64
 
 
 def example_1_simple_text_to_text():
@@ -57,8 +58,8 @@ def example_4_image_slider_to_image_text():
     def callback_fn(input_text, slider_value):
         return input_text, f"Slider value is {slider_value}"
 
-    ack_image = Fastify(html.Img, 'src', width='100%')
-    fast_upload = Fastify(dcc.Upload, 'contents', ack=ack_image, children=["Click to upload"], style={'borderStyle': 'dashed', 'padding-bottom':'20px'})
+    ack_image = Fastify(html.Img(width='100%'), 'src')
+    fast_upload = Fastify(dcc.Upload(children=["Click to upload"], style={'borderStyle': 'dashed', 'padding-bottom':'20px'}), 'contents', ack=ack_image)
 
     app = FastDash(callback_fn=callback_fn, 
                         inputs=[fast_upload, Slider],
@@ -73,7 +74,14 @@ def example_5_uploadimage_to_image():
     "Fast Dash example 5. Input is UploadImage. Output is Image."
 
     def image_to_image(image):
-        return image
+
+        from PIL import Image
+        import io
+        import base64
+        _, image_contents = image.split(',')
+        processed_image = Image.open(io.BytesIO(base64.b64decode(image_contents.encode())))
+
+        return pil_to_b64(processed_image)
 
     app = FastDash(callback_fn=image_to_image, 
                 inputs=UploadImage, 
