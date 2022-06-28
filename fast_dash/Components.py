@@ -1,6 +1,10 @@
+from collections.abc import Iterable
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from dash import dcc, html
+import inspect
+import numbers
+import warnings
 
 
 class DefaultLayout:
@@ -212,8 +216,12 @@ class DefaultLayout:
             style={"padding": "0 0 0 0"},
         )
 
+        footer = html.A(
+            "Made with Fast Dash", href="https://fastdash.app/", target="_blank"
+        )
+
         footer_container = dbc.Container(
-            [footer], fluid=True, style={"padding": "0 0 0 0"}
+            [footer], fluid=True, style={"padding": "0 0 0 2%"}
         )
 
         return footer_container
@@ -242,6 +250,50 @@ def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
     component.placeholder = placeholder
 
     return component
+
+
+def _infer_components(func, is_input=True):
+    signature = inspect.signature(func)
+    components = []
+    
+    if is_input == True:
+        parameters = signature.parameters.items()
+    else:
+        parameters = enumerate(signature.return_annotation if isinstance(signature.return_annotation, Iterable) else [signature.return_annotation])
+
+    for _, value in parameters:
+        hint = value.annotation if is_input == True else value
+
+        if hasattr(hint, 'assign_prop'): # Indicates that it is a FastComponent
+            components.append(hint)
+
+        elif isinstance(hint, range):
+            slider_component = Fastify(dcc.Slider(min=hint.start, max=hint.stop, step=hint.step), assign_prop='value')
+            components.append(slider_component)
+
+        elif isinstance(hint, Iterable):
+            slider_component = Fastify(dcc.Dropdown(hint), assign_prop='value')
+            components.append(slider_component)
+            
+        elif hint in [int, float, complex]:
+            number_input = Fastify(dbc.Input(type='number'), assign_prop='value')
+            components.append(number_input)
+
+        elif hint == str: # String indicates Text
+            components.append(Text)
+            
+        elif hint == bool: # String indicates Text
+            switch = Fastify(dbc.Switch(), assign_prop='value')
+            components.append(switch)
+            
+        elif hint == inspect._empty: # String indicates Text
+            warnings.warn("Unspecified type hint. Assuming Text. This could lead to unexpected results.")
+            components.append(Text)
+
+        else:
+            raise Exception(f"Unsupported type {hint}. Explicitly specify a FastComponent or changing the data type.")            
+    
+    return components
 
 
 ###################################
@@ -281,8 +333,8 @@ Upload = Fastify(
 )
 
 acknowledge_image_component = Fastify(
-  component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-  assign_prop="src"
+    component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+    assign_prop="src"
 )
 
 UploadImage = Fastify(
