@@ -1,6 +1,6 @@
 from fast_dash import FastDash, Fastify
 from fast_dash.Components import Text, Image, Upload, UploadImage, Slider, html, dcc
-from fast_dash.utils import pil_to_b64
+from fast_dash.utils import _pil_to_b64
 
 
 def example_1_simple_text_to_text():
@@ -81,7 +81,7 @@ def example_5_uploadimage_to_image():
         _, image_contents = image.split(',')
         processed_image = Image.open(io.BytesIO(base64.b64decode(image_contents.encode())))
 
-        return pil_to_b64(processed_image)
+        return _pil_to_b64(processed_image)
 
     app = FastDash(callback_fn=image_to_image, 
                 inputs=UploadImage, 
