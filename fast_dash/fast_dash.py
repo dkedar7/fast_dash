@@ -19,7 +19,7 @@ from .utils import (
 class FastDash:
     def __init__(
         self,
-        callback_fn=None,
+        callback_fn,
         inputs=None,
         outputs=None,
         title=None,
@@ -47,7 +47,7 @@ class FastDash:
 
         self.title = title
         self.title_image_path = title_image_path
-        self.subtext = subheader
+        self.subtext = subheader if subheader is not None else callback_fn.__doc__
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
