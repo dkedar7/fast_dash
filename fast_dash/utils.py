@@ -9,7 +9,16 @@ from io import BytesIO
 import dash_bootstrap_components as dbc
 from dash import html
 
-from .Components import Fastify
+
+def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
+    "Modify a Dash component to a FastComponent"
+
+    component.assign_prop = assign_prop
+    component.ack = ack
+    component.label_ = label_
+    component.placeholder = placeholder
+
+    return component
 
 
 # Add themes mapper
