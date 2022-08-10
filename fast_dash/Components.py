@@ -1,10 +1,16 @@
-from collections.abc import Iterable
+from collections.abc import Sequence, Iterable
 import dash_bootstrap_components as dbc
 import plotly.graph_objs as go
 from dash import dcc, html
 import inspect
 import numbers
 import warnings
+
+import PIL
+from PIL import ImageFile
+import datetime
+
+from .utils import _pil_to_b64, Fastify
 
 
 class DefaultLayout:
@@ -241,13 +247,225 @@ class DefaultLayout:
         self.layout = layout
 
 
-def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
-    "Modify a Dash component to a FastComponent"
+_map_types_to_readable_names = {
+    str: "Text",
+    float: "Numeric",
+    int: "Numeric",
+    complex: "Numeric",
+    list: "Sequence",
+    set: "Sequence",
+    range: "Sequence",
+    tuple: "Sequence",
+    PIL.ImageFile.ImageFile: "Image",
+    dict: "Dictionary",
+    bool: "Boolean",
+    datetime.date: "Date",
+    datetime.datetime: "Timestamp",
+}
 
-    component.assign_prop = assign_prop
-    component.ack = ack
-    component.label_ = label_
-    component.placeholder = placeholder
+
+def _get_component_from_input(hint, default_value=None):
+
+    if hasattr(hint, "assign_prop"):
+        return hint
+
+    # If hint is not type, assume that the user specified an object. Change it to type
+    if not isinstance(hint, type):
+        hint = type(hint)
+
+    _hint_type = _map_types_to_readable_names.get(hint)
+    _default_value_type = _map_types_to_readable_names.get(type(default_value))
+
+    # If the hint is a PIL Image
+    if issubclass(hint, PIL.ImageFile.ImageFile):
+        _hint_type = "Image"
+
+    # If the default is a PIL Image
+    if isinstance(default_value, PIL.ImageFile.ImageFile):
+        _default_value_type = "Image"
+
+    if _hint_type == "Text":
+        if _default_value_type == "Text":
+            component = Fastify(dbc.Input(value=default_value), "value")
+
+        elif _default_value_type == "Numeric":
+            component = Fastify(dbc.Input(value=default_value, type="number"), "value")
+
+        elif _default_value_type == "Sequence":
+            component = Fastify(dcc.Dropdown(options=default_value), "options")
+
+        elif _default_value_type == "Dictionary":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Boolean":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Date":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Timestamp":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        else:
+            component = Text
+
+    elif _hint_type == "Numeric":
+        if _default_value_type == "Text":
+            component = Fastify(
+                dbc.Input(value=hint(default_value), type="number"), "value"
+            )
+
+        elif _default_value_type == "Numeric":
+            Fastify(dbc.Input(value=default_value, type="number"), "value")
+
+        elif _default_value_type == "Sequence":
+            if isinstance(default_value, range):
+                start, step, stop = (
+                    default_value.start,
+                    default_value.step,
+                    default_value.stop,
+                )
+                component = Fastify(
+                    dcc.Slider(
+                        start,
+                        stop,
+                        step,
+                        marks=None,
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                    "value",
+                )
+
+            else:
+                default_value = list(map(hint, default_value))
+                start, stop = min(default_value), max(default_value)
+                step = (stop - start) / len(default_value)
+
+            component = Fastify(
+                dcc.Slider(
+                    start,
+                    stop,
+                    step,
+                    marks=None,
+                    tooltip={"placement": "bottom", "always_visible": True},
+                ),
+                "value",
+            )
+
+        else:
+            component = Fastify(dbc.Input(type="number"), "value")
+
+    elif _hint_type == "Sequence":
+        if _default_value_type == "Text":
+            component = Fastify(
+                dbc.Input(value=[value.strip() for value in default_value.split(",")]),
+                "value",
+            )
+
+        elif _default_value_type == "Sequence":
+            component = Fastify(
+                dcc.Dropdown(default_value, multi=True), "value"
+            )
+
+        elif _default_value_type == "Dictionary":
+            component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+        else:
+            component = Fastify(dcc.Dropdown(multi=True), "value")
+
+    elif _hint_type == "Dictionary":
+        component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+    elif _hint_type == "Boolean":
+        if _default_value_type == "Boolean":
+            component = Fastify(dbc.Checkbox(value=default_value), "value")
+
+        else:
+            component = Fastify(dbc.Checkbox(), "value")
+
+    elif _hint_type == "Image":
+        if _default_value_type == "Image":
+            acknowledge_image_component = Fastify(
+                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                assign_prop="src",
+            )
+            component = Fastify(
+                component=dcc.Upload(
+                    children=dbc.Col(["Click to upload image"]),
+                    style={
+                        "lineHeight": "60px",
+                        "borderWidth": "1px",
+                        "borderStyle": "dashed",
+                        "borderRadius": "5px",
+                        "textAlign": "center",
+                    },
+                    contents=_pil_to_b64(default_value),
+                ),
+                assign_prop="contents",
+                ack=acknowledge_image_component,
+            )
+
+        else:
+            acknowledge_image_component = Fastify(
+                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                assign_prop="src",
+            )
+            component = Fastify(
+                component=dcc.Upload(
+                    children=dbc.Col(["Click to upload image"]),
+                    style={
+                        "lineHeight": "60px",
+                        "borderWidth": "1px",
+                        "borderStyle": "dashed",
+                        "borderRadius": "5px",
+                        "textAlign": "center",
+                    },
+                ),
+                assign_prop="contents",
+                ack=acknowledge_image_component,
+            )
+
+    elif _hint_type == "Date":
+        component = Fastify(
+            dcc.DatePickerSingle(
+                display_format="MMM DD, YYYY",
+                date=datetime.date.today(),
+                style={"width": "100%"},
+            ),
+            "date",
+        )
+
+    elif _hint_type == "Timestamp":
+        component = Fastify(
+            dcc.DatePickerSingle(
+                display_format="MMM DD, YYYY",
+                date=datetime.date.today(),
+                style={"width": "100%"},
+            ),
+            "date",
+        )
+
+    else:
+        warnings.warn("Unknown or unsupported hint. Assuming text.")
+        component = Text
+
+    return component
+
+
+def _get_output_components(_hint_type):
+
+    if hasattr(_hint_type, "assign_prop"):
+        return _hint_type
+
+    # If hint is not type, assume that the user specified an object. Change it to type
+    if not isinstance(_hint_type, type):
+        _hint_type = type(_hint_type)
+
+    if issubclass(_hint_type, PIL.ImageFile.ImageFile):
+        component = Image
+
+    else:
+        component = Fastify(html.H1(), "children")
 
     return component
 
@@ -255,44 +473,26 @@ def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
 def _infer_components(func, is_input=True):
     signature = inspect.signature(func)
     components = []
-    
+
     if is_input == True:
         parameters = signature.parameters.items()
+        for _, value in parameters:
+            hint = value.annotation
+            default = None if value.default == inspect._empty else value.default
+
+            component = _get_component_from_input(hint, default)
+            components.append(component)
+
     else:
-        parameters = enumerate(signature.return_annotation if isinstance(signature.return_annotation, Iterable) else [signature.return_annotation])
+        parameters = enumerate(
+            signature.return_annotation
+            if isinstance(signature.return_annotation, tuple)
+            else [signature.return_annotation]
+        )
 
-    for _, value in parameters:
-        hint = value.annotation if is_input == True else value
+        for _, hint in parameters:
+            components.append(_get_output_components(hint))
 
-        if hasattr(hint, 'assign_prop'): # Indicates that it is a FastComponent
-            components.append(hint)
-
-        elif isinstance(hint, range):
-            slider_component = Fastify(dcc.Slider(min=hint.start, max=hint.stop, step=hint.step), assign_prop='value')
-            components.append(slider_component)
-
-        elif isinstance(hint, Iterable):
-            slider_component = Fastify(dcc.Dropdown(hint), assign_prop='value')
-            components.append(slider_component)
-            
-        elif hint in [int, float, complex]:
-            number_input = Fastify(dbc.Input(type='number'), assign_prop='value')
-            components.append(number_input)
-
-        elif hint == str: # String indicates Text
-            components.append(Text)
-            
-        elif hint == bool: # String indicates Text
-            switch = Fastify(dbc.Switch(), assign_prop='value')
-            components.append(switch)
-            
-        elif hint == inspect._empty: # String indicates Text
-            warnings.warn("Unspecified type hint. Assuming Text. This could lead to unexpected results.")
-            components.append(Text)
-
-        else:
-            raise Exception(f"Unsupported type {hint}. Explicitly specify a FastComponent or changing the data type.")            
-    
     return components
 
 
@@ -334,7 +534,7 @@ Upload = Fastify(
 
 acknowledge_image_component = Fastify(
     component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-    assign_prop="src"
+    assign_prop="src",
 )
 
 UploadImage = Fastify(
