@@ -5,7 +5,6 @@ __email__ = "kedar@fastdash.app"
 __version__ = "0.1.6"
 
 from fast_dash.Components import (
-    Fastify,
     Text,
     TextArea,
     Slider,
@@ -19,6 +18,7 @@ from fast_dash.Components import (
     html
 )
 from fast_dash.fast_dash import FastDash, fastdash
+from fast_dash.utils import Fastify
 
 __all__ = [
     "FastDash",
