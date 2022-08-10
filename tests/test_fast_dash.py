@@ -39,9 +39,9 @@ def test_fdfd002_set_default_title(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Prototype", timeout=4)
+    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
 
-    assert dash_duo.find_element("#app_title").text == "Prototype"
+    assert dash_duo.find_element("#app_title").text == "Simple Text To Text Function"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
 
@@ -53,7 +53,7 @@ def test_fdfd003_output_is_none(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Prototype", timeout=4)
+    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
 
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
@@ -66,7 +66,7 @@ def test_fdfd004_click_submit(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Prototype", timeout=4)
+    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
@@ -90,7 +90,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Prototype", timeout=4)
+    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Multiple Text Function", timeout=4)
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
