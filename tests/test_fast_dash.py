@@ -5,9 +5,12 @@
 from fast_dash import FastDash
 from fast_dash.Components import Text
 
+import time
+
 
 ## Define callback functions
 def simple_text_to_text_function(input_text):
+    "Converts text to text"
     return input_text
 
 
@@ -108,6 +111,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
 
     
 def test_fdfd006_live_update(dash_duo):
+    "Test live update functionality"
     app = FastDash(
         callback_fn=simple_text_to_text_function,
         inputs=Text,
@@ -122,4 +126,55 @@ def test_fdfd006_live_update(dash_duo):
     assert dash_duo.find_element("#app_title").text == "App title"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
-    dash_duo.percy_snapshot("bsly001-layout")
+    dash_duo.percy_snapshot("fdfd006-layout")
+
+
+def test_fdfd007_subheader_docstring(dash_duo):
+    "Test if subheader is function doc string if set to None"
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="App title",
+        update_live=True,
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#app_subheader137", "Converts text to text", timeout=4)
+
+    assert dash_duo.find_element("#app_subheader137").text == "Converts text to text"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+    dash_duo.percy_snapshot("fdfd007-layout")
+
+
+def test_fdfd008_minimal_mode(dash_duo):
+    "Test Fast Dash's minimal mode"
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        minimal=True,
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(4)
+
+    assert dash_duo.find_element("#app_title").text == ""
+    assert dash_duo.find_element("#app_subheader137").text == ""
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+    dash_duo.percy_snapshot("fdfd007-layout")
+
+def test_fdfd009_jupyter_dash(dash_duo):
+    "Test Fast Dash's mode argument"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        mode='inline'
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(4)
