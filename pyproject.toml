@@ -27,10 +27,10 @@ packages = [
 python = ">=3.7,<4.0"
 
 Flask = "^2.0.2"
-dash = {extras = ["testing"], version = "^2.2.0"}
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
 Pillow = "^9.2.0"
+dash = "^2.6.1"
 
 [tool.poetry.extras]
 test = [
@@ -63,7 +63,6 @@ black = "^22.6.0"
 isort = "^5.10.1"
 flake8-docstrings = "^1.6.0"
 pytest-cov = "^3.0.0"
-selenium = "^4.4.0"
 tox = "^3.25.1"
 pre-commit = "^2.20.0"
 virtualenv = "^20.16.3"
@@ -77,6 +76,7 @@ mkdocs-material = "^8.3.9"
 mkdocstrings = "^0.19.0"
 mkdocs-autorefs = "^0.4.1"
 jupyter-dash = "^0.4.2"
+dash = {extras = ["testing"], version = "^2.6.1"}
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
