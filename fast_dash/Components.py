@@ -149,7 +149,7 @@ class DefaultLayout:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
-                        html.H4(html.I(self.subtext), style={"textAlign": "center"}),
+                        html.H4(html.I(self.subtext), id="app_subheader137", style={"textAlign": "center"}),
                         style={"padding": "2% 0% 2% 0%"},
                     )
                 )
@@ -265,7 +265,21 @@ _map_types_to_readable_names = {
 
 
 def _get_component_from_input(hint, default_value=None):
+    """
+    Get FastComponent to represent the given input.
 
+    This implementation returns the FastComponent associated with the specific input
+    from the hint (type) of the input, type of the default value and the default value itself.
+
+    Args:
+        hint (FastComponent or Python data type): Either the input component or data type of the input.
+        default_value (any, optional): Default value of the input component. Defaults to None.
+
+    Returns:
+        FastComponent: Component that can be used to represent the given input.
+    """
+
+    # If hint has the attribute "assign_prop", it indicates that hint is a FastComponent, return it
     if hasattr(hint, "assign_prop"):
         return hint
 
@@ -316,7 +330,7 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         elif _default_value_type == "Numeric":
-            Fastify(dbc.Input(value=default_value, type="number"), "value")
+            component = Fastify(dbc.Input(value=default_value, type="number"), "value")
 
         elif _default_value_type == "Sequence":
             if isinstance(default_value, range):
@@ -369,9 +383,6 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Dictionary":
             component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
-
-        else:
-            component = Fastify(dcc.Dropdown(multi=True), "value")
 
     elif _hint_type == "Dictionary":
         component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
@@ -426,28 +437,108 @@ def _get_component_from_input(hint, default_value=None):
             )
 
     elif _hint_type == "Date":
-        component = Fastify(
-            dcc.DatePickerSingle(
-                display_format="MMM DD, YYYY",
-                date=datetime.date.today(),
-                style={"width": "100%"},
-            ),
-            "date",
-        )
+        if _default_value_type == "Date":
+            component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=default_value,
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
 
-    elif _hint_type == "Timestamp":
-        component = Fastify(
-            dcc.DatePickerSingle(
-                display_format="MMM DD, YYYY",
-                date=datetime.date.today(),
-                style={"width": "100%"},
-            ),
-            "date",
-        )
+        else:
+            component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=datetime.date.today(),
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
 
     else:
-        warnings.warn("Unknown or unsupported hint. Assuming text.")
-        component = Text
+        if _default_value_type is not None:
+            if _default_value_type == "Text":
+                component = Fastify(dbc.Input(value=default_value), "value")
+
+            elif _default_value_type == "Numeric":
+                component = Fastify(dbc.Input(value=default_value, type="number"), "value")
+
+            elif _default_value_type == "Sequence":
+                if isinstance(default_value, range):
+                    start, step, stop = (
+                        default_value.start,
+                        default_value.step,
+                        default_value.stop,
+                    )
+                    component = Fastify(
+                        dcc.Slider(
+                            start,
+                            stop,
+                            step,
+                            marks=None,
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                        "value",
+                    )
+
+                else:
+                    component = Fastify(dcc.Dropdown(options=default_value), "options")
+
+            elif _default_value_type == "Dictionary":
+                component = Fastify(dcc.Dropdown(options=default_value), "value")
+
+            elif _default_value_type == "Boolean":
+                component = Fastify(dbc.Checkbox(value=default_value), "value")
+
+            elif _default_value_type == "Date":
+                component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=default_value,
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
+
+            elif _default_value_type == "Timestamp":
+                component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=default_value.date(),
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
+
+            elif _default_value_type == "Image":
+                acknowledge_image_component = Fastify(
+                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                assign_prop="src")
+                component = Fastify(
+                    component=dcc.Upload(
+                        children=dbc.Col(["Click to upload image"]),
+                        style={
+                            "lineHeight": "60px",
+                            "borderWidth": "1px",
+                            "borderStyle": "dashed",
+                            "borderRadius": "5px",
+                            "textAlign": "center",
+                        },
+                        contents=_pil_to_b64(default_value),
+                    ),
+                    assign_prop="contents",
+                    ack=acknowledge_image_component,
+                )
+
+            else:
+                warnings.warn("Unknown or unsupported hint. Assuming text.")
+                component = Text
+
+        else:            
+            warnings.warn("Unknown or unsupported hint. Assuming text.")
+            component = Text
 
     return component
 
