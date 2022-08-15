@@ -7,6 +7,9 @@ from fast_dash.Components import Text
 
 import time
 
+import pytest
+from selenium.common.exceptions import NoSuchElementException
+
 
 ## Define callback functions
 def simple_text_to_text_function(input_text):
@@ -28,9 +31,9 @@ def test_fdfd001_set_title(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "App title", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
-    assert dash_duo.find_element("#app_title").text == "App title"
+    assert dash_duo.find_element("#title8888928").text == "App title"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
 def test_fdfd002_set_default_title(dash_duo):
@@ -42,9 +45,9 @@ def test_fdfd002_set_default_title(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
 
-    assert dash_duo.find_element("#app_title").text == "Simple Text To Text Function"
+    assert dash_duo.find_element("#title8888928").text == "Simple Text To Text Function"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
 
@@ -56,7 +59,7 @@ def test_fdfd003_output_is_none(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
 
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
@@ -69,7 +72,7 @@ def test_fdfd004_click_submit(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
@@ -93,7 +96,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Text To Multiple Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Multiple Text Function", timeout=4)
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
@@ -121,9 +124,9 @@ def test_fdfd006_live_update(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_title", "App title", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
-    assert dash_duo.find_element("#app_title").text == "App title"
+    assert dash_duo.find_element("#title8888928").text == "App title"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
     dash_duo.percy_snapshot("fdfd006-layout")
@@ -140,9 +143,9 @@ def test_fdfd007_subheader_docstring(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#app_subheader137", "Converts text to text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
-    assert dash_duo.find_element("#app_subheader137").text == "Converts text to text"
+    assert dash_duo.find_element("#subheader6904007").text == "Converts text to text"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
     dash_duo.percy_snapshot("fdfd007-layout")
@@ -160,11 +163,24 @@ def test_fdfd008_minimal_mode(dash_duo):
     dash_duo.start_server(app)
     time.sleep(4)
 
-    assert dash_duo.find_element("#app_title").text == ""
-    assert dash_duo.find_element("#app_subheader137").text == ""
+    with pytest.raises(NoSuchElementException):
+        dash_duo.find_element("title8888928")
+
+    with pytest.raises(NoSuchElementException):
+        dash_duo.find_element("subheader6904007")
+
+    with pytest.raises(NoSuchElementException):
+        dash_duo.find_element("navbar3260780")
+
+    with pytest.raises(NoSuchElementException):
+        dash_duo.find_element("header1162572")
+
+    with pytest.raises(NoSuchElementException):
+        dash_duo.find_element("footer5265971")
+
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
-    dash_duo.percy_snapshot("fdfd007-layout")
+    dash_duo.percy_snapshot("fdfd008-layout")
 
 def test_fdfd009_jupyter_dash(dash_duo):
     "Test Fast Dash's mode argument"

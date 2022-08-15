@@ -319,7 +319,7 @@ def test_fdco009_input_hint_is_image(dash_duo):
 
     app = FastDash(callback_fn=simple_img)
     dash_duo.start_server(app.app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Img", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=4)
     time.sleep(4)
 
     input_component = app.inputs_with_ids[0]
@@ -338,7 +338,7 @@ def test_fdco010_input_hint_is_image_no_default(dash_duo):
 
     app = FastDash(callback_fn=simple_img)
     dash_duo.start_server(app.app)
-    dash_duo.wait_for_text_to_equal("#app_title", "Simple Img", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=4)
     time.sleep(4)
 
     input_component = app.inputs_with_ids[0]

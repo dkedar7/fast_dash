@@ -2,7 +2,7 @@ import dash
 from dash.dependencies import Input, Output
 import flask
 import functools
-import inspect
+import logging
 import re
 import warnings
 
@@ -34,6 +34,8 @@ class FastDash:
         update_live=False,
         mode=None,
         minimal=False,
+        disable_logs=False,
+        **kwargs
     ):
 
         self.callback_fn = callback_fn
@@ -41,6 +43,16 @@ class FastDash:
         self.outputs = _infer_components(callback_fn, is_input=False) if outputs is None else outputs
         self.update_live = update_live
         self.mode = mode
+        self.disable_logs = disable_logs
+        self.kwargs = kwargs
+
+        if self.disable_logs == True:
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.ERROR)
+
+        else:
+            log = logging.getLogger('werkzeug')
+            log.setLevel(logging.DEBUG)
 
         if title is None:
             title = re.sub('[^0-9a-zA-Z]+', ' ', callback_fn.__name__).title()
@@ -53,14 +65,7 @@ class FastDash:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
-
-        # If minimal layout is requested, disable all additional layout options
-        if minimal is True:
-            self.title = ''
-            self.title_image_path = None
-            self.subtext = ''
-            self.navbar = False
-            self.footer = False
+        self.minimal = minimal
 
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
@@ -90,7 +95,7 @@ class FastDash:
             except ImportError as e:
                 self.mode = None
                 warnings.warn(str(e))
-                warning.warn('Ignoring mode argument')
+                warnings.warn('Ignoring mode argument')
 
         self.app = source(
             __name__,
@@ -121,11 +126,11 @@ class FastDash:
         self.server = self.app.server
 
 
-    def run(self, **args):
-        self.server.run(**args) if self.mode is None else self.app.run_server(mode=self.mode, **args)
+    def run(self, **kwargs):
+        self.server.run(**kwargs) if self.mode is None else self.app.run_server(mode=self.mode, **kwargs)
 
-    def run_server(self, **args):
-        self.app.run_server(**args) if self.mode is None else self.app.run_server(mode=self.mode, **args)
+    def run_server(self, **kwargs):
+        self.app.run_server(**kwargs) if self.mode is None else self.app.run_server(mode=self.mode, **kwargs)
 
     def set_layout(self):
 
@@ -146,6 +151,7 @@ class FastDash:
             twitter_url=self.twitter_url,
             navbar=self.navbar,
             footer=self.footer,
+            minimal=self.minimal
         )
 
         self.app.layout = default_layout.layout
@@ -222,7 +228,9 @@ def fastdash(_callback_fn=None,
             theme="JOURNAL",
             update_live=False,
             mode=None,
-            minimal=False):
+            minimal=False,
+            disable_logs=False,
+            **run_kwargs):
     """
     Decorator for the Fast Dash class. Can decorate any Python function.
     
@@ -236,9 +244,9 @@ def fastdash(_callback_fn=None,
         "Decorator for callback_fn"
 
         @functools.wraps(callback_fn)
-        def wrapper_fastdash(**args):
-            app = FastDash(callback_fn=callback_fn, **args)
-            app.run()
+        def wrapper_fastdash(**kwargs):
+            app = FastDash(callback_fn=callback_fn, **kwargs)
+            app.run(**run_kwargs)
             return callback_fn
 
         return wrapper_fastdash(inputs=inputs,
@@ -254,7 +262,9 @@ def fastdash(_callback_fn=None,
                             theme=theme,
                             update_live=update_live,
                             mode=mode,
-                            minimal=minimal)
+                            minimal=minimal,
+                            disable_logs=disable_logs,
+                            **run_kwargs)
 
     # If the decorator is called with arguments
     if _callback_fn is None:
