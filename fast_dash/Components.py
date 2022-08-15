@@ -26,6 +26,7 @@ class DefaultLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        minimal=False
     ):
 
         self.inputs = inputs
@@ -38,6 +39,7 @@ class DefaultLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.minimal = minimal
 
         # Bring all containers together
         self.navbar_container = self.generate_navbar_container()
@@ -45,7 +47,7 @@ class DefaultLayout:
         self.io_container = self.generate_io_container()
         self.footer_container = self.generate_footer_container()
 
-        layput_components = [
+        layout_components = [
             self.navbar_container,
             self.header_container,
             self.io_container,
@@ -53,7 +55,7 @@ class DefaultLayout:
         ]
 
         self.layout = dbc.Container(
-            [component for component in layput_components if component is not None],
+            [component for component in layout_components if component is not None] if minimal == False else [self.io_container],
             fluid=True,
             style={"padding": "0 0 0 0"},
         )
@@ -118,7 +120,7 @@ class DefaultLayout:
         )
 
         navbar_container = dbc.Container(
-            [navbar], fluid=True, style={"padding": "0 0 0 0"}
+            [navbar], fluid=True, style={"padding": "0 0 0 0"}, id="navbar3260780"
         )
 
         return navbar_container
@@ -130,7 +132,7 @@ class DefaultLayout:
         if self.title is not None:
             header_children.append(
                 dbc.Row(
-                    html.H1(self.title, style={"textAlign": "center"}, id="app_title"),
+                    html.H1(self.title, style={"textAlign": "center"}, id="title8888928"),
                     style={"padding": "2% 0% 2% 0%"},
                 )
             )
@@ -149,13 +151,13 @@ class DefaultLayout:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
-                        html.H4(html.I(self.subtext), id="app_subheader137", style={"textAlign": "center"}),
+                        html.H4(html.I(self.subtext), id="subheader6904007", style={"textAlign": "center"}),
                         style={"padding": "2% 0% 2% 0%"},
                     )
                 )
             )
 
-        header_container = dbc.Container(header_children)
+        header_container = dbc.Container(header_children, id="header1162572")
 
         return header_container
 
@@ -200,7 +202,7 @@ class DefaultLayout:
                 ),
             ],
             justify="evenly",
-            style={"padding": "2% 1% 10% 2%"},
+            style={"padding": "2% 1% 10% 2%"} if self.minimal == False else {"padding": "0% 0% 0% 0%"},
         )
 
         io_container = dbc.Container([input_output_components], fluid=True)
@@ -227,7 +229,7 @@ class DefaultLayout:
         )
 
         footer_container = dbc.Container(
-            [footer], fluid=True, style={"padding": "0 0 0 2%"}
+            [footer], fluid=True, style={"padding": "0 0 0 2%"}, id="footer5265971"
         )
 
         return footer_container
