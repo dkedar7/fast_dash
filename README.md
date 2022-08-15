@@ -27,7 +27,7 @@
   <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
 </p>
 <p align="center">
-    <em>Open source, Python-based tool to build ML prototypes lightning fast.</em>
+    <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
 </p>
 
 
@@ -36,35 +36,26 @@
 * Website: <https://fastdash.app/>
 * Documentation: <https://docs.fastdash.app/>
 * Source code: <https://github.com/dkedar7/fast_dash/>
+* Installation: `pip install fast-dash`
 
 ---
 
 Fast Dash is a Python module that makes the development of web applications fast and easy. It is built on top of Plotly Dash and can be used to build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.
 
 <p align="center">
-  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/examples/docs/assets/gallery_4_apps.gif" alt="Fast Dash logo"></a>
+  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/gallery_4_apps.gif" alt="Fast Dash logo"></a>
 </p>
 
 ## Simple example
 
-Run your app with three simple steps:
+Use the `fastdash` decorator to write your first Fast Dash app:
 
 ```python
-from fast_dash import FastDash
-from fast_dash.Components import Text
+from fast_dash import fastdash
 
-# Step 1: Define your model inference
+@fastdash
 def text_to_text_function(input_text):
     return input_text
-
-# Step 2: Specify the input and output components
-app = FastDash(callback_fn=text_to_text_function, 
-                inputs=Text, 
-                outputs=Text, 
-                title='App title')
-
-# Step 3: Run your app!
-app.run()
 
 # * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 ```
@@ -72,69 +63,57 @@ app.run()
 And just like that, we have a completely functional interactive app!
 
 Output:
-
-![Simple example](https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/simple_example.gif)
+![Simple example](https://raw.githubusercontent.com/dkedar7/fast_dash/decorate/docs/assets/simple_example.gif)
 
 ---
 
-In a similar way, we can add multiple input as well as output components at the same time.
+Fast Dash can read additional details about a function, like its name, input and output types, docstring, and uses this information to infer which components to use.
+
+For example, here's how to deploy an app that takes a string and an integer as inputs and return some text.
 
 ```python
-from fast_dash import FastDash
-from fast_dash.Components import Text, Slider
+from fast_dash import fastdash
 
-# Step 1: Define your model inference
-def text_to_text_function(input_text, slider_value):
-    processed_text = f'{input_text}. Slider value is {slider_value}.'
+@fastdash
+def display_selected_text_and_number(text: str, number: int) -> str:
+    "Simply display the selected text and number"
+    processed_text = f'Selected text is {text} and the number is {number}.'
     return processed_text
-
-# Step 2: Specify the input and output components
-app = FastDash(callback_fn=text_to_text_function, 
-                inputs=[Text, Slider], 
-                outputs=Text,
-                title='App title')
-
-# Step 3: Run your app!
-app.run()
 
 # * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 ```
+Output:
 
----
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.1.7/simple_example_2.gif)
 
-![Simple example with multiple inputs](https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/simple_example_multiple_inputs.gif)
-
-And with just a few more lines, we can add a title icon, subheader and social details.
+And with just a few more lines, we can add a title icon, subheader and other social branding details.
 
 ```python
-...
+from fast_dash import fastdash
 
-app = FastDash(callback_fn=text_to_text_function, 
-                inputs=[Text, Slider], 
-                outputs=Text,
-                title='App title',
-                title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/favicon.jpg',
-                subheader='Build a proof-of-concept UI for your Python functions lightning fast.',
-                github_url='https://github.com/dkedar7/fast_dash',
-                linkedin_url='https://linkedin.com/in/dkedar7',
-                twitter_url='https://twitter.com/dkedar')
-
-...
-
+@fastdash(title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/favicon.jpg',
+        github_url='https://github.com/dkedar7/fast_dash',
+        linkedin_url='https://linkedin.com/in/dkedar7',
+        twitter_url='https://twitter.com/dkedar')
+def display_selected_text_and_number(text: str, number: int) -> str:
+    "Simply display the selected text and number"
+    processed_text = f'Selected text is {text} and the number is {number}.'
+    return processed_text
 ```
 
 Output:
 
-![Simple example with multiple inputs and details](https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/simple_example_multiple_inputs_details.gif.png)
+![Simple example with multiple inputs and details](https://storage.googleapis.com/fast_dash/0.1.7/simple_example_multiple_inputs_details.png)
 
 ---
+Read different ways to build Fast Dash apps and additional details by navigating to the [project documentation](https://docs.fastdash.app/).
 
 ## Key features
 
 - Launch an app only by specifying the types of inputs and outputs.
-- Multiple input and output components simultaneously.
+- Use multiple input and output components simultaneously.
 - Flask-based backend allows easy scalability and customizability.
-- Build fast and iterate.
+- Build fast, share and iterate.
 
 Some features are coming up in future releases:
 
@@ -144,10 +123,10 @@ Some features are coming up in future releases:
 
 ## Community
 
-Fast Dash is built on open-source. You are encouraged to share your own projects, which will be highlighted on a common community gallery that's upcoming. Join us on [Discord](https://discord.gg/B8nPVfPZ6a).
+Fast Dash is built on open-source. You are encouraged to share your own projects, which will be highlighted on a common community gallery (coming up).
 
 ## Credits
 
-Fast Dash is inspired from [gradio](https://github.com/gradio-app/gradio) and built using [Plotly Dash](https://github.com/plotly/dash). Dash's Flask-based backend enables Fast Dash apps to scale easily and makes them highly compatibility with other integration services.  Many documentation ideas and concepts are borrowed from [FastAPI's docs](https://fastapi.tiangolo.com/) project template.
+Fast Dash is built using [Plotly Dash](https://github.com/plotly/dash). Dash's Flask-based backend enables Fast Dash apps to scale easily and makes them highly compatibility with other integration services. This project is partially inspired from [gradio](https://github.com/gradio-app/gradio).
 
 The project template was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and [zillionare/cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage).
