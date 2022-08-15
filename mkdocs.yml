@@ -3,6 +3,8 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
 
 theme:
   name: material
@@ -33,10 +35,9 @@ nav:
   - Home: index.md
   - Installation: installation.md
   - User guide:
-    - My first app: User guide/first_app.md
-    - App design: User guide/app_design.md
-    - Fast Components: User guide/fast_components.md
-    - Add components: User guide/add_components.md
+    - Quickstart: User guide/quickstart.md
+    - Building your app: User guide/build.md
+    - Usage patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
   - Tutorials:
     - 1. Simple text to text: Tutorials/simple_text_to_text.md
