@@ -34,10 +34,10 @@ repo_url: https://github.com/dkedar7/fast_dash
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Quickstart: quickstart.md
   - User guide:
-    - Quickstart: User guide/quickstart.md
     - Building your app: User guide/build.md
-    - Usage patterns: User guide/patterns.md
+    - Common patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
   - Tutorials:
     - 1. Simple text to text: Tutorials/simple_text_to_text.md
