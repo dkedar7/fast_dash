@@ -9,7 +9,7 @@ pip install fast-dash
 
 ## Simple Example
 
-Here's the simple text to text function from the [home page](../index.md) again.
+Here's the simple text to text function from the [home page](index.md) again.
 
 ```py linenums="1"
 from fast_dash import fastdash

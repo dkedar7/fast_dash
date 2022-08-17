@@ -48,8 +48,7 @@ Fast Dash is a Python module that makes the development of web applications fast
 
 ## Simple example
 
-Use the `fastdash` decorator to write your first Fast Dash app:
-
+With Fast Dash's decorator `fastdash`, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
 ```python
 from fast_dash import fastdash
 
@@ -60,7 +59,7 @@ def text_to_text_function(input_text):
 # * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 ```
 
-And just like that, we have a completely functional interactive app!
+And just like that (🪄), we have a completely functional interactive app!
 
 Output:
 ![Simple example](https://raw.githubusercontent.com/dkedar7/fast_dash/decorate/docs/assets/simple_example.gif)
