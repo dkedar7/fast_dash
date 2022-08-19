@@ -57,7 +57,7 @@ def your_function(...)
 
 After we have a Python function that runs without errors, there are only two things we need to do:
 
-##### 1. Specify the input and output type hints
+#### 1.1. Specify the input and output type hints
 Fast Dash uses these type hints to determine which components to use. For example, an input with the type hint `int` will need an input that allows entering integers or a slider. Similarly, an image input will need an upload image or a camera component.
 
 !!! question "What are type hints?"
@@ -91,11 +91,11 @@ def your_function(image: UploadImage, number: Slider):
     ...
 ```
 
-##### 2. Modify default settings (if required, optional)
+#### 1.2. Modify default settings
 
 These include multiple options like the theme of the app, social media branding links, and subheaders.
 
-###### Title
+##### Title
 
 Fast Dash is able to read the title of our callback function and display it at the top of the app. Titles resolve the best if the function name is written in [snake case](https://en.wikipedia.org/wiki/Snake_case).
 
@@ -107,19 +107,112 @@ def yourFunction(...):
     ...
 ```
 
-###### Subheader
+##### Subheader
 
 The subheader shows up below the title at the top of the page in an italicized font. Fast Dash also attempts to infer this from the function docstring. But we can also overwrite this in the `subheader` argument to `@fastdash`.
 
-```py hl_lines="2"
+```py hl_lines="2 4"
 @fastdash(title="Your Function", 
-          subheader="Coolest Function Ever")
+          subheader="Coolest Function Ever") # Either here
+def yourFunction(...):
+    "Coolest Function Ever" # or here
+    ...
+```
+
+##### Title image path
+
+Fast Dash optionally displays an icon image below the title. The image path can be set with the argument `title_image_path`.
+
+```py hl_lines="1"
+@fastdash(title_image_path="https://tinyurl.com/5fw564ux")
 def yourFunction(...):
     ...
 ```
 
-###### Title image path
+##### Social media URLs
 
+We can also set social media URLs (Fast Dash supports GitHub, LinkedIn and Twitter URLs so far) in the navigation bar at the top by setting the arguments `github_url`, `linkedin_url`, and `twitter_url` respectively.
+
+```py hl_lines="1 2 3"
+@fastdash(github_url="github.com/dkedar7",
+        linkedin_url="linkedin.com/in/dkedar7",
+        twitter_url="twitter.com/dkedar7")
+def yourFunction(...):
+    ...
+```
+
+##### Navbar and footer visibility
+
+We can hide the navbar and the footer by controlling the boolean `navbar` and `footer` arguments respectively. These are set to `True` by default.
+
+```py hl_lines="1 2"
+@fastdash(navbar=False,
+        footer=False)
+def yourFunction(...):
+    ...
+```
+
+##### Theme
+
+The default theme that Fast Dash uses is called `JOURNAL` but there are more themes that Fast Dash supports. See the full list of supported themes at [bootswatch.com](https://bootswatch.com/).
+
+```py hl_lines="1"
+@fastdash(theme='JOURNAL')
+def yourFunction(...):
+    ...
+```
+
+##### Update Live
+
+By default, Fast Dash apps load lazily. That means once the user enters inputs, the outputs upadte only after they click `Submit`. But on setting the `update_live` argument to `True`, the `Submit` and `Reset` button disappear and the outputs update instantaneously. This feature is also popularly known as hot reloading.
+
+```py hl_lines="1"
+@fastdash(update_live=True)
+def yourFunction(...):
+    ...
+```
+
+##### Mode
+
+`mode` is a very interesting argument that decides how Fast Dash apps are deployed. There are currently four supported modes. The default mode is `None` but the other possible `mode` options specified below require the [`jupyter-dash`](https://pypi.org/project/jupyter-dash/) package installed. Read more about the package [here](https://github.com/plotly/jupyter-dash).
+
+###### `None`
+By default, `mode` is set to `None` which deploys the app at the chosen port (default Dash port is 5000).
+
+###### `JupyterLab`
+When `mode` is `JupyterLab`, the app is deployed within Jupyter environments (e.g. classic Notebook, JupyterLab, Visual Studio Code notebooks, nteract, PyCharm notebooks). The app opens as a separate tab inside JupyterLab.
+
+###### Inline
+With this `mode`, Fast Dash uses an IFrame to display the application inline in the notebook.
+
+###### External
+This behaves like the default mode with the only difference that the app runs outside your Jupyter notebook environment. Fast Dash display a link that where you can navigate to see how the deployment will look to end users after this application is depoyed to production.
+
+```py hl_lines="1"
+@fastdash(mode='jupyterlab')
+def yourFunction(...):
+    ...
+```
+
+##### Minimal
+Sometimes, we just want to see how pur Python functions behaves without worrying about the theme, or the presence of the navbar or footer. If we set `minimal` to True, Fast Dash only displays the input and output components and hides the rest.
+
+```py hl_lines="1"
+@fastdash(minimal=True)
+def yourFunction(...):
+    ...
+```
+
+##### Disable logs
+Under the hood, setting `disable_logs` to `True` disables the messy log output that sometimes follows a successful Fast Dash deployment. This feature is very handy especially when we are deploying apps inside Jupyter enviroments. On the flip side, we lose a lot of useful debugging information.
+
+```py hl_lines="1"
+@fastdash(disable_logs=True)
+def yourFunction(...):
+    ...
+```
+
+<!-- disable_logs -->
 
 <!-- All definitions and abbreviations go here -->
 *[callback function]: Python function that Fast Dash deploys as web apps 
@@ -127,7 +220,27 @@ def yourFunction(...):
 *[Fast Components]: UI components that make up a Fast Dash app. They are wrappers around Dash components.
 
 
-## `FastDash` objects
+### 2. `FastDash` objects
+
+The `FastDash` class powers all Fast Dash automated app development and deployment. In fact, as mentioned in a note before, all that the `@fastdash` decorator does under the hood is instantiate a `FastDash` objects and call the `.run()` method.
+
+In other words, all the discussion and arguments that can be passed to the `@fastdash` decorator are valid to the `FastDash` class as well. But unlike the `@fastdash` decorator, `FastDash` class gives us access to other Fast Dash internals and flexibility with respect to deploying our apps.
+
+Here's how to define and deploy a Fast Dash app using `FastDash`. Note the highlighted differences in the code.
+
+``` py hl_lines="6 7"
+from fast_dash import FastDash
+
+def your_function(...):
+    ...
+
+app = FastDash(callback_fn=your_function, ...)
+app.run()
+```
+
+We are able to logically separate function definition and deployment and additionally can modify configurations beyond what `FastDash`'s default arguments allow.
+
+For example, we are able to bring our own components and layout designs by altering the UI development code which can be accessed using `app.app.layout`.
 
 
-
+In the [next section](components.md), we'll see what Fast Components are, what separates them from other Dash components and how we can easily modify Dash components to make them compatible with Fast Dash.
