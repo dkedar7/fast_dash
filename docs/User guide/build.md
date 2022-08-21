@@ -68,7 +68,7 @@ Fast Dash uses these type hints to determine which components to use. For exampl
         ...
     ```
 
-    Fast Dash uses this flexbility with defining type hints to also using Fast Components as hints. More on this in the documentation for [Fast Components](components.md).
+    Fast Dash uses this flexbility with defining type hints to allow using Fast Components as hints. More on this in the documentation for [Fast Components](components.md).
 
 So far, Fast Dash understands two types of type hints—one, Python in-built data type classes (`str`, `int`, `float`, `list`, `dict`, etc.), and two, [Fast Components](components.md).
 
