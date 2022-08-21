@@ -1,16 +1,16 @@
-from collections.abc import Sequence, Iterable
-import dash_bootstrap_components as dbc
-import plotly.graph_objs as go
-from dash import dcc, html
+import datetime
 import inspect
 import numbers
 import warnings
+from collections.abc import Iterable, Sequence
 
+import dash_bootstrap_components as dbc
 import PIL
+import plotly.graph_objs as go
+from dash import dcc, html
 from PIL import ImageFile
-import datetime
 
-from .utils import _pil_to_b64, Fastify
+from .utils import Fastify, _pil_to_b64
 
 
 class DefaultLayout:
@@ -26,7 +26,7 @@ class DefaultLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
-        minimal=False
+        minimal=False,
     ):
 
         self.inputs = inputs
@@ -55,7 +55,9 @@ class DefaultLayout:
         ]
 
         self.layout = dbc.Container(
-            [component for component in layout_components if component is not None] if minimal == False else [self.io_container],
+            [component for component in layout_components if component is not None]
+            if minimal is False
+            else [self.io_container],
             fluid=True,
             style={"padding": "0 0 0 0"},
         )
@@ -132,7 +134,9 @@ class DefaultLayout:
         if self.title is not None:
             header_children.append(
                 dbc.Row(
-                    html.H1(self.title, style={"textAlign": "center"}, id="title8888928"),
+                    html.H1(
+                        self.title, style={"textAlign": "center"}, id="title8888928"
+                    ),
                     style={"padding": "2% 0% 2% 0%"},
                 )
             )
@@ -151,7 +155,11 @@ class DefaultLayout:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
-                        html.H4(html.I(self.subtext), id="subheader6904007", style={"textAlign": "center"}),
+                        html.H4(
+                            html.I(self.subtext),
+                            id="subheader6904007",
+                            style={"textAlign": "center"},
+                        ),
                         style={"padding": "2% 0% 2% 0%"},
                     )
                 )
@@ -202,7 +210,9 @@ class DefaultLayout:
                 ),
             ],
             justify="evenly",
-            style={"padding": "2% 1% 10% 2%"} if self.minimal == False else {"padding": "0% 0% 0% 0%"},
+            style={"padding": "2% 1% 10% 2%"}
+            if self.minimal is False
+            else {"padding": "0% 0% 0% 0%"},
         )
 
         io_container = dbc.Container([input_output_components], fluid=True)
@@ -281,8 +291,8 @@ def _get_component_from_input(hint, default_value=None):
         FastComponent: Component that can be used to represent the given input.
     """
 
-    # If hint has the attribute "assign_prop", it indicates that hint is a FastComponent, return it
-    if hasattr(hint, "assign_prop"):
+    # If hint has the attribute "component_property", it indicates that hint is a FastComponent, return it
+    if hasattr(hint, "component_property"):
         return hint
 
     # If hint is not type, assume that the user specified an object. Change it to type
@@ -379,9 +389,7 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         elif _default_value_type == "Sequence":
-            component = Fastify(
-                dcc.Dropdown(default_value, multi=True), "value"
-            )
+            component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
 
         elif _default_value_type == "Dictionary":
             component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
@@ -400,7 +408,7 @@ def _get_component_from_input(hint, default_value=None):
         if _default_value_type == "Image":
             acknowledge_image_component = Fastify(
                 component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-                assign_prop="src",
+                component_property="src",
             )
             component = Fastify(
                 component=dcc.Upload(
@@ -414,14 +422,14 @@ def _get_component_from_input(hint, default_value=None):
                     },
                     contents=_pil_to_b64(default_value),
                 ),
-                assign_prop="contents",
+                component_property="contents",
                 ack=acknowledge_image_component,
             )
 
         else:
             acknowledge_image_component = Fastify(
                 component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-                assign_prop="src",
+                component_property="src",
             )
             component = Fastify(
                 component=dcc.Upload(
@@ -434,7 +442,7 @@ def _get_component_from_input(hint, default_value=None):
                         "textAlign": "center",
                     },
                 ),
-                assign_prop="contents",
+                component_property="contents",
                 ack=acknowledge_image_component,
             )
 
@@ -465,7 +473,9 @@ def _get_component_from_input(hint, default_value=None):
                 component = Fastify(dbc.Input(value=default_value), "value")
 
             elif _default_value_type == "Numeric":
-                component = Fastify(dbc.Input(value=default_value, type="number"), "value")
+                component = Fastify(
+                    dbc.Input(value=default_value, type="number"), "value"
+                )
 
             elif _default_value_type == "Sequence":
                 if isinstance(default_value, range):
@@ -496,28 +506,29 @@ def _get_component_from_input(hint, default_value=None):
 
             elif _default_value_type == "Date":
                 component = Fastify(
-                dcc.DatePickerSingle(
-                    display_format="MMM DD, YYYY",
-                    date=default_value,
-                    style={"width": "100%"},
-                ),
-                "date",
-            )
+                    dcc.DatePickerSingle(
+                        display_format="MMM DD, YYYY",
+                        date=default_value,
+                        style={"width": "100%"},
+                    ),
+                    "date",
+                )
 
             elif _default_value_type == "Timestamp":
                 component = Fastify(
-                dcc.DatePickerSingle(
-                    display_format="MMM DD, YYYY",
-                    date=default_value.date(),
-                    style={"width": "100%"},
-                ),
-                "date",
-            )
+                    dcc.DatePickerSingle(
+                        display_format="MMM DD, YYYY",
+                        date=default_value.date(),
+                        style={"width": "100%"},
+                    ),
+                    "date",
+                )
 
             elif _default_value_type == "Image":
                 acknowledge_image_component = Fastify(
-                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-                assign_prop="src")
+                    component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                    component_property="src",
+                )
                 component = Fastify(
                     component=dcc.Upload(
                         children=dbc.Col(["Click to upload image"]),
@@ -530,7 +541,7 @@ def _get_component_from_input(hint, default_value=None):
                         },
                         contents=_pil_to_b64(default_value),
                     ),
-                    assign_prop="contents",
+                    component_property="contents",
                     ack=acknowledge_image_component,
                 )
 
@@ -538,7 +549,7 @@ def _get_component_from_input(hint, default_value=None):
                 warnings.warn("Unknown or unsupported hint. Assuming text.")
                 component = Text
 
-        else:            
+        else:
             warnings.warn("Unknown or unsupported hint. Assuming text.")
             component = Text
 
@@ -547,7 +558,7 @@ def _get_component_from_input(hint, default_value=None):
 
 def _get_output_components(_hint_type):
 
-    if hasattr(_hint_type, "assign_prop"):
+    if hasattr(_hint_type, "component_property"):
         return _hint_type
 
     # If hint is not type, assume that the user specified an object. Change it to type
@@ -567,7 +578,7 @@ def _infer_components(func, is_input=True):
     signature = inspect.signature(func)
     components = []
 
-    if is_input == True:
+    if is_input is True:
         parameters = signature.parameters.items()
         for _, value in parameters:
             hint = value.annotation
@@ -594,9 +605,9 @@ def _infer_components(func, is_input=True):
 ###################################
 
 ##### General components
-Text = Fastify(component=dbc.Input(), assign_prop="value")
+Text = Fastify(component=dbc.Input(), component_property="value")
 
-TextArea = Fastify(component=dbc.Textarea(), assign_prop="value")
+TextArea = Fastify(component=dbc.Textarea(), component_property="value")
 
 Slider = Fastify(
     component=dcc.Slider(
@@ -606,7 +617,7 @@ Slider = Fastify(
         value=10,
         tooltip={"placement": "top", "always_visible": True},
     ),
-    assign_prop="value",
+    component_property="value",
 )
 
 
@@ -622,12 +633,12 @@ Upload = Fastify(
             "textAlign": "center",
         },
     ),
-    assign_prop="contents",
+    component_property="contents",
 )
 
 acknowledge_image_component = Fastify(
     component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-    assign_prop="src",
+    component_property="src",
 )
 
 UploadImage = Fastify(
@@ -641,21 +652,20 @@ UploadImage = Fastify(
             "textAlign": "center",
         },
     ),
-    assign_prop="contents",
+    component_property="contents",
     ack=acknowledge_image_component,
 )
 
 
 ##### Output components
-Image = Fastify(component=html.Img(width="100%"), assign_prop="src")
+Image = Fastify(component=html.Img(width="100%"), component_property="src")
 
 Graph = Fastify(
     component=dcc.Graph(),
-    assign_prop="figure",
+    component_property="figure",
     placeholder=(
         go.Figure()
         .update_yaxes(visible=False, showticklabels=False)
         .update_xaxes(visible=False, showticklabels=False)
     ),
 )
-

@@ -5,17 +5,17 @@ __email__ = "kedar@fastdash.app"
 __version__ = "0.1.6"
 
 from fast_dash.Components import (
+    Graph,
+    Image,
+    Slider,
     Text,
     TextArea,
-    Slider,
     Upload,
-    acknowledge_image_component,
     UploadImage,
-    Image,
-    Graph,
-    dcc,
+    acknowledge_image_component,
     dbc,
-    html
+    dcc,
+    html,
 )
 from fast_dash.fast_dash import FastDash, fastdash
 from fast_dash.utils import Fastify
@@ -34,6 +34,5 @@ __all__ = [
     "Graph",
     "dcc",
     "dbc",
-    "html"
+    "html",
 ]
-

@@ -10,10 +10,22 @@ import dash_bootstrap_components as dbc
 from dash import html
 
 
-def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
-    "Modify a Dash component to a FastComponent"
+def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
+    """
+    Modify a Dash component to a FastComponent.
 
-    component.assign_prop = assign_prop
+    Args:
+        component (type):
+        component_property (type):
+        ack (type, optional):
+        placeholder (type, optional):
+        label_ (type, optional):
+
+    Returns:
+        [type]: [description]
+    """
+
+    component.component_property = component_property
     component.ack = ack
     component.label_ = label_
     component.placeholder = placeholder
@@ -118,7 +130,7 @@ def _make_input_groups(inputs_with_ids, update_live):
         label = f"{input_.id}" if input_.label_ is None else input_.label_
         label = label.replace("_", " ").upper()
         ack_component = (
-            Fastify(component=dbc.Col(), assign_prop="children")
+            Fastify(component=dbc.Col(), component_property="children")
             if input_.ack is None
             else input_.ack
         )
@@ -128,7 +140,8 @@ def _make_input_groups(inputs_with_ids, update_live):
 
         input_groups.append(
             dbc.Col(
-                [dbc.Label(label, align="end"), input_, ack_component], align="center",
+                [dbc.Label(label, align="end"), input_, ack_component],
+                align="center",
             )
         )
 
@@ -143,7 +156,7 @@ def _make_input_groups(inputs_with_ids, update_live):
             )
         ],
         style={"padding": "2% 1% 1% 2%"}
-        if update_live == False
+        if update_live is False
         else dict(display="none"),
     )
 
@@ -199,7 +212,7 @@ def _make_output_groups(outputs, update_live):
             )
         ],
         style={"padding": "2% 1% 1% 2%"}
-        if update_live == False
+        if update_live is False
         else dict(display="none"),
     )
 

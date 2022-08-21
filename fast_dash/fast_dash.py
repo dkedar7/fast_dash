@@ -1,10 +1,11 @@
-import dash
-from dash.dependencies import Input, Output
-import flask
 import functools
 import logging
 import re
 import warnings
+
+import dash
+import flask
+from dash.dependencies import Input, Output
 
 from .Components import DefaultLayout, Text, _infer_components
 from .utils import (
@@ -17,6 +18,14 @@ from .utils import (
 
 
 class FastDash:
+    """
+    Fast Dash app object containing automatically generated UI components and callbacks.
+
+    This is the primary Fast Dash data structure. Can be thought of as a wrapper around
+    a flask WSGI application. It has in-built support for automated UI generation and
+    sets all parameters required for Fast Dash app deployment.
+    """
+
     def __init__(
         self,
         callback_fn,
@@ -37,25 +46,78 @@ class FastDash:
         disable_logs=False,
         **kwargs
     ):
+        """
+        Args:
+            callback_fn (func): Python function that Fast Dash deploys.
+                This function guides the behavior of and interaction between input and output components.
+
+            inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
+                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
+                hints and default values. In the absence of type hints, default components are all `Text`.
+
+            outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
+                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
+                In the absence of type hints, default components are all `Text`.
+
+            title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
+                is converted to title case.
+
+            title_image_path (str, optional): Path (local or URL) of the app title image. Defaults to None.
+
+            subheader (str, optional): Subheader of the app, displayed below the title image and title. Defaults to None.
+                If `None`, Fast Dash tries to use the callback function's docstring instead.
+
+            github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the
+                specified URL. Defaults to None.
+
+            linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the
+                specified URL. Defaults to None.
+
+            twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the
+                specified URL. Defaults to None.
+
+            navbar (bool, optional): Display navbar. Defaults to True.
+
+            footer (bool, optional): Display footer. Defaults to True.
+
+            theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
+                at https://bootswatch.com/.
+
+            update_live (bool, optional): Enable hot reloading. Defaults to False.
+
+            mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
+                Defaults to None.
+
+            minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer.
+                Defaults to False.
+
+            disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
+        """
 
         self.callback_fn = callback_fn
-        self.inputs = _infer_components(callback_fn, is_input=True) if inputs is None else inputs
-        self.outputs = _infer_components(callback_fn, is_input=False) if outputs is None else outputs
+        self.inputs = (
+            _infer_components(callback_fn, is_input=True) if inputs is None else inputs
+        )
+        self.outputs = (
+            _infer_components(callback_fn, is_input=False)
+            if outputs is None
+            else outputs
+        )
         self.update_live = update_live
         self.mode = mode
         self.disable_logs = disable_logs
         self.kwargs = kwargs
 
-        if self.disable_logs == True:
-            log = logging.getLogger('werkzeug')
+        if self.disable_logs is True:
+            log = logging.getLogger("werkzeug")
             log.setLevel(logging.ERROR)
 
         else:
-            log = logging.getLogger('werkzeug')
+            log = logging.getLogger("werkzeug")
             log.setLevel(logging.DEBUG)
 
         if title is None:
-            title = re.sub('[^0-9a-zA-Z]+', ' ', callback_fn.__name__).title()
+            title = re.sub("[^0-9a-zA-Z]+", " ", callback_fn.__name__).title()
 
         self.title = title
         self.title_image_path = title_image_path
@@ -90,12 +152,13 @@ class FastDash:
         if self.mode is not None:
             try:
                 from jupyter_dash import JupyterDash
+
                 source = JupyterDash
 
             except ImportError as e:
                 self.mode = None
                 warnings.warn(str(e))
-                warnings.warn('Ignoring mode argument')
+                warnings.warn("Ignoring mode argument")
 
         self.app = source(
             __name__,
@@ -125,12 +188,15 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
 
-
     def run(self, **kwargs):
-        self.server.run(**kwargs) if self.mode is None else self.app.run_server(mode=self.mode, **kwargs)
+        self.server.run(**kwargs) if self.mode is None else self.app.run_server(
+            mode=self.mode, **kwargs
+        )
 
     def run_server(self, **kwargs):
-        self.app.run_server(**kwargs) if self.mode is None else self.app.run_server(mode=self.mode, **kwargs)
+        self.app.run_server(**kwargs) if self.mode is None else self.app.run_server(
+            mode=self.mode, **kwargs
+        )
 
     def set_layout(self):
 
@@ -151,7 +217,7 @@ class FastDash:
             twitter_url=self.twitter_url,
             navbar=self.navbar,
             footer=self.footer,
-            minimal=self.minimal
+            minimal=self.minimal,
         )
 
         self.app.layout = default_layout.layout
@@ -159,18 +225,23 @@ class FastDash:
     def register_callback_fn(self):
         @self.app.callback(
             [
-                Output(component_id=output_.id, component_property=output_.assign_prop)
+                Output(
+                    component_id=output_.id,
+                    component_property=output_.component_property,
+                )
                 for output_ in self.outputs_with_ids
             ]
             + [
                 Output(
                     component_id=input_.ack.id,
-                    component_property=input_.ack.assign_prop,
+                    component_property=input_.ack.component_property,
                 )
                 for input_ in self.inputs_with_ids
             ],
             [
-                Input(component_id=input_.id, component_property=input_.assign_prop)
+                Input(
+                    component_id=input_.id, component_property=input_.component_property
+                )
                 for input_ in self.inputs_with_ids
             ]
             + [
@@ -188,7 +259,7 @@ class FastDash:
             ]
 
             if submit_button > self.submit_clicks or (
-                self.update_live == True and None not in args
+                self.update_live is True and None not in args
             ):
                 self.app_initialized = True
                 self.submit_clicks = submit_button
@@ -213,31 +284,76 @@ class FastDash:
                 return self.output_state_default + ack_components
 
 
-def fastdash(_callback_fn=None, 
-             *, 
-            inputs=None,
-            outputs=None,
-            title=None,
-            title_image_path=None,
-            subheader=None,
-            github_url=None,
-            linkedin_url=None,
-            twitter_url=None,
-            navbar=True,
-            footer=True,
-            theme="JOURNAL",
-            update_live=False,
-            mode=None,
-            minimal=False,
-            disable_logs=False,
-            **run_kwargs):
+def fastdash(
+    _callback_fn=None,
+    *,
+    inputs=None,
+    outputs=None,
+    title=None,
+    title_image_path=None,
+    subheader=None,
+    github_url=None,
+    linkedin_url=None,
+    twitter_url=None,
+    navbar=True,
+    footer=True,
+    theme="JOURNAL",
+    update_live=False,
+    mode=None,
+    minimal=False,
+    disable_logs=False,
+    **run_kwargs
+):
     """
-    Decorator for the Fast Dash class. Can decorate any Python function.
-    
+    Decorator for the `FastDash` class.
+
+    Use the decorated Python callback functions and deployes it using the chosen mode.
+
     Args:
-        Replica of arguments to FastDash. Refer to docs of the class FastDash.
-        If the decorator is given no arguments, inputs and outputs are autoinferred from type hints.
-        In absence of type hints, inputs and outputs are each to be `Text` 
+        callback_fn (func): Python function that Fast Dash deploys.
+            This function guides the behavior of and interaction between input and output components.
+
+        inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
+            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
+            hints and default values. In the absence of type hints, default components are all `Text`.
+
+        outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
+            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
+            In the absence of type hints, default components are all `Text`.
+
+        title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
+            is converted to title case.
+
+        title_image_path (str, optional): Path (local or URL) of the app title image. Defaults to None.
+
+        subheader (str, optional): Subheader of the app, displayed below the title image and title. Defaults to None.
+            If `None`, Fast Dash tries to use the callback function's docstring instead.
+
+        github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the
+            specified URL. Defaults to None.
+
+        linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the
+            specified URL. Defaults to None.
+
+        twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the
+            specified URL. Defaults to None.
+
+        navbar (bool, optional): Display navbar. Defaults to True.
+
+        footer (bool, optional): Display footer. Defaults to True.
+
+        theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
+            at https://bootswatch.com/.
+
+        update_live (bool, optional): Enable hot reloading. Defaults to False.
+
+        mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
+            Defaults to None.
+
+        minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer.
+            Defaults to False.
+
+        disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
     """
 
     def decorator_fastdash(callback_fn):
@@ -249,22 +365,24 @@ def fastdash(_callback_fn=None,
             app.run(**run_kwargs)
             return callback_fn
 
-        return wrapper_fastdash(inputs=inputs,
-                            outputs=outputs,
-                            title=title,
-                            title_image_path=title_image_path,
-                            subheader=subheader,
-                            github_url=github_url,
-                            linkedin_url=linkedin_url,
-                            twitter_url=twitter_url,
-                            navbar=navbar,
-                            footer=footer,
-                            theme=theme,
-                            update_live=update_live,
-                            mode=mode,
-                            minimal=minimal,
-                            disable_logs=disable_logs,
-                            **run_kwargs)
+        return wrapper_fastdash(
+            inputs=inputs,
+            outputs=outputs,
+            title=title,
+            title_image_path=title_image_path,
+            subheader=subheader,
+            github_url=github_url,
+            linkedin_url=linkedin_url,
+            twitter_url=twitter_url,
+            navbar=navbar,
+            footer=footer,
+            theme=theme,
+            update_live=update_live,
+            mode=mode,
+            minimal=minimal,
+            disable_logs=disable_logs,
+            **run_kwargs
+        )
 
     # If the decorator is called with arguments
     if _callback_fn is None:

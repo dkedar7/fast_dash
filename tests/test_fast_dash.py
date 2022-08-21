@@ -36,16 +36,17 @@ def test_fdfd001_set_title(dash_duo):
     assert dash_duo.find_element("#title8888928").text == "App title"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
+
 def test_fdfd002_set_default_title(dash_duo):
     "Test default title"
     app = FastDash(
-        callback_fn=simple_text_to_text_function,
-        inputs=Text,
-        outputs=Text
+        callback_fn=simple_text_to_text_function, inputs=Text, outputs=Text
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Simple Text To Text Function", timeout=4
+    )
 
     assert dash_duo.find_element("#title8888928").text == "Simple Text To Text Function"
     assert dash_duo.get_logs() == [], "browser console should contain no error"
@@ -53,26 +54,24 @@ def test_fdfd002_set_default_title(dash_duo):
 
 def test_fdfd003_output_is_none(dash_duo):
     "Test if the output is set to Text if none is specified"
-    app = FastDash(
-        callback_fn=simple_text_to_text_function,
-        inputs=Text
-    ).app
+    app = FastDash(callback_fn=simple_text_to_text_function, inputs=Text).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Simple Text To Text Function", timeout=4
+    )
 
     assert dash_duo.get_logs() == [], "browser console should contain no error"
 
 
 def test_fdfd004_click_submit(dash_duo):
     "Test clicking the submit button"
-    app = FastDash(
-        callback_fn=simple_text_to_text_function,
-        inputs=Text
-    ).app
+    app = FastDash(callback_fn=simple_text_to_text_function, inputs=Text).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Simple Text To Text Function", timeout=4
+    )
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
@@ -92,11 +91,13 @@ def test_fdfd005_multiple_outputs(dash_duo):
     app = FastDash(
         callback_fn=simple_text_to_multiple_text_function,
         inputs=Text,
-        outputs=[Text, Text]
+        outputs=[Text, Text],
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Text To Multiple Text Function", timeout=4)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Simple Text To Multiple Text Function", timeout=4
+    )
 
     # Enter some text
     form_textfield = dash_duo.find_element("#input_text")
@@ -112,7 +113,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
     dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
     dash_duo.wait_for_text_to_equal("#output-2", "", timeout=4)
 
-    
+
 def test_fdfd006_live_update(dash_duo):
     "Test live update functionality"
     app = FastDash(
@@ -182,6 +183,7 @@ def test_fdfd008_minimal_mode(dash_duo):
 
     dash_duo.percy_snapshot("fdfd008-layout")
 
+
 def test_fdfd009_jupyter_dash(dash_duo):
     "Test Fast Dash's mode argument"
 
@@ -189,7 +191,7 @@ def test_fdfd009_jupyter_dash(dash_duo):
         callback_fn=simple_text_to_text_function,
         inputs=Text,
         outputs=Text,
-        mode='inline'
+        mode="inline",
     ).app
 
     dash_duo.start_server(app)
