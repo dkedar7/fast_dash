@@ -50,41 +50,31 @@ Ready to contribute? Here's how to set up `fast_dash` for local development.
 
 1. Fork the `fast_dash` repo on GitHub.
 2. Clone your fork locally
-
 ```
     $ git clone git@github.com:your_name_here/fast_dash.git
 ```
-
 3. Ensure [poetry](https://python-poetry.org/docs/) is installed.
 4. Install dependencies and start your virtualenv:
 
 ```
     $ poetry install -E test -E doc -E dev
 ```
-
 5. Create a branch for local development:
-
 ```
     $ git checkout -b name-of-your-bugfix-or-feature
 ```
-
-   Now you can make your changes locally.
-
+   Now you can make your changes locally. <br><br>
 6. When you're done making changes, check that your changes pass the
    tests, including testing other Python versions, with tox:
-
 ```
     $ tox
 ```
-
 7. Commit your changes and push your branch to GitHub:
-
 ```
     $ git add .
     $ git commit -m "Your detailed description of your changes."
     $ git push origin name-of-your-bugfix-or-feature
 ```
-
 8. Submit a pull request through the GitHub website.
 
 ## Pull Request Guidelines
@@ -119,4 +109,4 @@ $ git push
 $ git push --tags
 ```
 
-Travis will then deploy to PyPI if tests pass.
+GitHub Actions will then deploy to PyPI if tests pass.

@@ -3,6 +3,10 @@ markdown_extensions:
   - admonition
   - pymdownx.details
   - pymdownx.superfences
+  - attr_list
+  - md_in_html
+  - abbr
+  - pymdownx.snippets
 
 theme:
   name: material
@@ -32,17 +36,17 @@ repo_url: https://github.com/dkedar7/fast_dash
 nav:
   - Home: index.md
   - Installation: installation.md
+  - Quickstart: quickstart.md
   - User guide:
-    - My first app: User guide/first_app.md
-    - App design: User guide/app_design.md
-    - Fast Components: User guide/fast_components.md
-    - Add components: User guide/add_components.md
+    - Under the hood: User guide/build.md
+    - Fast Components: User guide/components.md
+    - Common patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
-  - Tutorials:
-    - 1. Simple text to text: Tutorials/simple_text_to_text.md
-    - 2. English to French translation: Tutorials/english_to_french_translation.md
-    - 3. Translate from English to multiple languages: Tutorials/english_to_multiple_translation.md
-    - 4. Neural style transfer: Tutorials/neural_style_transfer.md
+  - Examples:
+    - 1. Simple text to text: Examples/simple_text_to_text.md
+    - 2. English to French translation: Examples/english_to_french_translation.md
+    - 3. Translate from English to multiple languages: Examples/english_to_multiple_translation.md
+    - 4. Neural style transfer: Examples/neural_style_transfer.md
   - Modules: api.md
   - Contributing: contributing.md
   - Authors: authors.md

@@ -1,6 +1,16 @@
+import datetime
+import inspect
+import numbers
+import warnings
+from collections.abc import Iterable, Sequence
+
 import dash_bootstrap_components as dbc
+import PIL
 import plotly.graph_objs as go
 from dash import dcc, html
+from PIL import ImageFile
+
+from .utils import Fastify, _pil_to_b64
 
 
 class DefaultLayout:
@@ -16,6 +26,7 @@ class DefaultLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        minimal=False,
     ):
 
         self.inputs = inputs
@@ -28,6 +39,7 @@ class DefaultLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.minimal = minimal
 
         # Bring all containers together
         self.navbar_container = self.generate_navbar_container()
@@ -35,7 +47,7 @@ class DefaultLayout:
         self.io_container = self.generate_io_container()
         self.footer_container = self.generate_footer_container()
 
-        layput_components = [
+        layout_components = [
             self.navbar_container,
             self.header_container,
             self.io_container,
@@ -43,7 +55,9 @@ class DefaultLayout:
         ]
 
         self.layout = dbc.Container(
-            [component for component in layput_components if component is not None],
+            [component for component in layout_components if component is not None]
+            if minimal is False
+            else [self.io_container],
             fluid=True,
             style={"padding": "0 0 0 0"},
         )
@@ -108,7 +122,7 @@ class DefaultLayout:
         )
 
         navbar_container = dbc.Container(
-            [navbar], fluid=True, style={"padding": "0 0 0 0"}
+            [navbar], fluid=True, style={"padding": "0 0 0 0"}, id="navbar3260780"
         )
 
         return navbar_container
@@ -120,7 +134,9 @@ class DefaultLayout:
         if self.title is not None:
             header_children.append(
                 dbc.Row(
-                    html.H1(self.title, style={"textAlign": "center"}, id="app_title"),
+                    html.H1(
+                        self.title, style={"textAlign": "center"}, id="title8888928"
+                    ),
                     style={"padding": "2% 0% 2% 0%"},
                 )
             )
@@ -139,13 +155,17 @@ class DefaultLayout:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
-                        html.H4(html.I(self.subtext), style={"textAlign": "center"}),
+                        html.H4(
+                            html.I(self.subtext),
+                            id="subheader6904007",
+                            style={"textAlign": "center"},
+                        ),
                         style={"padding": "2% 0% 2% 0%"},
                     )
                 )
             )
 
-        header_container = dbc.Container(header_children)
+        header_container = dbc.Container(header_children, id="header1162572")
 
         return header_container
 
@@ -190,7 +210,9 @@ class DefaultLayout:
                 ),
             ],
             justify="evenly",
-            style={"padding": "2% 1% 10% 2%"},
+            style={"padding": "2% 1% 10% 2%"}
+            if self.minimal is False
+            else {"padding": "0% 0% 0% 0%"},
         )
 
         io_container = dbc.Container([input_output_components], fluid=True)
@@ -212,8 +234,12 @@ class DefaultLayout:
             style={"padding": "0 0 0 0"},
         )
 
+        footer = html.A(
+            "Made with Fast Dash", href="https://fastdash.app/", target="_blank"
+        )
+
         footer_container = dbc.Container(
-            [footer], fluid=True, style={"padding": "0 0 0 0"}
+            [footer], fluid=True, style={"padding": "0 0 0 2%"}, id="footer5265971"
         )
 
         return footer_container
@@ -233,15 +259,345 @@ class DefaultLayout:
         self.layout = layout
 
 
-def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
-    "Modify a Dash component to a FastComponent"
+_map_types_to_readable_names = {
+    str: "Text",
+    float: "Numeric",
+    int: "Numeric",
+    complex: "Numeric",
+    list: "Sequence",
+    set: "Sequence",
+    range: "Sequence",
+    tuple: "Sequence",
+    PIL.ImageFile.ImageFile: "Image",
+    dict: "Dictionary",
+    bool: "Boolean",
+    datetime.date: "Date",
+    datetime.datetime: "Timestamp",
+}
 
-    component.assign_prop = assign_prop
-    component.ack = ack
-    component.label_ = label_
-    component.placeholder = placeholder
+
+def _get_component_from_input(hint, default_value=None):
+    """
+    Get FastComponent to represent the given input.
+
+    This implementation returns the FastComponent associated with the specific input
+    from the hint (type) of the input, type of the default value and the default value itself.
+
+    Args:
+        hint (FastComponent or Python data type): Either the input component or data type of the input.
+        default_value (any, optional): Default value of the input component. Defaults to None.
+
+    Returns:
+        FastComponent: Component that can be used to represent the given input.
+    """
+
+    # If hint has the attribute "component_property", it indicates that hint is a FastComponent, return it
+    if hasattr(hint, "component_property"):
+        return hint
+
+    # If hint is not type, assume that the user specified an object. Change it to type
+    if not isinstance(hint, type):
+        hint = type(hint)
+
+    _hint_type = _map_types_to_readable_names.get(hint)
+    _default_value_type = _map_types_to_readable_names.get(type(default_value))
+
+    # If the hint is a PIL Image
+    if issubclass(hint, PIL.ImageFile.ImageFile):
+        _hint_type = "Image"
+
+    # If the default is a PIL Image
+    if isinstance(default_value, PIL.ImageFile.ImageFile):
+        _default_value_type = "Image"
+
+    if _hint_type == "Text":
+        if _default_value_type == "Text":
+            component = Fastify(dbc.Input(value=default_value), "value")
+
+        elif _default_value_type == "Numeric":
+            component = Fastify(dbc.Input(value=default_value, type="number"), "value")
+
+        elif _default_value_type == "Sequence":
+            component = Fastify(dcc.Dropdown(options=default_value), "options")
+
+        elif _default_value_type == "Dictionary":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Boolean":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Date":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        elif _default_value_type == "Timestamp":
+            component = Fastify(dbc.Input(value=str(default_value)), "value")
+
+        else:
+            component = Text
+
+    elif _hint_type == "Numeric":
+        if _default_value_type == "Text":
+            component = Fastify(
+                dbc.Input(value=hint(default_value), type="number"), "value"
+            )
+
+        elif _default_value_type == "Numeric":
+            component = Fastify(dbc.Input(value=default_value, type="number"), "value")
+
+        elif _default_value_type == "Sequence":
+            if isinstance(default_value, range):
+                start, step, stop = (
+                    default_value.start,
+                    default_value.step,
+                    default_value.stop,
+                )
+                component = Fastify(
+                    dcc.Slider(
+                        start,
+                        stop,
+                        step,
+                        marks=None,
+                        tooltip={"placement": "bottom", "always_visible": True},
+                    ),
+                    "value",
+                )
+
+            else:
+                default_value = list(map(hint, default_value))
+                start, stop = min(default_value), max(default_value)
+                step = (stop - start) / len(default_value)
+
+            component = Fastify(
+                dcc.Slider(
+                    start,
+                    stop,
+                    step,
+                    marks=None,
+                    tooltip={"placement": "bottom", "always_visible": True},
+                ),
+                "value",
+            )
+
+        else:
+            component = Fastify(dbc.Input(type="number"), "value")
+
+    elif _hint_type == "Sequence":
+        if _default_value_type == "Text":
+            component = Fastify(
+                dbc.Input(value=[value.strip() for value in default_value.split(",")]),
+                "value",
+            )
+
+        elif _default_value_type == "Sequence":
+            component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+        elif _default_value_type == "Dictionary":
+            component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+    elif _hint_type == "Dictionary":
+        component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+    elif _hint_type == "Boolean":
+        if _default_value_type == "Boolean":
+            component = Fastify(dbc.Checkbox(value=default_value), "value")
+
+        else:
+            component = Fastify(dbc.Checkbox(), "value")
+
+    elif _hint_type == "Image":
+        if _default_value_type == "Image":
+            acknowledge_image_component = Fastify(
+                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                component_property="src",
+            )
+            component = Fastify(
+                component=dcc.Upload(
+                    children=dbc.Col(["Click to upload image"]),
+                    style={
+                        "lineHeight": "60px",
+                        "borderWidth": "1px",
+                        "borderStyle": "dashed",
+                        "borderRadius": "5px",
+                        "textAlign": "center",
+                    },
+                    contents=_pil_to_b64(default_value),
+                ),
+                component_property="contents",
+                ack=acknowledge_image_component,
+            )
+
+        else:
+            acknowledge_image_component = Fastify(
+                component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                component_property="src",
+            )
+            component = Fastify(
+                component=dcc.Upload(
+                    children=dbc.Col(["Click to upload image"]),
+                    style={
+                        "lineHeight": "60px",
+                        "borderWidth": "1px",
+                        "borderStyle": "dashed",
+                        "borderRadius": "5px",
+                        "textAlign": "center",
+                    },
+                ),
+                component_property="contents",
+                ack=acknowledge_image_component,
+            )
+
+    elif _hint_type == "Date":
+        if _default_value_type == "Date":
+            component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=default_value,
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
+
+        else:
+            component = Fastify(
+                dcc.DatePickerSingle(
+                    display_format="MMM DD, YYYY",
+                    date=datetime.date.today(),
+                    style={"width": "100%"},
+                ),
+                "date",
+            )
+
+    else:
+        if _default_value_type is not None:
+            if _default_value_type == "Text":
+                component = Fastify(dbc.Input(value=default_value), "value")
+
+            elif _default_value_type == "Numeric":
+                component = Fastify(
+                    dbc.Input(value=default_value, type="number"), "value"
+                )
+
+            elif _default_value_type == "Sequence":
+                if isinstance(default_value, range):
+                    start, step, stop = (
+                        default_value.start,
+                        default_value.step,
+                        default_value.stop,
+                    )
+                    component = Fastify(
+                        dcc.Slider(
+                            start,
+                            stop,
+                            step,
+                            marks=None,
+                            tooltip={"placement": "bottom", "always_visible": True},
+                        ),
+                        "value",
+                    )
+
+                else:
+                    component = Fastify(dcc.Dropdown(options=default_value), "options")
+
+            elif _default_value_type == "Dictionary":
+                component = Fastify(dcc.Dropdown(options=default_value), "value")
+
+            elif _default_value_type == "Boolean":
+                component = Fastify(dbc.Checkbox(value=default_value), "value")
+
+            elif _default_value_type == "Date":
+                component = Fastify(
+                    dcc.DatePickerSingle(
+                        display_format="MMM DD, YYYY",
+                        date=default_value,
+                        style={"width": "100%"},
+                    ),
+                    "date",
+                )
+
+            elif _default_value_type == "Timestamp":
+                component = Fastify(
+                    dcc.DatePickerSingle(
+                        display_format="MMM DD, YYYY",
+                        date=default_value.date(),
+                        style={"width": "100%"},
+                    ),
+                    "date",
+                )
+
+            elif _default_value_type == "Image":
+                acknowledge_image_component = Fastify(
+                    component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+                    component_property="src",
+                )
+                component = Fastify(
+                    component=dcc.Upload(
+                        children=dbc.Col(["Click to upload image"]),
+                        style={
+                            "lineHeight": "60px",
+                            "borderWidth": "1px",
+                            "borderStyle": "dashed",
+                            "borderRadius": "5px",
+                            "textAlign": "center",
+                        },
+                        contents=_pil_to_b64(default_value),
+                    ),
+                    component_property="contents",
+                    ack=acknowledge_image_component,
+                )
+
+            else:
+                warnings.warn("Unknown or unsupported hint. Assuming text.")
+                component = Text
+
+        else:
+            warnings.warn("Unknown or unsupported hint. Assuming text.")
+            component = Text
 
     return component
+
+
+def _get_output_components(_hint_type):
+
+    if hasattr(_hint_type, "component_property"):
+        return _hint_type
+
+    # If hint is not type, assume that the user specified an object. Change it to type
+    if not isinstance(_hint_type, type):
+        _hint_type = type(_hint_type)
+
+    if issubclass(_hint_type, PIL.ImageFile.ImageFile):
+        component = Image
+
+    else:
+        component = Fastify(html.H1(), "children")
+
+    return component
+
+
+def _infer_components(func, is_input=True):
+    signature = inspect.signature(func)
+    components = []
+
+    if is_input is True:
+        parameters = signature.parameters.items()
+        for _, value in parameters:
+            hint = value.annotation
+            default = None if value.default == inspect._empty else value.default
+
+            component = _get_component_from_input(hint, default)
+            components.append(component)
+
+    else:
+        parameters = enumerate(
+            signature.return_annotation
+            if isinstance(signature.return_annotation, tuple)
+            else [signature.return_annotation]
+        )
+
+        for _, hint in parameters:
+            components.append(_get_output_components(hint))
+
+    return components
 
 
 ###################################
@@ -249,9 +605,9 @@ def Fastify(component, assign_prop, ack=None, placeholder=None, label_=None):
 ###################################
 
 ##### General components
-Text = Fastify(component=dbc.Input(), assign_prop="value")
+Text = Fastify(component=dbc.Input(), component_property="value")
 
-TextArea = Fastify(component=dbc.Textarea(), assign_prop="value")
+TextArea = Fastify(component=dbc.Textarea(), component_property="value")
 
 Slider = Fastify(
     component=dcc.Slider(
@@ -261,7 +617,7 @@ Slider = Fastify(
         value=10,
         tooltip={"placement": "top", "always_visible": True},
     ),
-    assign_prop="value",
+    component_property="value",
 )
 
 
@@ -277,12 +633,12 @@ Upload = Fastify(
             "textAlign": "center",
         },
     ),
-    assign_prop="contents",
+    component_property="contents",
 )
 
 acknowledge_image_component = Fastify(
-  component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
-  assign_prop="src"
+    component=html.Img(width="100%", style={"padding": "1% 0% 0% 0%"}),
+    component_property="src",
 )
 
 UploadImage = Fastify(
@@ -296,21 +652,20 @@ UploadImage = Fastify(
             "textAlign": "center",
         },
     ),
-    assign_prop="contents",
+    component_property="contents",
     ack=acknowledge_image_component,
 )
 
 
 ##### Output components
-Image = Fastify(component=html.Img(width="100%"), assign_prop="src")
+Image = Fastify(component=html.Img(width="100%"), component_property="src")
 
 Graph = Fastify(
     component=dcc.Graph(),
-    assign_prop="figure",
+    component_property="figure",
     placeholder=(
         go.Figure()
         .update_yaxes(visible=False, showticklabels=False)
         .update_xaxes(visible=False, showticklabels=False)
     ),
 )
-

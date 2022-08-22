@@ -9,7 +9,28 @@ from io import BytesIO
 import dash_bootstrap_components as dbc
 from dash import html
 
-from .Components import Fastify
+
+def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
+    """
+    Modify a Dash component to a FastComponent.
+
+    Args:
+        component (type):
+        component_property (type):
+        ack (type, optional):
+        placeholder (type, optional):
+        label_ (type, optional):
+
+    Returns:
+        [type]: [description]
+    """
+
+    component.component_property = component_property
+    component.ack = ack
+    component.label_ = label_
+    component.placeholder = placeholder
+
+    return component
 
 
 # Add themes mapper
@@ -51,7 +72,7 @@ def theme_mapper(theme_name):
     return theme
 
 
-def pil_to_b64(img):
+def _pil_to_b64(img):
     """
     Utility to convert PIL image to a base64 string.
 
@@ -70,7 +91,7 @@ def pil_to_b64(img):
 
 
 # Input component utils
-def get_input_names_from_callback_fn(callback_fn):
+def _get_input_names_from_callback_fn(callback_fn):
     """
     Returns the names of function arguments as a list of strings
     """
@@ -81,7 +102,7 @@ def get_input_names_from_callback_fn(callback_fn):
     return parameter_list
 
 
-def assign_ids_to_inputs(inputs, callback_fn):
+def _assign_ids_to_inputs(inputs, callback_fn):
     """
     Modify the 'id' property of inputs.
     """
@@ -91,7 +112,7 @@ def assign_ids_to_inputs(inputs, callback_fn):
     inputs_with_ids = []
 
     for input_, parameter_name in zip(
-        inputs, get_input_names_from_callback_fn(callback_fn)
+        inputs, _get_input_names_from_callback_fn(callback_fn)
     ):
         input_.id = parameter_name
         inputs_with_ids.append(copy.deepcopy(input_))
@@ -99,17 +120,17 @@ def assign_ids_to_inputs(inputs, callback_fn):
     return inputs_with_ids
 
 
-def make_input_groups(inputs_with_ids, update_live):
+def _make_input_groups(inputs_with_ids, update_live):
 
     input_groups = []
 
-    input_groups.append(html.H2("Input"))
+    input_groups.append(html.H6("INPUT"))
 
     for idx, input_ in enumerate(inputs_with_ids):
         label = f"{input_.id}" if input_.label_ is None else input_.label_
         label = label.replace("_", " ").upper()
         ack_component = (
-            Fastify(component=dbc.Col(), assign_prop="children")
+            Fastify(component=dbc.Col(), component_property="children")
             if input_.ack is None
             else input_.ack
         )
@@ -119,7 +140,8 @@ def make_input_groups(inputs_with_ids, update_live):
 
         input_groups.append(
             dbc.Col(
-                [dbc.Label(label, align="end"), input_, ack_component], align="center",
+                [dbc.Label(label, align="end"), input_, ack_component],
+                align="center",
             )
         )
 
@@ -134,7 +156,7 @@ def make_input_groups(inputs_with_ids, update_live):
             )
         ],
         style={"padding": "2% 1% 1% 2%"}
-        if update_live == False
+        if update_live is False
         else dict(display="none"),
     )
 
@@ -144,7 +166,7 @@ def make_input_groups(inputs_with_ids, update_live):
 
 
 # Output utils
-def assign_ids_to_outputs(outputs):
+def _assign_ids_to_outputs(outputs):
     """
     Modify the 'id' property of inputs.
     """
@@ -160,10 +182,10 @@ def assign_ids_to_outputs(outputs):
     return outputs_with_ids
 
 
-def make_output_groups(outputs, update_live):
+def _make_output_groups(outputs, update_live):
 
     output_groups = []
-    output_groups.append(html.H2("Output"))
+    output_groups.append(html.H6("OUTPUT"))
 
     for idx, output_ in enumerate(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
@@ -190,7 +212,7 @@ def make_output_groups(outputs, update_live):
             )
         ],
         style={"padding": "2% 1% 1% 2%"}
-        if update_live == False
+        if update_live is False
         else dict(display="none"),
     )
 
