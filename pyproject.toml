@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "fast_dash"
-version = "0.1.6"
+version = "0.1.7"
 homepage = "https://github.com/dkedar7/fast_dash"
 description = "Build Machine Learning prototypes web applications lightning fast."
 authors = ["Kedar Dabhadkar <kedar@fastdash.app>"]
