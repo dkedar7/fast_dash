@@ -9,6 +9,9 @@ from io import BytesIO
 import dash_bootstrap_components as dbc
 from dash import html
 
+from PIL import ImageFile
+import matplotlib as mpl
+
 
 def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
     """
@@ -26,6 +29,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     """
 
     component.component_property = component_property
+    # component.class_name
     component.ack = ack
     component.label_ = label_
     component.placeholder = placeholder
@@ -90,6 +94,24 @@ def _pil_to_b64(img):
     return img_str
 
 
+def _mpl_to_b64(fig):
+    """
+    Utility to convert Matplotlib figure to a base64 string.
+
+    Args:
+        fig (matplotlib.figure.Figure): Input matplotlib plot
+
+    Returns:
+        str: Base64 string of the input image
+    """
+    buffered = BytesIO()
+    fig.savefig(buffered, format="PNG")
+    img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+    img_str = f"data:image/png;base64,{img_str}"
+
+    return img_str
+
+
 # Input component utils
 def _get_input_names_from_callback_fn(callback_fn):
     """
@@ -124,7 +146,7 @@ def _make_input_groups(inputs_with_ids, update_live):
 
     input_groups = []
 
-    input_groups.append(html.H6("INPUT"))
+    input_groups.append(html.H4("INPUTS"))
 
     for idx, input_ in enumerate(inputs_with_ids):
         label = f"{input_.id}" if input_.label_ is None else input_.label_
@@ -141,7 +163,7 @@ def _make_input_groups(inputs_with_ids, update_live):
         input_groups.append(
             dbc.Col(
                 [dbc.Label(label, align="end"), input_, ack_component],
-                align="center",
+                align="left",
             )
         )
 
@@ -185,18 +207,19 @@ def _assign_ids_to_outputs(outputs):
 def _make_output_groups(outputs, update_live):
 
     output_groups = []
-    output_groups.append(html.H6("OUTPUT"))
+    # output_groups.append(html.H6("OUTPUT"))
 
     for idx, output_ in enumerate(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
-        label = label.replace("_", " ").upper()
+        label = label.replace("_", " ")
         output_groups.append(
             dbc.Col(
                 [
-                    dbc.Label(label, align="end"),
-                    dbc.Spinner(children=output_, color="primary"),
-                ],
+                    dbc.Label(label, align="end")
+                ] + [output_],
                 align="center",
+                style={"height": "100px", "width": "100%", "overflow": "hidden"},
+                class_name="rounded border d-flex flex-column flex-fill"
             )
         )
 
@@ -219,3 +242,14 @@ def _make_output_groups(outputs, update_live):
     output_groups.append(button_row)
 
     return output_groups
+
+
+def _transform_outputs(outputs):
+    "Transform outputs to fit in the desired components"
+
+    _transform_mapper = {
+        mpl.figure.Figure: _mpl_to_b64,
+        ImageFile.ImageFile: _pil_to_b64
+    }
+
+    return [_transform_mapper[type(o)](o) if type(o) in _transform_mapper else o for o in outputs]
