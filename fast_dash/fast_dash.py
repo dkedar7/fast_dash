@@ -5,9 +5,10 @@ import warnings
 
 import dash
 import flask
-from dash.dependencies import Input, Output
+from dash import Input, Output
+import dash_bootstrap_components as dbc
 
-from .Components import DefaultLayout, Text, _infer_components, SidebarLayout, MosaicLayout
+from .Components import BaseLayout, Text, _infer_components, SidebarLayout
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
@@ -30,7 +31,7 @@ class FastDash:
     def __init__(
         self,
         callback_fn,
-        layout='mosaic',
+        layout='sidebar',
         mosaic=None,
         inputs=None,
         outputs=None,
@@ -42,13 +43,14 @@ class FastDash:
         twitter_url=None,
         navbar=True,
         footer=True,
-        theme="JOURNAL",
+        theme=None,
         update_live=False,
         port=8080,
         mode=None,
         minimal=False,
         disable_logs=False,
         scale_height=1,
+        run_kwargs=dict(),
         **kwargs
     ):
         """
@@ -56,9 +58,9 @@ class FastDash:
             callback_fn (func): Python function that Fast Dash deploys.
                 This function guides the behavior of and interaction between input and output components.
 
-            layout (str, optional): App layout style. Current supports 'default', 'sidebar', and 'mosaic' (default).
+            layout (str, optional): App layout style. Currently supports 'base' and 'sidebar' (default).
 
-            mosaic (str): Mosaic array layout, if mosaic layout is selected.
+            mosaic (str): Mosaic array layout, if sidebar layout is selected.
 
             inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
                 Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
@@ -123,6 +125,8 @@ class FastDash:
         self.disable_logs = disable_logs
         self.scale_height = scale_height
         self.port = port
+        self.run_kwargs = run_kwargs
+        self.run_kwargs.update(dict(port=port))
         self.kwargs = kwargs
 
         if self.disable_logs is True:
@@ -144,6 +148,7 @@ class FastDash:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
         # Assign IDs to components
@@ -161,7 +166,7 @@ class FastDash:
         # Define Flask server
         server = flask.Flask(__name__)
         external_stylesheets = [
-            theme_mapper(theme),
+            theme_mapper(self.theme),
             "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
         ]
 
@@ -181,12 +186,7 @@ class FastDash:
             __name__,
             external_stylesheets=external_stylesheets,
             server=server,
-            meta_tags=[
-                {
-                    "name": "viewport",
-                    "content": "width=device-width, initial-scale=1.0, maximum-scale=1.8, minimum-scale=0.5",
-                }
-            ],
+            **self.kwargs
         )
         # Define app title
         self.app.title = self.title
@@ -205,14 +205,14 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
 
-    def run(self, **kwargs):
-        self.server.run(port=self.port, **kwargs) if self.mode is None else self.app.run_server(
-            mode=self.mode, port=self.port, **kwargs
+    def run(self):
+        self.server.run(**self.run_kwargs) if self.mode is None else self.app.run_server(
+            mode=self.mode, **self.run_kwargs
         )
 
-    def run_server(self, **kwargs):
-        self.app.run_server(port=self.port, **kwargs) if self.mode is None else self.app.run_server(
-            mode=self.mode, port=self.port, **kwargs
+    def run_server(self):
+        self.app.run_server(**self.run_kwargs) if self.mode is None else self.app.run_server(
+            mode=self.mode, **self.run_kwargs
         )
 
     def set_layout(self):
@@ -239,14 +239,11 @@ class FastDash:
             'scale_height': self.scale_height
         }
 
-        if self.layout_pattern == 'mosaic':
-            app_layout = MosaicLayout(**layout_args)
-
-        elif self.layout_pattern == 'sidebar':
+        if self.layout_pattern == 'sidebar':
             app_layout = SidebarLayout(**layout_args)
 
         else:
-            app_layout = DefaultLayout(**layout_args)
+            app_layout = BaseLayout(**layout_args)
 
         self.layout_object = app_layout
         # app_layout.callbacks()
@@ -325,7 +322,7 @@ class FastDash:
 def fastdash(
     _callback_fn=None,
     *,
-    layout='mosaic',
+    layout='sidebar',
     mosaic=None,
     inputs=None,
     outputs=None,
@@ -337,14 +334,15 @@ def fastdash(
     twitter_url=None,
     navbar=True,
     footer=True,
-    theme="JOURNAL",
+    theme=None,
     update_live=False,
-    mode=None,
     port=8080,
+    mode=None,
     minimal=False,
     disable_logs=False,
     scale_height=1,
-    **run_kwargs
+    run_kwargs=dict(),
+    **kwargs
 ):
     """
     Decorator for the `FastDash` class.
@@ -406,7 +404,7 @@ def fastdash(
         @functools.wraps(callback_fn)
         def wrapper_fastdash(**kwargs):
             app = FastDash(callback_fn=callback_fn, **kwargs)
-            app.run(**run_kwargs)
+            app.run()
             return callback_fn
 
         return wrapper_fastdash(
@@ -429,7 +427,8 @@ def fastdash(
             minimal=minimal,
             disable_logs=disable_logs,
             scale_height=scale_height,
-            **run_kwargs
+            run_kwargs=run_kwargs,
+            **kwargs
         )
 
     # If the decorator is called with arguments

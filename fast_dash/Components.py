@@ -21,7 +21,7 @@ from PIL import ImageFile
 from .utils import Fastify, _pil_to_b64
 
 
-class DefaultLayout:
+class BaseLayout:
     def __init__(
         self,
         mosaic=None,
@@ -51,19 +51,6 @@ class DefaultLayout:
         self.footer = footer
         self.minimal = minimal
         self.scale_height = scale_height
-
-        # Generate layout
-        # Bring all containers together
-        # self.navbar_container = self.generate_navbar_container()
-        # self.header_container = self.generate_header_container()
-        self.footer_container = self.generate_footer_container()
-
-        # Could be useful to have separate attributes for input and output containers in child classes
-        # self.input_container = self.generate_input_component()
-        # self.output_container = self.generate_output_component()
-
-        # self.io_container = self.generate_io_container()
-        # self.layout = self.generate_layout()
 
     def generate_navbar_container(self):
         if self.navbar is False:
@@ -284,132 +271,8 @@ class DefaultLayout:
         return
 
 
-class SidebarLayout(DefaultLayout):
-    def __init__(self, **kwargs):
-        super().__init__(**kwargs)
 
-    def generate_input_component(self):
-        button = dbc.Row(
-            dmc.Button(
-                id="sidebar-button",
-                n_clicks=0,
-                size="sm",
-                style=dict(width=50),
-                children=DashIconify(id="sidebar-expand-arrow", icon="maki:cross"),
-                variant="subtle",
-                color="black",
-            ),
-            justify="end",
-        )
-
-        return dbc.Col(
-            children=[button, dmc.Stack(children=self.inputs)],
-            id="input-group",
-            sm=2,
-            width=10,
-            style={
-                "background-color": "#F5F7F7",
-                "display": "block",
-                "padding": "0 1% 0 2%",
-                "height": f"{self.scale_height * 110}vh",
-            },
-            class_name="border border-right",
-        )
-
-    def generate_output_component(self):
-        return dbc.Row(
-            children=[dbc.Col(o, className="g-1 border") for o in self.outputs],
-            class_name="flex-fill d-flex flex-column",
-            style={"padding": "0 1% 1% 2%", "height": "80vh"},
-        )
-
-    def generate_footer_container(self):
-        return dmc.Affix(
-            dcc.Link(
-                dmc.Button("Made with Fast Dash"),
-                href="https://github.com/dkedar7/fast_dash",
-                target="_blank",
-            ),
-            position={"bottom": "20px", "right": "20px"},
-        )
-
-    def generate_layout(self):
-        # There are four main components:
-        # navbar, header, input, output, footer
-
-        button_expand = dmc.Affix(
-            dmc.Button(
-                id="button-expand",
-                n_clicks=0,
-                size="sm",
-                style=dict(display="none"),
-                children=DashIconify(icon="material-symbols:arrow-forward-ios-rounded"),
-                variant="subtle",
-                color="black",
-            ),
-            position={"top": "4.5%", "left": "0"},
-        )
-
-        layout = dbc.Container(
-            [
-                self.generate_navbar_container(),
-                button_expand,
-                dbc.Row(
-                    [
-                        self.generate_input_component(),
-                        dbc.Col(
-                            [
-                                self.generate_header_container(),
-                                self.generate_output_component(),
-                            ],
-                            id="output-group-col",
-                            style={"padding": "1% 2% 0 2%"},
-                        ),
-                    ],
-                    class_name="d-flex",
-                ),
-                self.generate_footer_container(),
-            ],
-            fluid=True,
-            style={"padding": "0 0 0 0", "height": "100vh"},
-        )
-
-        return layout
-
-    def callbacks(self, app):
-        @app.callback(
-            [
-                Output("input-group", "style"),
-                Output("output-group-col", "width"),
-                Output("button-expand", "style"),
-            ],
-            [Input("sidebar-button", "n_clicks"), Input("button-expand", "n_clicks")],
-            [State("input-group", "style"), State("button-expand", "style")],
-        )
-        def toggle_sidebar(n_clicks, n_clicks_expand, input_style, expand_style):
-            input_style = {} if input_style is None else input_style
-            expand_style = {} if expand_style is None else expand_style
-            width = 10
-
-            display = input_style.get("display", "block")
-            opened = display == "block"
-
-            # Condition to collapse the sidebar
-            if n_clicks > n_clicks_expand and opened:
-                input_style.update({"display": "none"})
-                width = 12
-                expand_style.update(dict(display="block"))
-
-            # Expand by default
-            else:
-                input_style.update({"display": "block"})
-                width = 10
-                expand_style.update(dict(display="none"))
-
-            return input_style, width, expand_style
-
-
-class MosaicLayout(SidebarLayout):
+class SidebarLayout(BaseLayout):
     def __init__(self, **kwargs):
         self.unique_components = []
 
@@ -666,6 +529,34 @@ class MosaicLayout(SidebarLayout):
             layout.children.append(child_layout)
 
         return layout
+    
+    def generate_input_component(self):
+        button = dbc.Row(
+            dmc.Button(
+                id="sidebar-button",
+                n_clicks=0,
+                size="sm",
+                style=dict(width=50),
+                children=DashIconify(id="sidebar-expand-arrow", icon="maki:cross"),
+                variant="subtle",
+                color="black",
+            ),
+            justify="end",
+        )
+
+        return dbc.Col(
+            children=[button, dmc.Stack(children=self.inputs)],
+            id="input-group",
+            sm=2,
+            width=10,
+            style={
+                "background-color": "#F5F7F7",
+                "display": "block",
+                "padding": "0 1% 0 2%",
+                "height": f"{self.scale_height * 110}vh",
+            },
+            class_name="border border-right",
+        )
 
     def generate_output_component(self):
         mosaic = self._normalize_grid_string(self.mosaic)
@@ -695,6 +586,91 @@ class MosaicLayout(SidebarLayout):
         )
 
         return output_layout
+
+    def generate_footer_container(self):
+        return dmc.Affix(
+            dcc.Link(
+                dmc.Button("Made with Fast Dash"),
+                href="https://github.com/dkedar7/fast_dash",
+                target="_blank",
+            ),
+            position={"bottom": "20px", "right": "20px"},
+        )
+
+    def generate_layout(self):
+        # There are four main components:
+        # navbar, header, input, output, footer
+
+        button_expand = dmc.Affix(
+            dmc.Button(
+                id="button-expand",
+                n_clicks=0,
+                size="sm",
+                style=dict(display="none"),
+                children=DashIconify(icon="material-symbols:arrow-forward-ios-rounded"),
+                variant="subtle",
+                color="black",
+            ),
+            position={"top": "4.5%", "left": "0"},
+        )
+
+        layout = dbc.Container(
+            [
+                self.generate_navbar_container(),
+                button_expand,
+                dbc.Row(
+                    [
+                        self.generate_input_component(),
+                        dbc.Col(
+                            [
+                                self.generate_header_container(),
+                                self.generate_output_component(),
+                            ],
+                            id="output-group-col",
+                            style={"padding": "1% 2% 0 2%"},
+                        ),
+                    ],
+                    class_name="d-flex",
+                ),
+                self.generate_footer_container(),
+            ],
+            fluid=True,
+            style={"padding": "0 0 0 0", "height": "100vh"},
+        )
+
+        return layout
+
+    def callbacks(self, app):
+        @app.callback(
+            [
+                Output("input-group", "style"),
+                Output("output-group-col", "width"),
+                Output("button-expand", "style"),
+            ],
+            [Input("sidebar-button", "n_clicks"), Input("button-expand", "n_clicks")],
+            [State("input-group", "style"), State("button-expand", "style")],
+        )
+        def toggle_sidebar(n_clicks, n_clicks_expand, input_style, expand_style):
+            input_style = {} if input_style is None else input_style
+            expand_style = {} if expand_style is None else expand_style
+            width = 10
+
+            display = input_style.get("display", "block")
+            opened = display == "block"
+
+            # Condition to collapse the sidebar
+            if n_clicks > n_clicks_expand and opened:
+                input_style.update({"display": "none"})
+                width = 12
+                expand_style.update(dict(display="block"))
+
+            # Expand by default
+            else:
+                input_style.update({"display": "block"})
+                width = 10
+                expand_style.update(dict(display="none"))
+
+            return input_style, width, expand_style
 
 
 _map_types_to_readable_names = {

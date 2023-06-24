@@ -10,6 +10,7 @@ import dash_bootstrap_components as dbc
 from dash import html
 
 from PIL import ImageFile
+import matplotlib.pyplot as plt
 import matplotlib as mpl
 
 
@@ -44,6 +45,7 @@ def theme_mapper(theme_name):
     """
 
     theme_mapper_dict = {
+        "BOOTSTRAP": dbc.themes.BOOTSTRAP,
         "CERULEAN": dbc.themes.CERULEAN,
         "COSMO": dbc.themes.COSMO,
         "CYBORG": dbc.themes.CYBORG,
@@ -248,7 +250,7 @@ def _transform_outputs(outputs):
     "Transform outputs to fit in the desired components"
 
     _transform_mapper = {
-        mpl.figure.Figure: _mpl_to_b64,
+        plt.Figure: _mpl_to_b64,
         ImageFile.ImageFile: _pil_to_b64
     }
 
