@@ -48,7 +48,7 @@ class FastDash:
         mode=None,
         minimal=False,
         disable_logs=False,
-        height_scale=1,
+        scale_height=1,
         **kwargs
     ):
         """
@@ -104,7 +104,7 @@ class FastDash:
 
             disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
 
-            height_scale (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
+            scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
         """
 
         self.callback_fn = callback_fn
@@ -121,7 +121,7 @@ class FastDash:
         self.update_live = update_live
         self.mode = mode
         self.disable_logs = disable_logs
-        self.height_scale = height_scale
+        self.scale_height = scale_height
         self.port = port
         self.kwargs = kwargs
 
@@ -236,7 +236,7 @@ class FastDash:
             'navbar': self.navbar,
             'footer': self.footer,
             'minimal': self.minimal,
-            'height_scale': self.height_scale
+            'scale_height': self.scale_height
         }
 
         if self.layout_pattern == 'mosaic':
@@ -343,7 +343,7 @@ def fastdash(
     port=8080,
     minimal=False,
     disable_logs=False,
-    height_scale=1,
+    scale_height=1,
     **run_kwargs
 ):
     """
@@ -428,7 +428,7 @@ def fastdash(
             port=port,
             minimal=minimal,
             disable_logs=disable_logs,
-            height_scale=height_scale,
+            scale_height=scale_height,
             **run_kwargs
         )
 

@@ -36,7 +36,7 @@ class DefaultLayout:
         navbar=True,
         footer=True,
         minimal=False,
-        height_scale=800,
+        scale_height=1,
     ):
         self.mosaic = mosaic
         self.inputs = inputs
@@ -50,7 +50,7 @@ class DefaultLayout:
         self.navbar = navbar
         self.footer = footer
         self.minimal = minimal
-        self.height_scale = height_scale
+        self.scale_height = scale_height
 
         # Generate layout
         # Bring all containers together
@@ -311,7 +311,7 @@ class SidebarLayout(DefaultLayout):
                 "background-color": "#F5F7F7",
                 "display": "block",
                 "padding": "0 1% 0 2%",
-                "height": f"{self.height_scale * 110}vh",
+                "height": f"{self.scale_height * 110}vh",
             },
             class_name="border border-right",
         )
@@ -325,7 +325,11 @@ class SidebarLayout(DefaultLayout):
 
     def generate_footer_container(self):
         return dmc.Affix(
-            dmc.Button("Made with Fast Dash", href="https://github.com/dkedar7/fast_dash"),
+            dcc.Link(
+                dmc.Button("Made with Fast Dash"),
+                href="https://github.com/dkedar7/fast_dash",
+                target="_blank",
+            ),
             position={"bottom": "20px", "right": "20px"},
         )
 
@@ -667,7 +671,7 @@ class MosaicLayout(SidebarLayout):
         mosaic = self._normalize_grid_string(self.mosaic)
         mosaic_arr = self._make_array(mosaic)
         mosaic_shape = mosaic_arr.shape
-        self.height_of_single_row = (80 * self.height_scale) / (mosaic_shape[0])
+        self.height_of_single_row = (80 * self.scale_height) / (mosaic_shape[0])
 
         # Check if the mosaic array makes rectangles for all elements
         self._check_if_rectangular(mosaic_arr)
@@ -687,7 +691,7 @@ class MosaicLayout(SidebarLayout):
         output_layout = dbc.Col(
             [layout] + [self.outputs[-1]],
             class_name="g-1 d-flex flex-fill flex-column",
-            style={"height": f"{80 * self.height_scale}vh"},
+            style={"height": f"{80 * self.scale_height}vh"},
         )
 
         return output_layout
