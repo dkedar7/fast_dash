@@ -1,5 +1,9 @@
-# Overview
-
+<p align="center">
+  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
+</p>
+<p align="center">
+    <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
+</p>
 
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
@@ -20,14 +24,6 @@
     <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
 </a>
 
-</p>
-
-
-<p align="center">
-  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
-</p>
-<p align="center">
-    <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
 </p>
 
 
