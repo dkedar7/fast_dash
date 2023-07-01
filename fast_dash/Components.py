@@ -29,7 +29,7 @@ class BaseLayout:
         outputs=None,
         title=None,
         title_image_path=None,
-        subtext=None,
+        subtitle=None,
         github_url=None,
         linkedin_url=None,
         twitter_url=None,
@@ -43,7 +43,7 @@ class BaseLayout:
         self.outputs = outputs
         self.title = title
         self.title_image_path = title_image_path
-        self.subtext = subtext
+        self.subtitle = subtitle
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
@@ -52,13 +52,16 @@ class BaseLayout:
         self.minimal = minimal
         self.scale_height = scale_height
 
+        if minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
     def generate_navbar_container(self):
-        if self.navbar is False:
+        if not self.navbar:
             return None
 
         # 1. Navbar
         social_media_navigation = []
-        if self.github_url is not None:
+        if self.github_url:
             social_media_navigation.append(
                 dbc.NavItem(
                     dbc.NavLink(
@@ -71,7 +74,7 @@ class BaseLayout:
                 )
             )
 
-        if self.linkedin_url is not None:
+        if self.linkedin_url:
             social_media_navigation.append(
                 dbc.NavItem(
                     dbc.NavLink(
@@ -85,7 +88,7 @@ class BaseLayout:
                 )
             )
 
-        if self.twitter_url is not None:
+        if self.twitter_url:
             social_media_navigation.append(
                 dbc.NavItem(
                     dbc.NavLink(
@@ -102,7 +105,7 @@ class BaseLayout:
         navbar = dbc.NavbarSimple(
             children=[dbc.NavItem(dbc.NavLink("About", href="#"))]
             + social_media_navigation,
-            brand=self.title,
+            brand=self.title or "",
             color="primary",
             dark=True,
             fluid=True,
@@ -116,10 +119,10 @@ class BaseLayout:
 
         return navbar_container
 
-    def generate_header_container(self):
+    def generate_header_component(self):
         header_children = []
 
-        if self.title is not None:
+        if self.title:
             header_children.append(
                 dbc.Row(
                     html.H2(
@@ -129,7 +132,7 @@ class BaseLayout:
                 )
             )
 
-        if self.title_image_path is not None:
+        if self.title_image_path:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
@@ -139,12 +142,12 @@ class BaseLayout:
                 )
             )
 
-        if self.subtext is not None:
+        if self.subtitle:
             header_children.append(
                 dbc.Row(
                     dbc.Row(
                         html.H5(
-                            self.subtext,
+                            self.subtitle,
                             id="subheader6904007",
                             style={"textAlign": "center"},
                         ),
@@ -201,29 +204,6 @@ class BaseLayout:
 
         return output_container
 
-    def generate_io_container(self):
-        # Generate input container
-        input_component = self.generate_input_component()
-        # input_component.id = "input-group"
-
-        # Generate output container
-        output_component = self.generate_output_component()
-        # output_component.id = "output-group"
-
-        input_output_components = dbc.Row(
-            [input_component, output_component],
-            justify="evenly",
-            style={"padding": "2% 1% 0% 2%"}
-            if self.minimal is False
-            else {"padding": "0% 0% 0% 0%"},
-        )
-
-        io_container = dbc.Container(
-            [input_output_components], fluid=True, class_name="d-flex"
-        )
-
-        return io_container
-
     def generate_footer_container(self):
         if self.footer is False:
             return None
@@ -249,17 +229,17 @@ class BaseLayout:
         return footer_container
 
     def generate_layout(self):
-        layout_components = [
-            self.generate_navbar_container(),
-            self.generate_header_container(),
-            self.generate_io_container(),
-            self.generate_footer_container(),
-        ]
-
         layout = dbc.Container(
-            [component for component in layout_components if component is not None]
-            if self.minimal is False
-            else [self.generate_io_container()],
+            [
+                self.generate_navbar_container(),
+                self.generate_header_component(),
+                dbc.Row(
+                    [self.generate_input_component(), self.generate_output_component()],
+                    justify="evenly",
+                    style={"padding": "2% 1% 0% 2%"},
+                ),
+                self.generate_footer_container(),
+            ],
             fluid=True,
             style={"padding": "0 0 0 0"},
         )
@@ -269,7 +249,6 @@ class BaseLayout:
     def callbacks(self, app=None):
         "Optional callbacks specific to the layout"
         return
-
 
 
 class SidebarLayout(BaseLayout):
@@ -529,7 +508,7 @@ class SidebarLayout(BaseLayout):
             layout.children.append(child_layout)
 
         return layout
-    
+
     def generate_input_component(self):
         button = dbc.Row(
             dmc.Button(
@@ -623,7 +602,7 @@ class SidebarLayout(BaseLayout):
                         self.generate_input_component(),
                         dbc.Col(
                             [
-                                self.generate_header_container(),
+                                self.generate_header_component(),
                                 self.generate_output_component(),
                             ],
                             id="output-group-col",
