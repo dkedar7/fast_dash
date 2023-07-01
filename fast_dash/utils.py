@@ -19,18 +19,17 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     Modify a Dash component to a FastComponent.
 
     Args:
-        component (type):
-        component_property (type):
-        ack (type, optional):
-        placeholder (type, optional):
-        label_ (type, optional):
+        component (Dash component): Dash component that needs to be modified
+        component_property (str): Component property that's assigned the input or output values
+        ack (Dash component, optional): Dash component that's displayed as an acknowledgement of the original component
+        placeholder (type, optional): Placeholder value of the component.
+        label_ (type, optional): Component title.
 
     Returns:
-        [type]: [description]
+        Fast component: Dash component modified to make it compatible with Fast Dash.
     """
 
     component.component_property = component_property
-    # component.class_name
     component.ack = ack
     component.label_ = label_
     component.placeholder = placeholder
@@ -220,7 +219,7 @@ def _make_output_groups(outputs, update_live):
                     dbc.Label(label, align="end")
                 ] + [output_],
                 align="center",
-                style={"height": "100px", "width": "100%", "overflow": "hidden"},
+                style={"width": "100%", "overflow": "hidden"},
                 class_name="rounded border d-flex flex-column flex-fill"
             )
         )
