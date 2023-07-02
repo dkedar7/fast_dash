@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.1.8/logo.png" alt="Fast Dash logo"></a>
+  <a href="https://fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.1.8/logo.png" alt="Fast Dash" width=300></a>
 </p>
 <p align="center">
     <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
