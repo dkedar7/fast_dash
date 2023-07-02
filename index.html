@@ -107,7 +107,7 @@
     <div data-md-component="skip">
       
         
-        <a href="#overview" class="md-skip">
+        <a href="#examples" class="md-skip">
           Skip to content
         </a>
       
@@ -254,8 +254,6 @@
       <input class="md-nav__toggle md-toggle" data-md-toggle="toc" type="checkbox" id="__toc">
       
       
-        
-      
       
         <label class="md-nav__link md-nav__link--active" for="__toc">
           Home
@@ -272,8 +270,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -282,16 +278,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#simple-example" class="md-nav__link">
-    Simple example
+  <a href="#examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
       
         <li class="md-nav__item">
+  <a href="#about" class="md-nav__link">
+    About
+  </a>
+  
+    <nav class="md-nav" aria-label="About">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#key-features" class="md-nav__link">
     Key features
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -303,8 +312,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credits" class="md-nav__link">
-    Credits
+  <a href="#citation" class="md-nav__link">
+    Citation
   </a>
   
 </li>
@@ -604,8 +613,6 @@
   
   
   
-    
-  
   
     <label class="md-nav__title" for="__toc">
       <span class="md-nav__icon md-icon"></span>
@@ -614,16 +621,29 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#simple-example" class="md-nav__link">
-    Simple example
+  <a href="#examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
       
         <li class="md-nav__item">
+  <a href="#about" class="md-nav__link">
+    About
+  </a>
+  
+    <nav class="md-nav" aria-label="About">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
   <a href="#key-features" class="md-nav__link">
     Key features
   </a>
+  
+</li>
+        
+      </ul>
+    </nav>
   
 </li>
       
@@ -635,8 +655,8 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#credits" class="md-nav__link">
-    Credits
+  <a href="#citation" class="md-nav__link">
+    Citation
   </a>
   
 </li>
@@ -659,8 +679,16 @@
 
 
 
+  <h1>Home</h1>
+
 <!-- BEGIN INCLUDE ../README.md -->
-<h1 id="overview">Overview</h1>
+<p align="center">
+  <a href="https://fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.1.8/logo.png" alt="Fast Dash" width=300></a>
+</p>
+<p align="center">
+    <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
+</p>
+
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
     <img src="https://img.shields.io/pypi/v/fast_dash?color=%2334D058"
@@ -682,28 +710,20 @@
 
 </p>
 
-<p align="center">
-  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
-</p>
-<p align="center">
-    <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
-</p>
-
 <hr />
 <ul>
-<li>Website: <a href="https://fastdash.app/">https://fastdash.app/</a></li>
-<li>Documentation: <a href="https://docs.fastdash.app/">https://docs.fastdash.app/</a></li>
-<li>Source code: <a href="https://github.com/dkedar7/fast_dash/">https://github.com/dkedar7/fast_dash/</a></li>
-<li>Installation: <code>pip install fast-dash</code></li>
+<li><strong>Documentation</strong>: <a href="https://docs.fastdash.app/..">https://docs.fastdash.app</a></li>
+<li><strong>Source code</strong>: <a href="https://github.com/dkedar7/fast_dash/">github.com/dkedar7/fast_dash</a></li>
+<li><strong>Installation</strong>: <code>pip install fast-dash</code></li>
 </ul>
 <hr />
-<p>Fast Dash is a Python module that makes the development of web applications fast and easy. It is built on top of Plotly Dash and can be used to build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.</p>
-<p align="center">
+<p>Fast Dash is a Python module that makes the development of web applications fast and easy. It can build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.</p>
+<!-- <p align="center">
   <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/gallery_4_apps.gif" alt="Fast Dash logo"></a>
-</p>
+</p> -->
 
-<h2 id="simple-example">Simple example</h2>
-<p>With Fast Dash's decorator <code>fastdash</code>, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
+<h2 id="examples">Examples</h2>
+<p>With Fast Dash's decorator <code>@fastdash</code>, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="nd">@fastdash</span>
@@ -714,11 +734,11 @@
 </code></pre></div></p>
 <p>And just like that (🪄), we have a completely functional interactive app!</p>
 <p>Output:
-<img alt="Simple example" src="https://raw.githubusercontent.com/dkedar7/fast_dash/decorate/docs/assets/simple_example.gif" /></p>
+<img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.1.8/Simple%20text%20to%20text.png" /></p>
 <hr />
-<p>Fast Dash can read additional details about a function, like its name, input and output types, docstring, and uses this information to infer which components to use.</p>
-<p>For example, here's how to deploy an app that takes a string and an integer as inputs and return some text.</p>
-<p><div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<p>Fast Dash can read all the function details, like its name, input and output types, docstring, and uses this information to infer which components to use.</p>
+<p>For example, here's how to deploy an app that takes a string and an integer as inputs and returns some text.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="nd">@fastdash</span>
 <span class="k">def</span> <span class="nf">display_selected_text_and_number</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -728,42 +748,28 @@
 
 <span class="c1"># * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)</span>
 </code></pre></div>
-Output:</p>
-<p><img alt="Simple example with multiple inputs" src="https://storage.googleapis.com/fast_dash/0.1.7/simple_example_2.gif" /></p>
+<p>Output:
+<img alt="Simple example with multiple inputs" src="https://storage.googleapis.com/fast_dash/0.1.8/Simple%20example%202.png" /></p>
 <p>And with just a few more lines, we can add a title icon, subheader and other social branding details.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
-
-<span class="nd">@fastdash</span><span class="p">(</span><span class="n">title_image_path</span><span class="o">=</span><span class="s1">&#39;https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/favicon.jpg&#39;</span><span class="p">,</span>
-        <span class="n">github_url</span><span class="o">=</span><span class="s1">&#39;https://github.com/dkedar7/fast_dash&#39;</span><span class="p">,</span>
-        <span class="n">linkedin_url</span><span class="o">=</span><span class="s1">&#39;https://linkedin.com/in/dkedar7&#39;</span><span class="p">,</span>
-        <span class="n">twitter_url</span><span class="o">=</span><span class="s1">&#39;https://twitter.com/dkedar&#39;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">display_selected_text_and_number</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-    <span class="s2">&quot;Simply display the selected text and number&quot;</span>
-    <span class="n">processed_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Selected text is </span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1"> and the number is </span><span class="si">{</span><span class="n">number</span><span class="si">}</span><span class="s1">.&#39;</span>
-    <span class="k">return</span> <span class="n">processed_text</span>
-</code></pre></div>
-<p>Output:</p>
-<p><img alt="Simple example with multiple inputs and details" src="https://storage.googleapis.com/fast_dash/0.1.7/simple_example_multiple_inputs_details.png" /></p>
 <hr />
+<h2 id="about">About</h2>
 <p>Read different ways to build Fast Dash apps and additional details by navigating to the <a href="https://docs.fastdash.app/">project documentation</a>.</p>
-<h2 id="key-features">Key features</h2>
+<h3 id="key-features">Key features</h3>
 <ul>
-<li>Launch an app only by specifying the types of inputs and outputs.</li>
+<li>Launch an app by adding a decorator only.</li>
 <li>Use multiple input and output components simultaneously.</li>
 <li>Flask-based backend allows easy scalability and customizability.</li>
 <li>Build fast, share and iterate.</li>
 </ul>
-<p>Some features are coming up in future releases:</p>
-<ul>
-<li>More input and output components.</li>
-<li>Deploy to Heroku and Google Cloud.</li>
-<li>and many more.</li>
-</ul>
 <h2 id="community">Community</h2>
-<p>Fast Dash is built on open-source. You are encouraged to share your own projects, which will be highlighted on a common community gallery (coming up).</p>
-<h2 id="credits">Credits</h2>
-<p>Fast Dash is built using <a href="https://github.com/plotly/dash">Plotly Dash</a>. Dash's Flask-based backend enables Fast Dash apps to scale easily and makes them highly compatibility with other integration services. This project is partially inspired from <a href="https://github.com/gradio-app/gradio">gradio</a>.</p>
-<p>The project template was created with <a href="https://github.com/audreyr/cookiecutter">Cookiecutter</a> and <a href="https://github.com/zillionare/cookiecutter-pypackage">zillionare/cookiecutter-pypackage</a>.</p>
+<p>Fast Dash is built using <a href="https://github.com/plotly/dash">Plotly Dash</a> and it's completely open-source.</p>
+<h2 id="citation">Citation</h2>
+<p>Please cite Fast Dash it if you use it in your work.
+<div class="highlight"><pre><span></span><code>@software{Kedar_Dabhadkar_Fast_Dash,
+author = {Kedar Dabhadkar},
+title = {{Fast Dash}}
+}
+</code></pre></div></p>
 <!-- END INCLUDE -->
 
 

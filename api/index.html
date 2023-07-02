@@ -722,9 +722,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 20</span>
-<span class="normal"> 21</span>
-<span class="normal"> 22</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 22</span>
 <span class="normal"> 23</span>
 <span class="normal"> 24</span>
 <span class="normal"> 25</span>
@@ -986,7 +984,45 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">281</span>
 <span class="normal">282</span>
 <span class="normal">283</span>
-<span class="normal">284</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FastDash</span><span class="p">:</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span>
+<span class="normal">316</span>
+<span class="normal">317</span>
+<span class="normal">318</span>
+<span class="normal">319</span>
+<span class="normal">320</span>
+<span class="normal">321</span>
+<span class="normal">322</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FastDash</span><span class="p">:</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -998,6 +1034,8 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">callback_fn</span><span class="p">,</span>
+        <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
+        <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -1008,17 +1046,24 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">theme</span><span class="o">=</span><span class="s2">&quot;JOURNAL&quot;</span><span class="p">,</span>
+        <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span>
         <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+        <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+        <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
         <span class="o">**</span><span class="n">kwargs</span>
     <span class="p">):</span>
         <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">        Args:</span>
 <span class="sd">            callback_fn (func): Python function that Fast Dash deploys.</span>
 <span class="sd">                This function guides the behavior of and interaction between input and output components.</span>
+
+<span class="sd">            layout (str, optional): App layout style. Currently supports &#39;base&#39; and &#39;sidebar&#39; (default).</span>
+
+<span class="sd">            mosaic (str): Mosaic array layout, if sidebar layout is selected.</span>
 
 <span class="sd">            inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.</span>
 <span class="sd">                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function&#39;s type</span>
@@ -1054,6 +1099,8 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 <span class="sd">            update_live (bool, optional): Enable hot reloading. Defaults to False.</span>
 
+<span class="sd">            port (int, optional): Port to which the app should be deployed. Defauts to 8080.</span>
+
 <span class="sd">            mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, &#39;external`.</span>
 <span class="sd">                Defaults to None.</span>
 
@@ -1061,9 +1108,15 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">                Defaults to False.</span>
 
 <span class="sd">            disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.</span>
+
+<span class="sd">            scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.</span>
+
+<span class="sd">            run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">_infer_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">is_input</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
         <span class="p">)</span>
@@ -1075,6 +1128,10 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="n">run_kwargs</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
@@ -1090,12 +1147,13 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span> <span class="o">=</span> <span class="n">title_image_path</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">subtext</span> <span class="o">=</span> <span class="n">subheader</span> <span class="k">if</span> <span class="n">subheader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__doc__</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">subtitle</span> <span class="o">=</span> <span class="n">subheader</span> <span class="k">if</span> <span class="n">subheader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__doc__</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">github_url</span> <span class="o">=</span> <span class="n">github_url</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">linkedin_url</span> <span class="o">=</span> <span class="n">linkedin_url</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span> <span class="o">=</span> <span class="n">twitter_url</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span> <span class="o">=</span> <span class="n">navbar</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
 
         <span class="c1"># Assign IDs to components</span>
@@ -1113,7 +1171,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Define Flask server</span>
         <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
         <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">theme_mapper</span><span class="p">(</span><span class="n">theme</span><span class="p">),</span>
+            <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
             <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
         <span class="p">]</span>
 
@@ -1133,15 +1191,10 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="vm">__name__</span><span class="p">,</span>
             <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
             <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
-            <span class="n">meta_tags</span><span class="o">=</span><span class="p">[</span>
-                <span class="p">{</span>
-                    <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;viewport&quot;</span><span class="p">,</span>
-                    <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;width=device-width, initial-scale=1.0, maximum-scale=1.8, minimum-scale=0.5&quot;</span><span class="p">,</span>
-                <span class="p">}</span>
-            <span class="p">],</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span>
         <span class="p">)</span>
         <span class="c1"># Define app title</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
 
         <span class="c1"># Intialize layout</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_layout</span><span class="p">()</span>
@@ -1157,39 +1210,51 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Allow easier access to Dash server</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
-            <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
+        <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+            <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
-            <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span>
+    <span class="k">def</span> <span class="nf">run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
+        <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+            <span class="n">mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
     <span class="k">def</span> <span class="nf">set_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">input_groups</span> <span class="o">=</span> <span class="n">_make_input_groups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span><span class="p">)</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">output_groups</span> <span class="o">=</span> <span class="n">_make_output_groups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span><span class="p">)</span>
 
-        <span class="n">default_layout</span> <span class="o">=</span> <span class="n">DefaultLayout</span><span class="p">(</span>
-            <span class="n">inputs</span><span class="o">=</span><span class="n">input_groups</span><span class="p">,</span>
-            <span class="n">outputs</span><span class="o">=</span><span class="n">output_groups</span><span class="p">,</span>
-            <span class="n">title</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
-            <span class="n">title_image_path</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span><span class="p">,</span>
-            <span class="n">subtext</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">subtext</span><span class="p">,</span>
-            <span class="n">github_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">github_url</span><span class="p">,</span>
-            <span class="n">linkedin_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">linkedin_url</span><span class="p">,</span>
-            <span class="n">twitter_url</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span><span class="p">,</span>
-            <span class="n">navbar</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">navbar</span><span class="p">,</span>
-            <span class="n">footer</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">footer</span><span class="p">,</span>
-            <span class="n">minimal</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">minimal</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">layout_args</span> <span class="o">=</span> <span class="p">{</span>
+            <span class="s2">&quot;mosaic&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span><span class="p">,</span>
+            <span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="n">input_groups</span><span class="p">,</span>
+            <span class="s2">&quot;outputs&quot;</span><span class="p">:</span> <span class="n">output_groups</span><span class="p">,</span>
+            <span class="s2">&quot;title&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span><span class="p">,</span>
+            <span class="s2">&quot;title_image_path&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span><span class="p">,</span>
+            <span class="s2">&quot;subtitle&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">subtitle</span><span class="p">,</span>
+            <span class="s2">&quot;github_url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">github_url</span><span class="p">,</span>
+            <span class="s2">&quot;linkedin_url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">linkedin_url</span><span class="p">,</span>
+            <span class="s2">&quot;twitter_url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span><span class="p">,</span>
+            <span class="s2">&quot;navbar&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span><span class="p">,</span>
+            <span class="s2">&quot;footer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer</span><span class="p">,</span>
+            <span class="s2">&quot;minimal&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span><span class="p">,</span>
+            <span class="s2">&quot;scale_height&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span><span class="p">,</span>
+        <span class="p">}</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">default_layout</span><span class="o">.</span><span class="n">layout</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">==</span> <span class="s2">&quot;sidebar&quot;</span><span class="p">:</span>
+            <span class="n">app_layout</span> <span class="o">=</span> <span class="n">SidebarLayout</span><span class="p">(</span><span class="o">**</span><span class="n">layout_args</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">app_layout</span> <span class="o">=</span> <span class="n">BaseLayout</span><span class="p">(</span><span class="o">**</span><span class="n">layout_args</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span> <span class="o">=</span> <span class="n">app_layout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">app_layout</span><span class="o">.</span><span class="n">generate_layout</span><span class="p">()</span>
 
     <span class="k">def</span> <span class="nf">register_callback_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nd">@self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span>
@@ -1217,9 +1282,9 @@ sets all parameters required for Fast Dash app deployment.</p>
                 <span class="n">Input</span><span class="p">(</span><span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;reset_inputs&quot;</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;n_clicks&quot;</span><span class="p">),</span>
                 <span class="n">Input</span><span class="p">(</span><span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;n_clicks&quot;</span><span class="p">),</span>
             <span class="p">],</span>
+            <span class="n">prevent_initial_callback</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">def</span> <span class="nf">process_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-
             <span class="n">reset_button</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
             <span class="n">submit_button</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
             <span class="n">ack_components</span> <span class="o">=</span> <span class="p">[</span>
@@ -1236,9 +1301,13 @@ sets all parameters required for Fast Dash app deployment.</p>
 
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output_state</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">output_state</span><span class="p">)</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="n">ack_components</span>
 
-                <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_state</span><span class="p">]</span>
+                <span class="k">else</span><span class="p">:</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="p">[</span><span class="n">output_state</span><span class="p">]</span>
+
+                <span class="c1"># Transform outputs to fit in the desired components</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="n">_transform_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_state</span><span class="p">)</span>
+
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="n">ack_components</span>
 
             <span class="k">elif</span> <span class="n">reset_button</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span><span class="p">:</span>
@@ -1251,6 +1320,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 
             <span class="k">else</span><span class="p">:</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span> <span class="o">+</span> <span class="n">ack_components</span>
+
+        <span class="c1"># Set layout callbacks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span><span class="o">.</span><span class="n">callbacks</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -1271,7 +1343,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h3 id="fast_dash.fast_dash.FastDash.__init__" class="doc doc-heading">
-<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="s1">&#39;JOURNAL&#39;</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1299,6 +1371,26 @@ sets all parameters required for Fast Dash app deployment.</p>
 This function guides the behavior of and interaction between input and output components.</p></td>
           <td>
               <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>layout</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>App layout style. Currently supports 'base' and 'sidebar' (default).</p></td>
+          <td>
+                <code>&#39;sidebar&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mosaic</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>Mosaic array layout, if sidebar layout is selected.</p></td>
+          <td>
+                <code>None</code>
           </td>
         </tr>
         <tr>
@@ -1418,7 +1510,7 @@ specified URL. Defaults to None.</p></td>
           <td><p>Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
 at https://bootswatch.com/.</p></td>
           <td>
-                <code>&#39;JOURNAL&#39;</code>
+                <code>None</code>
           </td>
         </tr>
         <tr>
@@ -1429,6 +1521,16 @@ at https://bootswatch.com/.</p></td>
           <td><p>Enable hot reloading. Defaults to False.</p></td>
           <td>
                 <code>False</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>port</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td><p>Port to which the app should be deployed. Defauts to 8080.</p></td>
+          <td>
+                <code>8080</code>
           </td>
         </tr>
         <tr>
@@ -1463,14 +1565,32 @@ Defaults to False.</p></td>
                 <code>False</code>
           </td>
         </tr>
+        <tr>
+          <td><code>scale_height</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td><p>Height of the app container is enlarged as a multiple of this. Defaults to 1.</p></td>
+          <td>
+                <code>1</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>run_kwargs</code></td>
+          <td>
+                <code>dict</code>
+          </td>
+          <td><p>All values from this variable are passed to Dash's <code>.run</code> method.</p></td>
+          <td>
+                <code>dict()</code>
+          </td>
+        </tr>
     </tbody>
   </table>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
-<span class="normal"> 30</span>
-<span class="normal"> 31</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 31</span>
 <span class="normal"> 32</span>
 <span class="normal"> 33</span>
 <span class="normal"> 34</span>
@@ -1628,9 +1748,30 @@ Defaults to False.</p></td>
 <span class="normal">186</span>
 <span class="normal">187</span>
 <span class="normal">188</span>
-<span class="normal">189</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">189</span>
+<span class="normal">190</span>
+<span class="normal">191</span>
+<span class="normal">192</span>
+<span class="normal">193</span>
+<span class="normal">194</span>
+<span class="normal">195</span>
+<span class="normal">196</span>
+<span class="normal">197</span>
+<span class="normal">198</span>
+<span class="normal">199</span>
+<span class="normal">200</span>
+<span class="normal">201</span>
+<span class="normal">202</span>
+<span class="normal">203</span>
+<span class="normal">204</span>
+<span class="normal">205</span>
+<span class="normal">206</span>
+<span class="normal">207</span>
+<span class="normal">208</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
+    <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
+    <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -1641,17 +1782,24 @@ Defaults to False.</p></td>
     <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">theme</span><span class="o">=</span><span class="s2">&quot;JOURNAL&quot;</span><span class="p">,</span>
+    <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span>
     <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
     <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Args:</span>
 <span class="sd">        callback_fn (func): Python function that Fast Dash deploys.</span>
 <span class="sd">            This function guides the behavior of and interaction between input and output components.</span>
+
+<span class="sd">        layout (str, optional): App layout style. Currently supports &#39;base&#39; and &#39;sidebar&#39; (default).</span>
+
+<span class="sd">        mosaic (str): Mosaic array layout, if sidebar layout is selected.</span>
 
 <span class="sd">        inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.</span>
 <span class="sd">            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function&#39;s type</span>
@@ -1687,6 +1835,8 @@ Defaults to False.</p></td>
 
 <span class="sd">        update_live (bool, optional): Enable hot reloading. Defaults to False.</span>
 
+<span class="sd">        port (int, optional): Port to which the app should be deployed. Defauts to 8080.</span>
+
 <span class="sd">        mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, &#39;external`.</span>
 <span class="sd">            Defaults to None.</span>
 
@@ -1694,9 +1844,15 @@ Defaults to False.</p></td>
 <span class="sd">            Defaults to False.</span>
 
 <span class="sd">        disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.</span>
+
+<span class="sd">        scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.</span>
+
+<span class="sd">        run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">_infer_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">is_input</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
     <span class="p">)</span>
@@ -1708,6 +1864,10 @@ Defaults to False.</p></td>
     <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="n">run_kwargs</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="ow">is</span> <span class="kc">True</span><span class="p">:</span>
@@ -1723,12 +1883,13 @@ Defaults to False.</p></td>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span> <span class="o">=</span> <span class="n">title_image_path</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">subtext</span> <span class="o">=</span> <span class="n">subheader</span> <span class="k">if</span> <span class="n">subheader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__doc__</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">subtitle</span> <span class="o">=</span> <span class="n">subheader</span> <span class="k">if</span> <span class="n">subheader</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__doc__</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">github_url</span> <span class="o">=</span> <span class="n">github_url</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">linkedin_url</span> <span class="o">=</span> <span class="n">linkedin_url</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span> <span class="o">=</span> <span class="n">twitter_url</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span> <span class="o">=</span> <span class="n">navbar</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
 
     <span class="c1"># Assign IDs to components</span>
@@ -1746,7 +1907,7 @@ Defaults to False.</p></td>
     <span class="c1"># Define Flask server</span>
     <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
     <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="n">theme_mapper</span><span class="p">(</span><span class="n">theme</span><span class="p">),</span>
+        <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
         <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
     <span class="p">]</span>
 
@@ -1766,15 +1927,10 @@ Defaults to False.</p></td>
         <span class="vm">__name__</span><span class="p">,</span>
         <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
         <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
-        <span class="n">meta_tags</span><span class="o">=</span><span class="p">[</span>
-            <span class="p">{</span>
-                <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;viewport&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="s2">&quot;width=device-width, initial-scale=1.0, maximum-scale=1.8, minimum-scale=0.5&quot;</span><span class="p">,</span>
-            <span class="p">}</span>
-        <span class="p">],</span>
+        <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span>
     <span class="p">)</span>
     <span class="c1"># Define app title</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
 
     <span class="c1"># Intialize layout</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">set_layout</span><span class="p">()</span>
@@ -1832,9 +1988,9 @@ Defaults to False.</p></td>
         <tr>
           <td><code>component</code></td>
           <td>
-                <code>type</code>
+                <code>Dash component</code>
           </td>
-          <td></td>
+          <td><p>Dash component that needs to be modified</p></td>
           <td>
               <em>required</em>
           </td>
@@ -1842,9 +1998,9 @@ Defaults to False.</p></td>
         <tr>
           <td><code>component_property</code></td>
           <td>
-                <code>type</code>
+                <code>str</code>
           </td>
-          <td></td>
+          <td><p>Component property that's assigned the input or output values</p></td>
           <td>
               <em>required</em>
           </td>
@@ -1852,9 +2008,9 @@ Defaults to False.</p></td>
         <tr>
           <td><code>ack</code></td>
           <td>
-                <code>type</code>
+                <code>Dash component</code>
           </td>
-          <td></td>
+          <td><p>Dash component that's displayed as an acknowledgement of the original component</p></td>
           <td>
                 <code>None</code>
           </td>
@@ -1864,7 +2020,7 @@ Defaults to False.</p></td>
           <td>
                 <code>type</code>
           </td>
-          <td></td>
+          <td><p>Placeholder value of the component.</p></td>
           <td>
                 <code>None</code>
           </td>
@@ -1874,7 +2030,7 @@ Defaults to False.</p></td>
           <td>
                 <code>type</code>
           </td>
-          <td></td>
+          <td><p>Component title.</p></td>
           <td>
                 <code>None</code>
           </td>
@@ -1894,17 +2050,14 @@ Defaults to False.</p></td>
         <tr>
           <td>
           </td>
-          <td></td>
+          <td><p>Fast component: Dash component modified to make it compatible with Fast Dash.</p></td>
         </tr>
     </tbody>
   </table>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/utils.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">13</span>
-<span class="normal">14</span>
-<span class="normal">15</span>
-<span class="normal">16</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">16</span>
 <span class="normal">17</span>
 <span class="normal">18</span>
 <span class="normal">19</span>
@@ -1921,19 +2074,22 @@ Defaults to False.</p></td>
 <span class="normal">30</span>
 <span class="normal">31</span>
 <span class="normal">32</span>
-<span class="normal">33</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">33</span>
+<span class="normal">34</span>
+<span class="normal">35</span>
+<span class="normal">36</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Modify a Dash component to a FastComponent.</span>
 
 <span class="sd">    Args:</span>
-<span class="sd">        component (type):</span>
-<span class="sd">        component_property (type):</span>
-<span class="sd">        ack (type, optional):</span>
-<span class="sd">        placeholder (type, optional):</span>
-<span class="sd">        label_ (type, optional):</span>
+<span class="sd">        component (Dash component): Dash component that needs to be modified</span>
+<span class="sd">        component_property (str): Component property that&#39;s assigned the input or output values</span>
+<span class="sd">        ack (Dash component, optional): Dash component that&#39;s displayed as an acknowledgement of the original component</span>
+<span class="sd">        placeholder (type, optional): Placeholder value of the component.</span>
+<span class="sd">        label_ (type, optional): Component title.</span>
 
 <span class="sd">    Returns:</span>
-<span class="sd">        [type]: [description]</span>
+<span class="sd">        Fast component: Dash component modified to make it compatible with Fast Dash.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="n">component</span><span class="o">.</span><span class="n">component_property</span> <span class="o">=</span> <span class="n">component_property</span>
@@ -1953,15 +2109,13 @@ Defaults to False.</p></td>
 
 
 <h2 id="fast_dash.fastdash" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="s1">&#39;JOURNAL&#39;</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">**</span><span class="n">run_kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
 
   <div class="doc doc-contents ">
   
-      <p>Decorator for the <code>FastDash</code> class.</p>
-<p>Use the decorated Python callback functions and deployes it using the chosen mode.</p>
 
   <p><strong>Parameters:</strong></p>
   <table>
@@ -1983,6 +2137,26 @@ Defaults to False.</p></td>
 This function guides the behavior of and interaction between input and output components.</p></td>
           <td>
               <em>required</em>
+          </td>
+        </tr>
+        <tr>
+          <td><code>layout</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>App layout style. Currently supports 'base' and 'sidebar' (default).</p></td>
+          <td>
+                <code>&#39;sidebar&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>mosaic</code></td>
+          <td>
+                <code>str</code>
+          </td>
+          <td><p>Mosaic array layout, if sidebar layout is selected.</p></td>
+          <td>
+                <code>None</code>
           </td>
         </tr>
         <tr>
@@ -2102,7 +2276,7 @@ specified URL. Defaults to None.</p></td>
           <td><p>Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
 at https://bootswatch.com/.</p></td>
           <td>
-                <code>&#39;JOURNAL&#39;</code>
+                <code>None</code>
           </td>
         </tr>
         <tr>
@@ -2113,6 +2287,16 @@ at https://bootswatch.com/.</p></td>
           <td><p>Enable hot reloading. Defaults to False.</p></td>
           <td>
                 <code>False</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>port</code></td>
+          <td>
+                <code>int</code>
+          </td>
+          <td><p>Port to which the app should be deployed. Defauts to 8080.</p></td>
+          <td>
+                <code>8080</code>
           </td>
         </tr>
         <tr>
@@ -2147,50 +2331,32 @@ Defaults to False.</p></td>
                 <code>False</code>
           </td>
         </tr>
+        <tr>
+          <td><code>scale_height</code></td>
+          <td>
+                <code>float</code>
+          </td>
+          <td><p>Height of the app container is enlarged as a multiple of this. Defaults to 1.</p></td>
+          <td>
+                <code>1</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>run_kwargs</code></td>
+          <td>
+                <code>dict</code>
+          </td>
+          <td><p>All values from this variable are passed to Dash's <code>.run</code> method.</p></td>
+          <td>
+                <code>dict()</code>
+          </td>
+        </tr>
     </tbody>
   </table>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">287</span>
-<span class="normal">288</span>
-<span class="normal">289</span>
-<span class="normal">290</span>
-<span class="normal">291</span>
-<span class="normal">292</span>
-<span class="normal">293</span>
-<span class="normal">294</span>
-<span class="normal">295</span>
-<span class="normal">296</span>
-<span class="normal">297</span>
-<span class="normal">298</span>
-<span class="normal">299</span>
-<span class="normal">300</span>
-<span class="normal">301</span>
-<span class="normal">302</span>
-<span class="normal">303</span>
-<span class="normal">304</span>
-<span class="normal">305</span>
-<span class="normal">306</span>
-<span class="normal">307</span>
-<span class="normal">308</span>
-<span class="normal">309</span>
-<span class="normal">310</span>
-<span class="normal">311</span>
-<span class="normal">312</span>
-<span class="normal">313</span>
-<span class="normal">314</span>
-<span class="normal">315</span>
-<span class="normal">316</span>
-<span class="normal">317</span>
-<span class="normal">318</span>
-<span class="normal">319</span>
-<span class="normal">320</span>
-<span class="normal">321</span>
-<span class="normal">322</span>
-<span class="normal">323</span>
-<span class="normal">324</span>
-<span class="normal">325</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">325</span>
 <span class="normal">326</span>
 <span class="normal">327</span>
 <span class="normal">328</span>
@@ -2257,9 +2423,65 @@ Defaults to False.</p></td>
 <span class="normal">389</span>
 <span class="normal">390</span>
 <span class="normal">391</span>
-<span class="normal">392</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">392</span>
+<span class="normal">393</span>
+<span class="normal">394</span>
+<span class="normal">395</span>
+<span class="normal">396</span>
+<span class="normal">397</span>
+<span class="normal">398</span>
+<span class="normal">399</span>
+<span class="normal">400</span>
+<span class="normal">401</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
+    <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
+    <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -2270,21 +2492,24 @@ Defaults to False.</p></td>
     <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">theme</span><span class="o">=</span><span class="s2">&quot;JOURNAL&quot;</span><span class="p">,</span>
+    <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+    <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span>
     <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-    <span class="o">**</span><span class="n">run_kwargs</span>
+    <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
+    <span class="o">**</span><span class="n">kwargs</span>
 <span class="p">):</span>
     <span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Decorator for the `FastDash` class.</span>
-
-<span class="sd">    Use the decorated Python callback functions and deployes it using the chosen mode.</span>
-
 <span class="sd">    Args:</span>
 <span class="sd">        callback_fn (func): Python function that Fast Dash deploys.</span>
 <span class="sd">            This function guides the behavior of and interaction between input and output components.</span>
+
+<span class="sd">        layout (str, optional): App layout style. Currently supports &#39;base&#39; and &#39;sidebar&#39; (default).</span>
+
+<span class="sd">        mosaic (str): Mosaic array layout, if sidebar layout is selected.</span>
 
 <span class="sd">        inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.</span>
 <span class="sd">            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function&#39;s type</span>
@@ -2320,6 +2545,8 @@ Defaults to False.</p></td>
 
 <span class="sd">        update_live (bool, optional): Enable hot reloading. Defaults to False.</span>
 
+<span class="sd">        port (int, optional): Port to which the app should be deployed. Defauts to 8080.</span>
+
 <span class="sd">        mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, &#39;external`.</span>
 <span class="sd">            Defaults to None.</span>
 
@@ -2327,6 +2554,10 @@ Defaults to False.</p></td>
 <span class="sd">            Defaults to False.</span>
 
 <span class="sd">        disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.</span>
+
+<span class="sd">        scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.</span>
+
+<span class="sd">        run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">def</span> <span class="nf">decorator_fastdash</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">):</span>
@@ -2335,10 +2566,12 @@ Defaults to False.</p></td>
         <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
         <span class="k">def</span> <span class="nf">wrapper_fastdash</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">callback_fn</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
-            <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="n">run_kwargs</span><span class="p">)</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">callback_fn</span>
 
         <span class="k">return</span> <span class="n">wrapper_fastdash</span><span class="p">(</span>
+            <span class="n">layout</span><span class="o">=</span><span class="n">layout</span><span class="p">,</span>
+            <span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">,</span>
             <span class="n">inputs</span><span class="o">=</span><span class="n">inputs</span><span class="p">,</span>
             <span class="n">outputs</span><span class="o">=</span><span class="n">outputs</span><span class="p">,</span>
             <span class="n">title</span><span class="o">=</span><span class="n">title</span><span class="p">,</span>
@@ -2352,9 +2585,12 @@ Defaults to False.</p></td>
             <span class="n">theme</span><span class="o">=</span><span class="n">theme</span><span class="p">,</span>
             <span class="n">update_live</span><span class="o">=</span><span class="n">update_live</span><span class="p">,</span>
             <span class="n">mode</span><span class="o">=</span><span class="n">mode</span><span class="p">,</span>
+            <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span>
             <span class="n">minimal</span><span class="o">=</span><span class="n">minimal</span><span class="p">,</span>
             <span class="n">disable_logs</span><span class="o">=</span><span class="n">disable_logs</span><span class="p">,</span>
-            <span class="o">**</span><span class="n">run_kwargs</span>
+            <span class="n">scale_height</span><span class="o">=</span><span class="n">scale_height</span><span class="p">,</span>
+            <span class="n">run_kwargs</span><span class="o">=</span><span class="n">run_kwargs</span><span class="p">,</span>
+            <span class="o">**</span><span class="n">kwargs</span>
         <span class="p">)</span>
 
     <span class="c1"># If the decorator is called with arguments</span>
