@@ -1,5 +1,5 @@
 <p align="center">
-  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/logo.png" alt="Fast Dash logo"></a>
+  <a href="https://fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.1.8/logo.png" alt="Fast Dash logo"></a>
 </p>
 <p align="center">
     <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
@@ -29,22 +29,21 @@
 
 ---
 
-* Website: <https://fastdash.app/>
-* Documentation: <https://docs.fastdash.app/>
-* Source code: <https://github.com/dkedar7/fast_dash/>
-* Installation: `pip install fast-dash`
+* **Documentation**: [https://docs.fastdash.app](https://docs.fastdash.app)
+* **Source code**: [github.com/dkedar7/fast_dash](https://github.com/dkedar7/fast_dash/)
+* **Installation**: `pip install fast-dash`
 
 ---
 
-Fast Dash is a Python module that makes the development of web applications fast and easy. It is built on top of Plotly Dash and can be used to build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.
+Fast Dash is a Python module that makes the development of web applications fast and easy. It can build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.
 
-<p align="center">
+<!-- <p align="center">
   <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/gallery_4_apps.gif" alt="Fast Dash logo"></a>
-</p>
+</p> -->
 
-## Simple example
+## Examples
 
-With Fast Dash's decorator `fastdash`, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
+With Fast Dash's decorator `@fastdash`, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
 ```python
 from fast_dash import fastdash
 
@@ -58,13 +57,12 @@ def text_to_text_function(input_text):
 And just like that (🪄), we have a completely functional interactive app!
 
 Output:
-![Simple example](https://raw.githubusercontent.com/dkedar7/fast_dash/decorate/docs/assets/simple_example.gif)
-
+![Simple example](https://storage.googleapis.com/fast_dash/0.1.8/Simple%20text%20to%20text.png)
 ---
 
-Fast Dash can read additional details about a function, like its name, input and output types, docstring, and uses this information to infer which components to use.
+Fast Dash can read all the function details, like its name, input and output types, docstring, and uses this information to infer which components to use.
 
-For example, here's how to deploy an app that takes a string and an integer as inputs and return some text.
+For example, here's how to deploy an app that takes a string and an integer as inputs and returns some text.
 
 ```python
 from fast_dash import fastdash
@@ -77,51 +75,34 @@ def display_selected_text_and_number(text: str, number: int) -> str:
 
 # * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 ```
-Output:
 
-![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.1.7/simple_example_2.gif)
+Output:
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.1.8/Simple%20example%202.png)
 
 And with just a few more lines, we can add a title icon, subheader and other social branding details.
 
-```python
-from fast_dash import fastdash
-
-@fastdash(title_image_path='https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/favicon.jpg',
-        github_url='https://github.com/dkedar7/fast_dash',
-        linkedin_url='https://linkedin.com/in/dkedar7',
-        twitter_url='https://twitter.com/dkedar')
-def display_selected_text_and_number(text: str, number: int) -> str:
-    "Simply display the selected text and number"
-    processed_text = f'Selected text is {text} and the number is {number}.'
-    return processed_text
-```
-
-Output:
-
-![Simple example with multiple inputs and details](https://storage.googleapis.com/fast_dash/0.1.7/simple_example_multiple_inputs_details.png)
-
 ---
+
+## About
+
 Read different ways to build Fast Dash apps and additional details by navigating to the [project documentation](https://docs.fastdash.app/).
 
-## Key features
+### Key features
 
-- Launch an app only by specifying the types of inputs and outputs.
+- Launch an app by adding a decorator only.
 - Use multiple input and output components simultaneously.
 - Flask-based backend allows easy scalability and customizability.
 - Build fast, share and iterate.
 
-Some features are coming up in future releases:
-
-- More input and output components.
-- Deploy to Heroku and Google Cloud.
-- and many more.
-
 ## Community
 
-Fast Dash is built on open-source. You are encouraged to share your own projects, which will be highlighted on a common community gallery (coming up).
+Fast Dash is built using [Plotly Dash](https://github.com/plotly/dash) and it's completely open-source.
 
-## Credits
-
-Fast Dash is built using [Plotly Dash](https://github.com/plotly/dash). Dash's Flask-based backend enables Fast Dash apps to scale easily and makes them highly compatibility with other integration services. This project is partially inspired from [gradio](https://github.com/gradio-app/gradio).
-
-The project template was created with [Cookiecutter](https://github.com/audreyr/cookiecutter) and [zillionare/cookiecutter-pypackage](https://github.com/zillionare/cookiecutter-pypackage).
+## Citation
+Please cite Fast Dash it if you use it in your work.
+```
+@software{Kedar_Dabhadkar_Fast_Dash,
+author = {Kedar Dabhadkar},
+title = {{Fast Dash}}
+}
+```
