@@ -81,6 +81,10 @@ mkdocs-autorefs = "^0.4.1"
 jupyter-dash = "^0.4.2"
 dash = {extras = ["testing"], version = "^2.6.1"}
 mkdocstrings-python = "^0.7.1"
+
+[tool.poetry.group.test.dependencies]
+urllib3 = "1.26.15"
+
 [build-system]
 requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
