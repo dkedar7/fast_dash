@@ -4,11 +4,11 @@ import re
 import warnings
 
 import dash
+import dash_bootstrap_components as dbc
 import flask
 from dash import Input, Output
-import dash_bootstrap_components as dbc
 
-from .Components import BaseLayout, Text, _infer_components, SidebarLayout
+from .Components import BaseLayout, SidebarLayout, Text, _infer_components
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,

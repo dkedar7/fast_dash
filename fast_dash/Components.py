@@ -1,21 +1,21 @@
+import copy
 import datetime
 import inspect
+import math
 import numbers
 import warnings
 from collections.abc import Iterable, Sequence
-import copy
-import numpy as np
-import math
 from functools import reduce
 
 import dash
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
-from dash_iconify import DashIconify
+import matplotlib as mpl
+import numpy as np
 import PIL
 import plotly.graph_objs as go
-from dash import dcc, html, Input, Output, State
-import matplotlib as mpl
+from dash import Input, Output, State, dcc, html
+from dash_iconify import DashIconify
 from PIL import ImageFile
 
 from .utils import Fastify, _pil_to_b64

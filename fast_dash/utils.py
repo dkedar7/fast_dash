@@ -7,11 +7,10 @@ import inspect
 from io import BytesIO
 
 import dash_bootstrap_components as dbc
-from dash import html
-
-from PIL import ImageFile
-import matplotlib.pyplot as plt
 import matplotlib as mpl
+import matplotlib.pyplot as plt
+from dash import html
+from PIL import ImageFile
 
 
 def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
@@ -215,12 +214,10 @@ def _make_output_groups(outputs, update_live):
         label = label.replace("_", " ")
         output_groups.append(
             dbc.Col(
-                [
-                    dbc.Label(label, align="end")
-                ] + [output_],
+                [dbc.Label(label, align="end")] + [output_],
                 align="center",
                 style={"width": "100%", "overflow": "hidden"},
-                class_name="rounded border d-flex flex-column flex-fill"
+                class_name="rounded border d-flex flex-column flex-fill",
             )
         )
 
@@ -248,9 +245,9 @@ def _make_output_groups(outputs, update_live):
 def _transform_outputs(outputs):
     "Transform outputs to fit in the desired components"
 
-    _transform_mapper = {
-        plt.Figure: _mpl_to_b64,
-        ImageFile.ImageFile: _pil_to_b64
-    }
+    _transform_mapper = {plt.Figure: _mpl_to_b64, ImageFile.ImageFile: _pil_to_b64}
 
-    return [_transform_mapper[type(o)](o) if type(o) in _transform_mapper else o for o in outputs]
+    return [
+        _transform_mapper[type(o)](o) if type(o) in _transform_mapper else o
+        for o in outputs
+    ]
