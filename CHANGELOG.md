@@ -1,10 +1,14 @@
-# Release 0.1.7
+# Release 0.2.0
 
-## 0.1.7 (2022-08-21)
+## 0.2.0 (2023-07-02)
 
-* Introduce Fast Dash decorator (`fastdash`) for automatic and quick deployment.
-* Autoinfer input and output components from type hints and default values.
-* Autoinfer title and subheader by inspecting the callback function.
-* New test cases.
-* Modified documentation layout and content.
-* New GitHub Actions workflow to publish documentation only.
+### Features
+
+- Enable sidebar layout.
+- Mosaic to build custom layouts.
+- Collapsible sidebar.
+
+### Improvements
+
+- Sidebar layout improvements to allow flex sizing of components.
+- Unit test updates to support the latest tox and poetry versions.

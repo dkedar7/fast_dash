@@ -1,5 +1,18 @@
 # History
 
+## 0.2.0 (2023-07-02)
+
+### Features
+
+- Enable sidebar layout.
+- Mosaic to build custom layouts.
+- Collapsible sidebar.
+
+### Improvements
+
+- Sidebar layout improvements to allow flex sizing of components.
+- Unit test updates to support the latest tox and poetry versions.
+
 ## 0.1.7 (2022-08-21)
 
 * Introduce Fast Dash decorator (`fastdash`) for automatic and quick deployment.
