@@ -4,15 +4,17 @@ import re
 import warnings
 
 import dash
+import dash_bootstrap_components as dbc
 import flask
-from dash.dependencies import Input, Output
+from dash import Input, Output
 
-from .Components import DefaultLayout, Text, _infer_components
+from .Components import BaseLayout, SidebarLayout, Text, _infer_components
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
     _make_input_groups,
     _make_output_groups,
+    _transform_outputs,
     theme_mapper,
 )
 
@@ -29,6 +31,8 @@ class FastDash:
     def __init__(
         self,
         callback_fn,
+        layout="sidebar",
+        mosaic=None,
         inputs=None,
         outputs=None,
         title=None,
@@ -39,17 +43,24 @@ class FastDash:
         twitter_url=None,
         navbar=True,
         footer=True,
-        theme="JOURNAL",
+        theme=None,
         update_live=False,
+        port=8080,
         mode=None,
         minimal=False,
         disable_logs=False,
+        scale_height=1,
+        run_kwargs=dict(),
         **kwargs
     ):
         """
         Args:
             callback_fn (func): Python function that Fast Dash deploys.
                 This function guides the behavior of and interaction between input and output components.
+
+            layout (str, optional): App layout style. Currently supports 'base' and 'sidebar' (default).
+
+            mosaic (str): Mosaic array layout, if sidebar layout is selected.
 
             inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
                 Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
@@ -85,6 +96,8 @@ class FastDash:
 
             update_live (bool, optional): Enable hot reloading. Defaults to False.
 
+            port (int, optional): Port to which the app should be deployed. Defauts to 8080.
+
             mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
                 Defaults to None.
 
@@ -92,9 +105,15 @@ class FastDash:
                 Defaults to False.
 
             disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
+
+            scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
+
+            run_kwargs (dict, optional): All values from this variable are passed to Dash's `.run` method.
         """
 
         self.callback_fn = callback_fn
+        self.layout_pattern = layout
+        self.mosaic = mosaic
         self.inputs = (
             _infer_components(callback_fn, is_input=True) if inputs is None else inputs
         )
@@ -106,6 +125,10 @@ class FastDash:
         self.update_live = update_live
         self.mode = mode
         self.disable_logs = disable_logs
+        self.scale_height = scale_height
+        self.port = port
+        self.run_kwargs = run_kwargs
+        self.run_kwargs.update(dict(port=port))
         self.kwargs = kwargs
 
         if self.disable_logs is True:
@@ -121,12 +144,13 @@ class FastDash:
 
         self.title = title
         self.title_image_path = title_image_path
-        self.subtext = subheader if subheader is not None else callback_fn.__doc__
+        self.subtitle = subheader if subheader is not None else callback_fn.__doc__
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
         # Assign IDs to components
@@ -144,7 +168,7 @@ class FastDash:
         # Define Flask server
         server = flask.Flask(__name__)
         external_stylesheets = [
-            theme_mapper(theme),
+            theme_mapper(self.theme),
             "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
         ]
 
@@ -164,15 +188,10 @@ class FastDash:
             __name__,
             external_stylesheets=external_stylesheets,
             server=server,
-            meta_tags=[
-                {
-                    "name": "viewport",
-                    "content": "width=device-width, initial-scale=1.0, maximum-scale=1.8, minimum-scale=0.5",
-                }
-            ],
+            **self.kwargs
         )
         # Define app title
-        self.app.title = self.title
+        self.app.title = self.title or ""
 
         # Intialize layout
         self.set_layout()
@@ -188,39 +207,51 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
 
-    def run(self, **kwargs):
-        self.server.run(**kwargs) if self.mode is None else self.app.run_server(
-            mode=self.mode, **kwargs
+    def run(self):
+        self.server.run(
+            **self.run_kwargs
+        ) if self.mode is None else self.app.run_server(
+            mode=self.mode, **self.run_kwargs
         )
 
-    def run_server(self, **kwargs):
-        self.app.run_server(**kwargs) if self.mode is None else self.app.run_server(
-            mode=self.mode, **kwargs
+    def run_server(self):
+        self.app.run_server(
+            **self.run_kwargs
+        ) if self.mode is None else self.app.run_server(
+            mode=self.mode, **self.run_kwargs
         )
 
     def set_layout(self):
-
         if self.inputs is not None:
             input_groups = _make_input_groups(self.inputs_with_ids, self.update_live)
 
         if self.outputs is not None:
             output_groups = _make_output_groups(self.outputs_with_ids, self.update_live)
 
-        default_layout = DefaultLayout(
-            inputs=input_groups,
-            outputs=output_groups,
-            title=self.title,
-            title_image_path=self.title_image_path,
-            subtext=self.subtext,
-            github_url=self.github_url,
-            linkedin_url=self.linkedin_url,
-            twitter_url=self.twitter_url,
-            navbar=self.navbar,
-            footer=self.footer,
-            minimal=self.minimal,
-        )
+        layout_args = {
+            "mosaic": self.mosaic,
+            "inputs": input_groups,
+            "outputs": output_groups,
+            "title": self.title,
+            "title_image_path": self.title_image_path,
+            "subtitle": self.subtitle,
+            "github_url": self.github_url,
+            "linkedin_url": self.linkedin_url,
+            "twitter_url": self.twitter_url,
+            "navbar": self.navbar,
+            "footer": self.footer,
+            "minimal": self.minimal,
+            "scale_height": self.scale_height,
+        }
 
-        self.app.layout = default_layout.layout
+        if self.layout_pattern == "sidebar":
+            app_layout = SidebarLayout(**layout_args)
+
+        else:
+            app_layout = BaseLayout(**layout_args)
+
+        self.layout_object = app_layout
+        self.app.layout = app_layout.generate_layout()
 
     def register_callback_fn(self):
         @self.app.callback(
@@ -248,9 +279,9 @@ class FastDash:
                 Input(component_id="reset_inputs", component_property="n_clicks"),
                 Input(component_id="submit_inputs", component_property="n_clicks"),
             ],
+            prevent_initial_callback=True,
         )
         def process_input(*args):
-
             reset_button = args[-2]
             submit_button = args[-1]
             ack_components = [
@@ -267,9 +298,13 @@ class FastDash:
 
                 if isinstance(output_state, tuple):
                     self.output_state = list(output_state)
-                    return self.output_state + ack_components
 
-                self.output_state = [output_state]
+                else:
+                    self.output_state = [output_state]
+
+                # Transform outputs to fit in the desired components
+                self.output_state = _transform_outputs(self.output_state)
+
                 return self.output_state + ack_components
 
             elif reset_button > self.reset_clicks:
@@ -283,10 +318,15 @@ class FastDash:
             else:
                 return self.output_state_default + ack_components
 
+        # Set layout callbacks
+        self.layout_object.callbacks(self.app)
+
 
 def fastdash(
     _callback_fn=None,
     *,
+    layout="sidebar",
+    mosaic=None,
     inputs=None,
     outputs=None,
     title=None,
@@ -297,21 +337,24 @@ def fastdash(
     twitter_url=None,
     navbar=True,
     footer=True,
-    theme="JOURNAL",
+    theme=None,
     update_live=False,
+    port=8080,
     mode=None,
     minimal=False,
     disable_logs=False,
-    **run_kwargs
+    scale_height=1,
+    run_kwargs=dict(),
+    **kwargs
 ):
     """
-    Decorator for the `FastDash` class.
-
-    Use the decorated Python callback functions and deployes it using the chosen mode.
-
     Args:
         callback_fn (func): Python function that Fast Dash deploys.
             This function guides the behavior of and interaction between input and output components.
+
+        layout (str, optional): App layout style. Currently supports 'base' and 'sidebar' (default).
+
+        mosaic (str): Mosaic array layout, if sidebar layout is selected.
 
         inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
             Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
@@ -347,6 +390,8 @@ def fastdash(
 
         update_live (bool, optional): Enable hot reloading. Defaults to False.
 
+        port (int, optional): Port to which the app should be deployed. Defauts to 8080.
+
         mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
             Defaults to None.
 
@@ -354,6 +399,10 @@ def fastdash(
             Defaults to False.
 
         disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
+
+        scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
+
+        run_kwargs (dict, optional): All values from this variable are passed to Dash's `.run` method.
     """
 
     def decorator_fastdash(callback_fn):
@@ -362,10 +411,12 @@ def fastdash(
         @functools.wraps(callback_fn)
         def wrapper_fastdash(**kwargs):
             app = FastDash(callback_fn=callback_fn, **kwargs)
-            app.run(**run_kwargs)
+            app.run()
             return callback_fn
 
         return wrapper_fastdash(
+            layout=layout,
+            mosaic=mosaic,
             inputs=inputs,
             outputs=outputs,
             title=title,
@@ -379,9 +430,12 @@ def fastdash(
             theme=theme,
             update_live=update_live,
             mode=mode,
+            port=port,
             minimal=minimal,
             disable_logs=disable_logs,
-            **run_kwargs
+            scale_height=scale_height,
+            run_kwargs=run_kwargs,
+            **kwargs
         )
 
     # If the decorator is called with arguments
