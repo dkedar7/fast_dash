@@ -556,8 +556,16 @@ class SidebarLayout(BaseLayout):
                 m: o for m, o in zip(unique_locations, self.outputs[:-1])
             }
 
+        # Slice along the axis with the most number of unique elements first
+        begin_axis = np.argmax(
+            [
+                max([len(np.unique(arr)) for arr in mosaic_arr]),
+                max([len(np.unique(arr)) for arr in mosaic_arr.transpose()]),
+            ]
+        )
+
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
-        layout = self._do_mosaic(mosaic_arr, axis=1, layout=begin)
+        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
         output_layout = dbc.Col(
             [layout] + [self.outputs[-1]],
             class_name="g-1 d-flex flex-fill flex-column",
