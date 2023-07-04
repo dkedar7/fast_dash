@@ -113,3 +113,25 @@ def example_5_uploadimage_to_image():
     )
 
     return app
+
+
+def example_6_text_to_plt():
+    "Fast Dash example 5. Input is UploadImage. Output is Image."
+
+    import matplotlib.pyplot as plt
+
+    def text_to_plt(some_text) -> plt.Figure:
+
+        fig, ax = plt.subplots(1, 1)
+        ax.plot([1, 2, 3], [4, 5, 6])
+
+        return fig
+
+    app = FastDash(
+        callback_fn=text_to_plt,
+        inputs=Text,
+        outputs=Image,
+        title="Fast Dash example 6"
+    )
+
+    return app
