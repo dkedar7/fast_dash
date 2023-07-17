@@ -444,7 +444,7 @@ class SidebarLayout(BaseLayout):
     def _get_component(self, axis, width, style=None):
         if axis == 1:
             style = self.col_style if style is None else style
-            # style.update({"max-height": "100%"})
+            style.update({"height": "100%"})
             layout = dbc.Col(
                 [],
                 style=style,
