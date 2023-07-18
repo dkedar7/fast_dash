@@ -105,7 +105,18 @@ class BaseLayout:
         navbar = dbc.NavbarSimple(
             children=[dbc.NavItem(dbc.NavLink("About", href="#"))]
             + social_media_navigation,
-            brand=self.title or "",
+            brand=[
+                dmc.Group(
+                    [
+                        dmc.Burger(
+                            id="sidebar-button", opened=True, color="white", size=15
+                        ),
+                        self.title,
+                    ],
+                    spacing=5,
+                )
+            ]
+            or "",
             color="primary",
             dark=True,
             fluid=True,
@@ -114,7 +125,11 @@ class BaseLayout:
         )
 
         navbar_container = dbc.Container(
-            [navbar], fluid=True, style={"padding": "0 0 0 0"}, id="navbar3260780"
+            [navbar],
+            fluid=True,
+            style={"padding": "0 0 0 0"},
+            id="navbar3260780",
+            className="dbc",
         )
 
         return navbar_container
@@ -510,28 +525,16 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def generate_input_component(self):
-        button = dbc.Row(
-            dmc.Button(
-                id="sidebar-button",
-                n_clicks=0,
-                size="sm",
-                style=dict(width=50),
-                children=DashIconify(id="sidebar-expand-arrow", icon="maki:cross"),
-                variant="subtle",
-                color="black",
-            ),
-            justify="end",
-        )
 
         return dbc.Col(
-            children=[button, dmc.Stack(children=self.inputs)],
+            children=[dmc.Stack(children=self.inputs)],
             id="input-group",
             sm=2,
-            width=10,
+            width=12,
             style={
                 "background-color": "#F5F7F7",
                 "display": "block",
-                "padding": "0 1% 0 2%",
+                "padding": "2% 1% 0 2%",
                 "height": f"{self.scale_height * 110}vh",
             },
             class_name="border border-right",
@@ -588,76 +591,56 @@ class SidebarLayout(BaseLayout):
         # There are four main components:
         # navbar, header, input, output, footer
 
-        button_expand = dmc.Affix(
-            dmc.Button(
-                id="button-expand",
-                n_clicks=0,
-                size="sm",
-                style=dict(display="none"),
-                children=DashIconify(icon="material-symbols:arrow-forward-ios-rounded"),
-                variant="subtle",
-                color="black",
-            ),
-            position={"top": "4.5%", "left": "0"},
-        )
-
-        layout = dbc.Container(
-            [
-                self.generate_navbar_container(),
-                button_expand,
-                dbc.Row(
-                    [
-                        self.generate_input_component(),
-                        dbc.Col(
-                            [
-                                self.generate_header_component(),
-                                self.generate_output_component(),
-                            ],
-                            id="output-group-col",
-                            style={"padding": "1% 2% 0 2%"},
-                        ),
-                    ],
-                    class_name="d-flex",
-                ),
-                self.generate_footer_container(),
-            ],
-            fluid=True,
-            style={"padding": "0 0 0 0", "height": "100vh"},
+        layout = dmc.MantineProvider(
+            dbc.Container(
+                [
+                    self.generate_navbar_container(),
+                    dbc.Row(
+                        [
+                            self.generate_input_component(),
+                            dbc.Col(
+                                [
+                                    self.generate_header_component(),
+                                    self.generate_output_component(),
+                                ],
+                                id="output-group-col",
+                                style={"padding": "1% 2% 0 2%"},
+                            ),
+                        ],
+                        class_name="d-flex",
+                    ),
+                    self.generate_footer_container(),
+                ],
+                fluid=True,
+                style={"padding": "0 0 0 0", "height": "100vh"},
+            )
         )
 
         return layout
 
     def callbacks(self, app):
         @app.callback(
-            [
-                Output("input-group", "style"),
-                Output("output-group-col", "width"),
-                Output("button-expand", "style"),
-            ],
-            [Input("sidebar-button", "n_clicks"), Input("button-expand", "n_clicks")],
-            [State("input-group", "style"), State("button-expand", "style")],
+            [Output("input-group", "style"), Output("output-group-col", "width")],
+            [Input("sidebar-button", "opened")],
+            [State("input-group", "style")],
         )
-        def toggle_sidebar(n_clicks, n_clicks_expand, input_style, expand_style):
+        def toggle_sidebar(opened, input_style):
             input_style = {} if input_style is None else input_style
-            expand_style = {} if expand_style is None else expand_style
             width = 10
 
             display = input_style.get("display", "block")
-            opened = display == "block"
 
             # Condition to collapse the sidebar
-            if n_clicks > n_clicks_expand and opened:
+            if not opened:
                 input_style.update({"display": "none"})
                 width = 12
-                expand_style.update(dict(display="block"))
 
             # Expand by default
             else:
                 input_style.update({"display": "block"})
                 width = 10
-                expand_style.update(dict(display="none"))
 
-            return input_style, width, expand_style
+            return input_style, width
 
 
 _map_types_to_readable_names = {
