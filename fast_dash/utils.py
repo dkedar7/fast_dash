@@ -11,6 +11,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from dash import html
 from PIL import ImageFile
+import re
 
 
 def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
@@ -143,7 +144,6 @@ def _assign_ids_to_inputs(inputs, callback_fn):
 
 
 def _make_input_groups(inputs_with_ids, update_live):
-
     input_groups = []
 
     input_groups.append(html.H4("INPUTS"))
@@ -205,7 +205,6 @@ def _assign_ids_to_outputs(outputs):
 
 
 def _make_output_groups(outputs, update_live):
-
     output_groups = []
     # output_groups.append(html.H6("OUTPUT"))
 
@@ -251,3 +250,29 @@ def _transform_outputs(outputs):
         _transform_mapper[type(o)](o) if type(o) in _transform_mapper else o
         for o in outputs
     ]
+
+
+def _clean_text(string):
+    # Use regular expression to replace non-alphanumeric characters with underscores
+    pattern_non_alpha_numeric = r"\W"  # \W matches any non-alphanumeric character
+    replacement_non_alpha_numeric = "_"
+    string = re.sub(pattern_non_alpha_numeric, replacement_non_alpha_numeric, string)
+
+    # Use regular expression to remove consecutive underscores and boundary underscores
+    pattern_consecutive_underscores = r"(^_+)|(_{2,})|(_+$)"
+    replacement_consecutive_underscores = ""
+    string = re.sub(
+        pattern_consecutive_underscores, replacement_consecutive_underscores, string
+    )
+
+    return string.upper()
+
+
+def _infer_variable_names(func):
+    s = inspect.getsource(func)
+    final_line = s.split("return")[-1].strip()
+    line_without_comment = final_line.split("#")[0].strip().split(",")
+
+    variable_names = [_clean_text(s) for s in line_without_comment]
+
+    return variable_names
