@@ -578,10 +578,18 @@ class SidebarLayout(BaseLayout):
 
     def generate_footer_container(self):
         return dmc.Affix(
-            dcc.Link(
-                dmc.Button("Made with Fast Dash"),
-                href="https://github.com/dkedar7/fast_dash",
-                target="_blank",
+            dmc.Tooltip(
+                label="Made with Fast Dash!",
+                position="top",
+                withArrow=True,
+                transitionDuration=300,
+                children=dcc.Link(
+                    dmc.Button(
+                        DashIconify(icon="ion:rocket-sharp", width=20), radius=500
+                    ),
+                    href="https://github.com/dkedar7/fast_dash",
+                    target="_blank",
+                ),
             ),
             position={"bottom": "20px", "right": "20px"},
         )
