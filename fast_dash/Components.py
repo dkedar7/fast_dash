@@ -525,7 +525,6 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def generate_input_component(self):
-
         return dbc.Col(
             children=[dmc.Stack(children=self.inputs)],
             id="input-group",
@@ -579,10 +578,18 @@ class SidebarLayout(BaseLayout):
 
     def generate_footer_container(self):
         return dmc.Affix(
-            dcc.Link(
-                dmc.Button("Made with Fast Dash"),
-                href="https://github.com/dkedar7/fast_dash",
-                target="_blank",
+            dmc.Tooltip(
+                label="Made with Fast Dash!",
+                position="top",
+                withArrow=True,
+                transitionDuration=300,
+                children=dcc.Link(
+                    dmc.Button(
+                        DashIconify(icon="ion:rocket-sharp", width=20), radius=500
+                    ),
+                    href="https://github.com/dkedar7/fast_dash",
+                    target="_blank",
+                ),
             ),
             position={"bottom": "20px", "right": "20px"},
         )
@@ -955,28 +962,45 @@ def _get_output_components(_hint_type):
     return component
 
 
-def _infer_components(func, is_input=True):
+def _infer_input_components(func):
     signature = inspect.signature(func)
     components = []
 
-    if is_input is True:
-        parameters = signature.parameters.items()
-        for _, value in parameters:
-            hint = value.annotation
-            default = None if value.default == inspect._empty else value.default
+    parameters = signature.parameters.items()
+    for _, value in parameters:
+        hint = value.annotation
+        default = None if value.default == inspect._empty else value.default
 
-            component = _get_component_from_input(hint, default)
-            components.append(component)
+        component = _get_component_from_input(hint, default)
+        components.append(component)
 
-    else:
-        parameters = enumerate(
+    return components
+
+
+def _infer_output_components(func, output_labels):
+    signature = inspect.signature(func)
+    components = []
+
+    parameters = list(
+        enumerate(
             signature.return_annotation
             if isinstance(signature.return_annotation, tuple)
             else [signature.return_annotation]
         )
+    )
 
-        for _, hint in parameters:
-            components.append(_get_output_components(hint))
+    if output_labels is None:
+        output_labels = [None] * len(parameters)
+
+    if isinstance(output_labels, list) and len(output_labels) != len(parameters):
+        raise ValueError(
+            "Length of output labels must be equal to the number of outputs."
+        )
+
+    for (_, hint), label in zip(parameters, output_labels):
+        component = _get_output_components(hint)
+        component.label_ = label
+        components.append(copy.deepcopy(component))
 
     return components
 
