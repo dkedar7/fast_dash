@@ -568,10 +568,13 @@ class SidebarLayout(BaseLayout):
 
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
-        output_layout = dbc.Col(
-            [layout] + [self.outputs[-1]],
-            class_name="g-1 d-flex flex-fill flex-column",
-            style={"height": f"{80 * self.scale_height}vh"},
+        output_layout = dmc.LoadingOverlay(
+            dbc.Col(
+                [layout] + [self.outputs[-1]],
+                class_name="g-1 d-flex flex-fill flex-column",
+                style={"height": f"{80 * self.scale_height}vh"},
+            ),
+            loaderProps=dict(variant="bars"),
         )
 
         return output_layout
