@@ -202,7 +202,6 @@ def test_fdfd009_jupyter_dash(dash_duo):
     app = FastDash(
         callback_fn=simple_text_to_text_function,
         inputs=Text,
-        outputs=Text,
         mode="inline",
     ).app
 
@@ -210,7 +209,7 @@ def test_fdfd009_jupyter_dash(dash_duo):
     time.sleep(4)
 
 
-def test_fdfd009_jupyter_dash(dash_duo):
+def test_fdfd010_output_labels(dash_duo):
     "Test the auto-infer variable name feature"
 
     app = FastDash(callback_fn=simple_text_to_multiple_outputs)
