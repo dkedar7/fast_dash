@@ -4,6 +4,7 @@
 
 from fast_dash import FastDash
 from fast_dash.Components import Text
+import matplotlib.pyplot as plt
 
 import time
 
@@ -19,6 +20,17 @@ def simple_text_to_text_function(input_text):
 
 def simple_text_to_multiple_text_function(input_text):
     return input_text, input_text
+
+
+def simple_text_to_multiple_outputs(
+    input_text: str,
+) -> (plt.Figure, str):
+    "Something"
+
+    fig, ax = plt.subplots(1, 1)
+    ax.plot([1, 2, 3], [1, 2, 3])
+
+    return fig, "Return some text"
 
 
 def test_fdfd001_set_title(dash_duo):
@@ -196,3 +208,10 @@ def test_fdfd009_jupyter_dash(dash_duo):
 
     dash_duo.start_server(app)
     time.sleep(4)
+
+
+def test_fdfd009_jupyter_dash(dash_duo):
+    "Test the auto-infer variable name feature"
+
+    app = FastDash(callback_fn=simple_text_to_multiple_outputs)
+    assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]

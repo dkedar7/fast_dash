@@ -8,6 +8,7 @@ from .examples import (
     example_3_image_to_image,
     example_4_image_slider_to_image_text,
     example_5_uploadimage_to_image,
+    example_6_text_to_plt
 )
 
 
@@ -68,4 +69,15 @@ def test_example_5(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 5", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 5"
+    assert dash_duo.get_logs() == [], "browser console should contain no error"
+
+def test_example_6(dash_duo):
+    "Test example_6_text_to_plt"
+
+    app = example_6_text_to_plt().app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 6", timeout=4)
+
+    assert dash_duo.find_element("#title8888928").text == "Fast Dash example 6"
     assert dash_duo.get_logs() == [], "browser console should contain no error"

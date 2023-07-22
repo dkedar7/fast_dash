@@ -52,9 +52,6 @@ class BaseLayout:
         self.minimal = minimal
         self.scale_height = scale_height
 
-        if minimal:
-            self.title = self.subtitle = self.navbar = self.footer = False
-
     def generate_navbar_container(self):
         if not self.navbar:
             return None
@@ -105,7 +102,18 @@ class BaseLayout:
         navbar = dbc.NavbarSimple(
             children=[dbc.NavItem(dbc.NavLink("About", href="#"))]
             + social_media_navigation,
-            brand=self.title or "",
+            brand=[
+                dmc.Group(
+                    [
+                        dmc.Burger(
+                            id="sidebar-button", opened=True, color="white", size=15
+                        ),
+                        self.title,
+                    ],
+                    spacing=5,
+                )
+            ]
+            or "",
             color="primary",
             dark=True,
             fluid=True,
@@ -114,7 +122,11 @@ class BaseLayout:
         )
 
         navbar_container = dbc.Container(
-            [navbar], fluid=True, style={"padding": "0 0 0 0"}, id="navbar3260780"
+            [navbar],
+            fluid=True,
+            style={"padding": "0 0 0 0"},
+            id="navbar3260780",
+            className="dbc",
         )
 
         return navbar_container
@@ -229,6 +241,9 @@ class BaseLayout:
         return footer_container
 
     def generate_layout(self):
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
         layout = dbc.Container(
             [
                 self.generate_navbar_container(),
@@ -444,7 +459,7 @@ class SidebarLayout(BaseLayout):
     def _get_component(self, axis, width, style=None):
         if axis == 1:
             style = self.col_style if style is None else style
-            # style.update({"max-height": "100%"})
+            style.update({"height": "100%"})
             layout = dbc.Col(
                 [],
                 style=style,
@@ -510,28 +525,15 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def generate_input_component(self):
-        button = dbc.Row(
-            dmc.Button(
-                id="sidebar-button",
-                n_clicks=0,
-                size="sm",
-                style=dict(width=50),
-                children=DashIconify(id="sidebar-expand-arrow", icon="maki:cross"),
-                variant="subtle",
-                color="black",
-            ),
-            justify="end",
-        )
-
         return dbc.Col(
-            children=[button, dmc.Stack(children=self.inputs)],
+            children=[dmc.Stack(children=self.inputs)],
             id="input-group",
             sm=2,
-            width=10,
+            width=12,
             style={
                 "background-color": "#F5F7F7",
                 "display": "block",
-                "padding": "0 1% 0 2%",
+                "padding": "2% 1% 0 2%",
                 "height": f"{self.scale_height * 110}vh",
             },
             class_name="border border-right",
@@ -556,8 +558,16 @@ class SidebarLayout(BaseLayout):
                 m: o for m, o in zip(unique_locations, self.outputs[:-1])
             }
 
+        # Slice along the axis with the most number of unique elements first
+        begin_axis = np.argmax(
+            [
+                max([len(np.unique(arr)) for arr in mosaic_arr]),
+                max([len(np.unique(arr)) for arr in mosaic_arr.transpose()]),
+            ]
+        )
+
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
-        layout = self._do_mosaic(mosaic_arr, axis=1, layout=begin)
+        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
         output_layout = dbc.Col(
             [layout] + [self.outputs[-1]],
             class_name="g-1 d-flex flex-fill flex-column",
@@ -568,88 +578,80 @@ class SidebarLayout(BaseLayout):
 
     def generate_footer_container(self):
         return dmc.Affix(
-            dcc.Link(
-                dmc.Button("Made with Fast Dash"),
-                href="https://github.com/dkedar7/fast_dash",
-                target="_blank",
+            dmc.Tooltip(
+                label="Made with Fast Dash!",
+                position="top",
+                withArrow=True,
+                transitionDuration=300,
+                children=dcc.Link(
+                    dmc.Button(
+                        DashIconify(icon="ion:rocket-sharp", width=20), radius=500
+                    ),
+                    href="https://github.com/dkedar7/fast_dash",
+                    target="_blank",
+                ),
             ),
             position={"bottom": "20px", "right": "20px"},
+            id="footer5265971",
         )
 
     def generate_layout(self):
         # There are four main components:
         # navbar, header, input, output, footer
 
-        button_expand = dmc.Affix(
-            dmc.Button(
-                id="button-expand",
-                n_clicks=0,
-                size="sm",
-                style=dict(display="none"),
-                children=DashIconify(icon="material-symbols:arrow-forward-ios-rounded"),
-                variant="subtle",
-                color="black",
-            ),
-            position={"top": "4.5%", "left": "0"},
-        )
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
 
-        layout = dbc.Container(
-            [
-                self.generate_navbar_container(),
-                button_expand,
-                dbc.Row(
-                    [
-                        self.generate_input_component(),
-                        dbc.Col(
-                            [
-                                self.generate_header_component(),
-                                self.generate_output_component(),
-                            ],
-                            id="output-group-col",
-                            style={"padding": "1% 2% 0 2%"},
-                        ),
-                    ],
-                    class_name="d-flex",
-                ),
-                self.generate_footer_container(),
-            ],
-            fluid=True,
-            style={"padding": "0 0 0 0", "height": "100vh"},
+        layout = dmc.MantineProvider(
+            dbc.Container(
+                [
+                    self.generate_navbar_container(),
+                    dbc.Row(
+                        [
+                            self.generate_input_component(),
+                            dbc.Col(
+                                [
+                                    self.generate_header_component(),
+                                    self.generate_output_component(),
+                                ],
+                                id="output-group-col",
+                                style={"padding": "1% 2% 0 2%"},
+                            ),
+                        ],
+                        class_name="d-flex",
+                    ),
+                    self.generate_footer_container(),
+                ],
+                fluid=True,
+                style={"padding": "0 0 0 0", "height": "100vh"},
+            )
         )
 
         return layout
 
     def callbacks(self, app):
         @app.callback(
-            [
-                Output("input-group", "style"),
-                Output("output-group-col", "width"),
-                Output("button-expand", "style"),
-            ],
-            [Input("sidebar-button", "n_clicks"), Input("button-expand", "n_clicks")],
-            [State("input-group", "style"), State("button-expand", "style")],
+            [Output("input-group", "style"), Output("output-group-col", "width")],
+            [Input("sidebar-button", "opened")],
+            [State("input-group", "style")],
         )
-        def toggle_sidebar(n_clicks, n_clicks_expand, input_style, expand_style):
+        def toggle_sidebar(opened, input_style):
             input_style = {} if input_style is None else input_style
-            expand_style = {} if expand_style is None else expand_style
             width = 10
 
             display = input_style.get("display", "block")
-            opened = display == "block"
 
             # Condition to collapse the sidebar
-            if n_clicks > n_clicks_expand and opened:
+            if not opened:
                 input_style.update({"display": "none"})
                 width = 12
-                expand_style.update(dict(display="block"))
 
             # Expand by default
             else:
                 input_style.update({"display": "block"})
                 width = 10
-                expand_style.update(dict(display="none"))
 
-            return input_style, width, expand_style
+            return input_style, width
 
 
 _map_types_to_readable_names = {
@@ -964,28 +966,45 @@ def _get_output_components(_hint_type):
     return component
 
 
-def _infer_components(func, is_input=True):
+def _infer_input_components(func):
     signature = inspect.signature(func)
     components = []
 
-    if is_input is True:
-        parameters = signature.parameters.items()
-        for _, value in parameters:
-            hint = value.annotation
-            default = None if value.default == inspect._empty else value.default
+    parameters = signature.parameters.items()
+    for _, value in parameters:
+        hint = value.annotation
+        default = None if value.default == inspect._empty else value.default
 
-            component = _get_component_from_input(hint, default)
-            components.append(component)
+        component = _get_component_from_input(hint, default)
+        components.append(component)
 
-    else:
-        parameters = enumerate(
+    return components
+
+
+def _infer_output_components(func, output_labels):
+    signature = inspect.signature(func)
+    components = []
+
+    parameters = list(
+        enumerate(
             signature.return_annotation
             if isinstance(signature.return_annotation, tuple)
             else [signature.return_annotation]
         )
+    )
 
-        for _, hint in parameters:
-            components.append(_get_output_components(hint))
+    if output_labels is None:
+        output_labels = [None] * len(parameters)
+
+    if isinstance(output_labels, list) and len(output_labels) != len(parameters):
+        raise ValueError(
+            "Length of output labels must be equal to the number of outputs."
+        )
+
+    for (_, hint), label in zip(parameters, output_labels):
+        component = _get_output_components(hint)
+        component.label_ = label
+        components.append(copy.deepcopy(component))
 
     return components
 

@@ -8,7 +8,13 @@ import dash_bootstrap_components as dbc
 import flask
 from dash import Input, Output
 
-from .Components import BaseLayout, SidebarLayout, Text, _infer_components
+from .Components import (
+    BaseLayout,
+    SidebarLayout,
+    Text,
+    _infer_input_components,
+    _infer_output_components,
+)
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
@@ -16,6 +22,7 @@ from .utils import (
     _make_output_groups,
     _transform_outputs,
     theme_mapper,
+    _infer_variable_names,
 )
 
 
@@ -35,6 +42,7 @@ class FastDash:
         mosaic=None,
         inputs=None,
         outputs=None,
+        output_labels="infer",
         title=None,
         title_image_path=None,
         subheader=None,
@@ -69,6 +77,10 @@ class FastDash:
             outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
                 Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
                 In the absence of type hints, default components are all `Text`.
+
+            output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are
+                set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function
+                signature.
 
             title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
                 is converted to title case.
@@ -114,11 +126,14 @@ class FastDash:
         self.callback_fn = callback_fn
         self.layout_pattern = layout
         self.mosaic = mosaic
-        self.inputs = (
-            _infer_components(callback_fn, is_input=True) if inputs is None else inputs
-        )
+        self.output_labels = output_labels
+
+        if output_labels:
+            self.output_labels = _infer_variable_names(callback_fn)
+
+        self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
         self.outputs = (
-            _infer_components(callback_fn, is_input=False)
+            _infer_output_components(callback_fn, self.output_labels)
             if outputs is None
             else outputs
         )
@@ -319,7 +334,8 @@ class FastDash:
                 return self.output_state_default + ack_components
 
         # Set layout callbacks
-        self.layout_object.callbacks(self.app)
+        if not self.minimal:
+            self.layout_object.callbacks(self.app)
 
 
 def fastdash(
@@ -329,6 +345,7 @@ def fastdash(
     mosaic=None,
     inputs=None,
     outputs=None,
+    output_labels="infer",
     title=None,
     title_image_path=None,
     subheader=None,
@@ -363,6 +380,10 @@ def fastdash(
         outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
             Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
             In the absence of type hints, default components are all `Text`.
+
+        output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are
+            set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function
+            signature.
 
         title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
             is converted to title case.
@@ -419,6 +440,7 @@ def fastdash(
             mosaic=mosaic,
             inputs=inputs,
             outputs=outputs,
+            output_labels=output_labels,
             title=title,
             title_image_path=title_image_path,
             subheader=subheader,
