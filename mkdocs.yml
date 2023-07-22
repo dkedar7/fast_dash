@@ -1,4 +1,9 @@
 site_name: Fast Dash
+site_description: Fast Dash is a Python module that makes the development of web applications fast and easy. It can build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.
+site_author: Kedar Dabhadkar
+site_url: https://docs.fastdash.app
+copyright: "Copyright &copy; 2022 - 2023 Kedar Dabhadkar"
+
 markdown_extensions:
   - admonition
   - pymdownx.details
@@ -43,10 +48,8 @@ nav:
     - Common patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
   - Examples:
-    - 1. Simple text to text: Examples/Simple text to text.ipynb
-    - 2. English to French translation: Examples/english_to_french_translation.md
-    - 3. Translate from English to multiple languages: Examples/english_to_multiple_translation.md
-    - 4. Neural style transfer: Examples/neural_style_transfer.md
+    - 1. Simple text to text: Examples/01_simple_text_to_text.ipynb
+    - 2. Translate to multiple languages: Examples/02_translate_to_multiple_languages.ipynb
   - Modules: api.md
   - Contributing: contributing.md
   - Authors: authors.md
@@ -70,6 +73,18 @@ plugins:
 extra_css:
   - css/termynal.css
   - css/custom.css
+
 extra_javascript:
   - js/termynal.js
   - js/custom.js
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/dkedar7/
+    - icon: fontawesome/brands/medium
+      link: https://dkedar7.medium.com/
+    - icon: fontawesome/brands/twitter
+      link: https://twitter.com/dkedar7/
+    - icon: fontawesome/brands/linkedin
+      link: https://www.linkedin.com/in/dkedar7/

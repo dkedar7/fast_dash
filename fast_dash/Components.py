@@ -713,7 +713,7 @@ def _get_component_from_input(hint, default_value=None):
             component = Fastify(dbc.Input(value=default_value, type="number"), "value")
 
         elif _default_value_type == "Sequence":
-            component = Fastify(dcc.Dropdown(options=default_value), "options")
+            component = Fastify(dcc.Dropdown(options=default_value), "value")
 
         elif _default_value_type == "Dictionary":
             component = Fastify(dbc.Input(value=str(default_value)), "value")
