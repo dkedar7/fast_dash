@@ -129,11 +129,11 @@ class FastDash:
         self.output_labels = output_labels
 
         if output_labels:
-            output_labels = _infer_variable_names(callback_fn)
+            self.output_labels = _infer_variable_names(callback_fn)
 
         self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
         self.outputs = (
-            _infer_output_components(callback_fn, output_labels)
+            _infer_output_components(callback_fn, self.output_labels)
             if outputs is None
             else outputs
         )
@@ -334,7 +334,8 @@ class FastDash:
                 return self.output_state_default + ack_components
 
         # Set layout callbacks
-        self.layout_object.callbacks(self.app)
+        if not self.minimal:
+            self.layout_object.callbacks(self.app)
 
 
 def fastdash(

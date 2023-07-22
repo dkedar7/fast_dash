@@ -52,9 +52,6 @@ class BaseLayout:
         self.minimal = minimal
         self.scale_height = scale_height
 
-        if minimal:
-            self.title = self.subtitle = self.navbar = self.footer = False
-
     def generate_navbar_container(self):
         if not self.navbar:
             return None
@@ -244,6 +241,9 @@ class BaseLayout:
         return footer_container
 
     def generate_layout(self):
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
         layout = dbc.Container(
             [
                 self.generate_navbar_container(),
@@ -592,11 +592,15 @@ class SidebarLayout(BaseLayout):
                 ),
             ),
             position={"bottom": "20px", "right": "20px"},
+            id="footer5265971",
         )
 
     def generate_layout(self):
         # There are four main components:
         # navbar, header, input, output, footer
+
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
 
         layout = dmc.MantineProvider(
             dbc.Container(
