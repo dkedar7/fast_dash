@@ -1,14 +1,17 @@
-# Release 0.2.0
+# Release 0.2.1
 
-## 0.2.0 (2023-07-02)
+## 0.2.1 (2023-07-23)
 
 ### Features
 
-- Enable sidebar layout.
-- Mosaic to build custom layouts.
-- Collapsible sidebar.
+- Infer output labels from the callback function or specify the `output_labels`` argument
+- Show overlay when loading outputs
+- Use dmc.Burger icon instead of open, close icons. Allows for a clearner sidebar open/close UX
+- New examples
 
 ### Improvements
 
-- Sidebar layout improvements to allow flex sizing of components.
-- Unit test updates to support the latest tox and poetry versions.
+- [Bug] Components are now initialized with the desired height
+- Sidebar collapse burger is not supported in minimal layout
+- Replace branding text with icon
+- New pytests to improve coverage
