@@ -568,10 +568,13 @@ class SidebarLayout(BaseLayout):
 
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
-        output_layout = dbc.Col(
-            [layout] + [self.outputs[-1]],
-            class_name="g-1 d-flex flex-fill flex-column",
-            style={"height": f"{80 * self.scale_height}vh"},
+        output_layout = dmc.LoadingOverlay(
+            dbc.Col(
+                [layout] + [self.outputs[-1]],
+                class_name="g-1 d-flex flex-fill flex-column",
+                style={"height": f"{80 * self.scale_height}vh"},
+            ),
+            loaderProps=dict(variant="bars"),
         )
 
         return output_layout
@@ -713,7 +716,7 @@ def _get_component_from_input(hint, default_value=None):
             component = Fastify(dbc.Input(value=default_value, type="number"), "value")
 
         elif _default_value_type == "Sequence":
-            component = Fastify(dcc.Dropdown(options=default_value), "options")
+            component = Fastify(dcc.Dropdown(options=default_value), "value")
 
         elif _default_value_type == "Dictionary":
             component = Fastify(dbc.Input(value=str(default_value)), "value")

@@ -104,7 +104,7 @@ def example_5_uploadimage_to_image():
         inputs=UploadImage,
         outputs=Image,
         title="Fast Dash example 5",
-        title_image_path="https://tinyurl.com/mr44nn5y",
+        title_image_path="https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg",
         subheader="Build ML prototypes lightning fast!",
         github_url="https://github.com/dkedar7/fast_dash/",
         linkedin_url="https://linkedin.com/in/dkedar7/",
@@ -131,7 +131,8 @@ def example_6_text_to_plt():
         callback_fn=text_to_plt,
         inputs=Text,
         outputs=Image,
-        title="Fast Dash example 6"
+        title="Fast Dash example 6",
+        disable_logs=True
     )
 
     return app
