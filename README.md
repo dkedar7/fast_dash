@@ -24,6 +24,10 @@
     <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
 </a>
 
+<a href="https://pepy.tech/project/fast-dash">
+    <img src="https://static.pepy.tech/personalized-badge/fast-dash?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads" alt="Downloads">
+</a>
+
 </p>
 
 
@@ -57,7 +61,7 @@ def text_to_text_function(input_text):
 And just like that (🪄), we have a completely functional interactive app!
 
 Output:
-![Simple example](https://storage.googleapis.com/fast_dash/0.1.8/Simple%20text%20to%20text.png)
+![Simple example](https://storage.googleapis.com/fast_dash/0.2.1/Simple%20text%20to%20text.png)
 ---
 
 Fast Dash can read all the function details, like its name, input and output types, docstring, and uses this information to infer which components to use.
@@ -77,7 +81,7 @@ def display_selected_text_and_number(text: str, number: int) -> str:
 ```
 
 Output:
-![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.1.8/Simple%20example%202.png)
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.1/Simple%20example%202.png)
 
 And with just a few more lines, we can add a title icon, subheader and other social branding details.
 
