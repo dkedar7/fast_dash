@@ -15,13 +15,17 @@
         <link rel="canonical" href="https://docs.fastdash.app/Examples/03_chat_over_documents/">
       
       
+        <link rel="prev" href="../02_translate_to_multiple_languages/">
+      
+      
+        <link rel="next" href="../../api/">
       
       <link rel="icon" href="../../assets/favicon.ico">
       <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
     
     
       
-        <title>03 chat over documents - Fast Dash</title>
+        <title>3. Chat over documents with Embedchain - Fast Dash</title>
       
     
     
@@ -139,7 +143,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              03 chat over documents
+              3. Chat over documents with Embedchain
             
           </span>
         </div>
@@ -382,14 +386,16 @@
 
   
   
+    
+  
   
     
-    <li class="md-nav__item md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
       
       
       
       
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
       
       
       
@@ -398,7 +404,7 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
         <label class="md-nav__title" for="__nav_5">
           <span class="md-nav__icon md-icon"></span>
           Examples
@@ -428,6 +434,28 @@
       <a href="../02_translate_to_multiple_languages/" class="md-nav__link">
         2. Translate to multiple languages
       </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+    
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        3. Chat over documents with Embedchain
+      </a>
+      
     </li>
   
 
@@ -533,7 +561,7 @@
   
 
 
-  <h1>03 chat over documents</h1>
+  <h1>3. Chat over documents with Embedchain</h1>
 
 <script>
 (function (global, factory) {
@@ -1572,7 +1600,7 @@ Licensed under the Apache License, Version 2.0.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/release/docs/Examples/03_chat_over_documents.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in colab" /></a></p>
+<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/docs/docs/Examples/03_chat_over_documents.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in colab" /></a></p>
 
 </div>
 </div>
@@ -1824,7 +1852,7 @@ answer_component = Fastify(dcc.Markdown(style={"text-align": "left", "padding": 
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define the callback function</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define the callback function and deploy!</span>
 
 <span class="nd">@fastdash</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
 <span class="k">def</span> <span class="nf">explore_your_knowledge_base</span><span class="p">(</span>
@@ -1859,7 +1887,7 @@ answer_component = Fastify(dcc.Markdown(style={"text-align": "left", "padding": 
 
     <span class="k">return</span> <span class="n">answer</span>
 </pre></div>
-<div id="cell-5" class="clipboard-copy-txt"># Define the callback function
+<div id="cell-5" class="clipboard-copy-txt"># Define the callback function and deploy!
 
 @fastdash(mode="inline", port=5000)
 def explore_your_knowledge_base(
