@@ -46,6 +46,11 @@
          <changefreq>daily</changefreq>
     </url>
     <url>
+         <loc>https://docs.fastdash.app/Examples/03_chat_over_documents/</loc>
+         <lastmod>2023-07-25</lastmod>
+         <changefreq>daily</changefreq>
+    </url>
+    <url>
          <loc>https://docs.fastdash.app/Examples/neural_style_transfer/</loc>
          <lastmod>2023-07-25</lastmod>
          <changefreq>daily</changefreq>
