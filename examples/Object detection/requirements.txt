@@ -1,8 +1,0 @@
-matplotlib==3.5.1
-torch==1.10.2
-transformers==4.17.0
-timm==0.5.4
-gunicorn==20.1.0
-bbox_visualizer
-opencv-python
-fast-dash

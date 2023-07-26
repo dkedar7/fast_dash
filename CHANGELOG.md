@@ -1,17 +1,11 @@
-# Release 0.2.1
+# Release 0.2.2
 
-## 0.2.1 (2023-07-23)
+## 0.2.2 (2023-07-26)
 
 ### Features
 
-- Infer output labels from the callback function or specify the `output_labels`` argument
-- Show overlay when loading outputs
-- Use dmc.Burger icon instead of open, close icons. Allows for a clearner sidebar open/close UX
-- New examples
+- New example: Chat over docs with Embedchain.
 
 ### Improvements
 
-- [Bug] Components are now initialized with the desired height
-- Sidebar collapse burger is not supported in minimal layout
-- Replace branding text with icon
-- New pytests to improve coverage
+- Squashed a bug that was preventing the submit and reset buttons to sync with each other. The result is a more stable deploy using callback context.
