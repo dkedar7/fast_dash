@@ -15,6 +15,7 @@ from fast_dash.Components import (
     acknowledge_image_component,
     dbc,
     dcc,
+    dmc,
     html,
 )
 from fast_dash.fast_dash import FastDash, fastdash
@@ -34,5 +35,6 @@ __all__ = [
     "Graph",
     "dcc",
     "dbc",
+    "dmc",
     "html",
 ]

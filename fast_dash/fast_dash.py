@@ -6,7 +6,8 @@ import warnings
 import dash
 import dash_bootstrap_components as dbc
 import flask
-from dash import Input, Output
+from dash import Input, Output, ctx
+from dash.exceptions import PreventUpdate
 
 from .Components import (
     BaseLayout,
@@ -297,18 +298,18 @@ class FastDash:
             prevent_initial_callback=True,
         )
         def process_input(*args):
-            reset_button = args[-2]
-            submit_button = args[-1]
+            # if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
+            #     raise PreventUpdate
+
             ack_components = [
                 ack if mask is True else None
                 for mask, ack in zip(self.ack_mask, list(args[:-2]))
             ]
 
-            if submit_button > self.submit_clicks or (
+            if ctx.triggered_id == "submit_inputs" or (
                 self.update_live is True and None not in args
             ):
                 self.app_initialized = True
-                self.submit_clicks = submit_button
                 output_state = self.callback_fn(*args[:-2])
 
                 if isinstance(output_state, tuple):
@@ -322,8 +323,7 @@ class FastDash:
 
                 return self.output_state + ack_components
 
-            elif reset_button > self.reset_clicks:
-                self.reset_clicks = reset_button
+            elif ctx.triggered_id == "reset_inputs":
                 self.output_state = self.output_state_default
                 return self.output_state + ack_components
 
