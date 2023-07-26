@@ -298,8 +298,8 @@ class FastDash:
             prevent_initial_callback=True,
         )
         def process_input(*args):
-            if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
-                raise PreventUpdate
+            # if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
+            #     raise PreventUpdate
 
             ack_components = [
                 ack if mask is True else None
