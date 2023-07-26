@@ -15,7 +15,7 @@
         <link rel="canonical" href="https://docs.fastdash.app/api/">
       
       
-        <link rel="prev" href="../Examples/03_chat_over_documents/">
+        <link rel="prev" href="../Examples/02_translate_to_multiple_languages/">
       
       
         <link rel="next" href="../contributing/">
@@ -442,20 +442,6 @@
 
             
           
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../Examples/03_chat_over_documents/" class="md-nav__link">
-        3. Chat over documents with Embedchain
-      </a>
-    </li>
-  
-
-            
-          
         </ul>
       </nav>
     </li>
@@ -719,8 +705,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 29</span>
-<span class="normal"> 30</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 30</span>
 <span class="normal"> 31</span>
 <span class="normal"> 32</span>
 <span class="normal"> 33</span>
@@ -1299,18 +1284,18 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">prevent_initial_callback</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
         <span class="k">def</span> <span class="nf">process_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
-            <span class="n">reset_button</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">2</span><span class="p">]</span>
-            <span class="n">submit_button</span> <span class="o">=</span> <span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span>
+            <span class="c1"># if ctx.triggered_id not in [&quot;submit_inputs&quot;, &quot;reset_inputs&quot;]:</span>
+            <span class="c1">#     raise PreventUpdate</span>
+
             <span class="n">ack_components</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">ack</span> <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">True</span> <span class="k">else</span> <span class="kc">None</span>
                 <span class="k">for</span> <span class="n">mask</span><span class="p">,</span> <span class="n">ack</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_mask</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">]))</span>
             <span class="p">]</span>
 
-            <span class="k">if</span> <span class="n">submit_button</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">submit_clicks</span> <span class="ow">or</span> <span class="p">(</span>
+            <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="s2">&quot;submit_inputs&quot;</span> <span class="ow">or</span> <span class="p">(</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">args</span>
             <span class="p">):</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span> <span class="o">=</span> <span class="kc">True</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">submit_clicks</span> <span class="o">=</span> <span class="n">submit_button</span>
                 <span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">])</span>
 
                 <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output_state</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
@@ -1324,8 +1309,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="n">ack_components</span>
 
-            <span class="k">elif</span> <span class="n">reset_button</span> <span class="o">&gt;</span> <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span><span class="p">:</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span> <span class="o">=</span> <span class="n">reset_button</span>
+            <span class="k">elif</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="s2">&quot;reset_inputs&quot;</span><span class="p">:</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span>
                 <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="n">ack_components</span>
 
@@ -1617,8 +1601,7 @@ Defaults to False.</p></td>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 38</span>
-<span class="normal"> 39</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 39</span>
 <span class="normal"> 40</span>
 <span class="normal"> 41</span>
 <span class="normal"> 42</span>
@@ -1802,7 +1785,8 @@ Defaults to False.</p></td>
 <span class="normal">220</span>
 <span class="normal">221</span>
 <span class="normal">222</span>
-<span class="normal">223</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">223</span>
+<span class="normal">224</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
