@@ -173,7 +173,8 @@ class FastDash:
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = _assign_ids_to_outputs(self.outputs)
         self.ack_mask = [
-            True if input_.ack is not None else False for input_ in self.inputs_with_ids
+            False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
+            for input_ in self.inputs_with_ids
         ]
 
         # Default state of outputs

@@ -152,11 +152,11 @@ def _make_input_groups(inputs_with_ids, update_live):
     input_groups.append(html.H4("INPUTS"))
 
     for idx, input_ in enumerate(inputs_with_ids):
-        label = f"{input_.id}" if input_.label_ is None else input_.label_
+        label = f"{input_.id}" if (not hasattr(input_, "label_") or input_.label_ is None) else input_.label_
         label = label.replace("_", " ").upper()
         ack_component = (
             Fastify(component=dbc.Col(), component_property="children")
-            if input_.ack is None
+            if (not hasattr(input_, "ack") or input_.ack is None)
             else input_.ack
         )
         ack_component.id = f"{input_.id}_ack"
