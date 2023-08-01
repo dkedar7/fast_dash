@@ -18,6 +18,7 @@ from fast_dash.Components import (
     dmc,
     html,
 )
+import dash
 from fast_dash.fast_dash import FastDash, fastdash
 from fast_dash.utils import Fastify
 
@@ -37,4 +38,5 @@ __all__ = [
     "dbc",
     "dmc",
     "html",
+    "dash"
 ]
