@@ -19,7 +19,6 @@ def simple_text_to_text_function(input_text: Text):
 def simple_number_to_number(input_: Slider):
     return input_
 
-
 def simple_image_to_image(input_: UploadImage):
     return UploadImage
 
