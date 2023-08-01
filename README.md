@@ -55,7 +55,7 @@ from fast_dash import fastdash
 def text_to_text_function(input_text):
     return input_text
 
-# * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+# * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
 
 And just like that (🪄), we have a completely functional interactive app!
@@ -74,10 +74,12 @@ from fast_dash import fastdash
 @fastdash
 def display_selected_text_and_number(text: str, number: int) -> str:
     "Simply display the selected text and number"
+
     processed_text = f'Selected text is {text} and the number is {number}.'
+    
     return processed_text
 
-# * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
+# * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
 
 Output:
@@ -87,16 +89,46 @@ And with just a few more lines, we can add a title icon, subheader and other soc
 
 ---
 
+Output components can be arranged using a mosaic layout (ASCII art), inspired from Matplotlib's `subplot_mosaic` feature.
+
+```python
+from fast_dash import fastdash, UploadImage, Graph
+import matplotlib.pyplot as plt
+
+mosaic = """
+AB
+AC
+"""
+
+@fastdash(mosaic=mosaic, theme="BOOTSTRAP")
+def multiple_output_components(start_date: datetime.date, # Adds a date component
+                            upload_image: UploadImage, # Adds an upload component
+                            fips: str = [List of FIPs]) # Adds a single select dropdown
+                            -> (Graph, plt.Figure, plt.Figure): 
+                            # Output components are a Plotly graph, and two figure components
+
+    "Fast Dash allows using mosaic arrays to arrange output components"
+
+    choropleth_map = ...
+    histogram = ...
+    radar_chart = ...
+    
+    return chloropleth_map, histogram, radar_chart
+
+# * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
+```
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.3/Multiple%20components%20using%20mosaic.png)
+
 ## About
 
 Read different ways to build Fast Dash apps and additional details by navigating to the [project documentation](https://docs.fastdash.app/).
 
 ### Key features
 
-- Launch an app by adding a decorator only.
-- Use multiple input and output components simultaneously.
-- Flask-based backend allows easy scalability and customizability.
-- Build fast, share and iterate.
+- Deploy an app just by adding a decorator
+- Components are inferred from function type hints. Allows using Dash components as type hints.
+- Use multiple input and output components simultaneously
+- Build fast, share and iterate
 
 ## Community
 
