@@ -697,11 +697,7 @@ def _get_component_from_input(hint, default_value=None):
     # If one isn't specified, get the default component_property
     # If not even that assign it the component_property "value" and return the FastComponent.
     elif isinstance(type(hint), dash.development.base_component.ComponentMeta):
-        if hasattr(hint, "component_property"):
-            default_component_property = hint.component_property
-
-        else:
-            default_component_property = _get_default_property(type(hint))
+        default_component_property = _get_default_property(type(hint))
 
         return Fastify(component=hint, component_property=default_component_property)
 
@@ -969,11 +965,7 @@ def _get_output_components(_hint_type):
     # If one isn't specified, get the default component_property
     # If not even that assign it the component_property "value" and return the FastComponent.
     elif isinstance(type(_hint_type), dash.development.base_component.ComponentMeta):
-        if hasattr(_hint_type, "component_property"):
-            default_component_property = _hint_type.component_property
-
-        else:
-            default_component_property = _get_default_property(type(_hint_type))
+        default_component_property = _get_default_property(type(_hint_type))
 
         return Fastify(
             component=_hint_type, component_property=default_component_property
