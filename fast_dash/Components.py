@@ -18,7 +18,7 @@ from dash import Input, Output, State, dcc, html
 from dash_iconify import DashIconify
 from PIL import ImageFile
 
-from .utils import Fastify, _pil_to_b64
+from .utils import Fastify, _pil_to_b64, _get_default_property
 
 
 class BaseLayout:
@@ -693,6 +693,18 @@ def _get_component_from_input(hint, default_value=None):
     if hasattr(hint, "component_property"):
         return hint
 
+    # Elif the component is a Dash component, use the specified component_property
+    # If one isn't specified, get the default component_property
+    # If not even that assign it the component_property "value" and return the FastComponent.
+    elif isinstance(type(hint), dash.development.base_component.ComponentMeta):
+        if hasattr(hint, "component_property"):
+            default_component_property = hint.component_property
+
+        else:
+            default_component_property = _get_default_property(type(hint))
+
+        return Fastify(component=hint, component_property=default_component_property)
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(hint, type):
         hint = type(hint)
@@ -952,6 +964,20 @@ def _get_component_from_input(hint, default_value=None):
 def _get_output_components(_hint_type):
     if hasattr(_hint_type, "component_property"):
         return _hint_type
+
+    # Elif the component is a Dash component, use the specified component_property
+    # If one isn't specified, get the default component_property
+    # If not even that assign it the component_property "value" and return the FastComponent.
+    elif isinstance(type(_hint_type), dash.development.base_component.ComponentMeta):
+        if hasattr(_hint_type, "component_property"):
+            default_component_property = _hint_type.component_property
+
+        else:
+            default_component_property = _get_default_property(type(_hint_type))
+
+        return Fastify(
+            component=_hint_type, component_property=default_component_property
+        )
 
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(_hint_type, type):

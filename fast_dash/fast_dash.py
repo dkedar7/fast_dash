@@ -178,7 +178,8 @@ class FastDash:
 
         # Default state of outputs
         self.output_state_default = [
-            output_.placeholder for output_ in self.outputs_with_ids
+            output_.placeholder if hasattr(output_, "placeholder") else None
+            for output_ in self.outputs_with_ids
         ]
 
         # Define Flask server

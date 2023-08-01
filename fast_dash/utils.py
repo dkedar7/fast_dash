@@ -6,11 +6,14 @@ import copy
 import inspect
 from io import BytesIO
 
+from dash import html, dcc
 import dash_bootstrap_components as dbc
+import dash_mantine_components as dmc
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from dash import html
 from PIL import ImageFile
+import warnings
 import re
 
 
@@ -276,3 +279,93 @@ def _infer_variable_names(func):
     variable_names = [_clean_text(s) for s in line_without_comment]
 
     return variable_names
+
+
+def _get_default_property(component_type):
+    """
+    Define a list of all important Dash components and their main
+    properties to use as default.
+    """
+
+    try:
+        default_component_attributes = {
+            # Dash Core Components
+            dcc.DatePickerSingle: "date",
+            dcc.Dropdown: "value",
+            dcc.Graph: "figure",
+            dcc.Input: "value",
+            dcc.Link: "href",
+            dcc.Markdown: "children",
+            dcc.RangeSlider: "value",
+            dcc.RadioItems: "value",
+            dcc.Slider: "value",
+            dcc.Textarea: "value",
+            dcc.Upload: "contents",
+            # Dash Bootstrap Components
+            dbc.Alert: "children",
+            dbc.Badge: "children",
+            dbc.Checkbox: "value",
+            dbc.Col: "children",
+            dbc.Collapse: "is_open",
+            dbc.Container: "children",
+            dbc.DropdownMenu: "children",
+            dbc.Form: "children",
+            dbc.Input: "value",
+            dbc.ListGroup: "children",
+            dbc.ListGroupItem: "children",
+            dbc.Modal: "is_open",
+            dbc.Row: "children",
+            dbc.Table: "children",
+            # Dash HTML Components
+            html.H1: "children",
+            html.H2: "children",
+            html.H3: "children",
+            html.H4: "children",
+            html.H5: "children",
+            html.H6: "children",
+            html.I: "children",
+            html.Iframe: "src",
+            html.Img: "src",
+            html.Table: "children",
+            html.Tbody: "children",
+            html.Td: "children",
+            html.Textarea: "value",
+            html.Tfoot: "children",
+            html.Th: "children",
+            html.Thead: "children",
+            html.Title: "children",
+            html.Video: "src",
+            # Dash mantine components
+            dmc.Checkbox: "checked",
+            dmc.Chip: "checked",
+            dmc.ChipGroup: "value",
+            dmc.ColorPicker: "value",
+            dmc.DatePicker: "value",
+            dmc.DateRangePicker: "value",
+            dmc.JsonInput: "value",
+            dmc.MultiSelect: "value",
+            dmc.NumberInput: "value",
+            dmc.PasswordInput: "value",
+            dmc.RadioGroup: "value",
+            dmc.SegmentedControl: "value",
+            dmc.Select: "value",
+            dmc.Slider: "value",
+            dmc.Switch: "checked",
+            dmc.TextInput: "value",
+            dmc.Textarea: "value",
+            dmc.TimeInput: "value",
+            dmc.Blockquote: "children",
+            dmc.Code: "children",
+            dmc.List: "children",
+            dmc.Prism: "children",
+            dmc.Text: "children",
+            dmc.Title: "children",
+        }
+
+        default_property = default_component_attributes.get(component_type, "value")
+
+    except Exception as e:
+        warnings.warn(str(e))
+        default_property = "value"
+
+    return default_property
