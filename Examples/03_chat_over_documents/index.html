@@ -1671,8 +1671,7 @@ Licensed under the Apache License, Version 2.0.
                 </clipboard-copy>
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">FastDash</span><span class="p">,</span> <span class="n">Fastify</span><span class="p">,</span> <span class="n">dcc</span>
-<span class="kn">import</span> <span class="nn">dash_mantine_components</span> <span class="k">as</span> <span class="nn">dmc</span>
+<span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Fastify</span><span class="p">,</span> <span class="n">dcc</span><span class="p">,</span> <span class="n">dmc</span>
 
 <span class="kn">from</span> <span class="nn">embedchain</span> <span class="kn">import</span> <span class="n">App</span>
 <span class="kn">from</span> <span class="nn">embedchain.config</span> <span class="kn">import</span> <span class="n">QueryConfig</span>
@@ -1680,8 +1679,7 @@ Licensed under the Apache License, Version 2.0.
 <span class="kn">from</span> <span class="nn">string</span> <span class="kn">import</span> <span class="n">Template</span>
 </pre></div>
 <div id="cell-2" class="clipboard-copy-txt">import os
-from fast_dash import fastdash, FastDash, Fastify, dcc
-import dash_mantine_components as dmc
+from fast_dash import fastdash, Fastify, dcc, dmc
 
 from embedchain import App
 from embedchain.config import QueryConfig
@@ -1775,54 +1773,70 @@ query_config = QueryConfig(template=PROMPT)</div>
                 </clipboard-copy>
             </div>
             <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define components</span>
-<span class="n">openai_api_key_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span>
-    <span class="n">dmc</span><span class="o">.</span><span class="n">PasswordInput</span><span class="p">(</span>
-        <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;API Key&quot;</span><span class="p">,</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Get yours at https://platform.openai.com/account/api-keys&quot;</span><span class="p">,</span>
-    <span class="p">),</span>
-    <span class="s2">&quot;value&quot;</span><span class="p">,</span>
+<span class="n">openai_api_key_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">PasswordInput</span><span class="p">(</span>
+    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;API Key&quot;</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Get yours at https://platform.openai.com/account/api-keys&quot;</span><span class="p">,</span>
+    <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">web_page_urls_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span>
-    <span class="n">dmc</span><span class="o">.</span><span class="n">MultiSelect</span><span class="p">(</span>
-        <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Include all the reference Web URLs&quot;</span><span class="p">,</span>
-        <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Enter URLs separated by commas&quot;</span><span class="p">,</span>
-        <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-        <span class="n">creatable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="p">),</span>
-    <span class="s2">&quot;data&quot;</span><span class="p">,</span>
+<span class="n">web_page_urls_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">MultiSelect</span><span class="p">(</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Include all the reference web URLs&quot;</span><span class="p">,</span>
+    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Enter URLs separated by commas&quot;</span><span class="p">,</span>
+    <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">creatable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">text_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span>
-    <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span><span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Write your query here&quot;</span><span class="p">,</span> <span class="n">autosize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">minRows</span><span class="o">=</span><span class="mi">4</span><span class="p">),</span> <span class="s2">&quot;value&quot;</span>
+<span class="n">text_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span>
+    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Custom text&quot;</span><span class="p">,</span>
+    <span class="n">autosize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">minRows</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Any additional information that could be useful&quot;</span><span class="p">,</span>
 <span class="p">)</span>
 
-<span class="n">answer_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">dcc</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span><span class="n">style</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;text-align&quot;</span><span class="p">:</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;padding&quot;</span><span class="p">:</span> <span class="s2">&quot;1%&quot;</span><span class="p">}),</span> <span class="s2">&quot;children&quot;</span><span class="p">)</span>
+<span class="n">query_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span>
+    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Write your query here&quot;</span><span class="p">,</span>
+    <span class="n">autosize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">minRows</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+    <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Write your query here&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">answer_component</span> <span class="o">=</span> <span class="n">dcc</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span>
+    <span class="n">style</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;text-align&quot;</span><span class="p">:</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;padding&quot;</span><span class="p">:</span> <span class="s2">&quot;1%&quot;</span><span class="p">},</span> <span class="n">link_target</span><span class="o">=</span><span class="s2">&quot;_blank&quot;</span>
+<span class="p">)</span>
 </pre></div>
 <div id="cell-4" class="clipboard-copy-txt"># Define components
-openai_api_key_component = Fastify(
-    dmc.PasswordInput(
-        placeholder="API Key",
-        description="Get yours at https://platform.openai.com/account/api-keys",
-    ),
-    "value",
+openai_api_key_component = dmc.PasswordInput(
+    placeholder="API Key",
+    description="Get yours at https://platform.openai.com/account/api-keys",
+    required=True,
 )
 
-web_page_urls_component = Fastify(
-    dmc.MultiSelect(
-        description="Include all the reference Web URLs",
-        placeholder="Enter URLs separated by commas",
-        searchable=True,
-        creatable=True,
-    ),
-    "data",
+web_page_urls_component = dmc.MultiSelect(
+    description="Include all the reference web URLs",
+    placeholder="Enter URLs separated by commas",
+    searchable=True,
+    creatable=True,
 )
 
-text_component = Fastify(
-    dmc.Textarea(placeholder="Write your query here", autosize=True, minRows=4), "value"
+text_component = dmc.Textarea(
+    placeholder="Custom text",
+    autosize=True,
+    minRows=4,
+    description="Any additional information that could be useful",
 )
 
-answer_component = Fastify(dcc.Markdown(style={"text-align": "left", "padding": "1%"}), "children")</div>
+query_component = dmc.Textarea(
+    placeholder="Write your query here",
+    autosize=True,
+    minRows=4,
+    required=True,
+    description="Write your query here",
+)
+
+answer_component = dcc.Markdown(
+    style={"text-align": "left", "padding": "1%"}, link_target="_blank"
+)</div>
         
         </div>
     </div>
@@ -1861,29 +1875,40 @@ answer_component = Fastify(dcc.Markdown(style={"text-align": "left", "padding": 
     <span class="n">youtube_urls</span><span class="p">:</span> <span class="n">web_page_urls_component</span><span class="p">,</span>
     <span class="n">pdf_urls</span><span class="p">:</span> <span class="n">web_page_urls_component</span><span class="p">,</span>
     <span class="n">text</span><span class="p">:</span> <span class="n">text_component</span><span class="p">,</span>
-    <span class="n">query</span><span class="p">:</span> <span class="n">text_component</span><span class="p">,</span>
+    <span class="n">query</span><span class="p">:</span> <span class="n">query_component</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">answer_component</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Input your sources and let GPT3.5 find answers. Built with Fast Dash.</span>
+<span class="sd">    Input your sources and let GPT4 find answers. Built with Fast Dash.</span>
 <span class="sd">    This app uses embedchain.ai, which abstracts the entire process of loading and chunking datasets, creating embeddings, and storing them in a vector database.</span>
 <span class="sd">    Embedchain itself uses Langchain and OpenAI&#39;s ChatGPT API.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
     <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENAI_API_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">openai_api_key</span>
-    <span class="n">app</span> <span class="o">=</span> <span class="n">App</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">web_page_urls</span><span class="p">:</span>
-        <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;web_page&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">web_page_urls</span><span class="p">]</span>
+    <span class="k">try</span><span class="p">:</span>
+        <span class="n">app</span> <span class="o">=</span> <span class="n">App</span><span class="p">()</span>
 
-    <span class="k">if</span> <span class="n">youtube_urls</span><span class="p">:</span>
-        <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;youtube_video&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">youtube_urls</span><span class="p">]</span>
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">openai_api_key</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Did you forget adding your OpenAI API key? If you don&#39;t have one, you can get it [here](https://platform.openai.com/account/api-keys).&quot;</span>
+        
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
+            <span class="k">return</span> <span class="s2">&quot;Did you forget writing your query in the query box?&quot;</span>
+        
+        <span class="k">if</span> <span class="n">web_page_urls</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;web_page&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">web_page_urls</span><span class="p">]</span>
 
-    <span class="k">if</span> <span class="n">pdf_urls</span><span class="p">:</span>
-        <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pdf_file&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">[</span><span class="s2">&quot;value&quot;</span><span class="p">])</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">pdf_urls</span><span class="p">]</span>
+        <span class="k">if</span> <span class="n">youtube_urls</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;youtube_video&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">youtube_urls</span><span class="p">]</span>
 
-    <span class="k">if</span> <span class="n">text</span><span class="p">:</span>
-        <span class="n">app</span><span class="o">.</span><span class="n">add_local</span><span class="p">(</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">pdf_urls</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pdf_file&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">pdf_urls</span><span class="p">]</span>
 
-    <span class="n">answer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">chat</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">query_config</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">text</span><span class="p">:</span>
+            <span class="n">app</span><span class="o">.</span><span class="n">add_local</span><span class="p">(</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+
+        <span class="n">answer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">query_config</span><span class="p">)</span>
+
+    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">answer</span> <span class="o">=</span> <span class="s2">&quot;Oops, something went wrong! Please try again later or make a suggestion [here](https://github.com/dkedar7/embedchain-fastdash/issues).&quot;</span>
 
     <span class="k">return</span> <span class="n">answer</span>
 </pre></div>
@@ -1896,29 +1921,40 @@ def explore_your_knowledge_base(
     youtube_urls: web_page_urls_component,
     pdf_urls: web_page_urls_component,
     text: text_component,
-    query: text_component,
+    query: query_component,
 ) -> answer_component:
     """
-    Input your sources and let GPT3.5 find answers. Built with Fast Dash.
+    Input your sources and let GPT4 find answers. Built with Fast Dash.
     This app uses embedchain.ai, which abstracts the entire process of loading and chunking datasets, creating embeddings, and storing them in a vector database.
     Embedchain itself uses Langchain and OpenAI's ChatGPT API.
     """
     os.environ["OPENAI_API_KEY"] = openai_api_key
-    app = App()
 
-    if web_page_urls:
-        [app.add("web_page", url["value"]) for url in web_page_urls]
+    try:
+        app = App()
 
-    if youtube_urls:
-        [app.add("youtube_video", url["value"]) for url in youtube_urls]
+        if not openai_api_key:
+            return "Did you forget adding your OpenAI API key? If you don't have one, you can get it [here](https://platform.openai.com/account/api-keys)."
+        
+        if not query:
+            return "Did you forget writing your query in the query box?"
+        
+        if web_page_urls:
+            [app.add("web_page", url) for url in web_page_urls]
 
-    if pdf_urls:
-        [app.add("pdf_file", url["value"]) for url in pdf_urls]
+        if youtube_urls:
+            [app.add("youtube_video", url) for url in youtube_urls]
 
-    if text:
-        app.add_local("text", text)
+        if pdf_urls:
+            [app.add("pdf_file", url) for url in pdf_urls]
 
-    answer = app.chat(query, query_config)
+        if text:
+            app.add_local("text", text)
+
+        answer = app.query(query, query_config)
+
+    except Exception as e:
+        answer = "Oops, something went wrong! Please try again later or make a suggestion [here](https://github.com/dkedar7/embedchain-fastdash/issues)."
 
     return answer</div>
         
