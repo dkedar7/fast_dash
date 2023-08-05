@@ -60,42 +60,31 @@ class BaseLayout:
         social_media_navigation = []
         if self.github_url:
             social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-github", style={"color": "#ffffff"}
-                        ),
-                        href=self.github_url,
-                        target="_blank",
-                    )
+                dmc.NavLink(
+                    label=DashIconify(icon="ri:github-fill", color="#ffffff", width=30),
+                    href=self.github_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
         if self.linkedin_url:
             social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-linkedin",
-                            style={"color": "#ffffff"},
-                        ),
-                        href=self.linkedin_url,
-                        target="_blank",
-                    )
+                dmc.NavLink(
+                    label=DashIconify(icon="entypo-social:linkedin-with-circle", color="#ffffff", width=30),
+                    href=self.linkedin_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
         if self.twitter_url:
             social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-twitter-square",
-                            style={"color": "#ffffff"},
-                        ),
-                        href=self.twitter_url,
-                        target="_blank",
-                    )
+                dmc.NavLink(
+                    label=DashIconify(icon="formkit:twitter", color="#ffffff", width=30),
+                    href=self.twitter_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
