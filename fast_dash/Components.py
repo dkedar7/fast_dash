@@ -8,14 +8,17 @@ from collections.abc import Iterable, Sequence
 from functools import reduce
 
 import dash
+from dash import Input, Output, State, dcc, html, ctx
+from dash.exceptions import PreventUpdate
+
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+
 import matplotlib as mpl
 import numpy as np
 import PIL
 import plotly.graph_objs as go
-from dash import Input, Output, State, dcc, html
-from dash_iconify import DashIconify
 from PIL import ImageFile
 
 from .utils import Fastify, _pil_to_b64, _get_default_property
@@ -71,7 +74,11 @@ class BaseLayout:
         if self.linkedin_url:
             social_media_navigation.append(
                 dmc.NavLink(
-                    label=DashIconify(icon="entypo-social:linkedin-with-circle", color="#ffffff", width=30),
+                    label=DashIconify(
+                        icon="entypo-social:linkedin-with-circle",
+                        color="#ffffff",
+                        width=30,
+                    ),
                     href=self.linkedin_url,
                     target="_blank",
                     variant="light",
@@ -81,15 +88,30 @@ class BaseLayout:
         if self.twitter_url:
             social_media_navigation.append(
                 dmc.NavLink(
-                    label=DashIconify(icon="formkit:twitter", color="#ffffff", width=30),
+                    label=DashIconify(
+                        icon="formkit:twitter", color="#ffffff", width=30
+                    ),
                     href=self.twitter_url,
                     target="_blank",
                     variant="light",
                 )
             )
 
+        # Add modal component
+        social_media_navigation.append(
+            dmc.Modal(title="About", id="about-modal", size="80%", zIndex=10000)
+        )
+
         navbar = dbc.NavbarSimple(
-            children=[dbc.NavItem(dbc.NavLink("About", href="#"))]
+            children=[
+                dbc.Row(
+                    dbc.Button(
+                        "About",
+                        color="primary",
+                        id="about-navlink",
+                    )
+                )
+            ]
             + social_media_navigation,
             brand=[
                 dmc.Group(
@@ -250,9 +272,20 @@ class BaseLayout:
 
         return layout
 
-    def callbacks(self, app=None):
+    def callbacks(self, app):
         "Optional callbacks specific to the layout"
-        return
+
+        @app.callback(
+            Output("about-modal", "opened"),
+            Output("about-modal", "children"),
+            Input("about-navlink", "n_clicks"),
+            State("about-modal", "opened"),
+        )
+        def display_function_about_information(n_clicks, opened):
+            if n_clicks:
+                return not opened, app.callback_fn.__doc__
+
+            raise PreventUpdate
 
 
 class SidebarLayout(BaseLayout):
@@ -644,6 +677,19 @@ class SidebarLayout(BaseLayout):
                 width = 10
 
             return input_style, width
+
+        "Optional callbacks specific to the layout"
+
+        @app.callback(
+            Output("about-modal", "opened"),
+            Input("about-navlink", "n_clicks"),
+            State("about-modal", "opened"),
+        )
+        def display_function_about_information(n_clicks, opened):
+            if n_clicks:
+                return not opened
+
+            raise PreventUpdate
 
 
 _map_types_to_readable_names = {
