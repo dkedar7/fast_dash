@@ -1,11 +1,9 @@
-# Release 0.2.2
+# Release 0.2.3
 
-## 0.2.2 (2023-07-26)
+## 0.2.3 (2023-08-01)
 
 ### Features
 
-- New example: Chat over docs with Embedchain.
-
-### Improvements
-
-- Squashed a bug that was preventing the submit and reset buttons to sync with each other. The result is a more stable deploy using callback context.
+- Dash components can be directly used as type hints. They are converted to Fast components during app initialization.
+- Added a mosaic layout example to README.
+- `dash` can be imported from `fast_dash` like this: `from fast_dash import dash`.

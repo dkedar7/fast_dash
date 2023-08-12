@@ -2,7 +2,7 @@
 """Tests for `fast_dash` package."""
 # pylint: disable=redefined-outer-name
 
-from fast_dash import FastDash, dcc, dbc, html
+from fast_dash import FastDash, dcc, dbc, dmc, html
 from fast_dash.Components import Text, Slider, UploadImage
 from fast_dash.utils import _pil_to_b64
 
@@ -18,7 +18,6 @@ def simple_text_to_text_function(input_text: Text):
 
 def simple_number_to_number(input_: Slider):
     return input_
-
 
 def simple_image_to_image(input_: UploadImage):
     return UploadImage
@@ -688,4 +687,70 @@ def test_fdco014_output_hint_is_image(dash_duo):
         output_component.__doc__ == html.Img.__doc__
         and hasattr(output_component, "component_property")
         and output_component.component_property == "src"
+    )
+
+
+def test_fdco015_input_is_dash_component(dash_duo):
+    "When the input hint type is a Dash component"
+
+    # Component property is specified
+    component = dmc.Text()
+    component.component_property = "children"
+
+    def simple_text_to_text(text: component):
+        return "Some markdown text"
+
+    app = FastDash(callback_fn=simple_text_to_text)
+    input_component = app.inputs[0]
+
+    assert (
+        input_component.__doc__ == dmc.Text.__doc__
+        and hasattr(input_component, "component_property")
+        and input_component.component_property == "children"
+    )
+
+    # Component property is not specified
+    def simple_text_to_text(text: dmc.Text()):
+        return "Some markdown text"
+
+    app = FastDash(callback_fn=simple_text_to_text)
+    input_component = app.inputs[0]
+
+    assert (
+        input_component.__doc__ == dmc.Text.__doc__
+        and hasattr(input_component, "component_property")
+        and input_component.component_property == "children"
+    )
+
+
+def test_fdco016_output_is_dash_component(dash_duo):
+    "When the output hint type is a Dash component"
+
+    # Component property is specified
+    component = dcc.Markdown()
+    component.component_property = "children"
+
+    def simple_text_to_text(text) -> component:
+        return "Some markdown text"
+
+    app = FastDash(callback_fn=simple_text_to_text)
+    output_component = app.outputs[0]
+
+    assert (
+        output_component.__doc__ == dcc.Markdown.__doc__
+        and hasattr(output_component, "component_property")
+        and output_component.component_property == "children"
+    )
+
+    # Component property is not specified
+    def simple_text_to_text(text) -> dcc.Markdown():
+        return "Some markdown text"
+
+    app = FastDash(callback_fn=simple_text_to_text)
+    output_component = app.outputs[0]
+
+    assert (
+        output_component.__doc__ == dcc.Markdown.__doc__
+        and hasattr(output_component, "component_property")
+        and output_component.component_property == "children"
     )
