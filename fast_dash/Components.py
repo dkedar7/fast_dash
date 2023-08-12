@@ -37,6 +37,7 @@ class BaseLayout:
         footer=True,
         minimal=False,
         scale_height=1,
+        app=None,
     ):
         self.mosaic = mosaic
         self.inputs = inputs
@@ -51,6 +52,7 @@ class BaseLayout:
         self.footer = footer
         self.minimal = minimal
         self.scale_height = scale_height
+        self.app = app
 
     def generate_navbar_container(self):
         if not self.navbar:
@@ -118,15 +120,16 @@ class BaseLayout:
             dark=True,
             fluid=True,
             fixed=None,
+            expand=True,
             style={"padding": "0 0 0 0"},
         )
 
-        navbar_container = dbc.Container(
+        navbar_container = dbc.Row(
             [navbar],
-            fluid=True,
+            # fluid=True,
             style={"padding": "0 0 0 0"},
             id="navbar3260780",
-            className="dbc",
+            # className="dbc",
         )
 
         return navbar_container
@@ -528,12 +531,12 @@ class SidebarLayout(BaseLayout):
         return dbc.Col(
             children=[dmc.Stack(children=self.inputs)],
             id="input-group",
-            sm=2,
-            width=12,
+            xs=12,
+            md=2,
             style={
                 "background-color": "#F5F7F7",
                 "display": "block",
-                "padding": "2% 1% 0 2%",
+                "padding": "2% 20px 0 20px",
                 "height": f"{self.scale_height * 110}vh",
             },
             class_name="border border-right",
@@ -573,6 +576,7 @@ class SidebarLayout(BaseLayout):
                 [layout] + [self.outputs[-1]],
                 class_name="g-1 d-flex flex-fill flex-column",
                 style={"height": f"{80 * self.scale_height}vh"},
+                width=12,
             ),
             loaderProps=dict(variant="bars"),
         )
@@ -626,7 +630,7 @@ class SidebarLayout(BaseLayout):
                     self.generate_footer_container(),
                 ],
                 fluid=True,
-                style={"padding": "0 0 0 0", "height": "100vh"},
+                style={"height": "100vh", "width": "100%"},
             )
         )
 
@@ -634,27 +638,23 @@ class SidebarLayout(BaseLayout):
 
     def callbacks(self, app):
         @app.callback(
-            [Output("input-group", "style"), Output("output-group-col", "width")],
+            [Output("input-group", "style")],
             [Input("sidebar-button", "opened")],
             [State("input-group", "style")],
         )
         def toggle_sidebar(opened, input_style):
             input_style = {} if input_style is None else input_style
-            width = 10
 
-            display = input_style.get("display", "block")
-
-            # Condition to collapse the sidebar
-            if not opened:
+            # Condition to collapse the sidebar:
+            # Burger icon is closed or no inputs are specified
+            if not opened or len(self.app.inputs) == 0:
                 input_style.update({"display": "none"})
-                width = 12
 
             # Expand by default
             else:
                 input_style.update({"display": "block"})
-                width = 10
 
-            return input_style, width
+            return (input_style,)
 
 
 _map_types_to_readable_names = {

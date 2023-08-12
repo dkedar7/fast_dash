@@ -260,6 +260,7 @@ class FastDash:
             "footer": self.footer,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
+            "app": self
         }
 
         if self.layout_pattern == "sidebar":
