@@ -1026,10 +1026,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">334</span>
 <span class="normal">335</span>
 <span class="normal">336</span>
-<span class="normal">337</span>
-<span class="normal">338</span>
-<span class="normal">339</span>
-<span class="normal">340</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FastDash</span><span class="p">:</span>
+<span class="normal">337</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FastDash</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -1131,15 +1128,11 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
 
-        <span class="k">if</span> <span class="n">output_labels</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="n">outputs</span>
-        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
@@ -1262,6 +1255,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="s2">&quot;footer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer</span><span class="p">,</span>
             <span class="s2">&quot;minimal&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span><span class="p">,</span>
             <span class="s2">&quot;scale_height&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span><span class="p">,</span>
+            <span class="s2">&quot;app&quot;</span><span class="p">:</span> <span class="bp">self</span>
         <span class="p">}</span>
 
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">==</span> <span class="s2">&quot;sidebar&quot;</span><span class="p">:</span>
@@ -1802,11 +1796,7 @@ Defaults to False.</p></td>
 <span class="normal">219</span>
 <span class="normal">220</span>
 <span class="normal">221</span>
-<span class="normal">222</span>
-<span class="normal">223</span>
-<span class="normal">224</span>
-<span class="normal">225</span>
-<span class="normal">226</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">222</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -1899,15 +1889,11 @@ Defaults to False.</p></td>
     <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
 
-    <span class="k">if</span> <span class="n">output_labels</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span>
-        <span class="k">else</span> <span class="n">outputs</span>
-    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
@@ -2417,7 +2403,10 @@ Defaults to False.</p></td>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">343</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">340</span>
+<span class="normal">341</span>
+<span class="normal">342</span>
+<span class="normal">343</span>
 <span class="normal">344</span>
 <span class="normal">345</span>
 <span class="normal">346</span>
@@ -2541,10 +2530,7 @@ Defaults to False.</p></td>
 <span class="normal">464</span>
 <span class="normal">465</span>
 <span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">467</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
