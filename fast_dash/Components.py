@@ -647,7 +647,7 @@ class SidebarLayout(BaseLayout):
 
             # Condition to collapse the sidebar:
             # Burger icon is closed or no inputs are specified
-            if not opened or len(self.app.inputs) == 0:
+            if not opened or self.app.inputs == [] or self.app.inputs is None:
                 input_style.update({"display": "none"})
 
             # Expand by default
@@ -1002,17 +1002,24 @@ def _infer_input_components(func):
     return components
 
 
-def _infer_output_components(func, output_labels):
+def _infer_output_components(func, outputs, output_labels):
     signature = inspect.signature(func)
     components = []
 
-    parameters = list(
-        enumerate(
-            signature.return_annotation
-            if isinstance(signature.return_annotation, tuple)
-            else [signature.return_annotation]
+    if isinstance(outputs, list):
+        parameters = [(None, o) for o in outputs]
+
+    elif outputs is not None:
+        parameters = [(None, outputs)]
+
+    else:
+        parameters = list(
+            enumerate(
+                signature.return_annotation
+                if isinstance(signature.return_annotation, tuple)
+                else [signature.return_annotation]
+            )
         )
-    )
 
     if output_labels is None:
         output_labels = [None] * len(parameters)
