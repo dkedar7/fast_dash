@@ -1,9 +1,9 @@
-# Release 0.2.3
+# Release 0.2.4
 
-## 0.2.3 (2023-08-01)
+## 0.2.4 (2023-08-12)
 
-### Features
+### Improvements
 
-- Dash components can be directly used as type hints. They are converted to Fast components during app initialization.
-- Added a mosaic layout example to README.
-- `dash` can be imported from `fast_dash` like this: `from fast_dash import dash`.
+- Improve responsiveness on mobile views.
+- `outputs` argument overrides callback function output hints.
+- Improve pytest coverage.
