@@ -129,15 +129,11 @@ class FastDash:
         self.mosaic = mosaic
         self.output_labels = output_labels
 
-        if output_labels:
+        if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn)
 
         self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
-        self.outputs = (
-            _infer_output_components(callback_fn, self.output_labels)
-            if outputs is None
-            else outputs
-        )
+        self.outputs = _infer_output_components(callback_fn, outputs, self.output_labels)
         self.update_live = update_live
         self.mode = mode
         self.disable_logs = disable_logs
@@ -260,6 +256,7 @@ class FastDash:
             "footer": self.footer,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
+            "app": self
         }
 
         if self.layout_pattern == "sidebar":
