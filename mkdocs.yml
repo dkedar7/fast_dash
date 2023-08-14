@@ -43,7 +43,7 @@ nav:
   - Installation: installation.md
   - Quickstart: quickstart.md
   - User guide:
-    - Under the hood: User guide/build.md
+    - 10 minutes to Fast Dash: User guide/build.md
     - Fast Components: User guide/components.md
     - Common patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
