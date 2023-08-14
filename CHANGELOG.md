@@ -1,9 +1,7 @@
-# Release 0.2.4
+# Release 0.2.5
 
-## 0.2.4 (2023-08-12)
+## 0.2.5 (2023-08-13)
 
 ### Improvements
 
-- Improve responsiveness on mobile views.
-- `outputs` argument overrides callback function output hints.
-- Improve pytest coverage.
+- Fix: `update_live` is automatically set to `True` if the callback function doesn't require any inputs.
