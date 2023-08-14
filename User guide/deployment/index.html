@@ -332,7 +332,7 @@
   
     <li class="md-nav__item">
       <a href="../build/" class="md-nav__link">
-        Under the hood
+        10 minutes to Fast Dash
       </a>
     </li>
   
@@ -415,15 +415,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#step-1-get-started-with-google-cloud" class="md-nav__link">
-    Step 1. Get started with Google Cloud
+  <a href="#step-0-get-started-with-google-cloud" class="md-nav__link">
+    Step 0. Get started with Google Cloud
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-add-wsgipy" class="md-nav__link">
-    Step 2. Add wsgi.py
+  <a href="#step-1-extract-flask-server-object" class="md-nav__link">
+    Step 1. Extract Flask server object
   </a>
   
 </li>
@@ -436,8 +436,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-modify-requirementstxt" class="md-nav__link">
-    Step 4. Modify requirements.txt
+  <a href="#step-4-update-requirementstxt" class="md-nav__link">
+    Step 4. Update requirements.txt
   </a>
   
 </li>
@@ -641,15 +641,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#step-1-get-started-with-google-cloud" class="md-nav__link">
-    Step 1. Get started with Google Cloud
+  <a href="#step-0-get-started-with-google-cloud" class="md-nav__link">
+    Step 0. Get started with Google Cloud
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-2-add-wsgipy" class="md-nav__link">
-    Step 2. Add wsgi.py
+  <a href="#step-1-extract-flask-server-object" class="md-nav__link">
+    Step 1. Extract Flask server object
   </a>
   
 </li>
@@ -662,8 +662,8 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-modify-requirementstxt" class="md-nav__link">
-    Step 4. Modify requirements.txt
+  <a href="#step-4-update-requirementstxt" class="md-nav__link">
+    Step 4. Update requirements.txt
   </a>
   
 </li>
@@ -699,32 +699,35 @@
 
 
 <h1 id="deployment">Deployment</h1>
-<p>Fast Dash apps can be deployed as regular Dash apps. A universal and hence the preferred method to deploy is to containers the applications and then deploy to a public cloud endpoint.</p>
+<p>Fast Dash apps are deployed as any other Flask app. A universal and hence the recommended way to deploy is to containerize the application and then deploy it to an endpoint.</p>
 <p>Here're the general steps involved with the deployment process:</p>
 <ol>
+<li>Extract the Flask server from the <code>FastDash</code> app object (<code>server = app.server</code>).</li>
 <li>Add a <code>Dockerfile</code> in the same directory that contains the main Fast Dash app module.</li>
-<li>Create <code>wsgi.py</code> Python script in the same path.</li>
 <li>Build and run Docker container.</li>
 </ol>
-<p>The recommended directory structure is this:</p>
+<p>The recommended directory structure is:</p>
 <div class="highlight"><pre><span></span><code>root\
 - app.py
 - requirements.txt
-- ....py  # (Other scripts that your Fast Dash app needs)
+- Dockerfile
+- ....py (Other scripts that your Fast Dash app needs)
+- ... (Other dependencies)
 </code></pre></div>
-<p>With these steps in mind, let's see how we can deploy our simple text-to-text Fast Dash app to the most used cloud services.</p>
+<p>With these steps in mind, let's see how we can deploy our simple text-to-text Fast Dash app to Google Cloud Run. We can use the same process to deploy to any service that deploys web applications as Docker containers, like Hugging Face spaces.</p>
 <h2 id="1-google-cloud-run">1. Google Cloud Run</h2>
-<h3 id="step-1-get-started-with-google-cloud">Step 1. Get started with Google Cloud</h3>
+<h3 id="step-0-get-started-with-google-cloud">Step 0. Get started with Google Cloud</h3>
 <p>Get started with Google Cloud <a href="https://cloud.google.com/">here</a>. If you already have an account, proceed to the console and select Cloud Run from the list of services.</p>
-<p>Although not mandatory, it's highly recommended to get access to the <a href="https://cloud.google.com/sdk/docs/install"><code>gcloud</code> command line utility</a>. The <code>gcloud</code> CLI reduces the deployment down to just a single line of code.</p>
-<h3 id="step-2-add-wsgipy">Step 2. Add <code>wsgi.py</code></h3>
-<p>Add <code>wsgi.py</code> Python script to the current directory. Modify it and add the following lines:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">app</span> <span class="kn">import</span> <span class="n">app</span>
-<span class="n">server</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
+<p>Although not mandatory, it's highly recommended to get access to the <a href="https://cloud.google.com/sdk/docs/install"><code>gcloud</code> command line utility</a>. The <code>gcloud</code> CLI reduces the lines of code need to deploy apps down to just one!</p>
+<h3 id="step-1-extract-flask-server-object">Step 1. Extract Flask server object</h3>
+<p>Note that <code>@fastdash</code> decorators are not recommended for production deployment. So if you've been using the decorator to develop the app locally, use the <code>FastDash</code> class instead for production deployments. Then, simply define the server object with <code>app.server</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="o">...</span>
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_function</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
+<span class="n">server</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">server</span>
 </code></pre></div>
-<p><code>server</code> is the Flask object that gets deployed. We need to isolate it from the rest of the app code so that we can instruct <code>gunicorn</code> in the next step to deploy it inside our Docker container.</p>
+<p><code>server</code> is the Flask object that gets deployed. We need to isolate it so we can instruct <code>gunicorn</code> in the next step to deploy it inside our Docker container.</p>
 <h3 id="step-3-create-dockerfile">Step 3. Create <code>Dockerfile</code></h3>
-<p>Create a new file in the current path and modify it to reflect the following:</p>
+<p>Create a Dockerfile in the current path and modify it to reflect the following:</p>
 <div class="highlight"><pre><span></span><code>FROM python:3.9-slim
 
 # Copy local code to the container image.
@@ -737,29 +740,14 @@ RUN pip3 install --no-cache-dir -r requirements.txt
 # Deploy app using gunicorn
 CMD exec gunicorn wsgi:server --bind :$PORT
 </code></pre></div>
-<h3 id="step-4-modify-requirementstxt">Step 4. Modify <code>requirements.txt</code></h3>
+<h3 id="step-4-update-requirementstxt">Step 4. Update <code>requirements.txt</code></h3>
 <p>Add <code>gunicorn</code> to the list of dependencies in <code>requirements.txt</code>.</p>
-<p>At this stage, the root path of your app should have this structure:</p>
-<div class="highlight"><pre><span></span><code>root\
-- app.py
-- requirements.txt
-- wsgi.py
-- Dockerfile
-- ....py  # (Other scripts that your Fast Dash app needs)
-</code></pre></div>
 <h3 id="step-5-deploy">Step 5. Deploy! 🚀</h3>
 <p>If the <code>gcloud</code> CLI was correctly installed in step 1, simply run this command from the root of your project directory:</p>
 <div class="highlight"><pre><span></span><code>gcloud run deploy
 </code></pre></div>
-<p>You will be asked to enter a few different settings for your app. Read Google Cloud Run's documentation here to understand what each of them mean.</p>
-<p>Generally, choosing the following settings is acceptable:</p>
-<ol>
-<li>Source code location: Enter the directory with <code>Dockerfile</code>. If you are already in the project <code>root</code>, then this directory is preselected. Simply hit <code>Enter</code>.</li>
-<li>Service name: Type the app name of hit <code>Enter</code> to select default.</li>
-<li>Please specify a region: Choose the number corresponding to your nearest region.</li>
-<li>Allow unauthenticated invocations to: Select <code>y</code> if you understand and are okay with the repercussions.</li>
-</ol>
-<p>That's it! Google Cloud will build your app inside a Docker container and display the URL here once it's ready. The entire operation can take upto 5 minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.</p>
+<p>You will be asked to choose a few different settings for your deployment. Read Google Cloud Run's documentation here to understand what each of them mean.</p>
+<p>That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.</p>
 
 
 

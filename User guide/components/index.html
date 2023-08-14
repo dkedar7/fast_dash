@@ -332,7 +332,7 @@
   
     <li class="md-nav__item">
       <a href="../build/" class="md-nav__link">
-        Under the hood
+        10 minutes to Fast Dash
       </a>
     </li>
   
@@ -379,8 +379,8 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-are-they-different-from-dash-components" class="md-nav__link">
-    How are they different from Dash components
+  <a href="#can-dash-components-be-used-as-fast-components" class="md-nav__link">
+    Can Dash components be used as Fast Components?
   </a>
   
 </li>
@@ -388,20 +388,6 @@
         <li class="md-nav__item">
   <a href="#how-to-transform-dash-components-into-fast-components" class="md-nav__link">
     How to transform Dash components into Fast components
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-special-acknowledgement-ack-components" class="md-nav__link">
-    The special acknowledgement (ack) components
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#some-examples" class="md-nav__link">
-    Some examples
   </a>
   
 </li>
@@ -613,8 +599,8 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
-  <a href="#how-are-they-different-from-dash-components" class="md-nav__link">
-    How are they different from Dash components
+  <a href="#can-dash-components-be-used-as-fast-components" class="md-nav__link">
+    Can Dash components be used as Fast Components?
   </a>
   
 </li>
@@ -622,20 +608,6 @@
         <li class="md-nav__item">
   <a href="#how-to-transform-dash-components-into-fast-components" class="md-nav__link">
     How to transform Dash components into Fast components
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#the-special-acknowledgement-ack-components" class="md-nav__link">
-    The special acknowledgement (ack) components
-  </a>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#some-examples" class="md-nav__link">
-    Some examples
   </a>
   
 </li>
@@ -661,7 +633,7 @@
 <h1 id="fast-components">Fast Components</h1>
 <p>Fast components are the UI components that represent the input and outputs elements in a Fast Dash app. In fact, they are Dash components modified by adding a new <code>component_property</code> attribute, in addition to a few other optional properties. Fast Dash provides a <code>Fastify</code> function to transform Dash components into Fast components.</p>
 <p>Fast Dash borrows the concept of <code>component_property</code> from Dash. <code>component_property</code> is the answer to the question - <strong>"Which property of a component should be assigned the value returned by the callback function?"</strong></p>
-<p>For example, if the first argument of a Fast Dash callback function is a <code>str</code> and we want to represent this input using a component that allows users to enter text. Say we decide to use the <code>dbc.Input()</code> Dash component. By reading the documentation of the component <a href="https://dash-bootstrap-components.opensource.faculty.ai/docs/components/input/">here</a>, you'll realize that we must update the <code>value</code> property of <code>dbc.Input()</code> for it work as expected. And therefore, when defining a Fast component for this input we'd use <code>component_property="value"</code>.</p>
+<p>For example, if the first argument of a Fast Dash callback function is a <code>str</code>, we must represent this input using a component that allows users to enter text. Say we decide to use the <code>dbc.Input()</code> Dash component. On referring to the documentation of the component <a href="https://dash-bootstrap-components.opensource.faculty.ai/docs/components/input/">here</a>, you'll realize that we must update the <code>value</code> property of <code>dbc.Input()</code> for it to work as expected. And therefore, when defining a Fast component for this input we would use <code>component_property="value"</code>.</p>
 <p>We use this design and the fact that Fast Dash allows using Fast components as type hints, in addition of standard Python data types, to write a simple app that takes text entered by users as the first input.</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">Fastify</span><span class="p">,</span> <span class="n">dbc</span>
 
@@ -684,15 +656,35 @@
 <div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">Text</span><span class="p">,</span> <span class="n">Slider</span><span class="p">,</span> <span class="n">Upload</span><span class="p">,</span> <span class="n">UploadImage</span><span class="p">,</span> <span class="n">Image</span><span class="p">,</span> <span class="n">Graph</span>
 </code></pre></div>
 </div>
-<details class="note">
-<summary>Dash components vs Fast components</summary>
-<p>If you have used Dash, you will know that we have to specify a <code>component_property</code> to Dash's <code>Input</code> and <code>Output</code> methods when defining our callback functions (during runtime). In other words, you can develop Dash UI before writing your callback functions.</p>
-<p>On the contrary, Fast Dash <strong>infers</strong> components (when not specified) by studying the underlying callback function, particularly its type hints and default values. For that reason, it becomes essential for us to specify the <code>component_property</code> before we define our callback function.</p>
-</details>
-<h2 id="how-are-they-different-from-dash-components">How are they different from Dash components</h2>
+<div class="admonition note">
+<p class="admonition-title">Dash components vs Fast components</p>
+<p>Dash components are interactive UI components that you can use to create web applications with Dash. Dash ships with supercharged core components (<code>dash.dcc</code>), and standard HTML components (<code>dash.html</code>) suitable for almost any task and data type.</p>
+<p>Fast components are Dash components with some additional attributes to make them suitable for use by Fast Dash.</p>
+<p>If you have used Dash, you will know that it requires us to specify a <code>component_property</code> argument to Dash's <code>Input</code> and <code>Output</code> methods when defining our callback functions (during runtime). In other words, we can develop Dash UI before writing our callback functions.</p>
+<p>On the contrary, Fast Dash <strong>infers</strong> components (when not specified) by studying the underlying callback function, particularly its type hints and default values.</p>
+</div>
+<h2 id="can-dash-components-be-used-as-fast-components">Can Dash components be used as Fast Components?</h2>
+<p><strong>Yes!</strong></p>
+<p>However, Dash components have to be converted to Fast components before Fast Dash uses them. In most cases, Fast Dash performs that conversion automatically. But in the other cases, we can easily use the <code>Fastify</code> utility function to do that conversion ourselves.</p>
+<p>Here's a list of all Dash components that Fast Dash natively converts to Fast components without worrying the user.</p>
 <h2 id="how-to-transform-dash-components-into-fast-components">How to transform Dash components into Fast components</h2>
-<h2 id="the-special-acknowledgement-ack-components">The special acknowledgement (ack) components</h2>
-<h2 id="some-examples">Some examples</h2>
+<p>If the Dash components you want to use isn't in the list of components you want to use with Fast Dash or if you want to update a different <code>component_property</code> of the component, then the <code>Fastify</code> function comes to your rescue.</p>
+<p>Use this syntax to do the conversion:</p>
+<div class="highlight"><pre><span></span><code><span class="o">...</span>
+<span class="kn">from</span> <span class="nn">fastdash</span> <span class="kn">import</span> <span class="n">Fastify</span>
+
+<span class="n">fast_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="o">=</span><span class="n">dash_component</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=...</span><span class="p">)</span>
+</code></pre></div>
+<p>For example, Fast Dash doesn't natively support automatic conversion of <a href="https://dash.plotly.com/dash-bio/molecule2dviewer">Dash bio components</a> to Fast components. But, <code>Fastify</code> can convert any Dash component to a Fast component. Say, we wanted to use <code>dash.bio.Molecule2dViewer</code> to view a molecule:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Fastify</span>
+<span class="kn">from</span> <span class="nn">dashbio</span> <span class="kn">import</span> <span class="n">Molecule2dViewer</span>
+
+<span class="n">molecule_fast_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="o">=</span><span class="n">Molecule2dViewer</span><span class="p">(),</span> 
+                                    <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;modelData&quot;</span><span class="p">)</span>
+
+<span class="k">def</span> <span class="nf">view_molecule</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">molecule_fast_component</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
 
 
 
