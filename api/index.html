@@ -1106,7 +1106,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">            theme (str, optional): Apply theme to the app. Defaults to &quot;JOURNAL&quot;. All available themes can be found</span>
 <span class="sd">                at https://bootswatch.com/.</span>
 
-<span class="sd">            update_live (bool, optional): Enable hot reloading. Defaults to False.</span>
+<span class="sd">            update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.</span>
 
 <span class="sd">            port (int, optional): Port to which the app should be deployed. Defauts to 8080.</span>
 
@@ -1133,7 +1133,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="n">update_live</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
@@ -1541,7 +1541,7 @@ at https://bootswatch.com/.</p></td>
           <td>
                 <code>bool</code>
           </td>
-          <td><p>Enable hot reloading. Defaults to False.</p></td>
+          <td><p>Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.</p></td>
           <td>
                 <code>False</code>
           </td>
@@ -1867,7 +1867,7 @@ Defaults to False.</p></td>
 <span class="sd">        theme (str, optional): Apply theme to the app. Defaults to &quot;JOURNAL&quot;. All available themes can be found</span>
 <span class="sd">            at https://bootswatch.com/.</span>
 
-<span class="sd">        update_live (bool, optional): Enable hot reloading. Defaults to False.</span>
+<span class="sd">        update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.</span>
 
 <span class="sd">        port (int, optional): Port to which the app should be deployed. Defauts to 8080.</span>
 
@@ -1894,7 +1894,7 @@ Defaults to False.</p></td>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span> <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">inputs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="n">update_live</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="kc">True</span> <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span> <span class="k">else</span> <span class="n">update_live</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
