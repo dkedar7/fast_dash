@@ -107,7 +107,7 @@ class FastDash:
             theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
                 at https://bootswatch.com/.
 
-            update_live (bool, optional): Enable hot reloading. Defaults to False.
+            update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.
 
             port (int, optional): Port to which the app should be deployed. Defauts to 8080.
 
@@ -134,7 +134,7 @@ class FastDash:
 
         self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
         self.outputs = _infer_output_components(callback_fn, outputs, self.output_labels)
-        self.update_live = update_live
+        self.update_live = True if (isinstance(self.inputs, list) and len(self.inputs) == 0) else update_live
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
