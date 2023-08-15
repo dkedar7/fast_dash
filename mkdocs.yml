@@ -51,6 +51,7 @@ nav:
     - 1. Simple text to text: Examples/01_simple_text_to_text.ipynb
     - 2. Translate to multiple languages: Examples/02_translate_to_multiple_languages.ipynb
     - 3. Chat over documents with Embedchain: Examples/03_chat_over_documents.ipynb
+    - 4. US Land Cover Map with Geemap: Examples/04_land_cover_map_with_geemap.ipynb
   - Modules: api.md
   - Contributing: contributing.md
   - Authors: authors.md
