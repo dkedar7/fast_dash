@@ -12,20 +12,20 @@
         <meta name="author" content="Kedar Dabhadkar">
       
       
-        <link rel="canonical" href="https://docs.fastdash.app/Examples/03_chat_over_documents/">
+        <link rel="canonical" href="https://docs.fastdash.app/Examples/04_land_cover_map_with_geemap/">
       
       
-        <link rel="prev" href="../02_translate_to_multiple_languages/">
+        <link rel="prev" href="../03_chat_over_documents/">
       
       
-        <link rel="next" href="../04_land_cover_map_with_geemap/">
+        <link rel="next" href="../../api/">
       
       <link rel="icon" href="../../assets/favicon.ico">
       <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
     
     
       
-        <title>3. Chat over documents with Embedchain - Fast Dash</title>
+        <title>4. US Land Cover Map with Geemap - Fast Dash</title>
       
     
     
@@ -143,7 +143,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              3. Chat over documents with Embedchain
+              4. US Land Cover Map with Geemap
             
           </span>
         </div>
@@ -443,6 +443,20 @@
               
   
   
+  
+    <li class="md-nav__item">
+      <a href="../03_chat_over_documents/" class="md-nav__link">
+        3. Chat over documents with Embedchain
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
     
   
   
@@ -453,23 +467,9 @@
       
       
       <a href="./" class="md-nav__link md-nav__link--active">
-        3. Chat over documents with Embedchain
-      </a>
-      
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../04_land_cover_map_with_geemap/" class="md-nav__link">
         4. US Land Cover Map with Geemap
       </a>
+      
     </li>
   
 
@@ -575,7 +575,7 @@
   
 
 
-  <h1>3. Chat over documents with Embedchain</h1>
+  <h1>4. US Land Cover Map with Geemap</h1>
 
 <script>
 (function (global, factory) {
@@ -1614,7 +1614,7 @@ Licensed under the Apache License, Version 2.0.
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
-<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/docs/docs/Examples/03_chat_over_documents.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in colab" /></a></p>
+<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/docs/docs/Examples/04_land_cover_map_with_geemap.ipynb"><img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open in colab" /></a></p>
 
 </div>
 </div>
@@ -1627,6 +1627,8 @@ Licensed under the Apache License, Version 2.0.
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput " data-mime-type="text/markdown">
 <p>This notebook is optimized to run in Google Colab.</p>
+<p>We'll use the amazing Geemap library for this demo.
+Learn more about Geemap at <a href="https://geemap.org/">https://geemap.org/</a>.</p>
 
 </div>
 </div>
@@ -1652,9 +1654,9 @@ Licensed under the Apache License, Version 2.0.
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="err">!</span><span class="n">pip</span> <span class="n">install</span> <span class="n">fast</span><span class="o">-</span><span class="n">dash</span> <span class="n">embedchain</span> <span class="n">jupyter_dash</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="err">!</span><span class="n">pip</span> <span class="n">install</span> <span class="n">fast</span><span class="o">-</span><span class="n">dash</span> <span class="n">geemap</span> <span class="n">jupyter_dash</span>
 </pre></div>
-<div id="cell-1" class="clipboard-copy-txt">!pip install fast-dash embedchain jupyter_dash</div>
+<div id="cell-1" class="clipboard-copy-txt">!pip install fast-dash geemap jupyter_dash</div>
         
         </div>
     </div>
@@ -1684,21 +1686,49 @@ Licensed under the Apache License, Version 2.0.
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="kn">import</span> <span class="nn">os</span>
-<span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Fastify</span><span class="p">,</span> <span class="n">dcc</span><span class="p">,</span> <span class="n">dmc</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="kn">import</span> <span class="nn">ee</span>
+<span class="kn">import</span> <span class="nn">geemap.foliumap</span> <span class="k">as</span> <span class="nn">geemap</span>
 
-<span class="kn">from</span> <span class="nn">embedchain</span> <span class="kn">import</span> <span class="n">App</span>
-<span class="kn">from</span> <span class="nn">embedchain.config</span> <span class="kn">import</span> <span class="n">QueryConfig</span>
-
-<span class="kn">from</span> <span class="nn">string</span> <span class="kn">import</span> <span class="n">Template</span>
+<span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">html</span><span class="p">,</span> <span class="n">Fastify</span>
 </pre></div>
-<div id="cell-2" class="clipboard-copy-txt">import os
-from fast_dash import fastdash, Fastify, dcc, dmc
+<div id="cell-2" class="clipboard-copy-txt">import ee
+import geemap.foliumap as geemap
 
-from embedchain import App
-from embedchain.config import QueryConfig
+from fast_dash import fastdash, html, Fastify</div>
+        
+        </div>
+    </div>
 
-from string import Template</div>
+</div>
+</div>
+
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
+<div id="cell-id=0e6bceca" class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
+<div class="jp-Cell-inputWrapper">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[&nbsp;]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+        
+        
+        <div class="CodeMirror cm-s-jupyter">
+            <div class="zeroclipboard-container">
+                <clipboard-copy for="cell-3">
+                <div>
+                    <span class="notice" hidden>Copied!</span>
+                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" version="1.1"  data-view-component="true" class="clipboard-copy-icon">
+                        <path fill="currentColor" fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path>
+                        <path fill="currentColor" fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"></path>
+                    </svg>
+                    </div>
+                </clipboard-copy>
+            </div>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Authenticate Google Earth Engine</span>
+<span class="n">ee</span><span class="o">.</span><span class="n">Authenticate</span><span class="p">()</span>
+</pre></div>
+<div id="cell-3" class="clipboard-copy-txt"># Authenticate Google Earth Engine
+ee.Authenticate()</div>
         
         </div>
     </div>
@@ -1718,7 +1748,7 @@ from string import Template</div>
         
         <div class="CodeMirror cm-s-jupyter">
             <div class="zeroclipboard-container">
-                <clipboard-copy for="cell-3">
+                <clipboard-copy for="cell-4">
                 <div>
                     <span class="notice" hidden>Copied!</span>
                     <svg aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" version="1.1"  data-view-component="true" class="clipboard-copy-icon">
@@ -1728,35 +1758,19 @@ from string import Template</div>
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define app configurations</span>
-<span class="n">PROMPT</span> <span class="o">=</span> <span class="n">Template</span><span class="p">(</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Use the given context to answer the question at the end.</span>
-<span class="sd">If you don&#39;t know the answer, say so, but don&#39;t try to make one up.</span>
-<span class="sd">At the end of the answer, also give the sources as a bulleted list.</span>
-<span class="sd">Display the answer as markdown text.</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define years over which we&#39;ll compare land cover</span>
+<span class="n">years</span> <span class="o">=</span> <span class="p">[</span><span class="s1">&#39;2001&#39;</span><span class="p">,</span> <span class="s1">&#39;2004&#39;</span><span class="p">,</span> <span class="s1">&#39;2006&#39;</span><span class="p">,</span> <span class="s1">&#39;2008&#39;</span><span class="p">,</span> <span class="s1">&#39;2011&#39;</span><span class="p">,</span> <span class="s1">&#39;2013&#39;</span><span class="p">,</span> <span class="s1">&#39;2016&#39;</span><span class="p">,</span> <span class="s1">&#39;2019&#39;</span><span class="p">]</span>
 
-<span class="sd">Context: $context</span>
-
-<span class="sd">Query: $query</span>
-
-<span class="sd">Answer:&quot;&quot;&quot;</span>
-<span class="p">)</span>
-<span class="n">query_config</span> <span class="o">=</span> <span class="n">QueryConfig</span><span class="p">(</span><span class="n">template</span><span class="o">=</span><span class="n">PROMPT</span><span class="p">)</span>
+<span class="c1"># Using Fastify, Fast Dash allows making any Dash component suitable with Fast Dash</span>
+<span class="n">iframe_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="o">=</span><span class="n">html</span><span class="o">.</span><span class="n">Iframe</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="s2">&quot;100%&quot;</span><span class="p">),</span> 
+                           <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;srcdoc&quot;</span><span class="p">)</span>
 </pre></div>
-<div id="cell-3" class="clipboard-copy-txt"># Define app configurations
-PROMPT = Template(
-    """Use the given context to answer the question at the end.
-If you don't know the answer, say so, but don't try to make one up.
-At the end of the answer, also give the sources as a bulleted list.
-Display the answer as markdown text.
+<div id="cell-4" class="clipboard-copy-txt"># Define years over which we'll compare land cover
+years = ['2001', '2004', '2006', '2008', '2011', '2013', '2016', '2019']
 
-Context: $context
-
-Query: $query
-
-Answer:"""
-)
-query_config = QueryConfig(template=PROMPT)</div>
+# Using Fastify, Fast Dash allows making any Dash component suitable with Fast Dash
+iframe_component = Fastify(component=html.Iframe(height="100%"), 
+                           component_property="srcdoc")</div>
         
         </div>
     </div>
@@ -1776,100 +1790,6 @@ query_config = QueryConfig(template=PROMPT)</div>
         
         <div class="CodeMirror cm-s-jupyter">
             <div class="zeroclipboard-container">
-                <clipboard-copy for="cell-4">
-                <div>
-                    <span class="notice" hidden>Copied!</span>
-                    <svg aria-hidden="true" width="20" height="20" viewBox="0 0 16 16" version="1.1"  data-view-component="true" class="clipboard-copy-icon">
-                        <path fill="currentColor" fill-rule="evenodd" d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z"></path>
-                        <path fill="currentColor" fill-rule="evenodd" d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z"></path>
-                    </svg>
-                    </div>
-                </clipboard-copy>
-            </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define components</span>
-<span class="n">openai_api_key_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">PasswordInput</span><span class="p">(</span>
-    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;API Key&quot;</span><span class="p">,</span>
-    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Get yours at https://platform.openai.com/account/api-keys&quot;</span><span class="p">,</span>
-    <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">web_page_urls_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">MultiSelect</span><span class="p">(</span>
-    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Include all the reference web URLs&quot;</span><span class="p">,</span>
-    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Enter URLs separated by commas&quot;</span><span class="p">,</span>
-    <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">creatable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">text_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span>
-    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Custom text&quot;</span><span class="p">,</span>
-    <span class="n">autosize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">minRows</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Any additional information that could be useful&quot;</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">query_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span>
-    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Write your query here&quot;</span><span class="p">,</span>
-    <span class="n">autosize</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">minRows</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
-    <span class="n">required</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">description</span><span class="o">=</span><span class="s2">&quot;Write your query here&quot;</span><span class="p">,</span>
-<span class="p">)</span>
-
-<span class="n">answer_component</span> <span class="o">=</span> <span class="n">dcc</span><span class="o">.</span><span class="n">Markdown</span><span class="p">(</span>
-    <span class="n">style</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;text-align&quot;</span><span class="p">:</span> <span class="s2">&quot;left&quot;</span><span class="p">,</span> <span class="s2">&quot;padding&quot;</span><span class="p">:</span> <span class="s2">&quot;1%&quot;</span><span class="p">},</span> <span class="n">link_target</span><span class="o">=</span><span class="s2">&quot;_blank&quot;</span>
-<span class="p">)</span>
-</pre></div>
-<div id="cell-4" class="clipboard-copy-txt"># Define components
-openai_api_key_component = dmc.PasswordInput(
-    placeholder="API Key",
-    description="Get yours at https://platform.openai.com/account/api-keys",
-    required=True,
-)
-
-web_page_urls_component = dmc.MultiSelect(
-    description="Include all the reference web URLs",
-    placeholder="Enter URLs separated by commas",
-    searchable=True,
-    creatable=True,
-)
-
-text_component = dmc.Textarea(
-    placeholder="Custom text",
-    autosize=True,
-    minRows=4,
-    description="Any additional information that could be useful",
-)
-
-query_component = dmc.Textarea(
-    placeholder="Write your query here",
-    autosize=True,
-    minRows=4,
-    required=True,
-    description="Write your query here",
-)
-
-answer_component = dcc.Markdown(
-    style={"text-align": "left", "padding": "1%"}, link_target="_blank"
-)</div>
-        
-        </div>
-    </div>
-
-</div>
-</div>
-
-</div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
-<div id="cell-id=9e8ddb1a-5e05-4875-9c6a-39fe76180033" class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs  ">
-<div class="jp-Cell-inputWrapper">
-<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
-</div>
-<div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In&nbsp;[4]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
-        
-        
-        <div class="CodeMirror cm-s-jupyter">
-            <div class="zeroclipboard-container">
                 <clipboard-copy for="cell-5">
                 <div>
                     <span class="notice" hidden>Copied!</span>
@@ -1880,97 +1800,61 @@ answer_component = dcc.Markdown(
                     </div>
                 </clipboard-copy>
             </div>
-            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Define the callback function and deploy!</span>
+            <div class="highlight-ipynb hl-python "><pre><span></span><span class="c1"># Build and deploy!</span>
+<span class="c1"># If running locally, feel free to drop the mode and port arguments.</span>
 
-<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">explore_your_knowledge_base</span><span class="p">(</span>
-    <span class="n">openai_api_key</span><span class="p">:</span> <span class="n">openai_api_key_component</span><span class="p">,</span>
-    <span class="n">web_page_urls</span><span class="p">:</span> <span class="n">web_page_urls_component</span><span class="p">,</span>
-    <span class="n">youtube_urls</span><span class="p">:</span> <span class="n">web_page_urls_component</span><span class="p">,</span>
-    <span class="n">pdf_urls</span><span class="p">:</span> <span class="n">web_page_urls_component</span><span class="p">,</span>
-    <span class="n">text</span><span class="p">:</span> <span class="n">text_component</span><span class="p">,</span>
-    <span class="n">query</span><span class="p">:</span> <span class="n">query_component</span><span class="p">,</span>
-<span class="p">)</span> <span class="o">-&gt;</span> <span class="n">answer_component</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
-<span class="sd">    Input your sources and let GPT4 find answers. Built with Fast Dash.</span>
-<span class="sd">    This app uses embedchain.ai, which abstracts the entire process of loading and chunking datasets, creating embeddings, and storing them in a vector database.</span>
-<span class="sd">    Embedchain itself uses Langchain and OpenAI&#39;s ChatGPT API.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;OPENAI_API_KEY&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">openai_api_key</span>
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">theme</span><span class="o">=</span><span class="s2">&quot;Zephyr&quot;</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">&quot;inline&quot;</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">compare_land_cover</span><span class="p">(</span><span class="n">year_of_left_layer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">years</span><span class="p">,</span> 
+                       <span class="n">year_of_right_layer</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">years</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">iframe_component</span><span class="p">:</span>
+    <span class="s2">&quot;Compare how land cover in the US changed over the years&quot;</span>
 
-    <span class="k">try</span><span class="p">:</span>
-        <span class="n">app</span> <span class="o">=</span> <span class="n">App</span><span class="p">()</span>
+    <span class="c1"># Geemap code. Ref: https://huggingface.co/spaces/giswqs/geemap/blob/main/app.py</span>
+    <span class="n">Map</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">center</span><span class="o">=</span><span class="p">(</span><span class="mi">40</span><span class="p">,</span> <span class="o">-</span><span class="mi">100</span><span class="p">),</span> <span class="n">zoom</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">height</span><span class="o">=</span><span class="mi">600</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">openai_api_key</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s2">&quot;Did you forget adding your OpenAI API key? If you don&#39;t have one, you can get it [here](https://platform.openai.com/account/api-keys).&quot;</span>
-        
-        <span class="k">if</span> <span class="ow">not</span> <span class="n">query</span><span class="p">:</span>
-            <span class="k">return</span> <span class="s2">&quot;Did you forget writing your query in the query box?&quot;</span>
-        
-        <span class="k">if</span> <span class="n">web_page_urls</span><span class="p">:</span>
-            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;web_page&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">web_page_urls</span><span class="p">]</span>
+    <span class="n">nlcd_left</span> <span class="o">=</span> <span class="n">ee</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;USGS/NLCD_RELEASES/2019_REL/NLCD/</span><span class="si">{</span><span class="n">year_of_left_layer</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;landcover&quot;</span><span class="p">)</span>
+    <span class="n">nlcd_right</span> <span class="o">=</span> <span class="n">ee</span><span class="o">.</span><span class="n">Image</span><span class="p">(</span>
+        <span class="sa">f</span><span class="s2">&quot;USGS/NLCD_RELEASES/2019_REL/NLCD/</span><span class="si">{</span><span class="n">year_of_right_layer</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="p">)</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">&quot;landcover&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">youtube_urls</span><span class="p">:</span>
-            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;youtube_video&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">youtube_urls</span><span class="p">]</span>
+    <span class="n">left_layer</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">ee_tile_layer</span><span class="p">(</span><span class="n">nlcd_left</span><span class="p">,</span> <span class="p">{},</span> <span class="sa">f</span><span class="s2">&quot;NLCD </span><span class="si">{</span><span class="n">year_of_left_layer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+    <span class="n">right_layer</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">ee_tile_layer</span><span class="p">(</span><span class="n">nlcd_right</span><span class="p">,</span> <span class="p">{},</span> <span class="sa">f</span><span class="s2">&quot;NLCD </span><span class="si">{</span><span class="n">year_of_right_layer</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">pdf_urls</span><span class="p">:</span>
-            <span class="p">[</span><span class="n">app</span><span class="o">.</span><span class="n">add</span><span class="p">(</span><span class="s2">&quot;pdf_file&quot;</span><span class="p">,</span> <span class="n">url</span><span class="p">)</span> <span class="k">for</span> <span class="n">url</span> <span class="ow">in</span> <span class="n">pdf_urls</span><span class="p">]</span>
+    <span class="n">Map</span><span class="o">.</span><span class="n">split_map</span><span class="p">(</span><span class="n">left_layer</span><span class="p">,</span> <span class="n">right_layer</span><span class="p">)</span>
 
-        <span class="k">if</span> <span class="n">text</span><span class="p">:</span>
-            <span class="n">app</span><span class="o">.</span><span class="n">add_local</span><span class="p">(</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="c1"># Convert to HTML</span>
+    <span class="n">land_cover_map</span> <span class="o">=</span> <span class="n">Map</span><span class="o">.</span><span class="n">to_html</span><span class="p">()</span>
 
-        <span class="n">answer</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">query</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">query_config</span><span class="p">)</span>
-
-    <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">answer</span> <span class="o">=</span> <span class="s2">&quot;Oops, something went wrong! Please try again later or make a suggestion [here](https://github.com/dkedar7/embedchain-fastdash/issues).&quot;</span>
-
-    <span class="k">return</span> <span class="n">answer</span>
+    <span class="k">return</span> <span class="n">land_cover_map</span>
 </pre></div>
-<div id="cell-5" class="clipboard-copy-txt"># Define the callback function and deploy!
+<div id="cell-5" class="clipboard-copy-txt"># Build and deploy!
+# If running locally, feel free to drop the mode and port arguments.
 
-@fastdash(mode="inline", port=5000)
-def explore_your_knowledge_base(
-    openai_api_key: openai_api_key_component,
-    web_page_urls: web_page_urls_component,
-    youtube_urls: web_page_urls_component,
-    pdf_urls: web_page_urls_component,
-    text: text_component,
-    query: query_component,
-) -> answer_component:
-    """
-    Input your sources and let GPT4 find answers. Built with Fast Dash.
-    This app uses embedchain.ai, which abstracts the entire process of loading and chunking datasets, creating embeddings, and storing them in a vector database.
-    Embedchain itself uses Langchain and OpenAI's ChatGPT API.
-    """
-    os.environ["OPENAI_API_KEY"] = openai_api_key
+@fastdash(theme="Zephyr", mode="inline", port=5000)
+def compare_land_cover(year_of_left_layer: str = years, 
+                       year_of_right_layer: str = years) -> iframe_component:
+    "Compare how land cover in the US changed over the years"
 
-    try:
-        app = App()
+    # Geemap code. Ref: https://huggingface.co/spaces/giswqs/geemap/blob/main/app.py
+    Map = geemap.Map(center=(40, -100), zoom=4, height=600)
 
-        if not openai_api_key:
-            return "Did you forget adding your OpenAI API key? If you don't have one, you can get it [here](https://platform.openai.com/account/api-keys)."
-        
-        if not query:
-            return "Did you forget writing your query in the query box?"
-        
-        if web_page_urls:
-            [app.add("web_page", url) for url in web_page_urls]
+    nlcd_left = ee.Image(
+        f"USGS/NLCD_RELEASES/2019_REL/NLCD/{year_of_left_layer}"
+    ).select("landcover")
+    nlcd_right = ee.Image(
+        f"USGS/NLCD_RELEASES/2019_REL/NLCD/{year_of_right_layer}"
+    ).select("landcover")
 
-        if youtube_urls:
-            [app.add("youtube_video", url) for url in youtube_urls]
+    left_layer = geemap.ee_tile_layer(nlcd_left, {}, f"NLCD {year_of_left_layer}")
+    right_layer = geemap.ee_tile_layer(nlcd_right, {}, f"NLCD {year_of_right_layer}")
 
-        if pdf_urls:
-            [app.add("pdf_file", url) for url in pdf_urls]
+    Map.split_map(left_layer, right_layer)
 
-        if text:
-            app.add_local("text", text)
+    # Convert to HTML
+    land_cover_map = Map.to_html()
 
-        answer = app.query(query, query_config)
-
-    except Exception as e:
-        answer = "Oops, something went wrong! Please try again later or make a suggestion [here](https://github.com/dkedar7/embedchain-fastdash/issues)."
-
-    return answer</div>
+    return land_cover_map</div>
         
         </div>
     </div>

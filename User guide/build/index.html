@@ -643,6 +643,20 @@
 
             
           
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../../Examples/04_land_cover_map_with_geemap/" class="md-nav__link">
+        4. US Land Cover Map with Geemap
+      </a>
+    </li>
+  
+
+            
+          
         </ul>
       </nav>
     </li>
@@ -942,13 +956,13 @@
 <p>Whereas the <code>@fastdash</code> decorator deploys our app when defining our functions (eagerly), the <code>FastDash</code> class objects are equivalent to Flask's server objects, allowing us to deploy our app later (lazily). <code>FastDash</code> objects must be explicitly told to <code>.run()</code> to deploy them. We'll understand these differences better throughout the remainder of this document.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Both the <code>@fastdash`` decorator and the</code>FastDash<code>` class objects are functionally equivalent. The</code>@fastdash<code>decorator is built on top of the</code>FastDash<code>class. That means any argument valid for</code>FastDash<code>object initialization can also be specified to</code>@fastdash`.</p>
+<p>Both the <code>@fastdash</code> decorator and the <code>FastDash</code> class objects are functionally equivalent. The <code>@fastdash</code> decorator is built on top of the <code>FastDash</code> class. That means any argument valid for <code>FastDash</code> object initialization can also be specified to <code>@fastdash</code>.</p>
 <p>Using decorators is a very convenient way to give additional abilities to a function, the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> in our case. It also allows us to add various automations, like instant deployments!</p>
 </div>
-<p>Let's first understand how to build Fast Dash apps using the <code>@fastdash</code> decorator and then extend these ideas to the <code>FastDash</code> class.</p>
+<p>Let's first understand how we can build Fast Dash apps using the <code>@fastdash</code> decorator and then extend these ideas to the <code>FastDash</code> class.</p>
 <h3 id="1-fastdash-decorator">1. <code>@fastdash</code> decorator</h3>
 <h4 id="whats-a-decorator">What's a decorator?</h4>
-<p>In a nutshell, Python decorators are function wrappers that enrich the functionality of Python functions. <a href="https://realpython.com/primer-on-python-decorators/">Here's</a> an in-depth write-up on Python decorators, what they are, and how to build them. But all we need to know for now is that decorators are Python functions that wrap other functions to give them extra functionality.</p>
+<p>In a nutshell, Python decorators are function wrappers that enrich the functionality of Python functions. <a href="https://realpython.com/primer-on-python-decorators/">Here's</a> an in-depth write-up on Python decorators, what they are, and how to build them. All we need to know for now is that decorators are Python functions that wrap other functions to give them extra functionality.</p>
 <p>The <code>@fastdash</code> decorator is also just a function (read more here about the implementation in the <a href="../../api/">Modules</a> section) that takes the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> as the first argument and designs a web app around it. But instead of explicitly specifying the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> as the first argument, we use this syntax instead:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@fastdash</span>
 <span class="k">def</span> <span class="nf">callback_function</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
