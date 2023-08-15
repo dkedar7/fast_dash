@@ -46,18 +46,18 @@ Using the `@fastdash` decorator is the quickest way to deploy Fast Dash apps. On
 Whereas the `@fastdash` decorator deploys our app when defining our functions (eagerly), the `FastDash` class objects are equivalent to Flask's server objects, allowing us to deploy our app later (lazily). `FastDash` objects must be explicitly told to `.run()` to deploy them. We'll understand these differences better throughout the remainder of this document.
 
 !!! note
-    Both the `@fastdash`` decorator and the `FastDash`` class objects are functionally equivalent. The `@fastdash` decorator is built on top of the `FastDash` class. That means any argument valid for `FastDash` object initialization can also be specified to `@fastdash`.
+    Both the `@fastdash` decorator and the `FastDash` class objects are functionally equivalent. The `@fastdash` decorator is built on top of the `FastDash` class. That means any argument valid for `FastDash` object initialization can also be specified to `@fastdash`.
 
     Using decorators is a very convenient way to give additional abilities to a function, the callback function in our case. It also allows us to add various automations, like instant deployments!
 
 
-Let's first understand how to build Fast Dash apps using the `@fastdash` decorator and then extend these ideas to the `FastDash` class.
+Let's first understand how we can build Fast Dash apps using the `@fastdash` decorator and then extend these ideas to the `FastDash` class.
 
 ### 1. `@fastdash` decorator
 
 #### What's a decorator?
 
-In a nutshell, Python decorators are function wrappers that enrich the functionality of Python functions. [Here's](https://realpython.com/primer-on-python-decorators/) an in-depth write-up on Python decorators, what they are, and how to build them. But all we need to know for now is that decorators are Python functions that wrap other functions to give them extra functionality.
+In a nutshell, Python decorators are function wrappers that enrich the functionality of Python functions. [Here's](https://realpython.com/primer-on-python-decorators/) an in-depth write-up on Python decorators, what they are, and how to build them. All we need to know for now is that decorators are Python functions that wrap other functions to give them extra functionality.
 
 The `@fastdash` decorator is also just a function (read more here about the implementation in the [Modules](../api.md) section) that takes the callback function as the first argument and designs a web app around it. But instead of explicitly specifying the callback function as the first argument, we use this syntax instead:
 
