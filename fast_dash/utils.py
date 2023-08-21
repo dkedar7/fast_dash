@@ -98,6 +98,21 @@ def _pil_to_b64(img):
     return img_str
 
 
+def _b64_to_pil(img_str):
+    """
+    Utility to convert a base64 image  string to PIL image.
+
+    Args:
+        img_str (str): Input image base64 string
+
+    Returns:
+        PIL.Image: Pillow image formatted image
+    """
+
+    img_str = img_str.split(";base64,")[1]
+    return PIL.Image.open(BytesIO(base64.b64decode(img_str)))
+
+
 def _mpl_to_b64(fig):
     """
     Utility to convert Matplotlib figure to a base64 string.
