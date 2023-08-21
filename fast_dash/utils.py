@@ -12,7 +12,7 @@ import dash_mantine_components as dmc
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from PIL import ImageFile
+import PIL
 import warnings
 import re
 
@@ -247,7 +247,7 @@ def _make_output_groups(outputs, update_live):
 def _transform_outputs(outputs):
     "Transform outputs to fit in the desired components"
 
-    _transform_mapper = {plt.Figure: _mpl_to_b64, ImageFile.ImageFile: _pil_to_b64}
+    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.ImageFile.ImageFile: _pil_to_b64}
 
     return [
         _transform_mapper[type(o)](o) if type(o) in _transform_mapper else o
@@ -324,7 +324,7 @@ def _get_default_property(component_type):
             html.H5: "children",
             html.H6: "children",
             html.I: "children",
-            html.Iframe: "src",
+            html.Iframe: "srcdoc",
             html.Img: "src",
             html.Table: "children",
             html.Tbody: "children",
