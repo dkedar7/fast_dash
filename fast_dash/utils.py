@@ -152,7 +152,11 @@ def _make_input_groups(inputs_with_ids, update_live):
     input_groups.append(html.H4("INPUTS"))
 
     for idx, input_ in enumerate(inputs_with_ids):
-        label = f"{input_.id}" if (not hasattr(input_, "label_") or input_.label_ is None) else input_.label_
+        label = (
+            f"{input_.id}"
+            if (not hasattr(input_, "label_") or input_.label_ is None)
+            else input_.label_
+        )
         label = label.replace("_", " ").upper()
         ack_component = (
             Fastify(component=dbc.Col(), component_property="children")
@@ -244,15 +248,25 @@ def _make_output_groups(outputs, update_live):
     return output_groups
 
 
+def _get_transform_function(object):
+    "Utility for _transform_outputs. Defines the transform function to be applied to a Fast component's property."
+
+    subclass = type(object)
+    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.Image.Image: _pil_to_b64}
+
+    for class_ in _transform_mapper:
+        if issubclass(subclass, class_):
+            return _transform_mapper[class_]
+
+    no_transform_fxn = lambda x: x
+
+    return no_transform_fxn
+
+
 def _transform_outputs(outputs):
     "Transform outputs to fit in the desired components"
 
-    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.ImageFile.ImageFile: _pil_to_b64}
-
-    return [
-        _transform_mapper[type(o)](o) if type(o) in _transform_mapper else o
-        for o in outputs
-    ]
+    return [_get_transform_function(o)(o) for o in outputs]
 
 
 def _clean_text(string):

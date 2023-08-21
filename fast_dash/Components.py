@@ -657,21 +657,29 @@ class SidebarLayout(BaseLayout):
             return (input_style,)
 
 
-_map_types_to_readable_names = {
-    str: "Text",
-    float: "Numeric",
-    int: "Numeric",
-    complex: "Numeric",
-    list: "Sequence",
-    set: "Sequence",
-    range: "Sequence",
-    tuple: "Sequence",
-    PIL.ImageFile.ImageFile: "Image",
-    dict: "Dictionary",
-    bool: "Boolean",
-    datetime.date: "Date",
-    datetime.datetime: "Timestamp",
-}
+def _get_readable_names_from_parent_classes(type_hint):
+    "Get a readable label for the object's type. Order is important. If disturbed, type = bool could get matched with float."
+    _map_types_to_readable_names = {
+        str: "Text",
+        bool: "Boolean",
+        float: "Numeric",
+        int: "Numeric",
+        complex: "Numeric",
+        list: "Sequence",
+        set: "Sequence",
+        range: "Sequence",
+        tuple: "Sequence",
+        PIL.Image.Image: "Image",
+        dict: "Dictionary",
+        datetime.datetime: "Timestamp",
+        datetime.date: "Date",
+    }
+
+    for parent_class in _map_types_to_readable_names:
+        if issubclass(type_hint, parent_class):
+            return _map_types_to_readable_names[parent_class]
+
+    return None
 
 
 def _get_component_from_input(hint, default_value=None):
@@ -705,15 +713,15 @@ def _get_component_from_input(hint, default_value=None):
     if not isinstance(hint, type):
         hint = type(hint)
 
-    _hint_type = _map_types_to_readable_names.get(hint)
-    _default_value_type = _map_types_to_readable_names.get(type(default_value))
+    _hint_type = _get_readable_names_from_parent_classes(hint)
+    _default_value_type = _get_readable_names_from_parent_classes(type(default_value))
 
     # If the hint is a PIL Image
-    if issubclass(hint, PIL.ImageFile.ImageFile):
+    if issubclass(hint, PIL.Image.Image):
         _hint_type = "Image"
 
     # If the default is a PIL Image
-    if isinstance(default_value, PIL.ImageFile.ImageFile):
+    if isinstance(default_value, PIL.Image.Image):
         _default_value_type = "Image"
 
     if _hint_type == "Text":
@@ -739,6 +747,7 @@ def _get_component_from_input(hint, default_value=None):
             component = Fastify(dbc.Input(value=str(default_value)), "value")
 
         else:
+            warnings.warn("Unknown or unsupported default value type. Assuming text.")
             component = Text
 
     elif _hint_type == "Numeric":
@@ -794,6 +803,10 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Dictionary":
             component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
+
+        else:
+            warnings.warn("Unknown or unsupported default value type. Assuming text.")
+            component = Text
 
     elif _hint_type == "Dictionary":
         component = Fastify(dcc.Dropdown(default_value, multi=True), "value")
@@ -975,7 +988,7 @@ def _get_output_components(_hint_type):
     if not isinstance(_hint_type, type):
         _hint_type = type(_hint_type)
 
-    if issubclass(_hint_type, PIL.ImageFile.ImageFile):
+    if issubclass(_hint_type, PIL.Image.Image):
         component = Image
 
     elif _hint_type == mpl.figure.Figure:
