@@ -7,6 +7,8 @@ from fast_dash.Components import Text, Slider, UploadImage
 from fast_dash.utils import _pil_to_b64, Fastify
 
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 
 import time
 import datetime
@@ -779,6 +781,10 @@ def test_fdco017_output_is_chat(dash_duo):
 
     # Check if any child element has the text "Response to Why?"
     output_div = dash_duo.find_element("#output-1")
+
+    wait = WebDriverWait(dash_duo.driver, timeout=4)
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output-1")))
+
     child_elements = output_div.find_elements(By.XPATH, ".//*")
     text_found = False
 
