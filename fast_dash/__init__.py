@@ -17,6 +17,7 @@ from fast_dash.Components import (
     dcc,
     dmc,
     html,
+    Chat
 )
 import dash
 from fast_dash.fast_dash import FastDash, fastdash
