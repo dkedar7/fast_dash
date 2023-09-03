@@ -78,7 +78,7 @@ def Chatify(query_response_dict):
                         ),
                         class_name="pb-2",
                     ),
-                    query_response_dict["response"],
+                    dcc.Markdown(query_response_dict["response"]),
                 ],
                 align="start",
                 style={
@@ -359,6 +359,17 @@ def _transform_inputs(inputs, tags):
             transformed_inputs.append(inp)
 
     return transformed_inputs
+
+
+def _get_error_notification_component(error_text):
+    return dmc.Notification(
+        title="Error",
+        id="simple-notify",
+        action="show",
+        color="red",
+        message=error_text.capitalize(),
+        icon=DashIconify(icon="bxs:error"),
+    )
 
 
 def _clean_text(string):

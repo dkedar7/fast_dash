@@ -1,6 +1,7 @@
 import functools
 import logging
 import re
+import traceback
 import warnings
 
 import dash
@@ -23,6 +24,7 @@ from .utils import (
     _transform_outputs,
     theme_mapper,
     _infer_variable_names,
+    _get_error_notification_component,
 )
 
 
@@ -194,6 +196,9 @@ class FastDash:
             for output_ in self.outputs_with_ids
         ]
 
+        self.output_state_blank = [None for output_ in self.outputs_with_ids]
+        self.latest_output_state = self.output_state_blank
+
         # Define Flask server
         server = flask.Flask(__name__)
         external_stylesheets = [
@@ -291,7 +296,8 @@ class FastDash:
                     component_property=output_.component_property,
                 )
                 for output_ in self.outputs_with_ids
-            ],
+            ]
+            + [Output("error-notify-div", "children")],
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
@@ -308,39 +314,49 @@ class FastDash:
             if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
                 raise PreventUpdate
 
-            inputs = _transform_inputs(args[:-2], self.input_tags)
+            default_notification = None
 
-            if ctx.triggered_id == "submit_inputs" or (
-                self.update_live is True and None not in args
-            ):
-                self.app_initialized = True
-                output_state = self.callback_fn(*inputs)
+            try:
+                inputs = _transform_inputs(args[:-2], self.input_tags)
 
-                if isinstance(output_state, tuple):
-                    self.output_state = list(output_state)
+                if ctx.triggered_id == "submit_inputs" or (
+                    self.update_live is True and None not in args
+                ):
+                    self.app_initialized = True
+
+                    output_state = self.callback_fn(*inputs)
+
+                    if isinstance(output_state, tuple):
+                        self.output_state = list(output_state)
+
+                    else:
+                        self.output_state = [output_state]
+
+                    # Transform outputs to fit in the desired components
+                    self.output_state = _transform_outputs(
+                        self.output_state, self.output_tags
+                    )
+
+                    # Log the latest output state
+                    self.latest_output_state = self.output_state
+
+                    return self.output_state + [default_notification]
+
+                elif ctx.triggered_id == "reset_inputs":
+                    self.output_state = self.output_state_default
+                    return self.output_state + [default_notification]
+
+                elif self.app_initialized:
+                    return self.output_state + [default_notification]
 
                 else:
-                    self.output_state = [output_state]
+                    return self.output_state_default + [default_notification]
 
-                # Transform outputs to fit in the desired components
-                self.output_state = _transform_outputs(
-                    self.output_state, self.output_tags
-                )
+            except Exception as e:
+                traceback.print_exc()
+                notification = _get_error_notification_component(str(e))
 
-                # Log the latest output state
-                self.latest_output_state = self.output_state
-
-                return self.output_state
-
-            elif ctx.triggered_id == "reset_inputs":
-                self.output_state = self.output_state_default
-                return self.output_state
-
-            elif self.app_initialized:
-                return self.output_state
-
-            else:
-                return self.output_state_default
+                return self.output_state_default + [notification]
 
         @self.app.callback(
             [

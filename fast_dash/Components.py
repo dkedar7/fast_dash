@@ -610,27 +610,32 @@ class SidebarLayout(BaseLayout):
             self.title = self.subtitle = self.navbar = self.footer = False
 
         layout = dmc.MantineProvider(
-            dbc.Container(
+            dmc.NotificationsProvider(
                 [
-                    self.generate_navbar_container(),
-                    dbc.Row(
+                    dbc.Container(
                         [
-                            self.generate_input_component(),
-                            dbc.Col(
+                            self.generate_navbar_container(),
+                            dbc.Row(
                                 [
-                                    self.generate_header_component(),
-                                    self.generate_output_component(),
+                                    self.generate_input_component(),
+                                    dbc.Col(
+                                        [
+                                            self.generate_header_component(),
+                                            self.generate_output_component(),
+                                        ],
+                                        id="output-group-col",
+                                        style={"padding": "1% 2% 0 2%"},
+                                    ),
                                 ],
-                                id="output-group-col",
-                                style={"padding": "1% 2% 0 2%"},
+                                class_name="d-flex",
                             ),
+                            self.generate_footer_container(),
+                            html.Div(id="error-notify-div"),
                         ],
-                        class_name="d-flex",
-                    ),
-                    self.generate_footer_container(),
-                ],
-                fluid=True,
-                style={"height": "100vh", "width": "100%"},
+                        fluid=True,
+                        style={"height": "100vh", "width": "100%"},
+                    )
+                ]
             )
         )
 
@@ -817,12 +822,16 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True), "value", tag=_default_value_type
+                dcc.Dropdown(default_value, multi=True),
+                "value",
+                tag=_default_value_type,
             )
 
         elif _default_value_type == "Dictionary":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True), "value", tag=_default_value_type
+                dcc.Dropdown(default_value, multi=True),
+                "value",
+                tag=_default_value_type,
             )
 
         else:
