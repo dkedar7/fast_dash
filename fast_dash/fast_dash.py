@@ -4,7 +4,6 @@ import re
 import warnings
 
 import dash
-import dash_bootstrap_components as dbc
 import flask
 from dash import Input, Output, ctx
 from dash.exceptions import PreventUpdate
@@ -12,7 +11,6 @@ from dash.exceptions import PreventUpdate
 from .Components import (
     BaseLayout,
     SidebarLayout,
-    Text,
     _infer_input_components,
     _infer_output_components,
 )
@@ -21,6 +19,7 @@ from .utils import (
     _assign_ids_to_outputs,
     _make_input_groups,
     _make_output_groups,
+    _transform_inputs,
     _transform_outputs,
     theme_mapper,
     _infer_variable_names,
@@ -132,9 +131,21 @@ class FastDash:
         if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn)
 
-        self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
-        self.outputs = _infer_output_components(callback_fn, outputs, self.output_labels)
-        self.update_live = True if (isinstance(self.inputs, list) and len(self.inputs) == 0) else update_live
+        self.inputs = (
+            _infer_input_components(callback_fn)
+            if inputs is None
+            else inputs
+            if isinstance(inputs, list)
+            else [inputs]
+        )
+        self.outputs = _infer_output_components(
+            callback_fn, outputs, self.output_labels
+        )
+        self.update_live = (
+            True
+            if (isinstance(self.inputs, list) and len(self.inputs) == 0)
+            else update_live
+        )
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -164,6 +175,10 @@ class FastDash:
         self.footer = footer
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
+
+        # Extract input tags
+        self.input_tags = [inp.tag for inp in self.inputs]
+        self.output_tags = [inp.tag for inp in self.outputs]
 
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
@@ -256,7 +271,7 @@ class FastDash:
             "footer": self.footer,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
-            "app": self
+            "app": self,
         }
 
         if self.layout_pattern == "sidebar":
@@ -276,13 +291,6 @@ class FastDash:
                     component_property=output_.component_property,
                 )
                 for output_ in self.outputs_with_ids
-            ]
-            + [
-                Output(
-                    component_id=input_.ack.id,
-                    component_property=input_.ack.component_property,
-                )
-                for input_ in self.inputs_with_ids
             ],
             [
                 Input(
@@ -297,19 +305,16 @@ class FastDash:
             prevent_initial_callback=True,
         )
         def process_input(*args):
-            # if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
-            #     raise PreventUpdate
+            if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
+                raise PreventUpdate
 
-            ack_components = [
-                ack if mask is True else None
-                for mask, ack in zip(self.ack_mask, list(args[:-2]))
-            ]
+            inputs = _transform_inputs(args[:-2], self.input_tags)
 
             if ctx.triggered_id == "submit_inputs" or (
                 self.update_live is True and None not in args
             ):
                 self.app_initialized = True
-                output_state = self.callback_fn(*args[:-2])
+                output_state = self.callback_fn(*inputs)
 
                 if isinstance(output_state, tuple):
                     self.output_state = list(output_state)
@@ -318,19 +323,46 @@ class FastDash:
                     self.output_state = [output_state]
 
                 # Transform outputs to fit in the desired components
-                self.output_state = _transform_outputs(self.output_state)
+                self.output_state = _transform_outputs(
+                    self.output_state, self.output_tags
+                )
 
-                return self.output_state + ack_components
+                # Log the latest output state
+                self.latest_output_state = self.output_state
+
+                return self.output_state
 
             elif ctx.triggered_id == "reset_inputs":
                 self.output_state = self.output_state_default
-                return self.output_state + ack_components
+                return self.output_state
 
             elif self.app_initialized:
-                return self.output_state + ack_components
+                return self.output_state
 
             else:
-                return self.output_state_default + ack_components
+                return self.output_state_default
+
+        @self.app.callback(
+            [
+                Output(
+                    component_id=input_.ack.id,
+                    component_property=input_.ack.component_property,
+                )
+                for input_ in self.inputs_with_ids
+            ],
+            [
+                Input(
+                    component_id=input_.id, component_property=input_.component_property
+                )
+                for input_ in self.inputs_with_ids
+            ],
+        )
+        def process_ack_outputs(*args):
+            ack_components = [
+                ack if mask is True else None
+                for mask, ack in zip(self.ack_mask, list(args))
+            ]
+            return ack_components
 
         # Set layout callbacks
         if not self.minimal:

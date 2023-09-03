@@ -2,9 +2,11 @@
 """Tests for `fast_dash` package."""
 # pylint: disable=redefined-outer-name
 
-from fast_dash import FastDash, dcc, dbc, dmc, html
+from fast_dash import FastDash, dcc, dbc, dmc, html, Chat
 from fast_dash.Components import Text, Slider, UploadImage
-from fast_dash.utils import _pil_to_b64
+from fast_dash.utils import _pil_to_b64, Fastify
+
+from selenium.webdriver.common.by import By
 
 import time
 import datetime
@@ -694,8 +696,7 @@ def test_fdco015_input_is_dash_component(dash_duo):
     "When the input hint type is a Dash component"
 
     # Component property is specified
-    component = dmc.Text()
-    component.component_property = "children"
+    component = Fastify(dmc.Text(), "children")
 
     def simple_text_to_text(text: component):
         return "Some markdown text"
@@ -727,8 +728,7 @@ def test_fdco016_output_is_dash_component(dash_duo):
     "When the output hint type is a Dash component"
 
     # Component property is specified
-    component = dcc.Markdown()
-    component.component_property = "children"
+    component = Fastify(dcc.Markdown(), "children")
 
     def simple_text_to_text(text) -> component:
         return "Some markdown text"
@@ -754,3 +754,37 @@ def test_fdco016_output_is_dash_component(dash_duo):
         and hasattr(output_component, "component_property")
         and output_component.component_property == "children"
     ), "Dash component failed"
+
+
+def test_fdco017_output_is_chat(dash_duo):
+    "When the output hint type is a Chat Fast component"
+
+    def simple_chat(query: str) -> Chat:
+        response = f"Response to {query}"
+        chat = {"query": query, "response": response}
+        
+        return chat
+    
+    app = FastDash(callback_fn=simple_chat).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Chat", timeout=4)
+
+    # Enter some text
+    form_textfield = dash_duo.find_element("#query")
+    form_textfield.send_keys("Why?")
+
+    # Click submit
+    dash_duo.multiple_click("#submit_inputs", 1)
+
+    # Check if any child element has the text "Response to Why?"
+    output_div = dash_duo.find_element("#output-1")
+    child_elements = output_div.find_elements(By.XPATH, ".//*")
+    text_found = False
+
+    for element in child_elements:
+        if "Response to Why?" in element.text:
+            text_found = True
+            break
+
+    assert text_found, "Text 'Sample text' not found in any child element of output-1"
