@@ -1,14 +1,10 @@
 # History
 
-# Release 0.2.5
-
 ## 0.2.5 (2023-08-13)
 
 ### Improvements
 
 - Fix: `update_live` is automatically set to `True` if the callback function doesn't require any inputs.
-
-# Release 0.2.4
 
 ## 0.2.4 (2023-08-12)
 
@@ -18,8 +14,6 @@
 - `outputs` argument overrides callback function output hints.
 - Improve pytest coverage.
 
-# Release 0.2.3
-
 ## 0.2.3 (2023-08-01)
 
 ### Features
@@ -27,8 +21,6 @@
 - Dash components can be used as type hints directly. They are converted to Fast components during app initialization.
 - Added a mosaic layout example to README.
 - `dash` can be imported from `fast_dash` like this: `from fast_dash import dash`.
-
-# Release 0.2.2
 
 ## 0.2.2 (2023-07-26)
 
