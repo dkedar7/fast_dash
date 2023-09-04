@@ -784,6 +784,7 @@ def test_fdco017_output_is_chat(dash_duo):
 
     wait = WebDriverWait(dash_duo.driver, timeout=4)
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output-1")))
+    time.sleep(4)
 
     child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
     text_found = False
