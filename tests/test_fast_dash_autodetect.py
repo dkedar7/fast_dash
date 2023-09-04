@@ -785,7 +785,7 @@ def test_fdco017_output_is_chat(dash_duo):
     wait = WebDriverWait(dash_duo.driver, timeout=4)
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output-1")))
 
-    child_elements = output_div.find_elements(By.XPATH, "*")
+    child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
     text_found = False
 
     for element in child_elements:
@@ -793,4 +793,4 @@ def test_fdco017_output_is_chat(dash_duo):
             text_found = True
             break
 
-    assert text_found, "Text 'Sample text' not found in any child element of output-1"
+    assert text_found, "Response text not found in any child element of output-1"
