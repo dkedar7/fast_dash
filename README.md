@@ -41,9 +41,9 @@
 
 Fast Dash is a Python module that makes the development of web applications fast and easy. It can build web interfaces for Machine Learning models or to showcase any proof of concept without the hassle of developing UI from scratch.
 
-<!-- <p align="center">
-  <a href="https://fastdash.app/"><img src="https://raw.githubusercontent.com/dkedar7/fast_dash/main/docs/assets/gallery_4_apps.gif" alt="Fast Dash logo"></a>
-</p> -->
+<p align="center">
+  <a href="https://doc.fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.2.6/Fast%20Dash%20demo%20GIF.gif" alt="Fast Dash demo" width="60%"></a>
+</p>
 
 ## Examples
 
