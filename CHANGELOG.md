@@ -1,7 +1,10 @@
-# Release 0.2.5
+# Release 0.2.6
 
-## 0.2.5 (2023-08-13)
+## 0.2.6 (2023-09-04)
 
-### Improvements
+### Features
 
-- Fix: `update_live` is automatically set to `True` if the callback function doesn't require any inputs.
+- New chat component! Setting the output data type to `Chat` and returning a dictionary displays a chat component.
+- Introduced a transformation step before passing inputs to the callback. This allows converting non-native inputs to native data types. For example, passing a PIL.Image as input data tyoe hint doesn't need converting it to a base64 string.
+- Errors are displayed as notifications.
+- Updated documentation and tests. 
