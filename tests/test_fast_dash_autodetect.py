@@ -795,3 +795,32 @@ def test_fdco017_output_is_chat(dash_duo):
             break
 
     assert text_found, "Response text not found in any child element of output-1"
+
+
+def test_fdco018_output_is_pandas(dash_duo):
+    "When the output hint type is a Chat Fast component"
+
+    import pandas as pd
+    def simple_table(dummy_input: int) -> pd.DataFrame:
+        df = pd.DataFrame(data={"Col1": range(100), 
+                                "Col2": [f"C{i}" for i in range(100)],
+                                "Date": pd.date_range(start="2023-01-01", periods=100)})
+        
+        return df
+
+    app = FastDash(callback_fn=simple_table).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Table", timeout=4)
+
+    # Click submit
+    dash_duo.multiple_click("#submit_inputs", 1)
+    time.sleep(4)
+
+    # Ensure the table is present
+    table = dash_duo.find_element("#output-1")
+    assert table is not None
+    
+    # Validate the data (example: check the first cell)
+    first_cell = table.find_element_by_css_selector(".dash-cell div")
+    assert first_cell.text == "0"  # Adjust according to expected content
