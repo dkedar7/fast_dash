@@ -13,6 +13,7 @@ import dash_mantine_components as dmc
 import matplotlib as mpl
 import numpy as np
 import PIL
+import pandas as pd
 import plotly.graph_objs as go
 from dash import Input, Output, State, dcc, html, Patch
 from dash_iconify import DashIconify
@@ -1051,6 +1052,9 @@ def _get_output_components(_hint_type):
     if issubclass(_hint_type, PIL.Image.Image):
         component = Image
 
+    elif issubclass(_hint_type, pd.DataFrame):
+        component = Table
+
     elif _hint_type == mpl.figure.Figure:
         component = Image
 
@@ -1207,4 +1211,33 @@ Chat = Fastify(
     ),
     "children",
     tag="Chat",
+)
+
+Table = Fastify(
+    dash.dash_table.DataTable(
+        page_size=100,
+        page_action="native",
+        sort_action="native",
+        style_header={
+            "backgroundColor": "white",
+            "fontWeight": "bold",
+            "color": "black",
+            "textAlign": "center",
+            "border": "1px solid #f0f0f0",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+        style_cell={
+            "backgroundColor": "white",
+            "color": "black",
+            "textAlign": "center",
+            "border": "1px solid #f0f0f0",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+        style_table={
+            "border": "1px solid #f0f0f0",
+            "overflowY": "auto",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+    ),
+    "data",
 )
