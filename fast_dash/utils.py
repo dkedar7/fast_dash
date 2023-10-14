@@ -14,6 +14,7 @@ from dash_iconify import DashIconify
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
+import pandas as pd
 import warnings
 import re
 
@@ -349,7 +350,9 @@ def _get_transform_function(output, tag):
         return Chatify
 
     subclass = type(output)
-    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.Image.Image: _pil_to_b64}
+    _transform_mapper = {plt.Figure: _mpl_to_b64, 
+                         PIL.Image.Image: _pil_to_b64,
+                         pd.DataFrame: lambda x: x.to_dict(orient="records")}
 
     for class_ in _transform_mapper:
         if issubclass(subclass, class_):
