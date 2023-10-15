@@ -21,7 +21,12 @@ import PIL
 import plotly.graph_objs as go
 from PIL import ImageFile
 
-from .utils import Fastify, _pil_to_b64, _get_default_property
+from .utils import (
+    Fastify,
+    _pil_to_b64,
+    _get_default_property,
+    _parse_docstring_as_markdown,
+)
 
 
 class BaseLayout:
@@ -38,6 +43,7 @@ class BaseLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        about=True,
         minimal=False,
         scale_height=1,
     ):
@@ -52,6 +58,7 @@ class BaseLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
 
@@ -59,10 +66,21 @@ class BaseLayout:
         if not self.navbar:
             return None
 
-        # 1. Navbar
-        social_media_navigation = []
+        navbar_components = []
+
+        # 1. Add navbar components
+        if self.about:
+            navbar_components.append(
+                dbc.Row(dbc.Button("About", color="primary", id="about-navlink"))
+            )
+
+            # Add modal component
+            navbar_components.append(
+                dmc.Modal(id="about-modal", size="80%", zIndex=10000)
+            )
+
         if self.github_url:
-            social_media_navigation.append(
+            navbar_components.append(
                 dmc.NavLink(
                     label=DashIconify(icon="ri:github-fill", color="#ffffff", width=30),
                     href=self.github_url,
@@ -72,7 +90,7 @@ class BaseLayout:
             )
 
         if self.linkedin_url:
-            social_media_navigation.append(
+            navbar_components.append(
                 dmc.NavLink(
                     label=DashIconify(
                         icon="entypo-social:linkedin-with-circle",
@@ -86,7 +104,7 @@ class BaseLayout:
             )
 
         if self.twitter_url:
-            social_media_navigation.append(
+            navbar_components.append(
                 dmc.NavLink(
                     label=DashIconify(
                         icon="formkit:twitter", color="#ffffff", width=30
@@ -97,22 +115,8 @@ class BaseLayout:
                 )
             )
 
-        # Add modal component
-        social_media_navigation.append(
-            dmc.Modal(title="About", id="about-modal", size="80%", zIndex=10000)
-        )
-
         navbar = dbc.NavbarSimple(
-            children=[
-                dbc.Row(
-                    dbc.Button(
-                        "About",
-                        color="primary",
-                        id="about-navlink",
-                    )
-                )
-            ]
-            + social_media_navigation,
+            children=[] + navbar_components,
             brand=[
                 dmc.Group(
                     [
@@ -275,7 +279,7 @@ class BaseLayout:
     def callbacks(self, app):
         "Optional callbacks specific to the layout"
 
-        @app.callback(
+        @app.app.callback(
             Output("about-modal", "opened"),
             Output("about-modal", "children"),
             Input("about-navlink", "n_clicks"),
@@ -655,7 +659,7 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def callbacks(self, app):
-        @app.callback(
+        @app.app.callback(
             [Output("input-group", "style"), Output("output-group-col", "width")],
             [Input("sidebar-button", "opened")],
             [State("input-group", "style")],
@@ -678,16 +682,26 @@ class SidebarLayout(BaseLayout):
 
             return input_style, width
 
-        "Optional callbacks specific to the layout"
-
-        @app.callback(
+        # Optional callbacks specific to the layout
+        @app.app.callback(
             Output("about-modal", "opened"),
+            Output("about-modal", "children"),
             Input("about-navlink", "n_clicks"),
             State("about-modal", "opened"),
         )
         def display_function_about_information(n_clicks, opened):
             if n_clicks:
-                return not opened
+
+                if self.about == True:
+                    about_text = _parse_docstring_as_markdown(app.callback_fn, title=self.title)
+
+                elif isinstance(self.about, str):
+                    about_text = self.about
+
+                else:
+                    about_text = _parse_docstring_as_markdown(app.callback_fn, title=self.title)
+
+                return not opened, dcc.Markdown(about_text)
 
             raise PreventUpdate
 

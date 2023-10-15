@@ -214,3 +214,107 @@ def test_fdfd010_output_labels(dash_duo):
 
     app = FastDash(callback_fn=simple_text_to_multiple_outputs)
     assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
+
+
+def test_fdfd011_about_button_true(dash_duo):
+    "Test the about button auto-documentation generation"
+
+    def example_function(param1, param2=42):
+        """
+        An example function for demonstration.
+        
+        Args:
+            param1 (str): Description for parameter 1.
+            param2 (int, optional): Description for parameter 2. Defaults to 42.
+
+        Returns:
+            bool: Description for return value.
+        """
+        return True
+
+
+    app = FastDash(
+        callback_fn=example_function,
+        inputs=Text,
+        outputs=Text
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+
+    # Click About
+    dash_duo.multiple_click("#about-navlink", 1)
+    time.sleep(2)
+
+    # Grab the generated markdown text
+    displayed_markdown = dash_duo.find_element("#about-modal-body").text
+
+    assert "Example Function" in displayed_markdown, "Docstring absent in about (1)"
+    assert "Description for parameter 1." in displayed_markdown, "Docstring absent in about (2)"
+
+
+def test_fdfd012_about_button_false(dash_duo):
+    "Test if about button is False"
+
+    def example_function(param1, param2=42):
+        """
+        An example function for demonstration.
+        
+        Args:
+            param1 (str): Description for parameter 1.
+            param2 (int, optional): Description for parameter 2. Defaults to 42.
+
+        Returns:
+            bool: Description for return value.
+        """
+        return True
+    
+    app = FastDash(
+        callback_fn=example_function,
+        inputs=Text,
+        outputs=Text,
+        about=False
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+
+    # Click About
+    assert not dash_duo.find_elements(f"#about-navlink")
+
+
+def test_fdfd013_about_button_custom(dash_duo):
+    "Test the about button custom documentation"
+
+    def example_function(param1, param2=42):
+        """
+        An example function for demonstration.
+        
+        Args:
+            param1 (str): Description for parameter 1.
+            param2 (int, optional): Description for parameter 2. Defaults to 42.
+
+        Returns:
+            bool: Description for return value.
+        """
+        return True
+    
+    # When about argument is custom text
+    app = FastDash(
+        callback_fn=example_function,
+        inputs=Text,
+        outputs=Text,
+        about="Custom about section"
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+
+    # Click About
+    dash_duo.multiple_click("#about-navlink", 1)
+    time.sleep(2)
+
+    # Grab the generated markdown text
+    displayed_markdown = dash_duo.find_element("#about-modal-body").text
+
+    assert "Custom about section" in displayed_markdown, "Docstring mismatch in about (3)"
