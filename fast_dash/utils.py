@@ -10,6 +10,7 @@ from dash import html, dcc
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 
+import docstring_parser
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from PIL import ImageFile
@@ -19,7 +20,7 @@ import re
 
 def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
     """
-    Modify a Dash component to a FastComponent.
+    Modify a Dash component into a FastComponent.
 
     Args:
         component (Dash component): Dash component that needs to be modified
@@ -80,6 +81,7 @@ def theme_mapper(theme_name):
     return theme
 
 
+# Data type conversion utilities
 def _pil_to_b64(img):
     """
     Utility to convert PIL image to a base64 string.
@@ -128,6 +130,7 @@ def _get_input_names_from_callback_fn(callback_fn):
     return parameter_list
 
 
+# Fast Dash app utilities
 def _assign_ids_to_inputs(inputs, callback_fn):
     """
     Modify the 'id' property of inputs.
@@ -152,7 +155,11 @@ def _make_input_groups(inputs_with_ids, update_live):
     input_groups.append(html.H4("INPUTS"))
 
     for idx, input_ in enumerate(inputs_with_ids):
-        label = f"{input_.id}" if (not hasattr(input_, "label_") or input_.label_ is None) else input_.label_
+        label = (
+            f"{input_.id}"
+            if (not hasattr(input_, "label_") or input_.label_ is None)
+            else input_.label_
+        )
         label = label.replace("_", " ").upper()
         ack_component = (
             Fastify(component=dbc.Col(), component_property="children")
@@ -369,3 +376,69 @@ def _get_default_property(component_type):
         default_property = "value"
 
     return default_property
+
+
+def _parse_docstring_as_markdown(func, title=None, get_short=False):
+    """
+    Generate markdown documentation from the docstring of a function.
+
+    Args:
+        func (function): The function to document.
+        title (str, optional): Title of the text. If None, it is evaluated. Defaults to None.
+        get_short (bool, optional): If True, returns only the short description. Defaults to False.
+
+    Returns:
+        str: Markdown documentation string.
+    """
+    parsed = docstring_parser.parse(func.__doc__)
+
+    if get_short == True:
+        return parsed.short_description
+
+    # Start with the function description
+    md_list = [
+        f"#### {func.__name__.replace('_', ' ').title() if not title else title}",
+        "",
+        parsed.short_description,
+        "",
+        parsed.long_description or "",
+        "",
+    ]
+
+    # Add parameters in table format
+    md_list.extend(
+        [
+            "##### Parameters",
+            "| Name | Type | Mandatory | Default | Description |",
+            "| ---- | ---- | --------- | ------- | ----------- |",
+        ]
+    )
+
+    for param in parsed.params:
+        param_line = (
+            f"| {param.arg_name} "
+            f"| {param.type_name or 'Not specified'} "
+            f"| {'No' if param.is_optional else 'Yes'} "
+            f"| {param.default or 'None'} "
+            f"| {param.description or 'No description provided'} |"
+        )
+        md_list.append(param_line)
+
+    md_list.extend(["# ", "# "])
+
+    # Add return values in table format
+    md_list.extend(
+        ["", "##### Returns", "| Type | Description |", "| ---- | ----------- |"]
+    )
+
+    if parsed.returns:
+        return_line = (
+            f"| {parsed.returns.type_name or 'Not specified'} "
+            f"| {parsed.returns.description or 'No description provided'} |"
+        )
+        md_list.append(return_line)
+    else:
+        md_list.append("| No return type specified | No description provided |")
+
+    # Join all and return markdown string
+    return "\n".join(md_list)
