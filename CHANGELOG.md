@@ -1,11 +1,10 @@
-# Release 0.2.2
+# Release 0.2.6
 
-## 0.2.2 (2023-07-26)
+## 0.2.6 (2023-09-04)
 
 ### Features
 
-- New example: Chat over docs with Embedchain.
-
-### Improvements
-
-- Squashed a bug that was preventing the submit and reset buttons to sync with each other. The result is a more stable deploy using callback context.
+- New chat component! Setting the output data type to `Chat` and returning a dictionary displays a chat component.
+- Introduced a transformation step before passing inputs to the callback. This allows converting non-native inputs to native data types. For example, passing a PIL.Image as input data tyoe hint doesn't need converting it to a base64 string.
+- Errors are displayed as notifications.
+- Updated documentation and tests. 

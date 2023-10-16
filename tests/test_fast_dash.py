@@ -216,7 +216,13 @@ def test_fdfd010_output_labels(dash_duo):
     assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
 
 
-def test_fdfd011_about_button_true(dash_duo):
+def test_fdfd011_base_layout(dash_duo):
+    "Test base layout"
+
+    app = FastDash(callback_fn=simple_text_to_multiple_outputs, layout="base")
+    assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
+    
+def test_fdfd012_about_button_true(dash_duo):
     "Test the about button auto-documentation generation"
 
     def example_function(param1, param2=42):
@@ -253,7 +259,7 @@ def test_fdfd011_about_button_true(dash_duo):
     assert "Description for parameter 1." in displayed_markdown, "Docstring absent in about (2)"
 
 
-def test_fdfd012_about_button_false(dash_duo):
+def test_fdfd013_about_button_false(dash_duo):
     "Test if about button is False"
 
     def example_function(param1, param2=42):
@@ -283,7 +289,7 @@ def test_fdfd012_about_button_false(dash_duo):
     assert not dash_duo.find_elements(f"#about-navlink")
 
 
-def test_fdfd013_about_button_custom(dash_duo):
+def test_fdfd014_about_button_custom(dash_duo):
     "Test the about button custom documentation"
 
     def example_function(param1, param2=42):

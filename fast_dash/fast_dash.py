@@ -1,10 +1,10 @@
 import functools
 import logging
 import re
+import traceback
 import warnings
 
 import dash
-import dash_bootstrap_components as dbc
 import flask
 from dash import Input, Output, ctx
 from dash.exceptions import PreventUpdate
@@ -12,7 +12,6 @@ from dash.exceptions import PreventUpdate
 from .Components import (
     BaseLayout,
     SidebarLayout,
-    Text,
     _infer_input_components,
     _infer_output_components,
 )
@@ -22,10 +21,12 @@ from .utils import (
     _assign_ids_to_outputs,
     _make_input_groups,
     _make_output_groups,
+    _transform_inputs,
     _transform_outputs,
     theme_mapper,
     _infer_variable_names,
     _parse_docstring_as_markdown,
+    _get_error_notification_component
 )
 
 
@@ -114,7 +115,7 @@ class FastDash:
             theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
                 at https://bootswatch.com/.
 
-            update_live (bool, optional): Enable hot reloading. Defaults to False.
+            update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.
 
             port (int, optional): Port to which the app should be deployed. Defauts to 8080.
 
@@ -136,16 +137,24 @@ class FastDash:
         self.mosaic = mosaic
         self.output_labels = output_labels
 
-        if output_labels:
+        if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn)
 
-        self.inputs = _infer_input_components(callback_fn) if inputs is None else inputs
-        self.outputs = (
-            _infer_output_components(callback_fn, self.output_labels)
-            if outputs is None
-            else outputs
+        self.inputs = (
+            _infer_input_components(callback_fn)
+            if inputs is None
+            else inputs
+            if isinstance(inputs, list)
+            else [inputs]
         )
-        self.update_live = update_live
+        self.outputs = _infer_output_components(
+            callback_fn, outputs, self.output_labels
+        )
+        self.update_live = (
+            True
+            if (isinstance(self.inputs, list) and len(self.inputs) == 0)
+            else update_live
+        )
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -181,6 +190,10 @@ class FastDash:
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
+        # Extract input tags
+        self.input_tags = [inp.tag for inp in self.inputs]
+        self.output_tags = [inp.tag for inp in self.outputs]
+
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = _assign_ids_to_outputs(self.outputs)
@@ -194,6 +207,9 @@ class FastDash:
             output_.placeholder if hasattr(output_, "placeholder") else None
             for output_ in self.outputs_with_ids
         ]
+
+        self.output_state_blank = [None for output_ in self.outputs_with_ids]
+        self.latest_output_state = self.output_state_blank
 
         # Define Flask server
         server = flask.Flask(__name__)
@@ -273,6 +289,7 @@ class FastDash:
             "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
+            "app": self,
         }
 
         if self.layout_pattern == "sidebar":
@@ -293,13 +310,7 @@ class FastDash:
                 )
                 for output_ in self.outputs_with_ids
             ]
-            + [
-                Output(
-                    component_id=input_.ack.id,
-                    component_property=input_.ack.component_property,
-                )
-                for input_ in self.inputs_with_ids
-            ],
+            + [Output("error-notify-div", "children")],
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
@@ -313,40 +324,74 @@ class FastDash:
             prevent_initial_callback=True,
         )
         def process_input(*args):
-            # if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
-            #     raise PreventUpdate
+            if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
+                raise PreventUpdate
 
-            ack_components = [
-                ack if mask is True else None
-                for mask, ack in zip(self.ack_mask, list(args[:-2]))
-            ]
+            default_notification = None
 
-            if ctx.triggered_id == "submit_inputs" or (
-                self.update_live is True and None not in args
-            ):
-                self.app_initialized = True
-                output_state = self.callback_fn(*args[:-2])
+            try:
+                inputs = _transform_inputs(args[:-2], self.input_tags)
 
-                if isinstance(output_state, tuple):
-                    self.output_state = list(output_state)
+                if ctx.triggered_id == "submit_inputs" or (
+                    self.update_live is True and None not in args
+                ):
+                    self.app_initialized = True
+
+                    output_state = self.callback_fn(*inputs)
+
+                    if isinstance(output_state, tuple):
+                        self.output_state = list(output_state)
+
+                    else:
+                        self.output_state = [output_state]
+
+                    # Transform outputs to fit in the desired components
+                    self.output_state = _transform_outputs(
+                        self.output_state, self.output_tags
+                    )
+
+                    # Log the latest output state
+                    self.latest_output_state = self.output_state
+
+                    return self.output_state + [default_notification]
+
+                elif ctx.triggered_id == "reset_inputs":
+                    self.output_state = self.output_state_default
+                    return self.output_state + [default_notification]
+
+                elif self.app_initialized:
+                    return self.output_state + [default_notification]
 
                 else:
-                    self.output_state = [output_state]
+                    return self.output_state_default + [default_notification]
 
-                # Transform outputs to fit in the desired components
-                self.output_state = _transform_outputs(self.output_state)
+            except Exception as e:
+                traceback.print_exc()
+                notification = _get_error_notification_component(str(e))
 
-                return self.output_state + ack_components
+                return self.output_state_default + [notification]
 
-            elif ctx.triggered_id == "reset_inputs":
-                self.output_state = self.output_state_default
-                return self.output_state + ack_components
-
-            elif self.app_initialized:
-                return self.output_state + ack_components
-
-            else:
-                return self.output_state_default + ack_components
+        @self.app.callback(
+            [
+                Output(
+                    component_id=input_.ack.id,
+                    component_property=input_.ack.component_property,
+                )
+                for input_ in self.inputs_with_ids
+            ],
+            [
+                Input(
+                    component_id=input_.id, component_property=input_.component_property
+                )
+                for input_ in self.inputs_with_ids
+            ],
+        )
+        def process_ack_outputs(*args):
+            ack_components = [
+                ack if mask is True else None
+                for mask, ack in zip(self.ack_mask, list(args))
+            ]
+            return ack_components
 
         # Set layout callbacks
         if not self.minimal:

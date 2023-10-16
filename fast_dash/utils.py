@@ -6,19 +6,22 @@ import copy
 import inspect
 from io import BytesIO
 
-from dash import html, dcc
+from dash import html, dcc, Patch
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+from dash_iconify import DashIconify
 
 import docstring_parser
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from PIL import ImageFile
+import PIL
 import warnings
 import re
 
 
-def Fastify(component, component_property, ack=None, placeholder=None, label_=None):
+def Fastify(
+    component, component_property, ack=None, placeholder=None, label_=None, tag=None
+):
     """
     Modify a Dash component into a FastComponent.
 
@@ -37,8 +40,65 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     component.ack = ack
     component.label_ = label_
     component.placeholder = placeholder
+    component.tag = tag
 
     return component
+
+
+def Chatify(query_response_dict):
+    "Convert a dictionary into a Chat component"
+
+    if not isinstance(query_response_dict, dict):
+        raise TypeError("Chat component required a dictionary output.")
+
+    ## Chat component
+    input_component = dbc.Row(
+        dmc.Text(
+            [query_response_dict["query"]],
+            align="end",
+            style={
+                "padding": "1% 1%",
+                "max-width": "80%",
+                "backgroundColor": "#E8EBFA",
+            },
+            className="border rounded shadow-sm m-3 col-auto",
+        ),
+        align="center",
+        justify="end",
+    )
+
+    output_component = dbc.Row(
+        [
+            dmc.Text(
+                [
+                    dbc.Col(
+                        DashIconify(
+                            icon="ic:baseline-question-answer",
+                            color="#910517",
+                            width=30,
+                        ),
+                        class_name="pb-2",
+                    ),
+                    dcc.Markdown(query_response_dict["response"]),
+                ],
+                align="start",
+                style={
+                    "padding": "1% 1%",
+                    "max-width": "98%",
+                    "backgroundColor": "#F9F9F9",
+                },
+                className="border rounded shadow-sm m-3",
+            )
+        ],
+        align="start",
+        justify="start",
+    )
+
+    chat_output = Patch()
+    chat_output.prepend(input_component)
+    chat_output.prepend(output_component)
+
+    return chat_output
 
 
 # Add themes mapper
@@ -98,6 +158,21 @@ def _pil_to_b64(img):
     img_str = f"data:image/png;base64,{img_str}"
 
     return img_str
+
+
+def _b64_to_pil(img_str):
+    """
+    Utility to convert a base64 image  string to PIL image.
+
+    Args:
+        img_str (str): Input image base64 string
+
+    Returns:
+        PIL.Image: Pillow image formatted image
+    """
+
+    img_str = img_str.split(";base64,")[1]
+    return PIL.Image.open(BytesIO(base64.b64decode(img_str)))
 
 
 def _mpl_to_b64(fig):
@@ -251,15 +326,53 @@ def _make_output_groups(outputs, update_live):
     return output_groups
 
 
-def _transform_outputs(outputs):
+def _get_transform_function(output, tag):
+    "Utility for _transform_outputs. Defines the transform function to be applied to a Fast component's property."
+
+    if tag == "Chat":
+        return Chatify
+
+    subclass = type(output)
+    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.Image.Image: _pil_to_b64}
+
+    for class_ in _transform_mapper:
+        if issubclass(subclass, class_):
+            return _transform_mapper[class_]
+
+    no_transform_fxn = lambda x: x
+
+    return no_transform_fxn
+
+
+def _transform_outputs(outputs, tags):
     "Transform outputs to fit in the desired components"
 
-    _transform_mapper = {plt.Figure: _mpl_to_b64, ImageFile.ImageFile: _pil_to_b64}
+    return [_get_transform_function(o, tag)(o) for (o, tag) in zip(outputs, tags)]
 
-    return [
-        _transform_mapper[type(o)](o) if type(o) in _transform_mapper else o
-        for o in outputs
-    ]
+
+def _transform_inputs(inputs, tags):
+    "Transform inputs to fit in the desired components"
+
+    transformed_inputs = []
+    for inp, tag in zip(inputs, tags):
+        if tag == "Image":
+            transformed_inputs.append(_b64_to_pil(inp))
+
+        else:
+            transformed_inputs.append(inp)
+
+    return transformed_inputs
+
+
+def _get_error_notification_component(error_text):
+    return dmc.Notification(
+        title="Error",
+        id="simple-notify",
+        action="show",
+        color="red",
+        message=error_text.capitalize(),
+        icon=DashIconify(icon="bxs:error"),
+    )
 
 
 def _clean_text(string):
@@ -331,7 +444,7 @@ def _get_default_property(component_type):
             html.H5: "children",
             html.H6: "children",
             html.I: "children",
-            html.Iframe: "src",
+            html.Iframe: "srcdoc",
             html.Img: "src",
             html.Table: "children",
             html.Tbody: "children",

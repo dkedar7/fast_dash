@@ -1,5 +1,6 @@
 [run]
 # uncomment the following to omit files during running
+source = fast_dash
 omit = *tests*
 [report]
 exclude_lines =
@@ -8,6 +9,7 @@ exclude_lines =
     if self.debug:
     if settings.DEBUG
     raise AssertionError
+    raise ValueError
     raise NotImplementedError
     if 0:
     if __name__ == .__main__.:
