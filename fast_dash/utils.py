@@ -512,7 +512,7 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
     md_list = [
         f"#### {func.__name__.replace('_', ' ').title() if not title else title}",
         "",
-        parsed.short_description,
+        parsed.short_description or "",
         "",
         parsed.long_description or "",
         "",
@@ -540,11 +540,11 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
     md_list.extend(["# ", "# "])
 
     # Add return values in table format
-    md_list.extend(
-        ["", "##### Returns", "| Type | Description |", "| ---- | ----------- |"]
-    )
-
     if parsed.returns:
+        md_list.extend(
+            ["", "##### Returns", "| Type | Description |", "| ---- | ----------- |"]
+        )
+
         return_line = (
             f"| {parsed.returns.type_name or 'Not specified'} "
             f"| {parsed.returns.description or 'No description provided'} |"

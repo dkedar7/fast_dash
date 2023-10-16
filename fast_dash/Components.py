@@ -668,7 +668,7 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def callbacks(self, app):
-        @app.callback(
+        @app.app.callback(
             [Output("input-group", "style")],
             [Input("sidebar-button", "opened")],
             [State("input-group", "style")],
