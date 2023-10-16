@@ -15,6 +15,7 @@ from .Components import (
     _infer_input_components,
     _infer_output_components,
 )
+
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
@@ -24,7 +25,8 @@ from .utils import (
     _transform_outputs,
     theme_mapper,
     _infer_variable_names,
-    _get_error_notification_component,
+    _parse_docstring_as_markdown,
+    _get_error_notification_component
 )
 
 
@@ -53,6 +55,7 @@ class FastDash:
         twitter_url=None,
         navbar=True,
         footer=True,
+        about=True,
         theme=None,
         update_live=False,
         port=8080,
@@ -104,6 +107,10 @@ class FastDash:
             navbar (bool, optional): Display navbar. Defaults to True.
 
             footer (bool, optional): Display footer. Defaults to True.
+
+            about (str | bool, optional): App description to display on clicking the `About` button. If True, content is inferred from
+                the docstring of the callback function. If string, content is used directly as markdown. `About` is hidden if False or None.
+                Defaults to True.
 
             theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
                 at https://bootswatch.com/.
@@ -169,12 +176,17 @@ class FastDash:
 
         self.title = title
         self.title_image_path = title_image_path
-        self.subtitle = subheader if subheader is not None else callback_fn.__doc__
+        self.subtitle = (
+            subheader
+            if subheader is not None
+            else _parse_docstring_as_markdown(callback_fn, title=self.title, get_short=True)
+        )
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
@@ -274,6 +286,7 @@ class FastDash:
             "twitter_url": self.twitter_url,
             "navbar": self.navbar,
             "footer": self.footer,
+            "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
             "app": self,
@@ -382,7 +395,7 @@ class FastDash:
 
         # Set layout callbacks
         if not self.minimal:
-            self.layout_object.callbacks(self.app)
+            self.layout_object.callbacks(self)
 
 
 def fastdash(
@@ -401,6 +414,7 @@ def fastdash(
     twitter_url=None,
     navbar=True,
     footer=True,
+    about=True,
     theme=None,
     update_live=False,
     port=8080,
@@ -412,6 +426,8 @@ def fastdash(
     **kwargs
 ):
     """
+    Function decorator / wrapper for Fast Dash.
+
     Args:
         callback_fn (func): Python function that Fast Dash deploys.
             This function guides the behavior of and interaction between input and output components.
@@ -452,6 +468,10 @@ def fastdash(
         navbar (bool, optional): Display navbar. Defaults to True.
 
         footer (bool, optional): Display footer. Defaults to True.
+
+        about (str | bool, optional): App description to display on clicking the `About` button. If True, content is inferred from
+            the docstring of the callback function. If string, content is used directly as markdown. `About` is hidden if False or None.
+            Defaults to True.
 
         theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
             at https://bootswatch.com/.
@@ -496,6 +516,7 @@ def fastdash(
             twitter_url=twitter_url,
             navbar=navbar,
             footer=footer,
+            about=about,
             theme=theme,
             update_live=update_live,
             mode=mode,
