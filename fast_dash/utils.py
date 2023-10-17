@@ -15,13 +15,12 @@ import docstring_parser
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
+import pandas as pd
 import warnings
 import re
 
 
-def Fastify(
-    component, component_property, ack=None, placeholder=None, label_=None, tag=None
-):
+def Fastify(component, component_property, ack=None, placeholder=None, label_=None,tag=None, *args, **kwargs):
     """
     Modify a Dash component into a FastComponent.
 
@@ -29,27 +28,48 @@ def Fastify(
         component (Dash component): Dash component that needs to be modified
         component_property (str): Component property that's assigned the input or output values
         ack (Dash component, optional): Dash component that's displayed as an acknowledgement of the original component
-        placeholder (type, optional): Placeholder value of the component.
-        label_ (type, optional): Component title.
+        placeholder (str, optional): Placeholder value of the component.
+        label_ (str, optional): Component title.
+        tag (str, optional): Optional tag applied to the component.
 
     Returns:
         Fast component: Dash component modified to make it compatible with Fast Dash.
     """
+    
+    class FastComponent(type(component)):
+        def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, *args, **kwargs):
+            
+            self.component_property = component_property
+            self.ack = ack
+            self.label_ = label_
+            self.placeholder = placeholder
+            self.tag = tag
+            
+            # Copy normal attributes
+            for attr_name, attr_value in vars(component).items():
+                setattr(self, attr_name, attr_value)
 
-    component.component_property = component_property
-    component.ack = ack
-    component.label_ = label_
-    component.placeholder = placeholder
-    component.tag = tag
-
-    return component
+            # Copy the __doc__ attribute
+            self.__doc__ = component.__doc__
+            
+            for key, value in kwargs.items():
+                setattr(self, key, value)
+                
+        def __call__(self, **kwargs):            
+            self_copy = copy.deepcopy(self)
+            for key, value in kwargs.items():
+                setattr(self_copy, key, value)
+                
+            return self_copy
+        
+    return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag)
 
 
 def Chatify(query_response_dict):
     "Convert a dictionary into a Chat component"
 
     if not isinstance(query_response_dict, dict):
-        raise TypeError("Chat component required a dictionary output.")
+        raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ...).")
 
     ## Chat component
     input_component = dbc.Row(
@@ -333,7 +353,9 @@ def _get_transform_function(output, tag):
         return Chatify
 
     subclass = type(output)
-    _transform_mapper = {plt.Figure: _mpl_to_b64, PIL.Image.Image: _pil_to_b64}
+    _transform_mapper = {plt.Figure: _mpl_to_b64, 
+                         PIL.Image.Image: _pil_to_b64,
+                         pd.DataFrame: lambda x: x.to_dict(orient="records")}
 
     for class_ in _transform_mapper:
         if issubclass(subclass, class_):

@@ -253,7 +253,7 @@ class FastDash:
         self.server = self.app.server
 
     def run(self):
-        self.server.run(
+        self.app.run(
             **self.run_kwargs
         ) if self.mode is None else self.app.run_server(
             mode=self.mode, **self.run_kwargs
