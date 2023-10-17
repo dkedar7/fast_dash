@@ -1,0 +1,20 @@
+table {
+    border-collapse: collapse;
+}
+
+th:not(.CalendarDay),
+td:not(.CalendarDay) {
+    padding: 12px 15px;
+    text-align: left;
+    border-bottom: 1px solid #E1E1E1;
+}
+
+th:first-child:not(.CalendarDay),
+td:first-child:not(.CalendarDay) {
+    padding-left: 0;
+}
+
+th:last-child:not(.CalendarDay),
+td:last-child:not(.CalendarDay) {
+    padding-right: 0;
+}
