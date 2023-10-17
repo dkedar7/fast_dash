@@ -45,7 +45,7 @@ nav:
   - User guide:
     - 10 minutes to Fast Dash: User guide/build.md
     - Fast Components: User guide/components.md
-    - Common patterns: User guide/patterns.md
+    - Usage patterns: User guide/patterns.md
     - Deployment: User guide/deployment.md
   - Examples:
     - 1. Simple text to text: Examples/01_simple_text_to_text.ipynb
