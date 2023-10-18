@@ -12,6 +12,7 @@ import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
 import docstring_parser
+import logging
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
@@ -525,6 +526,8 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
     Returns:
         str: Markdown documentation string.
     """
+    logging.warning("Parsing function docstring is still an experimental feature. To reduce uncertainty, consider setting `about` to `False`.")
+
     parsed = docstring_parser.parse(func.__doc__)
 
     if get_short == True:
@@ -541,23 +544,24 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
     ]
 
     # Add parameters in table format
-    md_list.extend(
-        [
-            "##### Parameters",
-            "| Name | Type | Mandatory | Default | Description |",
-            "| ---- | ---- | --------- | ------- | ----------- |",
-        ]
-    )
-
-    for param in parsed.params:
-        param_line = (
-            f"| {param.arg_name} "
-            f"| {param.type_name or 'Not specified'} "
-            f"| {'No' if param.is_optional else 'Yes'} "
-            f"| {param.default or 'None'} "
-            f"| {param.description or 'No description provided'} |"
+    if parsed.params:
+        md_list.extend(
+            [
+                "##### Parameters",
+                "| Name | Type | Mandatory | Default | Description |",
+                "| ---- | ---- | --------- | ------- | ----------- |",
+            ]
         )
-        md_list.append(param_line)
+
+        for param in parsed.params:
+            param_line = (
+                f"| {param.arg_name} "
+                f"| {param.type_name or 'Not specified'} "
+                f"| {'No' if param.is_optional else 'Yes'} "
+                f"| {param.default or 'None'} "
+                f"| {param.description or 'No description provided'} |"
+            )
+            md_list.append(param_line)
 
     md_list.extend(["# ", "# "])
 
@@ -572,8 +576,6 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
             f"| {parsed.returns.description or 'No description provided'} |"
         )
         md_list.append(return_line)
-    else:
-        md_list.append("| No return type specified | No description provided |")
 
     # Join all and return markdown string
     return "\n".join(md_list)
