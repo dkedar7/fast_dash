@@ -34,7 +34,8 @@ theme:
 
   features:
     - navigation.tracking
-
+    - navigation.instant
+    
 repo_name: fast_dash
 repo_url: https://github.com/dkedar7/fast_dash
 
@@ -43,10 +44,10 @@ nav:
   - Installation: installation.md
   - Quickstart: quickstart.md
   - User guide:
-    - 10 minutes to Fast Dash: User guide/build.md
-    - Fast Components: User guide/components.md
-    - Common patterns: User guide/patterns.md
-    - Deployment: User guide/deployment.md
+    - 1. 10 minutes to Fast Dash: User guide/build.md
+    - 2. Usage patterns: User guide/patterns.md
+    - 3. Fast Components: User guide/components.md
+    - 4. Deployment: User guide/deployment.md
   - Examples:
     - 1. Simple text to text: Examples/01_simple_text_to_text.ipynb
     - 2. Translate to multiple languages: Examples/02_translate_to_multiple_languages.ipynb
