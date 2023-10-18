@@ -688,7 +688,6 @@ class SidebarLayout(BaseLayout):
 
             return (input_style,)
 
-
         # Optional callbacks specific to the layout
         @app.app.callback(
             Output("about-modal", "opened"),
@@ -698,19 +697,23 @@ class SidebarLayout(BaseLayout):
         )
         def display_function_about_information(n_clicks, opened):
             if n_clicks:
-
                 if self.about == True:
-                    about_text = _parse_docstring_as_markdown(app.callback_fn, title=self.title)
+                    about_text = _parse_docstring_as_markdown(
+                        app.callback_fn, title=self.title
+                    )
 
                 elif isinstance(self.about, str):
                     about_text = self.about
 
                 else:
-                    about_text = _parse_docstring_as_markdown(app.callback_fn, title=self.title)
+                    about_text = _parse_docstring_as_markdown(
+                        app.callback_fn, title=self.title
+                    )
 
                 return not opened, dcc.Markdown(about_text)
 
             raise PreventUpdate
+
 
 def _get_readable_names_from_parent_classes(type_hint):
     "Get a readable label for the object's type. Order is important. If disturbed, type = bool could get matched with float."
@@ -781,7 +784,15 @@ def _get_component_from_input(hint, default_value=None):
 
     if _hint_type == "Text":
         if _default_value_type == "Text":
-            component = Fastify(dbc.Input(value=default_value), "value", tag=_hint_type)
+            component = Fastify(
+                dmc.Textarea(
+                    value=default_value,
+                    autosize=True,
+                    minRows=4,
+                ),
+                "value",
+                tag=_hint_type,
+            )
 
         elif _default_value_type == "Numeric":
             component = Fastify(
@@ -865,28 +876,45 @@ def _get_component_from_input(hint, default_value=None):
     elif _hint_type == "Sequence":
         if _default_value_type == "Text":
             component = Fastify(
-                dbc.Input(value=[value.strip() for value in default_value.split(",")]),
+                dmc.MultiSelect(
+                    data=[default_value],
+                    value=[default_value],
+                    searchable=True,
+                    creatable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True),
+                dmc.MultiSelect(
+                    data=default_value,
+                    searchable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         elif _default_value_type == "Dictionary":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True),
+                dmc.MultiSelect(
+                    data=default_value,
+                    searchable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         else:
-            warnings.warn("Unknown or unsupported default value type. Assuming text.")
-            component = Text
+            component = Fastify(
+                dmc.MultiSelect(
+                    searchable=True,
+                    creatable=True,
+                ),
+                "value",
+                tag=_default_value_type,
+            )
 
     elif _hint_type == "Dictionary":
         component = Fastify(
@@ -1168,7 +1196,16 @@ def _infer_output_components(func, outputs, output_labels):
 ###################################
 
 ##### General components
-Text = Fastify(component=dbc.Input(), component_property="value", tag="Text")
+Text = Fastify(
+    component=dmc.Textarea(
+        placeholder="",
+        autosize=True,
+        minRows=4,
+    ),
+    component_property="value",
+    placeholder="",
+    tag="Text"
+)
 
 TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
 
