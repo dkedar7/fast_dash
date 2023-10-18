@@ -218,16 +218,16 @@ class FastDash:
         ]
 
         source = dash.Dash
-        if self.mode is not None:
-            try:
-                from jupyter_dash import JupyterDash
+        # if self.mode is not None:
+        #     try:
+        #         from jupyter_dash import JupyterDash
 
-                source = JupyterDash
+        #         source = JupyterDash
 
-            except ImportError as e:
-                self.mode = None
-                warnings.warn(str(e))
-                warnings.warn("Ignoring mode argument")
+        #     except ImportError as e:
+        #         self.mode = None
+        #         warnings.warn(str(e))
+        #         warnings.warn("Ignoring mode argument")
 
         self.app = source(
             __name__,
@@ -256,14 +256,14 @@ class FastDash:
         self.app.run(
             **self.run_kwargs
         ) if self.mode is None else self.app.run_server(
-            mode=self.mode, **self.run_kwargs
+            jupyter_mode=self.mode, **self.run_kwargs
         )
 
     def run_server(self):
         self.app.run_server(
             **self.run_kwargs
         ) if self.mode is None else self.app.run_server(
-            mode=self.mode, **self.run_kwargs
+            jupyter_mode=self.mode, **self.run_kwargs
         )
 
     def set_layout(self):

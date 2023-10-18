@@ -3,7 +3,7 @@
 name = "fast_dash"
 version = "0.2.7"
 homepage = "https://github.com/dkedar7/fast_dash"
-description = "Build Machine Learning prototypes web applications lightning fast."
+description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
 authors = ["Kedar Dabhadkar <kedar@fastdash.app>"]
 readme = "README.md"
 license =  "MIT"
@@ -13,10 +13,10 @@ classifiers=[
     'License :: OSI Approved :: MIT License',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.7',
     'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10'
+    'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11'
 ]
 packages = [
     { include = "fast_dash" },
@@ -24,13 +24,13 @@ packages = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.7,<4.0"
+python = ">=3.8,<3.12"
 
 Flask = "^2.0.2"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
 Pillow = "^9.2.0"
-dash = "^2.6.1"
+dash = ">=2.11.0"
 dash-mantine-components = "^0.12.1"
 numpy = "<=1.25.0"
 dash-iconify = "^0.1.2"
@@ -81,8 +81,6 @@ mkdocs-include-markdown-plugin = "^3.6.1"
 mkdocs-material = "9.1.18"
 mkdocstrings = "^0.19.0"
 mkdocs-autorefs = "^0.4.1"
-jupyter-dash = "^0.4.2"
-dash = {extras = ["testing"], version = "^2.6.1"}
 mkdocstrings-python = "^0.7.1"
 mkdocs-jupyter = "^0.24.1"
 
