@@ -30,7 +30,7 @@ Flask = "^2.0.2"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
 Pillow = "^9.2.0"
-dash = ">=2.11.0"
+dash = {extras = ["test"], version = "^2.14.0"}
 dash-mantine-components = "^0.12.1"
 numpy = "<=1.25.0"
 dash-iconify = "^0.1.2"
