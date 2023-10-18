@@ -92,7 +92,7 @@ def test_fdco003_input_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 
@@ -391,7 +391,7 @@ def test_fdco009_input_hint_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 
@@ -660,7 +660,7 @@ def test_fdco014_output_hint_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 

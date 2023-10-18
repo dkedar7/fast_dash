@@ -104,7 +104,7 @@ def example_5_uploadimage_to_image():
         inputs=UploadImage,
         outputs=Image,
         title="Fast Dash example 5",
-        title_image_path="https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg",
+        title_image_path="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png",
         subheader="Build ML prototypes lightning fast!",
         github_url="https://github.com/dkedar7/fast_dash/",
         linkedin_url="https://linkedin.com/in/dkedar7/",
