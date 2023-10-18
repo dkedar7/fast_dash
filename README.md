@@ -123,10 +123,10 @@ Read different ways to build Fast Dash apps and additional details by navigating
 
 ### Key features
 
-- Deploy an app just by adding a decorator
+  Duild and deploy a web app by adding a decorator only.
 - Components are inferred from function type hints. Allows using Dash components as type hints.
-- Use multiple input and output components simultaneously
-- Build fast, share and iterate
+- Use multiple input and output components simultaneously.
+- Build fast, share and iterate.
 
 ## Community
 
