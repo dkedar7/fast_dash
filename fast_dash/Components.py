@@ -8,17 +8,26 @@ from collections.abc import Iterable, Sequence
 from functools import reduce
 
 import dash
+from dash import Input, Output, State, dcc, html, ctx, Patch
+from dash.exceptions import PreventUpdate
+
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
+from dash_iconify import DashIconify
+
 import matplotlib as mpl
 import numpy as np
+import pandas as pd
 import PIL
-import plotly.graph_objs as go
-from dash import Input, Output, State, dcc, html, Patch
-from dash_iconify import DashIconify
 from PIL import ImageFile
+import plotly.graph_objs as go
 
-from .utils import Fastify, Chatify, _pil_to_b64, _get_default_property
+from .utils import (
+    Fastify,
+    _pil_to_b64,
+    _get_default_property,
+    _parse_docstring_as_markdown,
+)
 
 
 class BaseLayout:
@@ -35,6 +44,7 @@ class BaseLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        about=True,
         minimal=False,
         scale_height=1,
         app=None,
@@ -50,6 +60,7 @@ class BaseLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
         self.app = app
@@ -58,52 +69,57 @@ class BaseLayout:
         if not self.navbar:
             return None
 
-        # 1. Navbar
-        social_media_navigation = []
+        navbar_components = []
+
+        # 1. Add navbar components
+        if self.about:
+            navbar_components.append(
+                dbc.Row(dbc.Button("About", color="primary", id="about-navlink"))
+            )
+
+            # Add modal component
+            navbar_components.append(
+                dmc.Modal(id="about-modal", size="80%", zIndex=10000)
+            )
+
         if self.github_url:
-            social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-github", style={"color": "#ffffff"}
-                        ),
-                        href=self.github_url,
-                        target="_blank",
-                    )
+            navbar_components.append(
+                dmc.NavLink(
+                    label=DashIconify(icon="ri:github-fill", color="#ffffff", width=30),
+                    href=self.github_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
         if self.linkedin_url:
-            social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-linkedin",
-                            style={"color": "#ffffff"},
-                        ),
-                        href=self.linkedin_url,
-                        target="_blank",
-                    )
+            navbar_components.append(
+                dmc.NavLink(
+                    label=DashIconify(
+                        icon="entypo-social:linkedin-with-circle",
+                        color="#ffffff",
+                        width=30,
+                    ),
+                    href=self.linkedin_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
         if self.twitter_url:
-            social_media_navigation.append(
-                dbc.NavItem(
-                    dbc.NavLink(
-                        html.I(
-                            className="fa-2x fab fa-twitter-square",
-                            style={"color": "#ffffff"},
-                        ),
-                        href=self.twitter_url,
-                        target="_blank",
-                    )
+            navbar_components.append(
+                dmc.NavLink(
+                    label=DashIconify(
+                        icon="formkit:twitter", color="#ffffff", width=30
+                    ),
+                    href=self.twitter_url,
+                    target="_blank",
+                    variant="light",
                 )
             )
 
         navbar = dbc.NavbarSimple(
-            children=[dbc.NavItem(dbc.NavLink("About", href="#"))]
-            + social_media_navigation,
+            children=[] + navbar_components,
             brand=[
                 dmc.Group(
                     [
@@ -264,9 +280,20 @@ class BaseLayout:
 
         return layout
 
-    def callbacks(self, app=None):
+    def callbacks(self, app):
         "Optional callbacks specific to the layout"
-        return
+
+        @app.app.callback(
+            Output("about-modal", "opened"),
+            Output("about-modal", "children"),
+            Input("about-navlink", "n_clicks"),
+            State("about-modal", "opened"),
+        )
+        def display_function_about_information(n_clicks, opened):
+            if n_clicks:
+                return not opened, app.callback_fn.__doc__
+
+            raise PreventUpdate
 
 
 class SidebarLayout(BaseLayout):
@@ -642,7 +669,7 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def callbacks(self, app):
-        @app.callback(
+        @app.app.callback(
             [Output("input-group", "style")],
             [Input("sidebar-button", "opened")],
             [State("input-group", "style")],
@@ -660,6 +687,32 @@ class SidebarLayout(BaseLayout):
                 input_style.update({"display": "block"})
 
             return (input_style,)
+
+        # Optional callbacks specific to the layout
+        @app.app.callback(
+            Output("about-modal", "opened"),
+            Output("about-modal", "children"),
+            Input("about-navlink", "n_clicks"),
+            State("about-modal", "opened"),
+        )
+        def display_function_about_information(n_clicks, opened):
+            if n_clicks:
+                if self.about == True:
+                    about_text = _parse_docstring_as_markdown(
+                        app.callback_fn, title=self.title
+                    )
+
+                elif isinstance(self.about, str):
+                    about_text = self.about
+
+                else:
+                    about_text = _parse_docstring_as_markdown(
+                        app.callback_fn, title=self.title
+                    )
+
+                return not opened, dcc.Markdown(about_text)
+
+            raise PreventUpdate
 
 
 def _get_readable_names_from_parent_classes(type_hint):
@@ -731,7 +784,15 @@ def _get_component_from_input(hint, default_value=None):
 
     if _hint_type == "Text":
         if _default_value_type == "Text":
-            component = Fastify(dbc.Input(value=default_value), "value", tag=_hint_type)
+            component = Fastify(
+                dmc.Textarea(
+                    value=default_value,
+                    autosize=True,
+                    minRows=4,
+                ),
+                "value",
+                tag=_hint_type,
+            )
 
         elif _default_value_type == "Numeric":
             component = Fastify(
@@ -815,28 +876,45 @@ def _get_component_from_input(hint, default_value=None):
     elif _hint_type == "Sequence":
         if _default_value_type == "Text":
             component = Fastify(
-                dbc.Input(value=[value.strip() for value in default_value.split(",")]),
+                dmc.MultiSelect(
+                    data=[default_value],
+                    value=[default_value],
+                    searchable=True,
+                    creatable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True),
+                dmc.MultiSelect(
+                    data=default_value,
+                    searchable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         elif _default_value_type == "Dictionary":
             component = Fastify(
-                dcc.Dropdown(default_value, multi=True),
+                dmc.MultiSelect(
+                    data=default_value,
+                    searchable=True,
+                ),
                 "value",
                 tag=_default_value_type,
             )
 
         else:
-            warnings.warn("Unknown or unsupported default value type. Assuming text.")
-            component = Text
+            component = Fastify(
+                dmc.MultiSelect(
+                    searchable=True,
+                    creatable=True,
+                ),
+                "value",
+                tag=_default_value_type,
+            )
 
     elif _hint_type == "Dictionary":
         component = Fastify(
@@ -1051,6 +1129,9 @@ def _get_output_components(_hint_type):
     if issubclass(_hint_type, PIL.Image.Image):
         component = Image
 
+    elif issubclass(_hint_type, pd.DataFrame):
+        component = Table
+
     elif _hint_type == mpl.figure.Figure:
         component = Image
 
@@ -1115,7 +1196,16 @@ def _infer_output_components(func, outputs, output_labels):
 ###################################
 
 ##### General components
-Text = Fastify(component=dbc.Input(), component_property="value", tag="Text")
+Text = Fastify(
+    component=dmc.Textarea(
+        placeholder="",
+        autosize=True,
+        minRows=4,
+    ),
+    component_property="value",
+    placeholder="",
+    tag="Text"
+)
 
 TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
 
@@ -1207,4 +1297,33 @@ Chat = Fastify(
     ),
     "children",
     tag="Chat",
+)
+
+Table = Fastify(
+    dash.dash_table.DataTable(
+        page_size=100,
+        page_action="native",
+        sort_action="native",
+        style_header={
+            "backgroundColor": "white",
+            "fontWeight": "bold",
+            "color": "black",
+            "textAlign": "center",
+            "border": "1px solid #f0f0f0",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+        style_cell={
+            "backgroundColor": "white",
+            "color": "black",
+            "textAlign": "center",
+            "border": "1px solid #f0f0f0",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+        style_table={
+            "border": "1px solid #f0f0f0",
+            "overflowY": "auto",
+            "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+        },
+    ),
+    "data",
 )

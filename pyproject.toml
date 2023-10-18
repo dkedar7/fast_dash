@@ -35,6 +35,8 @@ dash-mantine-components = "^0.12.1"
 numpy = "<=1.25.0"
 dash-iconify = "^0.1.2"
 matplotlib = "<=3.7.1"
+pandas = "<2.1.1"
+docstring-parser = "^0.15"
 
 [tool.poetry.extras]
 test = [

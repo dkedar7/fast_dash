@@ -59,7 +59,7 @@ def text_to_text_function(input_text):
 And just like that (🪄), we have a completely functional interactive app!
 
 Output:
-![Simple example](https://storage.googleapis.com/fast_dash/0.2.1/Simple%20text%20to%20text.png)
+![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20text%20to%20text.png)
 ---
 
 Fast Dash can read all the function details, like its name, input and output types, docstring, and uses this information to infer which components to use.
@@ -81,7 +81,7 @@ def display_selected_text_and_number(text: str, number: int) -> str:
 ```
 
 Output:
-![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.1/Simple%20example%202.png)
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20example%202.png)
 
 And with just a few more lines, we can add a title icon, subheader and other social branding details.
 
@@ -115,7 +115,7 @@ def multiple_output_components(start_date: datetime.date, # Adds a date componen
 
 # * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
-![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.3/Multiple%20components%20using%20mosaic.png)
+![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.7/Multiple%20components%20using%20mosaic.png)
 
 ## About
 
@@ -123,10 +123,10 @@ Read different ways to build Fast Dash apps and additional details by navigating
 
 ### Key features
 
-- Deploy an app just by adding a decorator
+  Duild and deploy a web app by adding a decorator only.
 - Components are inferred from function type hints. Allows using Dash components as type hints.
-- Use multiple input and output components simultaneously
-- Build fast, share and iterate
+- Use multiple input and output components simultaneously.
+- Build fast, share and iterate.
 
 ## Community
 
