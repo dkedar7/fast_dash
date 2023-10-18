@@ -30,14 +30,14 @@ Flask = "^2.0.2"
 plotly = "^5.5.0"
 dash-bootstrap-components = "^1.0.2"
 Pillow = "^9.2.0"
-dash = {extras = ["test"], version = "^2.14.0"}
 dash-mantine-components = "^0.12.1"
 numpy = "<=1.25.0"
 dash-iconify = "^0.1.2"
 matplotlib = "<=3.7.1"
 pandas = "<2.1.1"
 docstring-parser = "^0.15"
-selenium = {version = "^4.14.0", extras = ["test"]}
+dash = {extras = ["test"], version = "^2.14.0", optional = true}
+selenium = {version = "^4.14.0", optional = true, extras = ["test"]}
 
 [tool.poetry.extras]
 test = [
@@ -48,7 +48,8 @@ test = [
     "flake8-docstrings",
     "pytest-cov",
     "selenium",
-    "dash"
+    "dash",
+    "dash[testing]"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
