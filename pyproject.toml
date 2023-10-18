@@ -37,6 +37,7 @@ dash-iconify = "^0.1.2"
 matplotlib = "<=3.7.1"
 pandas = "<2.1.1"
 docstring-parser = "^0.15"
+selenium = {version = "^4.14.0", extras = ["test"]}
 
 [tool.poetry.extras]
 test = [
