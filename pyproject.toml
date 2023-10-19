@@ -36,8 +36,7 @@ dash-iconify = "^0.1.2"
 matplotlib = "<=3.7.1"
 pandas = "<2.1.1"
 docstring-parser = "^0.15"
-dash = {extras = ["test"], version = "^2.14.0", optional = true}
-selenium = {version = "^4.14.0", optional = true, extras = ["test"]}
+dash = ">=2.11.0"
 
 [tool.poetry.extras]
 test = [
@@ -48,8 +47,7 @@ test = [
     "flake8-docstrings",
     "pytest-cov",
     "selenium",
-    "dash",
-    "dash[testing]"
+    "dash"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
@@ -88,6 +86,8 @@ mkdocs-jupyter = "^0.24.1"
 
 [tool.poetry.group.test.dependencies]
 urllib3 = "1.26.15"
+dash = {version = ">=2.11.0", extras = ["testing"]}
+selenium = "<=4.2.0"
 
 
 [build-system]
