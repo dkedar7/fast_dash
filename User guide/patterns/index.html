@@ -15,17 +15,17 @@
         <link rel="canonical" href="https://docs.fastdash.app/User%20guide/patterns/">
       
       
-        <link rel="prev" href="../components/">
+        <link rel="prev" href="../build/">
       
       
-        <link rel="next" href="../deployment/">
+        <link rel="next" href="../components/">
       
       <link rel="icon" href="../../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
     
     
       
-        <title>Common patterns - Fast Dash</title>
+        <title>2. Usage patterns - Fast Dash</title>
       
     
     
@@ -113,6 +113,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#usage-patterns" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -143,7 +148,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              Common patterns
+              2. Usage patterns
             
           </span>
         </div>
@@ -327,21 +332,7 @@
   
     <li class="md-nav__item">
       <a href="../build/" class="md-nav__link">
-        10 minutes to Fast Dash
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../components/" class="md-nav__link">
-        Fast Components
+        1. 10 minutes to Fast Dash
       </a>
     </li>
   
@@ -360,10 +351,71 @@
       <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
       
       
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          2. Usage patterns
+          <span class="md-nav__icon md-icon"></span>
+        </label>
       
       <a href="./" class="md-nav__link md-nav__link--active">
-        Common patterns
+        2. Usage patterns
       </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-begin" class="md-nav__link">
+    Before you begin
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-setting-input-components" class="md-nav__link">
+    1. Setting input components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-setting-output-components" class="md-nav__link">
+    2. Setting output components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-arranging-output-components" class="md-nav__link">
+    3. Arranging output components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-selecting-other-configurations" class="md-nav__link">
+    4. Selecting other configurations
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
       
     </li>
   
@@ -376,8 +428,22 @@
   
   
     <li class="md-nav__item">
+      <a href="../components/" class="md-nav__link">
+        3. Fast Components
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../deployment/" class="md-nav__link">
-        Deployment
+        4. Deployment
       </a>
     </li>
   
@@ -558,6 +624,51 @@
   
   
   
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#before-you-begin" class="md-nav__link">
+    Before you begin
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#1-setting-input-components" class="md-nav__link">
+    1. Setting input components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#2-setting-output-components" class="md-nav__link">
+    2. Setting output components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#3-arranging-output-components" class="md-nav__link">
+    3. Arranging output components
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#4-selecting-other-configurations" class="md-nav__link">
+    4. Selecting other configurations
+  </a>
+  
+</li>
+      
+    </ul>
   
 </nav>
                   </div>
@@ -575,9 +686,280 @@
   
 
 
-  <h1>Common patterns</h1>
+<h1 id="usage-patterns">Usage Patterns</h1>
+<p>Fast Dash helps build and deploy Proof of Concept (POC) applications lightning fast while having
+you, the innovator, write as less UI development code as possible. </p>
+<p>This document outlines some common Fast Dash patterns and how you can use these ideas to fastrack your deployment.</p>
+<h2 id="before-you-begin">Before you begin</h2>
+<p>Never worry about web app development or deployment before you are comfortable about your main Python functionality and supporting code.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The whole Fast Dash promise is to decrease the time needed for app development after you have written the main Python software, not distracting you from your innovation.</p>
+<p>So focus on the main functionality of your code and don't worry about the web app.</p>
+</div>
+<p>After you are comfortable with your Python function ...</p>
+<h2 id="1-setting-input-components">1. Setting input components</h2>
+<p>By setting the correct callback function type hints, their default values, or choosing Dash components, and built-in Fast components, you can display most common UI elements for users to enter their inputs.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+</div>
+<p>If you used the proper Python function type hinting practices, you might not have to make many changes to your code. </p>
+<p>Here are some examples:</p>
+<table>
+<thead>
+<tr>
+<th>Input is</th>
+<th>Type hint</th>
+<th>Default value</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><b>Text<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Text</td>
+<td><code>str</code></td>
+<td>Any</td>
+<td><code>def my_func(arg1: str)</code></td>
+</tr>
+<tr>
+<td>Single item from a list of fixed items</td>
+<td><code>str</code></td>
+<td>List of allowed text items</td>
+<td><code>def get_gdp(country: str = ["USA", "Canada", "Mexico"])</code></td>
+</tr>
+<tr>
+<td>List of items and users can add their own items</td>
+<td><code>list</code></td>
+<td>Blank</td>
+<td><code>def enter_web_urls(urls: list)</code></td>
+</tr>
+<tr>
+<td>List of items and users must choose from a fixed set of items</td>
+<td><code>list</code></td>
+<td>List of fixed set of items</td>
+<td><code>def enter_web_urls(urls: list = ["google.com", "youtube.com", "facebook.com", "bing.com"])</code></td>
+</tr>
+<tr>
+<td><b>Numbers<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Number</td>
+<td><code>int</code> or <code>float</code></td>
+<td>Blank</td>
+<td><code>def enter_score(score: int)</code> or <code>def enter_score(score: float)</code></td>
+</tr>
+<tr>
+<td>Bounded number</td>
+<td><code>int</code> or <code>float</code></td>
+<td>List of bounds and step size in the format: <code>range(min, max, step)</code></td>
+<td><code>def enter_score(score: int = range(0, 10))</code> or <code>def enter_score(score: float = list(np.arange(0, 10, 0.1)))</code></td>
+</tr>
+<tr>
+<td><b>Images and documents<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Image</td>
+<td><code>PIL.Image.Image</code></td>
+<td>Blank or default image (PIL format)</td>
+<td><code>def upload_image(image: PIL.Image.Image)</code></td>
+</tr>
+<tr>
+<td>Any document</td>
+<td>Built-in component <code>Upload</code></td>
+<td>Blank</td>
+<td><code>def upload_doc(doc: Upload)</code></td>
+</tr>
+<tr>
+<td><b>Dates<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Single date</td>
+<td><code>datetime.date</code> or <code>datetime.datetime</code></td>
+<td>Blank or default date</td>
+<td><code>def set_date(date: datetime.date = datetime.date(2023, 1, 1))</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="2-setting-output-components">2. Setting output components</h2>
+<p>We've seen that we can set the desired input component by choosing a specific combination of input type hints and default values.
+Setting output components works similar to that.</p>
+<div class="admonition reminder">
+<p class="admonition-title">Reminder</p>
+<p>Return type hints in Python are written in the function description following the <code>-&gt;</code> symbol.</p>
+<p>For example, </p>
+<ul>
+<li><code>def my_func(...) -&gt; str</code> indicates that the first return value is a string.</li>
+<li><code>def my_func(...) -&gt; (str, int)</code> indicates that the first return value is a string and the second return value is an integer.</li>
+</ul>
+</div>
+<p>Here's how to set the desired components using return type hints:</p>
+<table>
+<thead>
+<tr>
+<th>Output is</th>
+<th>Type hint</th>
+<th>Example</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Text</td>
+<td><code>str</code></td>
+<td><code>def my_func(...) -&gt; str:</code></td>
+</tr>
+<tr>
+<td>Number (treated as text)</td>
+<td><code>int</code> or <code>float</code></td>
+<td><code>def my_func(...) -&gt; int:</code> or <code>def my_func(...) -&gt; float:</code></td>
+</tr>
+<tr>
+<td>Image</td>
+<td><code>PIL.Image.Image</code></td>
+<td><code>def my_func(...) -&gt; PIL.Image.Image:</code></td>
+</tr>
+<tr>
+<td>Matplotlib figure</td>
+<td><code>plt.Figure</code></td>
+<td><code>def my_func(...) -&gt; plt.Figure:</code></td>
+</tr>
+<tr>
+<td>Plotly graph</td>
+<td>Built-in component <code>Graph</code></td>
+<td><code>def my_func(...) -&gt; Graph:</code></td>
+</tr>
+<tr>
+<td>Pandas Dataframe</td>
+<td><code>pd.DataFrame</code> or built-in component <code>Table</code>. Using <code>Table</code> lets you set the pagination page size using <code>Table(page_size=20)</code></td>
+<td><code>def my_func(...) -&gt; pd.DataFrame:</code> or <code>def my_func(...) -&gt; Table:</code> or <code>def my_func(...) -&gt; Table(page_size=20):</code></td>
+</tr>
+<tr>
+<td>Conversation (chat)</td>
+<td>Built-in component <code>Chat</code>. Output must be formatted as a dictionary in the format <code>{"query": query, "response": response}</code></td>
+<td><code>def my_func(...) -&gt; Chat:</code></td>
+</tr>
+</tbody>
+</table>
+<h2 id="3-arranging-output-components">3. Arranging output components</h2>
+<p>Fast Dash allows customizing the visual arrangement of your output components. The idea is using “mosaics.” Drawing inspiration from Matplotlib’s <a href="https://matplotlib.org/stable/api/_as_gen/matplotlib.pyplot.subplot_mosaic.html"><code>subplot_mosaic</code></a> method, Fast Dash lets you craft layouts using an ASCII-esque diagram or a string list.</p>
+<p>Each unique letter or string in this mosaic signifies a unique component. This approach is a game-changer, especially when you’re aiming for non-uniform grid layouts.</p>
+<p>For example, imagine the output arrangement you want is something like in the following image:</p>
+<p><img alt="Example mosaic layout" src="https://miro.medium.com/v2/0*qEdZ_t6-OYiFozYz.png" /></p>
+<p>In this case, you can define your mosaic to be “ABB \n CDE”. Fast Dash will set the app for five outputs and divide the space into six equally-sized boxes placed as a 2 x 3 grid. </p>
+<p>The first output gets the top-left box. The second output stretches across the next two boxes in the top row. And each of the remaining three outputs gets its own box in the row below.</p>
+<p>Refer to the examples below to understand this idea better.</p>
+<details class="example">
+<summary>Example 1: Two outputs</summary>
+<p>We have two outputs and we want them to appear one below the other.</p>
+<div class="highlight"><pre><span></span><code><span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">A</span>
+<span class="s2">B</span>
+<span class="s2">&quot;&quot;&quot;</span>
 
-<p>Coming soon ...</p>
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span>
+</code></pre></div>
+<p>Output:</p>
+<p><img alt="Example 1" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png" /></p>
+</details>
+<details class="example">
+<summary>Example 2: Three outputs</summary>
+<p>We have three outputs. The first two should appear next to each other in the first row
+ and the third should appear below them taking up the entire second row.</p>
+<div class="highlight"><pre><span></span><code><span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">AB</span>
+<span class="s2">CC</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span>
+</code></pre></div>
+<p>Output:</p>
+<p><img alt="Example 2" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex2.png" /></p>
+</details>
+<details class="example">
+<summary>Example 3: Four outputs</summary>
+<p>We have four outputs. The first two should appear one below the other in the first column, 
+and the remaining two should take up the entire second and third columns respectively.</p>
+<div class="highlight"><pre><span></span><code><span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">ACD</span>
+<span class="s2">BCD</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span>
+</code></pre></div>
+<p>Output:</p>
+<p><img alt="Example 3" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex3.png" /></p>
+</details>
+<details class="example">
+<summary>Example 4: Five outputs</summary>
+<p>This example has five outputs. Here are the requirements:</p>
+<ul>
+<li>The 1st output must appear first.</li>
+<li>The 2nd output must be twice as wide as the first output.</li>
+<li>The 3rd, 4th and 5th outputs must be in the second row and have the same width.</li>
+</ul>
+<div class="highlight"><pre><span></span><code><span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">ABB</span>
+<span class="s2">CDE</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">,</span> <span class="s2">&quot;E&quot;</span>
+</code></pre></div>
+<p>Output: </p>
+<p><img alt="Example 4" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex4.png" /></p>
+</details>
+<details class="example">
+<summary>Example 5: Eight outputs</summary>
+<p>This is a slightly complicated example with 8 outputs, reminiscent of some BI dashboards.
+Here's what we want:</p>
+<ul>
+<li>The first 4 components appear one after the other horizontally (like overview KPIs in a dashboard).</li>
+<li>The 5th output appears directly below the first 3 components while the 6th appears directly below the 4th.</li>
+<li>The 7th appears directly below 5th and the 8th appears directly below the 6th.</li>
+<li>Let's add a complication intentionally: Components 5 through 8 should be twice as tall (vertically) as the first 4 components.</li>
+</ul>
+<p>No problem! it's easy to have this layout with Fast Dash just by writing the appropriate mosaic string, without touching the main Python code.</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># Notice that the second and third component rows have been repeated </span>
+<span class="c1"># to make them appear twice as high as the first component row</span>
+<span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">ABCD</span>
+<span class="s2">EEEF</span>
+<span class="s2">EEEF</span>
+<span class="s2">GGGH</span>
+<span class="s2">GGGH</span>
+<span class="s2">&quot;&quot;&quot;</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">my_func</span><span class="p">(</span><span class="n">arg1</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="p">(</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">return</span> <span class="s2">&quot;A&quot;</span><span class="p">,</span> <span class="s2">&quot;B&quot;</span><span class="p">,</span> <span class="s2">&quot;C&quot;</span><span class="p">,</span> <span class="s2">&quot;D&quot;</span><span class="p">,</span> <span class="s2">&quot;E&quot;</span><span class="p">,</span> <span class="s2">&quot;F&quot;</span><span class="p">,</span> <span class="s2">&quot;G&quot;</span><span class="p">,</span> <span class="s2">&quot;H&quot;</span>
+</code></pre></div>
+<p>Output: </p>
+<p><img alt="Example 5" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex5.png" /></p>
+</details>
+<h2 id="4-selecting-other-configurations">4. Selecting other configurations</h2>
+<p>Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.</p>
+<p>In the <a href="../components/">next section</a>, we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.</p>
 
 
 
@@ -667,7 +1049,7 @@
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tracking"], "search": "../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "../..", "features": ["navigation.tracking", "navigation.instant"], "search": "../../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="../../assets/javascripts/bundle.220ee61c.min.js"></script>

@@ -21,7 +21,7 @@
         <link rel="next" href="../User%20guide/build/">
       
       <link rel="icon" href="../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.4.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
     
     
       
@@ -335,6 +335,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chatbot-example" class="md-nav__link">
+    Chatbot example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#image-to-image-example" class="md-nav__link">
     Image to image example
   </a>
@@ -344,6 +351,13 @@
         <li class="md-nav__item">
   <a href="#what-else-is-possible" class="md-nav__link">
     What else is possible
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
@@ -392,21 +406,7 @@
   
     <li class="md-nav__item">
       <a href="../User%20guide/build/" class="md-nav__link">
-        10 minutes to Fast Dash
-      </a>
-    </li>
-  
-
-            
-          
-            
-              
-  
-  
-  
-    <li class="md-nav__item">
-      <a href="../User%20guide/components/" class="md-nav__link">
-        Fast Components
+        1. 10 minutes to Fast Dash
       </a>
     </li>
   
@@ -420,7 +420,21 @@
   
     <li class="md-nav__item">
       <a href="../User%20guide/patterns/" class="md-nav__link">
-        Common patterns
+        2. Usage patterns
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../User%20guide/components/" class="md-nav__link">
+        3. Fast Components
       </a>
     </li>
   
@@ -434,7 +448,7 @@
   
     <li class="md-nav__item">
       <a href="../User%20guide/deployment/" class="md-nav__link">
-        Deployment
+        4. Deployment
       </a>
     </li>
   
@@ -639,6 +653,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chatbot-example" class="md-nav__link">
+    Chatbot example
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#image-to-image-example" class="md-nav__link">
     Image to image example
   </a>
@@ -648,6 +669,13 @@
         <li class="md-nav__item">
   <a href="#what-else-is-possible" class="md-nav__link">
     What else is possible
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    Examples
   </a>
   
 </li>
@@ -672,7 +700,7 @@
 
 <h1 id="quickstart">Quickstart</h1>
 <h2 id="install-fast-dash">Install Fast Dash</h2>
-<p>Let's start by installing Fast Dash. Do that by running:
+<p>Let's start by installing Fast Dash:
 <div class="highlight"><pre><span></span><code>pip install fast-dash
 </code></pre></div></p>
 <h2 id="simple-example">Simple Example</h2>
@@ -689,26 +717,54 @@
 </code></pre></div></td></tr></table></div>
 <p>This should spin up your first Fast Dash app!</p>
 <figure>
-<p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.1.7/simple_example.gif" />
+<p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.2.7/Simple%20text%20to%20text.png" />
   </p>
 <figcaption>Simple example app</figcaption>
 </figure>
-<h2 id="image-to-image-example">Image to image example</h2>
-<p>Fast Dash makes it very easy to work with different types of data types and components. 
-For example, here's the code needed to build an app that receives an uploaded image and returns the same image.</p>
+<h2 id="chatbot-example">Chatbot example</h2>
+<p>Fast Dash also offers many in-built components to make development easier. 
+These can be used as data type hints.
+Here's a dummy chatbot example.</p>
 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
 <span class="normal">2</span>
 <span class="normal">3</span>
 <span class="normal">4</span>
-<span class="normal">5</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">UploadImage</span><span class="p">,</span> <span class="n">Image</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Chat</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">theme</span><span class="o">=</span><span class="s2">&quot;sketchy&quot;</span><span class="p">)</span>
+<span class="k">def</span> <span class="nf">virtual_assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chat</span><span class="p">:</span>
+    <span class="n">response</span> <span class="o">=</span> <span class="s2">&quot;I am Groot.&quot;</span>
+    <span class="n">chat</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">chat</span>
+</code></pre></div></td></tr></table></div>
+<figure>
+<p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.2.7/Simple%20chatbot%20example.png" />
+  </p>
+<figcaption>Simple chatbot app</figcaption>
+</figure>
+<h2 id="image-to-image-example">Image to image example</h2>
+<p>Fast Dash makes it very easy to work with different types of data types and components. 
+For example, here's how to build an app that receives an uploaded image and returns the same image.
+We can, of course, write any image analysis transformation we want.</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
+<span class="normal">2</span>
+<span class="normal">3</span>
+<span class="normal">4</span>
+<span class="normal">5</span>
+<span class="normal">6</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
 
 <span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">image_to_image</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">UploadImage</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="p">:</span>
+<span class="k">def</span> <span class="nf">image_to_image</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
+    <span class="s2">&quot;Example of an image to image app with Fast Dash&quot;</span>
     <span class="k">return</span> <span class="n">image</span>
 </code></pre></div></td></tr></table></div>
 <p>This is how the deployed app looks:</p>
 <figure>
-<p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.1.7/simple_image_to_image.gif" />
+<p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.2.7/image_to_image_example.png" />
   </p>
 <figcaption>Simple image to image example app</figcaption>
 </figure>
@@ -723,12 +779,9 @@ For example, here's the code needed to build an app that receives an uploaded im
 <li>Minimal view</li>
 <li>JupyterLab inline and embedded views</li>
 </ul>
-<p>By tweaking these configurations, you can easily build web applications for a variety of use cases! Here're a selected few:</p>
-<figure>
-<p><img alt="Fast Dash gallery" src="https://storage.googleapis.com/fast_dash/0.1.7/gallery_4_apps.gif" />
-  </p>
-<figcaption>Fast Dash example gallery</figcaption>
-</figure>
+<p>By tweaking these configurations, you can easily build web applications for a variety of use cases!</p>
+<h2 id="examples">Examples</h2>
+<p>See the <a href="/Examples/01_simple_text_to_text">examples</a> page for more executable examples.</p>
 
 
 
@@ -818,7 +871,7 @@ For example, here's the code needed to build an app that receives an uploaded im
       <div class="md-dialog__inner md-typeset"></div>
     </div>
     
-    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tracking"], "search": "../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
+    <script id="__config" type="application/json">{"base": "..", "features": ["navigation.tracking", "navigation.instant"], "search": "../assets/javascripts/workers/search.74e28a9f.min.js", "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}}</script>
     
     
       <script src="../assets/javascripts/bundle.220ee61c.min.js"></script>
