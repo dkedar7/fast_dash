@@ -302,4 +302,4 @@ We can logically separate function definition and deployment and modify configur
 
 For example, we can bring our own components and layout designs by altering the UI development code, which can be accessed using `app.app.layout`.
 
-In the [next section](components.md), we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.
+[Next](patterns.md), let's see the decision process that goes into building a deployable Fast Dash app and how all these configuration settings allow us to build a variety of apps!

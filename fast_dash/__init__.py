@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.2.6"
+__version__ = "0.2.7"
 
 from fast_dash.Components import (
     Graph,
@@ -18,7 +18,8 @@ from fast_dash.Components import (
     dmc,
     html,
     PIL,
-    Chat
+    Chat,
+    Table
 )
 import dash
 from fast_dash.fast_dash import FastDash, fastdash
@@ -42,5 +43,6 @@ __all__ = [
     "html",
     "dash",
     "PIL",
-    "Chat"
+    "Chat",
+    "Table"
 ]

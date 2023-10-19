@@ -57,7 +57,7 @@ def test_fdco002_hint_is_not_of_type_type(dash_duo):
 
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
-    assert input_component.__doc__ == dbc.Input().__doc__ and not hasattr(
+    assert input_component.__doc__ == dmc.Textarea().__doc__ and not hasattr(
         input_component, "type"
     ), "Hint is text failed"
 
@@ -92,7 +92,7 @@ def test_fdco003_input_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 
@@ -278,10 +278,10 @@ def test_fdco006_input_hint_is_sequence(dash_duo):
     app = FastDash(callback_fn=simple_list)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.MultiSelect().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
-        and input_component.value == ["This", "is", "a", "list", "2.2"]
+        and input_component.value == ["This, is,a,list, 2.2"]
     ), "Default text failed"
 
     # 2. Default is a list (sequence)
@@ -291,10 +291,10 @@ def test_fdco006_input_hint_is_sequence(dash_duo):
     app = FastDash(callback_fn=simple_list)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.MultiSelect().__doc__
         and not hasattr(input_component, "type")
-        and hasattr(input_component, "options")
-        and input_component.options == ["This", "is", "a", "list", "2.2"]
+        and hasattr(input_component, "data")
+        and input_component.data == ["This", "is", "a", "list", "2.2"]
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
     ), "Default list failed"
@@ -308,24 +308,22 @@ def test_fdco006_input_hint_is_sequence(dash_duo):
     app = FastDash(callback_fn=simple_list)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.MultiSelect().__doc__
         and not hasattr(input_component, "type")
-        and hasattr(input_component, "options")
-        and input_component.options == sample_dictionary
+        and hasattr(input_component, "data")
+        and input_component.data == sample_dictionary
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
     ), "Default dictionary failed"
 
     # 4. No default value
-    sample_dictionary = {"This": "is", "a": "dictionary", 5: "Fast", "Dash": [1, 2, 3]}
-
-    def simple_list(l_: list = sample_dictionary):
+    def simple_list(l_: list):
         return l_
 
     app = FastDash(callback_fn=simple_list)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.MultiSelect().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
@@ -393,7 +391,7 @@ def test_fdco009_input_hint_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 
@@ -603,7 +601,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     app = FastDash(callback_fn=simple_unsupported)
     input_component = app.inputs_with_ids[0]
 
-    assert input_component.__doc__ == dbc.Input().__doc__ and not hasattr(
+    assert input_component.__doc__ == dmc.Textarea().__doc__ and not hasattr(
         input_component, "type"
     ), "Default unsupported failed"
 
@@ -614,7 +612,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     app = FastDash(callback_fn=simple_unsupported)
     input_component = app.inputs_with_ids[0]
 
-    assert input_component.__doc__ == dbc.Input().__doc__ and not hasattr(
+    assert input_component.__doc__ == dmc.Textarea().__doc__ and not hasattr(
         input_component, "type"
     ), "Default None failed"
 
@@ -662,7 +660,7 @@ def test_fdco014_output_hint_is_image(dash_duo):
     import requests
     from io import BytesIO
 
-    url = "https://raw.githubusercontent.com/dkedar7/fast_dash/docs/docs/assets/favicon.jpg"
+    url = "https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex1.png"
     response = requests.get(url)
     img = Image.open(BytesIO(response.content))
 
@@ -795,3 +793,32 @@ def test_fdco017_output_is_chat(dash_duo):
             break
 
     assert text_found, "Response text not found in any child element of output-1"
+
+
+def test_fdco018_output_is_pandas(dash_duo):
+    "When the output hint type is a Chat Fast component"
+
+    import pandas as pd
+    def simple_table(dummy_input: int) -> pd.DataFrame:
+        df = pd.DataFrame(data={"Col1": range(100), 
+                                "Col2": [f"C{i}" for i in range(100)],
+                                "Date": pd.date_range(start="2023-01-01", periods=100)})
+        
+        return df
+
+    app = FastDash(callback_fn=simple_table).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Table", timeout=4)
+
+    # Click submit
+    dash_duo.multiple_click("#submit_inputs", 1)
+    time.sleep(4)
+
+    # Ensure the table is present
+    table = dash_duo.find_element("#output-1")
+    assert table is not None
+    
+    # Validate the data (example: check the first cell)
+    first_cell = table.find_element_by_css_selector(".dash-cell div")
+    assert first_cell.text == "0"  # Adjust according to expected content

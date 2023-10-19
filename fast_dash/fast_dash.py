@@ -15,6 +15,7 @@ from .Components import (
     _infer_input_components,
     _infer_output_components,
 )
+
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
@@ -24,7 +25,8 @@ from .utils import (
     _transform_outputs,
     theme_mapper,
     _infer_variable_names,
-    _get_error_notification_component,
+    _parse_docstring_as_markdown,
+    _get_error_notification_component
 )
 
 
@@ -53,6 +55,7 @@ class FastDash:
         twitter_url=None,
         navbar=True,
         footer=True,
+        about=True,
         theme=None,
         update_live=False,
         port=8080,
@@ -65,58 +68,61 @@ class FastDash:
     ):
         """
         Args:
-            callback_fn (func): Python function that Fast Dash deploys.
+            callback_fn (func): Python function that Fast Dash deploys. \
                 This function guides the behavior of and interaction between input and output components.
 
-            layout (str, optional): App layout style. Currently supports 'base' and 'sidebar' (default).
+            layout (str, optional): App layout style. Currently supports 'base' and 'sidebar'. Defaults to sidebar.
 
             mosaic (str): Mosaic array layout, if sidebar layout is selected.
 
-            inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
-                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
+            inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.\
+                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type \
                 hints and default values. In the absence of type hints, default components are all `Text`.
 
-            outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
-                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
+            outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.\
+                Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.\
                 In the absence of type hints, default components are all `Text`.
 
-            output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are
-                set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function
-                signature.
+            output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are\
+                set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function\
+                signature. Defaults to infer.
 
-            title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
-                is converted to title case.
+            title (str, optional): Title given to the app. If `None`, function name (assumed to be in snake case)\
+                is converted to title case. Defaults to None.
 
             title_image_path (str, optional): Path (local or URL) of the app title image. Defaults to None.
 
-            subheader (str, optional): Subheader of the app, displayed below the title image and title. Defaults to None.
-                If `None`, Fast Dash tries to use the callback function's docstring instead.
+            subheader (str, optional): Subheader of the app, displayed below the title image and title\
+                If `None`, Fast Dash tries to use the callback function's docstring instead. Defaults to None.
+                
 
-            github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the
+            github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the\
                 specified URL. Defaults to None.
 
-            linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the
+            linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the\
                 specified URL. Defaults to None.
 
-            twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the
+            twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the\
                 specified URL. Defaults to None.
 
             navbar (bool, optional): Display navbar. Defaults to True.
 
             footer (bool, optional): Display footer. Defaults to True.
 
-            theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
-                at https://bootswatch.com/.
+            about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
+                the docstring of the callback function. If string, content is used directly as markdown. \
+                `About` is hidden if False or None. Defaults to True.
+
+            theme (str, optional): Apply theme to the app.All available themes can be found at https://bootswatch.com/. Defaults to JOURNAL. 
 
             update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.
 
-            port (int, optional): Port to which the app should be deployed. Defauts to 8080.
+            port (int, optional): Port to which the app should be deployed. Defaults to 8080.
 
-            mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
+            mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.\
                 Defaults to None.
 
-            minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer.
-                Defaults to False.
+            minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer. Defaults to False.
 
             disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
 
@@ -169,12 +175,17 @@ class FastDash:
 
         self.title = title
         self.title_image_path = title_image_path
-        self.subtitle = subheader if subheader is not None else callback_fn.__doc__
+        self.subtitle = (
+            subheader
+            if subheader is not None
+            else _parse_docstring_as_markdown(callback_fn, title=self.title, get_short=True)
+        )
         self.github_url = github_url
         self.linkedin_url = linkedin_url
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
@@ -207,16 +218,16 @@ class FastDash:
         ]
 
         source = dash.Dash
-        if self.mode is not None:
-            try:
-                from jupyter_dash import JupyterDash
+        # if self.mode is not None:
+        #     try:
+        #         from jupyter_dash import JupyterDash
 
-                source = JupyterDash
+        #         source = JupyterDash
 
-            except ImportError as e:
-                self.mode = None
-                warnings.warn(str(e))
-                warnings.warn("Ignoring mode argument")
+        #     except ImportError as e:
+        #         self.mode = None
+        #         warnings.warn(str(e))
+        #         warnings.warn("Ignoring mode argument")
 
         self.app = source(
             __name__,
@@ -242,17 +253,17 @@ class FastDash:
         self.server = self.app.server
 
     def run(self):
-        self.server.run(
+        self.app.run(
             **self.run_kwargs
         ) if self.mode is None else self.app.run_server(
-            mode=self.mode, **self.run_kwargs
+            jupyter_mode=self.mode, **self.run_kwargs
         )
 
     def run_server(self):
         self.app.run_server(
             **self.run_kwargs
         ) if self.mode is None else self.app.run_server(
-            mode=self.mode, **self.run_kwargs
+            jupyter_mode=self.mode, **self.run_kwargs
         )
 
     def set_layout(self):
@@ -274,6 +285,7 @@ class FastDash:
             "twitter_url": self.twitter_url,
             "navbar": self.navbar,
             "footer": self.footer,
+            "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
             "app": self,
@@ -382,7 +394,7 @@ class FastDash:
 
         # Set layout callbacks
         if not self.minimal:
-            self.layout_object.callbacks(self.app)
+            self.layout_object.callbacks(self)
 
 
 def fastdash(
@@ -401,6 +413,7 @@ def fastdash(
     twitter_url=None,
     navbar=True,
     footer=True,
+    about=True,
     theme=None,
     update_live=False,
     port=8080,
@@ -412,66 +425,71 @@ def fastdash(
     **kwargs
 ):
     """
+    Function decorator / wrapper for Fast Dash.
+
     Args:
-        callback_fn (func): Python function that Fast Dash deploys.
+        callback_fn (func): Python function that Fast Dash deploys. \
             This function guides the behavior of and interaction between input and output components.
 
-        layout (str, optional): App layout style. Currently supports 'base' and 'sidebar' (default).
+        layout (str, optional): App layout style. Currently supports 'base' and 'sidebar'. Defaults to sidebar.
 
         mosaic (str): Mosaic array layout, if sidebar layout is selected.
 
-        inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.
-            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type
+        inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.\
+            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type \
             hints and default values. In the absence of type hints, default components are all `Text`.
 
-        outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.
-            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.
+        outputs (Fast component, list of Fast components, optional): Components to represent outputs of the callback function.\
+            Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type hints.\
             In the absence of type hints, default components are all `Text`.
 
-        output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are
-            set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function
-            signature.
+        output_labels(list of string labels or "infer" or None, optional): Labels given to the output components. If None, inputs are\
+            set labeled integers starting at 1 (Output 1, Output 2, and so on). If "infer", labels are inferred from the function\
+            signature. Defaults to infer.
 
-        title (str, optional): Title given to the app. Defaults to None. If `None`, function name (assumed to be in snake case)
-            is converted to title case.
+        title (str, optional): Title given to the app. If `None`, function name (assumed to be in snake case)\
+            is converted to title case. Defaults to None.
 
         title_image_path (str, optional): Path (local or URL) of the app title image. Defaults to None.
 
-        subheader (str, optional): Subheader of the app, displayed below the title image and title. Defaults to None.
-            If `None`, Fast Dash tries to use the callback function's docstring instead.
+        subheader (str, optional): Subheader of the app, displayed below the title image and title\
+            If `None`, Fast Dash tries to use the callback function's docstring instead. Defaults to None.
+            
 
-        github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the
+        github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the\
             specified URL. Defaults to None.
 
-        linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the
+        linkedin_url (str, optional): LinkedIn URL for branding Displays a LinkedIn logo in the navbar, which takes users to the\
             specified URL. Defaults to None.
 
-        twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the
+        twitter_url (str, optional): Twitter URL for branding. Displays a Twitter logo in the navbar, which takes users to the\
             specified URL. Defaults to None.
 
         navbar (bool, optional): Display navbar. Defaults to True.
 
         footer (bool, optional): Display footer. Defaults to True.
 
-        theme (str, optional): Apply theme to the app. Defaults to "JOURNAL". All available themes can be found
-            at https://bootswatch.com/.
+        about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
+            the docstring of the callback function. If string, content is used directly as markdown. \
+            `About` is hidden if False or None. Defaults to True.
 
-        update_live (bool, optional): Enable hot reloading. Defaults to False.
+        theme (str, optional): Apply theme to the app.All available themes can be found at https://bootswatch.com/. Defaults to JOURNAL. 
 
-        port (int, optional): Port to which the app should be deployed. Defauts to 8080.
+        update_live (bool, optional): Enable hot reloading. If the number of inputs is 0, this is set to True automatically. Defaults to False.
 
-        mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.
+        port (int, optional): Port to which the app should be deployed. Defaults to 8080.
+
+        mode (str, optional): Mode in which to launch the app. Acceptable options are `None`, `jupyterlab`, `inline`, 'external`.\
             Defaults to None.
 
-        minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer.
-            Defaults to False.
+        minimal (bool, optional): Display minimal version by hiding navbar, title, title image, subheader and footer. Defaults to False.
 
         disable_logs (bool, optional): Hide app logs. Sets logger level to `ERROR`. Defaults to False.
 
         scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
 
         run_kwargs (dict, optional): All values from this variable are passed to Dash's `.run` method.
-    """
+        """
 
     def decorator_fastdash(callback_fn):
         "Decorator for callback_fn"
@@ -496,6 +514,7 @@ def fastdash(
             twitter_url=twitter_url,
             navbar=navbar,
             footer=footer,
+            about=about,
             theme=theme,
             update_live=update_live,
             mode=mode,

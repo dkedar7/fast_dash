@@ -2,7 +2,7 @@
 
 ## Install Fast Dash
 
-Let's start by installing Fast Dash. Do that by running:
+Let's start by installing Fast Dash:
 ```
 pip install fast-dash
 ```
@@ -22,28 +22,52 @@ def text_to_text_function(input_text):
 This should spin up your first Fast Dash app!
 
 <figure markdown>
-  ![Simple example](https://storage.googleapis.com/fast_dash/0.1.7/simple_example.gif)
+  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20text%20to%20text.png)
   <figcaption>Simple example app</figcaption>
+</figure>
+
+## Chatbot example
+
+Fast Dash also offers many in-built components to make development easier. 
+These can be used as data type hints.
+Here's a dummy chatbot example.
+
+```py linenums="1"
+from fast_dash import fastdash, Chat
+
+@fastdash(theme="sketchy")
+def virtual_assistant(query: str) -> Chat:
+    response = "I am Groot."
+    chat = dict(query=query, response=response)
+    return chat
+```
+
+<figure markdown>
+  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20chatbot%20example.png)
+  <figcaption>Simple chatbot app</figcaption>
 </figure>
 
 
 ## Image to image example
 
 Fast Dash makes it very easy to work with different types of data types and components. 
-For example, here's the code needed to build an app that receives an uploaded image and returns the same image.
+For example, here's how to build an app that receives an uploaded image and returns the same image.
+We can, of course, write any image analysis transformation we want.
 
 ```py linenums="1"
-from fast_dash import fastdash, UploadImage, Image
+from fast_dash import fastdash
+from PIL import Image
 
 @fastdash
-def image_to_image(image: UploadImage) -> Image:
+def image_to_image(image: Image.Image) -> Image.Image:
+    "Example of an image to image app with Fast Dash"
     return image
 ```
 
 This is how the deployed app looks:
 
 <figure markdown>
-  ![Simple example](https://storage.googleapis.com/fast_dash/0.1.7/simple_image_to_image.gif)
+  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/image_to_image_example.png)
   <figcaption>Simple image to image example app</figcaption>
 </figure>
 
@@ -59,10 +83,8 @@ There are many customizations that you can make with your app. These include:
 * Minimal view
 * JupyterLab inline and embedded views
 
-By tweaking these configurations, you can easily build web applications for a variety of use cases! Here're a selected few:
+By tweaking these configurations, you can easily build web applications for a variety of use cases!
 
-<figure markdown>
-  ![Fast Dash gallery](https://storage.googleapis.com/fast_dash/0.1.7/gallery_4_apps.gif)
-  <figcaption>Fast Dash example gallery</figcaption>
-</figure>
+## Examples
 
+See the [examples](/Examples/01_simple_text_to_text) page for more executable examples.
