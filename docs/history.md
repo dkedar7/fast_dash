@@ -10,6 +10,11 @@
 - "About" button displays the function docstring in parse markdown. New utility function to extract function docstring has been incorporated for this feature. This is, however, still experimental.
 - Documentation upates, new "Usage Patterns" page.
 - New tests.
+- Fast Dash now supports Python 3.11.
+
+### Deprecations
+
+- Support for Python 3.7 has been deprecated.
 
 ## 0.2.6 (2023-09-04)
 
