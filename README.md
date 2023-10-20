@@ -7,26 +7,31 @@
 
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
-    <img src="https://img.shields.io/pypi/v/fast_dash?color=%2334D058"
+    <img src="https://img.shields.io/pypi/v/fast_dash?labelColor=black&color=%2334D058"
         alt = "Release Status">
 </a>
 
 <a href="https://github.com/dkedar7/fast_dash/actions">
-    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg" alt="CI Status">
+    <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg?labelColor=black" alt="CI Status">
 </a>
 
 
 <a href="https://github.com/dkedar7/fast_dash/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/dkedar7/fast_dash" alt="MIT License">
+    <img src="https://img.shields.io/github/license/dkedar7/fast_dash?labelColor=black&color=%2334D058" alt="MIT License">
 </a>
 
 <a href="https://docs.fastdash.app/">
-    <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg" alt="Documentation">
+    <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg?labelColor=black&color=%2334D058" alt="Documentation">
 </a>
 
 <a href="https://pepy.tech/project/fast-dash">
-    <img src="https://static.pepy.tech/personalized-badge/fast-dash?period=total&units=international_system&left_color=grey&right_color=brightgreen&left_text=Downloads" alt="Downloads">
+    <img src="https://static.pepy.tech/personalized-badge/fast-dash?period=total&units=international_system&left_color=black&right_color=brightgreen&left_text=Downloads" alt="Downloads">
 </a>
+
+<a href="https://codecov.io/gh/dkedar7/fast_dash" > 
+ <img src="https://codecov.io/gh/dkedar7/fast_dash/graph/badge.svg?token=9QJvbeQ1g8"/> 
+ </a>
+
 
 </p>
 
@@ -56,7 +61,7 @@ def text_to_text_function(input_text):
 # * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
 
-And just like that (🪄), we have a completely functional interactive app!
+And just like that, we have a completely functional interactive app!
 
 Output:
 ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20text%20to%20text.png)
@@ -131,12 +136,3 @@ Read different ways to build Fast Dash apps and additional details by navigating
 ## Community
 
 Fast Dash is built using [Plotly Dash](https://github.com/plotly/dash) and it's completely open-source.
-
-## Citation
-Please cite Fast Dash if you use it in your work.
-```
-@software{Kedar_Dabhadkar_Fast_Dash,
-author = {Kedar Dabhadkar},
-title = {{Fast Dash}}
-}
-```
