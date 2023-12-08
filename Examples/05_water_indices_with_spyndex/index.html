@@ -12,20 +12,16 @@
         <meta name="author" content="Kedar Dabhadkar">
       
       
-        <link rel="canonical" href="https://docs.fastdash.app/Examples/01_simple_text_to_text/">
+        <link rel="canonical" href="https://docs.fastdash.app/Examples/05_water_indices_with_spyndex/">
       
       
-        <link rel="prev" href="../../User%20guide/deployment/">
-      
-      
-        <link rel="next" href="../02_translate_to_multiple_languages/">
       
       <link rel="icon" href="../../assets/favicon.ico">
       <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
     
     
       
-        <title>1. Simple text to text - Fast Dash</title>
+        <title>05 water indices with spyndex - Fast Dash</title>
       
     
     
@@ -113,6 +109,11 @@
     <label class="md-overlay" for="__drawer"></label>
     <div data-md-component="skip">
       
+        
+        <a href="#read-gaul-data-values" class="md-skip">
+          Skip to content
+        </a>
+      
     </div>
     <div data-md-component="announce">
       
@@ -143,7 +144,7 @@
         <div class="md-header__topic" data-md-component="header-topic">
           <span class="md-ellipsis">
             
-              1. Simple text to text
+              05 water indices with spyndex
             
           </span>
         </div>
@@ -386,16 +387,14 @@
 
   
   
-    
-  
   
     
-    <li class="md-nav__item md-nav__item--active md-nav__item--nested">
+    <li class="md-nav__item md-nav__item--nested">
       
       
       
       
-      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" checked>
+      <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_5" >
       
       
       
@@ -404,7 +403,7 @@
           <span class="md-nav__icon md-icon"></span>
         </label>
       
-      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="true">
+      <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_5_label" aria-expanded="false">
         <label class="md-nav__title" for="__nav_5">
           <span class="md-nav__icon md-icon"></span>
           Examples
@@ -415,19 +414,11 @@
               
   
   
-    
   
-  
-    <li class="md-nav__item md-nav__item--active">
-      
-      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
-      
-      
-      
-      <a href="./" class="md-nav__link md-nav__link--active">
+    <li class="md-nav__item">
+      <a href="../01_simple_text_to_text/" class="md-nav__link">
         1. Simple text to text
       </a>
-      
     </li>
   
 
@@ -559,6 +550,49 @@
   
   
   
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#read-gaul-data-values" class="md-nav__link">
+    Read GAUL data values
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#get-a-list-of-water-indices" class="md-nav__link">
+    Get a list of water indices
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#define-utility-functions" class="md-nav__link">
+    Define utility functions
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#define-the-main-function-and-build-fast-dash-app" class="md-nav__link">
+    Define the main function and build Fast Dash app
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#additional-app-functionality" class="md-nav__link">
+    Additional app functionality
+  </a>
+  
+</li>
+      
+    </ul>
+  
 </nav>
                   </div>
                 </div>
@@ -575,7 +609,7 @@
   
 
 
-  <h1>1. Simple text to text</h1>
+  <h1>05 water indices with spyndex</h1>
 
 <script>
 (function (global, factory) {
@@ -978,18 +1012,18 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </style>
 <!-- End of mermaid configuration --><div class="jupyter-wrapper">
 <div class="jp-Notebook" data-jp-theme-light="true" data-jp-theme-name="JupyterLab Light">
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=1cb94cfb">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=794fcd92-449c-4b5d-b487-7cdf426f25b4">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
 </div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
-<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/release/docs/Examples/01_simple_text_to_text.ipynb"><img alt="Open in colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
+<p><a href="https://githubtocolab.com/dkedar7/fast_dash/blob/docs/docs/Examples/05_water_indices_with_spyndex.ipynb"><img alt="Open in colab" src="https://colab.research.google.com/assets/colab-badge.svg"/></a></p>
 </div>
 </div>
 </div>
 </div>
-<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=ce363e40">
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bb2d08be-12f0-4e6e-9f45-78c7cad7cfc6">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
@@ -1000,12 +1034,12 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </div>
 </div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=15601ea1">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=a21ca98d-fddc-4014-8747-a7bd56f20e10">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="CodeMirror cm-s-jupyter">
 <div class="zeroclipboard-container">
 <clipboard-copy for="cell-1">
@@ -1018,21 +1052,21 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="c1"># !pip install fast-dash jupyter_dash</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="ch">#!pip install geemap spyndex fast-dash</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-1"># !pip install fast-dash jupyter_dash</div>
+<div class="clipboard-copy-txt" id="cell-1">#!pip install geemap spyndex fast-dash</div>
 </div>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=512fe61d-7889-4c5b-90bc-c7284e87f28f">
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=11f0a8f5-aee3-4415-a204-ca47a427be72">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [2]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="CodeMirror cm-s-jupyter">
 <div class="zeroclipboard-container">
 <clipboard-copy for="cell-2">
@@ -1045,21 +1079,76 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="kn">import</span> <span class="nn">ee</span>
+<span class="kn">import</span> <span class="nn">geemap.foliumap</span> <span class="k">as</span> <span class="nn">geemap</span>
+<span class="kn">import</span> <span class="nn">spyndex</span>
+
+<span class="kn">import</span> <span class="nn">datetime</span>
+<span class="kn">import</span> <span class="nn">pandas</span> <span class="k">as</span> <span class="nn">pd</span>
+<span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">FastDash</span><span class="p">,</span> <span class="n">Fastify</span><span class="p">,</span> <span class="n">html</span><span class="p">,</span> <span class="n">dbc</span><span class="p">,</span> <span class="n">dmc</span><span class="p">,</span> <span class="n">dash</span>
+
+<span class="n">ee</span><span class="o">.</span><span class="n">Authenticate</span><span class="p">()</span>
+<span class="n">ee</span><span class="o">.</span><span class="n">Initialize</span><span class="p">()</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-2">from fast_dash import fastdash</div>
+<div class="clipboard-copy-txt" id="cell-2">import ee
+import geemap.foliumap as geemap
+import spyndex
+
+import datetime
+import pandas as pd
+from fast_dash import FastDash, Fastify, html, dbc, dmc, dash
+
+ee.Authenticate()
+ee.Initialize()</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<p>To authorize access needed by Earth Engine, open the following
+        URL in a web browser and follow the instructions:</p>
+<p><a href="https://code.earthengine.google.com/client-auth?scopes=https%3A//www.googleapis.com/auth/earthengine%20https%3A//www.googleapis.com/auth/devstorage.full_control&amp;request_id=pa05brthZIee-FVgrLV1S_eQtbaGJxfnH3muHhGEA-g&amp;tc=E9voMKKJWeUMSe_ngcqUELlee5bvfO8NiMfme1sK0Tw&amp;cc=2IK3QkFWdC3s3gAdMBxLzdPparEDlqQUpto-CzQgPAo">https://code.earthengine.google.com/client-auth?scopes=https%3A//www.googleapis.com/auth/earthengine%20https%3A//www.googleapis.com/auth/devstorage.full_control&amp;request_id=pa05brthZIee-FVgrLV1S_eQtbaGJxfnH3muHhGEA-g&amp;tc=E9voMKKJWeUMSe_ngcqUELlee5bvfO8NiMfme1sK0Tw&amp;cc=2IK3QkFWdC3s3gAdMBxLzdPparEDlqQUpto-CzQgPAo</a></p>
+<p>The authorization workflow will generate a code, which you should paste in the box below.</p>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>
+Successfully saved authorization token.
+</pre>
 </div>
 </div>
 </div>
 </div>
 </div>
-</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs">
-<div class="jp-Cell jp-CodeCell jp-Notebook-cell jp-mod-noOutputs" id="cell-id=e6b45553-4509-4662-b6bc-248779bd554e">
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=754e7ad2-168c-403b-a283-463539b33a71">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="read-gaul-data-values">Read GAUL data values<a class="anchor-link" href="#read-gaul-data-values">¶</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=356d4411-c48d-4534-97e5-f066f72c9bf7">
 <div class="jp-Cell-inputWrapper" tabindex="0">
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [1]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [3]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="CodeMirror cm-s-jupyter">
 <div class="zeroclipboard-container">
 <clipboard-copy for="cell-3">
@@ -1072,13 +1161,1121 @@ span.linenos.special { color: #000000; background-color: #ffffc0; padding-left: 
 </div>
 </clipboard-copy>
 </div>
-<div class="highlight-ipynb hl-python"><pre><span></span><span class="nd">@fastdash</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">'inline'</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">5000</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">text_to_text_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
-    <span class="k">return</span> <span class="n">input_text</span>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">data</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">read_csv</span><span class="p">(</span><span class="s2">"assets/gaul_data.csv"</span><span class="p">)</span>
 </pre></div>
-<div class="clipboard-copy-txt" id="cell-3">@fastdash(mode='inline', port=5000)
-def text_to_text_function(input_text):
-    return input_text</div>
+<div class="clipboard-copy-txt" id="cell-3">data = pd.read_csv("assets/gaul_data.csv")</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=ab7259e0-31f7-4839-937e-cd3f449430fe">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-4">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">data</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-4">data.head()</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+<div class="jp-OutputArea-child jp-OutputArea-executeResult">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[4]:</div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html" tabindex="0">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>ADM0_NAME</th>
+<th>ADM1_NAME</th>
+<th>ADM2_NAME</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>0</th>
+<td>United Republic of Tanzania</td>
+<td>Arusha</td>
+<td>Karatu</td>
+</tr>
+<tr>
+<th>1</th>
+<td>United Republic of Tanzania</td>
+<td>Iringa</td>
+<td>Iringa Rural</td>
+</tr>
+<tr>
+<th>2</th>
+<td>United Republic of Tanzania</td>
+<td>Iringa</td>
+<td>Kilolo</td>
+</tr>
+<tr>
+<th>3</th>
+<td>United Republic of Tanzania</td>
+<td>Manyara</td>
+<td>Mbulu</td>
+</tr>
+<tr>
+<th>4</th>
+<td>United Republic of Tanzania</td>
+<td>Pwani</td>
+<td>Kisarawe</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bcbb11e9-9d02-4781-a088-68bb0fa9184d">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="get-a-list-of-water-indices">Get a list of water indices<a class="anchor-link" href="#get-a-list-of-water-indices">¶</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=051f3fd4-ed99-4d2c-8d40-814cdb2e26cc">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [5]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-5">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">columns</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"application_domain"</span><span class="p">,</span> <span class="s2">"contributor"</span><span class="p">,</span> <span class="s2">"date_of_addition"</span><span class="p">,</span> <span class="s2">"long_name"</span><span class="p">,</span> <span class="s2">"platforms"</span><span class="p">,</span> <span class="s2">"reference"</span><span class="p">,</span> <span class="s2">"short_name"</span><span class="p">]</span>
+<span class="n">track_index</span> <span class="o">=</span> <span class="p">[]</span>
+
+<span class="k">for</span> <span class="n">index</span> <span class="ow">in</span> <span class="n">spyndex</span><span class="o">.</span><span class="n">indices</span><span class="o">.</span><span class="n">keys</span><span class="p">():</span>
+    <span class="n">i</span> <span class="o">=</span> <span class="n">spyndex</span><span class="o">.</span><span class="n">indices</span><span class="p">[</span><span class="n">index</span><span class="p">]</span>
+    <span class="n">track_index</span><span class="o">.</span><span class="n">append</span><span class="p">([</span><span class="n">i</span><span class="o">.</span><span class="n">application_domain</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">contributor</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">date_of_addition</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">long_name</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">platforms</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">reference</span><span class="p">,</span>
+                        <span class="n">i</span><span class="o">.</span><span class="n">short_name</span><span class="p">])</span>
+                        
+<span class="n">index_df</span> <span class="o">=</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">(</span><span class="n">track_index</span><span class="p">,</span> <span class="n">columns</span><span class="o">=</span><span class="n">columns</span><span class="p">)</span>
+
+<span class="n">water_indices</span> <span class="o">=</span> <span class="n">index_df</span><span class="p">[(</span><span class="n">index_df</span><span class="o">.</span><span class="n">application_domain</span> <span class="o">==</span> <span class="s2">"water"</span><span class="p">)</span> <span class="o">&amp;</span> 
+                    <span class="p">(</span><span class="n">index_df</span><span class="o">.</span><span class="n">platforms</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">x</span><span class="p">:</span> <span class="s2">"Landsat-OLI"</span> <span class="ow">in</span> <span class="n">x</span><span class="p">))]</span>
+
+<span class="c1"># Add label column</span>
+<span class="n">water_indices</span><span class="p">[</span><span class="s2">"label"</span><span class="p">]</span> <span class="o">=</span> <span class="n">water_indices</span><span class="o">.</span><span class="n">apply</span><span class="p">(</span><span class="k">lambda</span> <span class="n">row</span><span class="p">:</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">short_name</span><span class="si">}</span><span class="s2"> (</span><span class="si">{</span><span class="n">row</span><span class="o">.</span><span class="n">long_name</span><span class="si">}</span><span class="s2">)"</span><span class="p">,</span> <span class="n">axis</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-5">columns = ["application_domain", "contributor", "date_of_addition", "long_name", "platforms", "reference", "short_name"]
+track_index = []
+
+for index in spyndex.indices.keys():
+    i = spyndex.indices[index]
+    track_index.append([i.application_domain,
+                        i.contributor,
+                        i.date_of_addition,
+                        i.long_name,
+                        i.platforms,
+                        i.reference,
+                        i.short_name])
+                        
+index_df = pd.DataFrame(track_index, columns=columns)
+
+water_indices = index_df[(index_df.application_domain == "water") &amp; 
+                    (index_df.platforms.apply(lambda x: "Landsat-OLI" in x))]
+
+# Add label column
+water_indices["label"] = water_indices.apply(lambda row: f"{row.short_name} ({row.long_name})", axis=1)</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>/tmp/ipykernel_368/3195300281.py:20: SettingWithCopyWarning:
+
+
+A value is trying to be set on a copy of a slice from a DataFrame.
+Try using .loc[row_indexer,col_indexer] = value instead
+
+See the caveats in the documentation: https://pandas.pydata.org/pandas-docs/stable/user_guide/indexing.html#returning-a-view-versus-a-copy
+
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=158f1535-9f27-48ff-b1a1-2b16c30416db">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [6]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-6">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">water_indices</span><span class="o">.</span><span class="n">head</span><span class="p">()</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-6">water_indices.head()</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+<div class="jp-OutputArea-child jp-OutputArea-executeResult">
+<div class="jp-OutputPrompt jp-OutputArea-prompt">Out[6]:</div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output jp-OutputArea-executeResult" data-mime-type="text/html" tabindex="0">
+<div>
+<style scoped="">
+    .dataframe tbody tr th:only-of-type {
+        vertical-align: middle;
+    }
+
+    .dataframe tbody tr th {
+        vertical-align: top;
+    }
+
+    .dataframe thead th {
+        text-align: right;
+    }
+</style>
+<table border="1" class="dataframe">
+<thead>
+<tr style="text-align: right;">
+<th></th>
+<th>application_domain</th>
+<th>contributor</th>
+<th>date_of_addition</th>
+<th>long_name</th>
+<th>platforms</th>
+<th>reference</th>
+<th>short_name</th>
+<th>label</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<th>2</th>
+<td>water</td>
+<td>https://github.com/davemlz</td>
+<td>2022-09-22</td>
+<td>Augmented Normalized Difference Water Index</td>
+<td>[Sentinel-2, Landsat-OLI, Landsat-TM, Landsat-...</td>
+<td>https://doi.org/10.1016/j.envsoft.2021.105030</td>
+<td>ANDWI</td>
+<td>ANDWI (Augmented Normalized Difference Water I...</td>
+</tr>
+<tr>
+<th>8</th>
+<td>water</td>
+<td>https://github.com/davemlz</td>
+<td>2021-09-18</td>
+<td>Automated Water Extraction Index</td>
+<td>[Sentinel-2, Landsat-OLI, Landsat-TM, Landsat-...</td>
+<td>https://doi.org/10.1016/j.rse.2013.08.029</td>
+<td>AWEInsh</td>
+<td>AWEInsh (Automated Water Extraction Index)</td>
+</tr>
+<tr>
+<th>9</th>
+<td>water</td>
+<td>https://github.com/davemlz</td>
+<td>2021-09-18</td>
+<td>Automated Water Extraction Index with Shadows ...</td>
+<td>[Sentinel-2, Landsat-OLI, Landsat-TM, Landsat-...</td>
+<td>https://doi.org/10.1016/j.rse.2013.08.029</td>
+<td>AWEIsh</td>
+<td>AWEIsh (Automated Water Extraction Index with ...</td>
+</tr>
+<tr>
+<th>69</th>
+<td>water</td>
+<td>https://github.com/davemlz</td>
+<td>2022-04-20</td>
+<td>Land Surface Water Index</td>
+<td>[Sentinel-2, Landsat-OLI, Landsat-TM, Landsat-...</td>
+<td>https://doi.org/10.1016/j.rse.2003.11.008</td>
+<td>LSWI</td>
+<td>LSWI (Land Surface Water Index)</td>
+</tr>
+<tr>
+<th>71</th>
+<td>water</td>
+<td>https://github.com/davemlz</td>
+<td>2022-01-17</td>
+<td>Multi-Band Water Index</td>
+<td>[Sentinel-2, Landsat-OLI, Landsat-TM, Landsat-...</td>
+<td>https://doi.org/10.1016/j.jag.2018.01.018</td>
+<td>MBWI</td>
+<td>MBWI (Multi-Band Water Index)</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=6823fb04-2754-4904-8e21-49b1b9268afd">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="define-utility-functions">Define utility functions<a class="anchor-link" href="#define-utility-functions">¶</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=edc21a99-a8df-443f-99e2-f5e115b998b3">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [7]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-7">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="k">def</span> <span class="nf">get_index_function</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="n">image_collection</span><span class="p">):</span>
+    <span class="c1"># Get the index function from Spyndex.</span>
+    <span class="k">return</span> <span class="n">spyndex</span><span class="o">.</span><span class="n">computeIndex</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">index_name</span><span class="p">,</span>
+                     <span class="n">params</span><span class="o">=</span><span class="p">{</span><span class="s2">"B"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B2"</span><span class="p">),</span>
+                            <span class="s2">"G"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B3"</span><span class="p">),</span>
+                            <span class="s2">"R"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B4"</span><span class="p">),</span>
+                            <span class="s2">"N"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B5"</span><span class="p">),</span>
+                            <span class="s2">"S1"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B6"</span><span class="p">),</span>
+                            <span class="s2">"S2"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B7"</span><span class="p">),</span>
+                            <span class="s2">"T1"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B10"</span><span class="p">),</span>
+                            <span class="s2">"T2"</span><span class="p">:</span> <span class="n">image_collection</span><span class="o">.</span><span class="n">select</span><span class="p">(</span><span class="s2">"B11"</span><span class="p">),</span>
+                            <span class="s2">"gamma"</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+                            <span class="s2">"alpha"</span><span class="p">:</span> <span class="mi">1</span><span class="p">})</span>
+
+<span class="k">def</span> <span class="nf">calculate_mean_index</span><span class="p">(</span><span class="n">image</span><span class="p">,</span> <span class="n">region</span><span class="p">):</span>
+    <span class="n">mean_value</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">reduceRegion</span><span class="p">(</span>
+        <span class="n">reducer</span><span class="o">=</span><span class="n">ee</span><span class="o">.</span><span class="n">Reducer</span><span class="o">.</span><span class="n">mean</span><span class="p">(),</span>
+        <span class="n">geometry</span><span class="o">=</span><span class="n">region</span><span class="p">,</span>
+        <span class="n">scale</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span>  <span class="c1"># Adjust the scale according to your dataset and accuracy requirements</span>
+        <span class="n">maxPixels</span><span class="o">=</span><span class="mf">1e9</span>
+    <span class="p">)</span>
+    <span class="k">return</span> <span class="n">mean_value</span><span class="o">.</span><span class="n">getInfo</span><span class="p">()</span>
+
+<span class="c1"># Define a color palette manually.</span>
+<span class="n">palette</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="s1">'000033'</span><span class="p">,</span>  <span class="c1"># Very dark blue</span>
+    <span class="s1">'000066'</span><span class="p">,</span>  <span class="c1"># Dark blue</span>
+    <span class="s1">'000099'</span><span class="p">,</span>  <span class="c1"># Medium dark blue</span>
+    <span class="s1">'0000CC'</span><span class="p">,</span>  <span class="c1"># Moderate blue</span>
+    <span class="s1">'0000FF'</span><span class="p">,</span>  <span class="c1"># Blue</span>
+    <span class="s1">'3399FF'</span><span class="p">,</span>  <span class="c1"># Lighter blue</span>
+    <span class="s1">'66CCFF'</span><span class="p">,</span>  <span class="c1"># Light blue</span>
+    <span class="s1">'99CCFF'</span><span class="p">,</span>  <span class="c1"># Very light blue</span>
+    <span class="s1">'CCE6FF'</span>   <span class="c1"># Extremely light blue</span>
+<span class="p">]</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-7">def get_index_function(index_name, image_collection):
+    # Get the index function from Spyndex.
+    return spyndex.computeIndex(index=index_name,
+                     params={"B": image_collection.select("B2"),
+                            "G": image_collection.select("B3"),
+                            "R": image_collection.select("B4"),
+                            "N": image_collection.select("B5"),
+                            "S1": image_collection.select("B6"),
+                            "S2": image_collection.select("B7"),
+                            "T1": image_collection.select("B10"),
+                            "T2": image_collection.select("B11"),
+                            "gamma": 1,
+                            "alpha": 1})
+
+def calculate_mean_index(image, region):
+    mean_value = image.reduceRegion(
+        reducer=ee.Reducer.mean(),
+        geometry=region,
+        scale=30,  # Adjust the scale according to your dataset and accuracy requirements
+        maxPixels=1e9
+    )
+    return mean_value.getInfo()
+
+# Define a color palette manually.
+palette = [
+    '000033',  # Very dark blue
+    '000066',  # Dark blue
+    '000099',  # Medium dark blue
+    '0000CC',  # Moderate blue
+    '0000FF',  # Blue
+    '3399FF',  # Lighter blue
+    '66CCFF',  # Light blue
+    '99CCFF',  # Very light blue
+    'CCE6FF'   # Extremely light blue
+]</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=09b397c3-ed57-4bd0-8442-449e67a9f650">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="define-the-main-function-and-build-fast-dash-app">Define the main function and build Fast Dash app<a class="anchor-link" href="#define-the-main-function-and-build-fast-dash-app">¶</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=0082e7ff-b3e0-4f19-888e-a00334588222">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [8]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-8">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">country_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Select</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">data</span><span class="o">.</span><span class="n">ADM0_NAME</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span> 
+                               <span class="n">value</span><span class="o">=</span><span class="s2">"United States of America"</span><span class="p">,</span>
+                               <span class="n">label</span><span class="o">=</span><span class="s2">"Country of interest"</span><span class="p">,</span>
+                               <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">state_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Select</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">"State, provience or an equivalent administrative unit"</span><span class="p">,</span>
+                             <span class="n">value</span><span class="o">=</span><span class="s2">"New York"</span><span class="p">,</span>
+                             <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">county_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Select</span><span class="p">(</span><span class="n">label</span><span class="o">=</span><span class="s2">"County, district or an equivalent administrative unit"</span><span class="p">,</span>
+                              <span class="n">value</span><span class="o">=</span><span class="s2">"Albany"</span><span class="p">,</span>
+                             <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">index_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Select</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">water_indices</span><span class="o">.</span><span class="n">label</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">(),</span>
+                             <span class="n">value</span><span class="o">=</span><span class="s2">"NDVIMNDWI (NDVI-MNDWI Model)"</span><span class="p">,</span>
+                             <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                             <span class="n">clearable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+<span class="n">map_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">html</span><span class="o">.</span><span class="n">Iframe</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="s2">"100%"</span><span class="p">),</span> <span class="s2">"srcdoc"</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="s2">"aijgdi"</span><span class="p">)</span>
+
+<span class="c1"># Define a function that takes start_date, end_date, country, city, and index as arguments.</span>
+<span class="k">def</span> <span class="nf">water_spectral_indices</span><span class="p">(</span><span class="n">country</span><span class="p">:</span> <span class="n">country_component</span><span class="p">,</span>
+                        <span class="n">state_or_province</span><span class="p">:</span> <span class="n">state_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">county_or_district</span><span class="p">:</span> <span class="n">county_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">water_index</span><span class="p">:</span> <span class="n">index_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
+                        <span class="n">minimum_index_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
+                        <span class="n">maximum_index_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">map_component</span><span class="p">:</span>
+<span class="w">    </span>
+<span class="w">    </span><span class="sd">"""</span>
+<span class="sd">    Visualize the selected water spectral index. Select your geography from the inputs to get started. Map on the left displays the median index value \</span>
+<span class="sd">    for the years 2013 - 2015 and the map on the right displays median values for the years 2021-2023. Compare the two maps to understand how these values \</span>
+<span class="sd">    changed over the years.</span>
+<span class="sd">    </span>
+<span class="sd">    Learn more about the Spyndex Python library that enables this dynamic index computation [here](https://github.com/awesome-spectral-indices/spyndex).</span>
+<span class="sd">    </span>
+<span class="sd">    :param country: The country of interest.</span>
+<span class="sd">    :type country: str</span>
+<span class="sd">    </span>
+<span class="sd">    :param state_or_province: State, provience or an equivalent administrative unit.</span>
+<span class="sd">    :type state_or_province: str</span>
+<span class="sd">    </span>
+<span class="sd">    :param county_or_district: County, district or an equivalent administrative unit.</span>
+<span class="sd">    :type county_or_district: str</span>
+<span class="sd">    </span>
+<span class="sd">    :param water_index: Name of the water index.</span>
+<span class="sd">    :type water_index: str</span>
+<span class="sd">    </span>
+<span class="sd">    :return: HTML of the leafmap object.</span>
+<span class="sd">    :rtype: str</span>
+<span class="sd">    """</span>
+    
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">state_or_province</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">"Please select a state"</span><span class="p">)</span>
+        
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">county_or_district</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">Exception</span><span class="p">(</span><span class="s2">"Please select a county"</span><span class="p">)</span>
+    
+    <span class="c1"># Load the Global Administrative Unit Layers (GAUL) dataset, which includes administrative boundaries.</span>
+    <span class="n">admin_boundaries</span> <span class="o">=</span> <span class="n">ee</span><span class="o">.</span><span class="n">FeatureCollection</span><span class="p">(</span><span class="s1">'FAO/GAUL/2015/level2'</span><span class="p">)</span>
+
+    <span class="c1"># Filter the GAUL dataset for the specified city and country.</span>
+    <span class="n">geometry</span> <span class="o">=</span> <span class="n">admin_boundaries</span> \
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ee</span><span class="o">.</span><span class="n">Filter</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s1">'ADM0_NAME'</span><span class="p">,</span> <span class="n">country</span><span class="p">))</span> \
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ee</span><span class="o">.</span><span class="n">Filter</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s1">'ADM1_NAME'</span><span class="p">,</span> <span class="n">state_or_province</span><span class="p">))</span> \
+        <span class="o">.</span><span class="n">filter</span><span class="p">(</span><span class="n">ee</span><span class="o">.</span><span class="n">Filter</span><span class="o">.</span><span class="n">eq</span><span class="p">(</span><span class="s1">'ADM2_NAME'</span><span class="p">,</span> <span class="n">county_or_district</span><span class="p">))</span> \
+        <span class="o">.</span><span class="n">geometry</span><span class="p">()</span>
+        
+    <span class="c1"># Load a satellite image collection (e.g., Landsat 8 Surface Reflectance).</span>
+    <span class="n">left_image</span> <span class="o">=</span> <span class="n">ee</span><span class="o">.</span><span class="n">ImageCollection</span><span class="p">(</span><span class="s1">'LANDSAT/LC08/C01/T1_SR'</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">filterBounds</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">filterDate</span><span class="p">(</span><span class="s2">"2013-01-01"</span><span class="p">,</span> <span class="s2">"2015-12-31"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">median</span><span class="p">()</span> \
+        <span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+    
+    <span class="n">right_image</span> <span class="o">=</span> <span class="n">ee</span><span class="o">.</span><span class="n">ImageCollection</span><span class="p">(</span><span class="s1">'LANDSAT/LC08/C01/T1_SR'</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">filterBounds</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">filterDate</span><span class="p">(</span><span class="s2">"2021-01-01"</span><span class="p">,</span> <span class="s2">"2023-12-31"</span><span class="p">)</span> \
+        <span class="o">.</span><span class="n">median</span><span class="p">()</span> \
+        <span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">geometry</span><span class="p">)</span>
+    
+    <span class="c1"># Get index name</span>
+    <span class="n">index_name</span> <span class="o">=</span> <span class="n">water_indices</span><span class="p">[</span><span class="n">water_indices</span><span class="o">.</span><span class="n">label</span> <span class="o">==</span> <span class="n">water_index</span><span class="p">]</span><span class="o">.</span><span class="n">short_name</span><span class="o">.</span><span class="n">iloc</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    
+    <span class="n">index_function_left</span> <span class="o">=</span> <span class="n">get_index_function</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="n">left_image</span><span class="p">)</span>
+    <span class="n">index_function_right</span> <span class="o">=</span> <span class="n">get_index_function</span><span class="p">(</span><span class="n">index_name</span><span class="p">,</span> <span class="n">right_image</span><span class="p">)</span>
+    
+    <span class="c1"># Generate legend and visualization parameters</span>
+    <span class="c1"># Define visualization parameters using the custom palette.</span>
+    <span class="n">vis_params</span> <span class="o">=</span> <span class="p">{</span>
+        <span class="s1">'min'</span><span class="p">:</span> <span class="n">minimum_index_value</span><span class="p">,</span>
+        <span class="s1">'max'</span><span class="p">:</span> <span class="n">maximum_index_value</span><span class="p">,</span>
+        <span class="s1">'palette'</span><span class="p">:</span> <span class="n">palette</span>
+    <span class="p">}</span>
+
+    <span class="c1"># Calculate the range interval for each color.</span>
+    <span class="n">num_colors</span> <span class="o">=</span> <span class="nb">len</span><span class="p">(</span><span class="n">palette</span><span class="p">)</span>
+    <span class="n">interval</span> <span class="o">=</span> <span class="mf">2.0</span> <span class="o">/</span> <span class="n">num_colors</span>
+
+    <span class="c1"># Create the legend dictionary with range values as keys.</span>
+    <span class="n">legend_dict</span> <span class="o">=</span> <span class="p">{}</span>
+    <span class="k">for</span> <span class="n">i</span><span class="p">,</span> <span class="n">color</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">palette</span><span class="p">):</span>
+        <span class="c1"># Define the range for each color.</span>
+        <span class="n">range_min</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">+</span> <span class="n">i</span> <span class="o">*</span> <span class="n">interval</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="n">range_max</span> <span class="o">=</span> <span class="nb">round</span><span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">+</span> <span class="p">(</span><span class="n">i</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="n">interval</span><span class="p">,</span> <span class="mi">2</span><span class="p">)</span>
+        <span class="c1"># Use the range as the key and the color as the value.</span>
+        <span class="n">legend_dict</span><span class="p">[</span><span class="sa">f</span><span class="s1">'</span><span class="si">{</span><span class="n">range_min</span><span class="si">}</span><span class="s1">-</span><span class="si">{</span><span class="n">range_max</span><span class="si">}</span><span class="s1">'</span><span class="p">]</span> <span class="o">=</span> <span class="n">color</span>
+    
+    <span class="c1"># Visualize the spectral index using Geemap.</span>
+    <span class="n">Map</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">Map</span><span class="p">(</span><span class="n">basemap</span><span class="o">=</span><span class="s2">"CartoDB.Positron"</span><span class="p">)</span>
+    <span class="n">Map</span><span class="o">.</span><span class="n">centerObject</span><span class="p">(</span><span class="n">geometry</span><span class="p">,</span> <span class="n">zoom</span><span class="o">=</span><span class="mi">11</span><span class="p">)</span>
+    
+    <span class="n">left_layer</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">ee_tile_layer</span><span class="p">(</span><span class="n">index_function_left</span><span class="p">,</span> <span class="n">vis_params</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2"> 2013-2015"</span><span class="p">)</span>
+    <span class="n">right_layer</span> <span class="o">=</span> <span class="n">geemap</span><span class="o">.</span><span class="n">ee_tile_layer</span><span class="p">(</span><span class="n">index_function_right</span><span class="p">,</span> <span class="n">vis_params</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">index_name</span><span class="si">}</span><span class="s2"> 2021-2023"</span><span class="p">)</span>
+    <span class="n">Map</span><span class="o">.</span><span class="n">split_map</span><span class="p">(</span><span class="n">left_layer</span><span class="p">,</span> <span class="n">right_layer</span><span class="p">)</span>
+
+    <span class="c1"># Add a legend to the map.</span>
+    <span class="n">Map</span><span class="o">.</span><span class="n">add_legend</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">"Legend"</span><span class="p">,</span> <span class="n">legend_dict</span><span class="o">=</span><span class="n">legend_dict</span><span class="p">,</span> <span class="n">position</span><span class="o">=</span><span class="s1">'bottomright'</span><span class="p">)</span>
+    
+    <span class="n">comparison_map</span> <span class="o">=</span> <span class="n">Map</span><span class="o">.</span><span class="n">to_html</span><span class="p">()</span>
+
+    <span class="k">return</span> <span class="n">comparison_map</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-8">country_component = dmc.Select(data=data.ADM0_NAME.unique().tolist(), 
+                               value="United States of America",
+                               label="Country of interest",
+                               searchable=True)
+
+state_component = dmc.Select(label="State, provience or an equivalent administrative unit",
+                             value="New York",
+                             searchable=True)
+
+county_component = dmc.Select(label="County, district or an equivalent administrative unit",
+                              value="Albany",
+                             searchable=True)
+
+index_component = dmc.Select(data=water_indices.label.unique().tolist(),
+                             value="NDVIMNDWI (NDVI-MNDWI Model)",
+                             searchable=True,
+                             clearable=True)
+
+map_component = Fastify(html.Iframe(height="100%"), "srcdoc", label_="aijgdi")
+
+# Define a function that takes start_date, end_date, country, city, and index as arguments.
+def water_spectral_indices(country: country_component,
+                        state_or_province: state_component = None,
+                        county_or_district: county_component = None,
+                        water_index: index_component = None,
+                        minimum_index_value: int = -1,
+                        maximum_index_value: int = 1) -&gt; map_component:
+    
+    """
+    Visualize the selected water spectral index. Select your geography from the inputs to get started. Map on the left displays the median index value \
+    for the years 2013 - 2015 and the map on the right displays median values for the years 2021-2023. Compare the two maps to understand how these values \
+    changed over the years.
+    
+    Learn more about the Spyndex Python library that enables this dynamic index computation [here](https://github.com/awesome-spectral-indices/spyndex).
+    
+    :param country: The country of interest.
+    :type country: str
+    
+    :param state_or_province: State, provience or an equivalent administrative unit.
+    :type state_or_province: str
+    
+    :param county_or_district: County, district or an equivalent administrative unit.
+    :type county_or_district: str
+    
+    :param water_index: Name of the water index.
+    :type water_index: str
+    
+    :return: HTML of the leafmap object.
+    :rtype: str
+    """
+    
+    if not state_or_province:
+        raise Exception("Please select a state")
+        
+    if not county_or_district:
+        raise Exception("Please select a county")
+    
+    # Load the Global Administrative Unit Layers (GAUL) dataset, which includes administrative boundaries.
+    admin_boundaries = ee.FeatureCollection('FAO/GAUL/2015/level2')
+
+    # Filter the GAUL dataset for the specified city and country.
+    geometry = admin_boundaries \
+        .filter(ee.Filter.eq('ADM0_NAME', country)) \
+        .filter(ee.Filter.eq('ADM1_NAME', state_or_province)) \
+        .filter(ee.Filter.eq('ADM2_NAME', county_or_district)) \
+        .geometry()
+        
+    # Load a satellite image collection (e.g., Landsat 8 Surface Reflectance).
+    left_image = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') \
+        .filterBounds(geometry) \
+        .filterDate("2013-01-01", "2015-12-31") \
+        .median() \
+        .clip(geometry)
+    
+    right_image = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') \
+        .filterBounds(geometry) \
+        .filterDate("2021-01-01", "2023-12-31") \
+        .median() \
+        .clip(geometry)
+    
+    # Get index name
+    index_name = water_indices[water_indices.label == water_index].short_name.iloc[0]
+    
+    index_function_left = get_index_function(index_name, left_image)
+    index_function_right = get_index_function(index_name, right_image)
+    
+    # Generate legend and visualization parameters
+    # Define visualization parameters using the custom palette.
+    vis_params = {
+        'min': minimum_index_value,
+        'max': maximum_index_value,
+        'palette': palette
+    }
+
+    # Calculate the range interval for each color.
+    num_colors = len(palette)
+    interval = 2.0 / num_colors
+
+    # Create the legend dictionary with range values as keys.
+    legend_dict = {}
+    for i, color in enumerate(palette):
+        # Define the range for each color.
+        range_min = round(-1 + i * interval, 2)
+        range_max = round(-1 + (i + 1) * interval, 2)
+        # Use the range as the key and the color as the value.
+        legend_dict[f'{range_min}-{range_max}'] = color
+    
+    # Visualize the spectral index using Geemap.
+    Map = geemap.Map(basemap="CartoDB.Positron")
+    Map.centerObject(geometry, zoom=11)
+    
+    left_layer = geemap.ee_tile_layer(index_function_left, vis_params, f"{index_name} 2013-2015")
+    right_layer = geemap.ee_tile_layer(index_function_right, vis_params, f"{index_name} 2021-2023")
+    Map.split_map(left_layer, right_layer)
+
+    # Add a legend to the map.
+    Map.add_legend(title="Legend", legend_dict=legend_dict, position='bottomright')
+    
+    comparison_map = Map.to_html()
+
+    return comparison_map</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=5a7d47b9-1050-494e-a6f9-dc1a4153c80d">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [9]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-9">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">water_spectral_indices</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="s2">"cosmo"</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="s2">"external"</span><span class="p">)</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-9">app = FastDash(water_spectral_indices, port=8001, theme="cosmo", mode="external")</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="application/vnd.jupyter.stderr" tabindex="0">
+<pre>WARNING:root:Parsing function docstring is still an experimental feature. To reduce uncertainty, consider setting `about` to `False`.
+</pre>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell jp-MarkdownCell jp-Notebook-cell" id="cell-id=bcb30911-0f3d-4818-a643-4ef1aa9c7db1">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea"><div class="jp-InputPrompt jp-InputArea-prompt">
+</div><div class="jp-RenderedHTMLCommon jp-RenderedMarkdown jp-MarkdownOutput" data-mime-type="text/markdown">
+<h4 id="additional-app-functionality">Additional app functionality<a class="anchor-link" href="#additional-app-functionality">¶</a></h4>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=53446b12-3f85-4880-8ca3-d6e0aae718cf">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [10]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-10">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="c1"># Keep only the states present in the selected country</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">dash</span><span class="o">.</span><span class="n">Output</span><span class="p">(</span><span class="s2">"state_or_province"</span><span class="p">,</span> <span class="s2">"data"</span><span class="p">),</span>
+                 <span class="n">dash</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="s2">"country"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">))</span>
+<span class="k">def</span> <span class="nf">filter_states</span><span class="p">(</span><span class="n">country</span><span class="p">):</span>
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">data</span><span class="p">[</span><span class="n">data</span><span class="o">.</span><span class="n">ADM0_NAME</span> <span class="o">==</span> <span class="n">country</span><span class="p">]</span><span class="o">.</span><span class="n">ADM1_NAME</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+
+<span class="c1"># Keep only the counties present in the selected country and state</span>
+<span class="nd">@app</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span><span class="n">dash</span><span class="o">.</span><span class="n">Output</span><span class="p">(</span><span class="s2">"county_or_district"</span><span class="p">,</span> <span class="s2">"data"</span><span class="p">),</span>
+                 <span class="n">dash</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="s2">"country"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">),</span>
+                 <span class="n">dash</span><span class="o">.</span><span class="n">Input</span><span class="p">(</span><span class="s2">"state_or_province"</span><span class="p">,</span> <span class="s2">"value"</span><span class="p">))</span>
+<span class="k">def</span> <span class="nf">filter_counties</span><span class="p">(</span><span class="n">country</span><span class="p">,</span> <span class="n">state</span><span class="p">):</span>
+    <span class="n">filtered_data</span> <span class="o">=</span> <span class="n">data</span><span class="o">.</span><span class="n">copy</span><span class="p">()</span>
+    <span class="k">if</span> <span class="n">country</span><span class="p">:</span>
+        <span class="n">filtered_data</span> <span class="o">=</span> <span class="n">filtered_data</span><span class="p">[</span><span class="n">filtered_data</span><span class="o">.</span><span class="n">ADM0_NAME</span> <span class="o">==</span> <span class="n">country</span><span class="p">]</span>
+        
+    <span class="k">if</span> <span class="n">state</span><span class="p">:</span>
+        <span class="n">filtered_data</span> <span class="o">=</span> <span class="n">filtered_data</span><span class="p">[</span><span class="n">filtered_data</span><span class="o">.</span><span class="n">ADM1_NAME</span> <span class="o">==</span> <span class="n">state</span><span class="p">]</span>
+        
+    <span class="k">return</span> <span class="nb">sorted</span><span class="p">(</span><span class="n">filtered_data</span><span class="o">.</span><span class="n">ADM2_NAME</span><span class="o">.</span><span class="n">unique</span><span class="p">()</span><span class="o">.</span><span class="n">tolist</span><span class="p">())</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-10"># Keep only the states present in the selected country
+@app.app.callback(dash.Output("state_or_province", "data"),
+                 dash.Input("country", "value"))
+def filter_states(country):
+    return sorted(data[data.ADM0_NAME == country].ADM1_NAME.unique().tolist())
+
+# Keep only the counties present in the selected country and state
+@app.app.callback(dash.Output("county_or_district", "data"),
+                 dash.Input("country", "value"),
+                 dash.Input("state_or_province", "value"))
+def filter_counties(country, state):
+    filtered_data = data.copy()
+    if country:
+        filtered_data = filtered_data[filtered_data.ADM0_NAME == country]
+        
+    if state:
+        filtered_data = filtered_data[filtered_data.ADM1_NAME == state]
+        
+    return sorted(filtered_data.ADM2_NAME.unique().tolist())</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+</div>
+</div>
+</div>
+</div><div class="jp-Cell jp-CodeCell jp-Notebook-cell">
+<div class="jp-Cell jp-CodeCell jp-Notebook-cell" id="cell-id=f91233bf-c090-4e28-b01e-0df127fb6275">
+<div class="jp-Cell-inputWrapper" tabindex="0">
+<div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
+</div>
+<div class="jp-InputArea jp-Cell-inputArea">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [11]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="CodeMirror cm-s-jupyter">
+<div class="zeroclipboard-container">
+<clipboard-copy for="cell-11">
+<div>
+<span class="notice" hidden="">Copied!</span>
+<svg aria-hidden="true" class="clipboard-copy-icon" data-view-component="true" height="20" version="1.1" viewbox="0 0 16 16" width="20">
+<path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25v-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+<path d="M5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25v-7.5zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25h-7.5z" fill="currentColor" fill-rule="evenodd"></path>
+</svg>
+</div>
+</clipboard-copy>
+</div>
+<div class="highlight-ipynb hl-python"><pre><span></span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</pre></div>
+<div class="clipboard-copy-txt" id="cell-11">app.run()</div>
+</div>
+</div>
+</div>
+</div>
+<div class="jp-Cell-outputWrapper">
+<div class="jp-Collapser jp-OutputCollapser jp-Cell-outputCollapser">
+</div>
+<div class="jp-OutputArea jp-Cell-outputArea">
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedHTMLCommon jp-RenderedHTML jp-OutputArea-output" data-mime-type="text/html" tabindex="0">
+<style>
+                .geemap-dark {
+                    --jp-widgets-color: white;
+                    --jp-widgets-label-color: white;
+                    --jp-ui-font-color1: white;
+                    --jp-layout-color2: #454545;
+                    background-color: #383838;
+                }
+                    
+                .geemap-dark .jupyter-button {
+                    --jp-layout-color3: #383838;
+                }
+                
+                .geemap-colab {
+                    background-color: var(--colab-primary-surface-color, white);
+                }
+                    
+                .geemap-colab .jupyter-button {
+                    --jp-layout-color3: var(--colab-primary-surface-color, white);
+                }
+            </style>
+</div>
+</div>
+<div class="jp-OutputArea-child">
+<div class="jp-OutputPrompt jp-OutputArea-prompt"></div>
+<div class="jp-RenderedText jp-OutputArea-output" data-mime-type="text/plain" tabindex="0">
+<pre>Dash app running on http://127.0.0.1:8001/
+</pre>
 </div>
 </div>
 </div>
