@@ -10,6 +10,7 @@ from functools import reduce
 import dash
 from dash import Input, Output, State, dcc, html, ctx, Patch
 from dash.exceptions import PreventUpdate
+from flask import request
 
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -670,23 +671,31 @@ class SidebarLayout(BaseLayout):
 
     def callbacks(self, app):
         @app.app.callback(
-            [Output("input-group", "style")],
-            [Input("sidebar-button", "opened")],
+            [Output("input-group", "style"), Output("sidebar-button", "opened")],
+            [Input("sidebar-button", "opened"), Input("submit_inputs", "n_clicks")],
             [State("input-group", "style")],
         )
-        def toggle_sidebar(opened, input_style):
+        def toggle_sidebar(opened, submit_clicks, input_style):
+            user_agent = request.headers.get("User-Agent")
             input_style = {} if input_style is None else input_style
 
             # Condition to collapse the sidebar:
             # Burger icon is closed or no inputs are specified
             if not opened or self.app.inputs == [] or self.app.inputs is None:
                 input_style.update({"display": "none"})
+                opened = False
+
+            # Another condition to collapse the sidebar:
+            # User is on mobile and the inputs are submitted
+            elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
+                input_style.update({"display": "none"})
+                opened = False
 
             # Expand by default
             else:
                 input_style.update({"display": "block"})
 
-            return (input_style,)
+            return (input_style, opened)
 
         # Optional callbacks specific to the layout
         @app.app.callback(
@@ -1204,7 +1213,7 @@ Text = Fastify(
     ),
     component_property="value",
     placeholder="",
-    tag="Text"
+    tag="Text",
 )
 
 TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
