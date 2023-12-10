@@ -378,7 +378,10 @@ def _transform_inputs(inputs, tags):
 
     transformed_inputs = []
     for inp, tag in zip(inputs, tags):
-        if tag == "Image":
+        if inp is None:
+            transformed_inputs.append(inp)
+
+        elif tag == "Image":
             transformed_inputs.append(_b64_to_pil(inp))
 
         else:

@@ -221,14 +221,15 @@ def test_fdfd011_base_layout(dash_duo):
 
     app = FastDash(callback_fn=simple_text_to_multiple_outputs, layout="base")
     assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
-    
+
+
 def test_fdfd012_about_button_true(dash_duo):
     "Test the about button auto-documentation generation"
 
     def example_function(param1, param2=42):
         """
         An example function for demonstration.
-        
+
         Args:
             param1 (str): Description for parameter 1.
             param2 (int, optional): Description for parameter 2. Defaults to 42.
@@ -238,12 +239,7 @@ def test_fdfd012_about_button_true(dash_duo):
         """
         return True
 
-
-    app = FastDash(
-        callback_fn=example_function,
-        inputs=Text,
-        outputs=Text
-    ).app
+    app = FastDash(callback_fn=example_function, inputs=Text, outputs=Text).app
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
@@ -256,7 +252,9 @@ def test_fdfd012_about_button_true(dash_duo):
     displayed_markdown = dash_duo.find_element("#about-modal-body").text
 
     assert "Example Function" in displayed_markdown, "Docstring absent in about (1)"
-    assert "Description for parameter 1." in displayed_markdown, "Docstring absent in about (2)"
+    assert (
+        "Description for parameter 1." in displayed_markdown
+    ), "Docstring absent in about (2)"
 
 
 def test_fdfd013_about_button_false(dash_duo):
@@ -265,7 +263,7 @@ def test_fdfd013_about_button_false(dash_duo):
     def example_function(param1, param2=42):
         """
         An example function for demonstration.
-        
+
         Args:
             param1 (str): Description for parameter 1.
             param2 (int, optional): Description for parameter 2. Defaults to 42.
@@ -274,12 +272,9 @@ def test_fdfd013_about_button_false(dash_duo):
             bool: Description for return value.
         """
         return True
-    
+
     app = FastDash(
-        callback_fn=example_function,
-        inputs=Text,
-        outputs=Text,
-        about=False
+        callback_fn=example_function, inputs=Text, outputs=Text, about=False
     ).app
 
     dash_duo.start_server(app)
@@ -295,7 +290,7 @@ def test_fdfd014_about_button_custom(dash_duo):
     def example_function(param1, param2=42):
         """
         An example function for demonstration.
-        
+
         Args:
             param1 (str): Description for parameter 1.
             param2 (int, optional): Description for parameter 2. Defaults to 42.
@@ -304,13 +299,13 @@ def test_fdfd014_about_button_custom(dash_duo):
             bool: Description for return value.
         """
         return True
-    
+
     # When about argument is custom text
     app = FastDash(
         callback_fn=example_function,
         inputs=Text,
         outputs=Text,
-        about="Custom about section"
+        about="Custom about section",
     ).app
 
     dash_duo.start_server(app)
@@ -323,4 +318,29 @@ def test_fdfd014_about_button_custom(dash_duo):
     # Grab the generated markdown text
     displayed_markdown = dash_duo.find_element("#about-modal-body").text
 
-    assert "Custom about section" in displayed_markdown, "Docstring mismatch in about (3)"
+    assert (
+        "Custom about section" in displayed_markdown
+    ), "Docstring mismatch in about (3)"
+
+
+def test_fdfd015_close_sidebar(dash_duo):
+    "Test closing the sidebar"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function, inputs=Text, outputs=Text
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Simple Text To Text Function", timeout=4
+    )
+
+    # Click sidebar toggle
+    dash_duo.multiple_click("#sidebar-button", 1)
+
+    # Find the style of the sidebar
+    sidebar_style = dash_duo.find_element("#input-group").get_attribute("style")
+    sidebar_style = dict(
+        item.split(":") for item in sidebar_style.strip(";").split("; ") if item
+    )
+    assert sidebar_style["display"].strip() == "none", "Sidebar did not close"
