@@ -1267,7 +1267,7 @@ Image = Fastify(
         style={
             "object-fit": "contain",
             "max-height": "90%",
-            "max-width": "80%",
+            "max-width": "100%",
             "height": "auto",
         }
     ),
