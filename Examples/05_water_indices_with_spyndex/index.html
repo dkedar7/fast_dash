@@ -1840,15 +1840,13 @@ palette = [
                              <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
                              <span class="n">clearable</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="n">map_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">html</span><span class="o">.</span><span class="n">Iframe</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="s2">"100%"</span><span class="p">),</span> <span class="s2">"srcdoc"</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="s2">"aijgdi"</span><span class="p">)</span>
-
 <span class="c1"># Define a function that takes start_date, end_date, country, city, and index as arguments.</span>
 <span class="k">def</span> <span class="nf">water_spectral_indices</span><span class="p">(</span><span class="n">country</span><span class="p">:</span> <span class="n">country_component</span><span class="p">,</span>
                         <span class="n">state_or_province</span><span class="p">:</span> <span class="n">state_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                         <span class="n">county_or_district</span><span class="p">:</span> <span class="n">county_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                         <span class="n">water_index</span><span class="p">:</span> <span class="n">index_component</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
                         <span class="n">minimum_index_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span>
-                        <span class="n">maximum_index_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">map_component</span><span class="p">:</span>
+                        <span class="n">maximum_index_value</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">1</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">html</span><span class="o">.</span><span class="n">Iframe</span><span class="p">(</span><span class="n">height</span><span class="o">=</span><span class="s2">"100%"</span><span class="p">):</span>
 <span class="w">    </span>
 <span class="w">    </span><span class="sd">"""</span>
 <span class="sd">    Visualize the selected water spectral index. Select your geography from the inputs to get started. Map on the left displays the median index value \</span>
@@ -1962,15 +1960,13 @@ index_component = dmc.Select(data=water_indices.label.unique().tolist(),
                              searchable=True,
                              clearable=True)
 
-map_component = Fastify(html.Iframe(height="100%"), "srcdoc", label_="aijgdi")
-
 # Define a function that takes start_date, end_date, country, city, and index as arguments.
 def water_spectral_indices(country: country_component,
                         state_or_province: state_component = None,
                         county_or_district: county_component = None,
                         water_index: index_component = None,
                         minimum_index_value: int = -1,
-                        maximum_index_value: int = 1) -&gt; map_component:
+                        maximum_index_value: int = 1) -&gt; html.Iframe(height="100%"):
     
     """
     Visualize the selected water spectral index. Select your geography from the inputs to get started. Map on the left displays the median index value \
