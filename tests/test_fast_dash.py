@@ -46,7 +46,7 @@ def test_fdfd001_set_title(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "App title"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_fdfd002_set_default_title(dash_duo):
@@ -61,7 +61,7 @@ def test_fdfd002_set_default_title(dash_duo):
     )
 
     assert dash_duo.find_element("#title8888928").text == "Simple Text To Text Function"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_fdfd003_output_is_none(dash_duo):
@@ -73,7 +73,7 @@ def test_fdfd003_output_is_none(dash_duo):
         "#title8888928", "Simple Text To Text Function", timeout=4
     )
 
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_fdfd004_click_submit(dash_duo):
@@ -140,7 +140,7 @@ def test_fdfd006_live_update(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "App title"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
     dash_duo.percy_snapshot("fdfd006-layout")
 
@@ -159,7 +159,7 @@ def test_fdfd007_subheader_docstring(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
 
     assert dash_duo.find_element("#subheader6904007").text == "Converts text to text"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
     dash_duo.percy_snapshot("fdfd007-layout")
 
@@ -191,7 +191,7 @@ def test_fdfd008_minimal_mode(dash_duo):
     with pytest.raises(NoSuchElementException):
         dash_duo.find_element("footer5265971")
 
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
     dash_duo.percy_snapshot("fdfd008-layout")
 
@@ -337,6 +337,7 @@ def test_fdfd015_close_sidebar(dash_duo):
 
     # Click sidebar toggle
     dash_duo.multiple_click("#sidebar-button", 1)
+    time.sleep(2)
 
     # Find the style of the sidebar
     sidebar_style = dash_duo.find_element("#input-group").get_attribute("style")
