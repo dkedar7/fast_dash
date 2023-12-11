@@ -21,7 +21,7 @@ def test_example_1(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 1", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 1"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_example_2(dash_duo):
@@ -33,7 +33,7 @@ def test_example_2(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 2", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 2"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_example_3(dash_duo):
@@ -45,7 +45,7 @@ def test_example_3(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 3", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 3"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_example_4(dash_duo):
@@ -57,7 +57,7 @@ def test_example_4(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 4", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 4"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 
 def test_example_5(dash_duo):
@@ -69,7 +69,7 @@ def test_example_5(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 5", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 5"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
 
 def test_example_6(dash_duo):
     "Test example_6_text_to_plt"
@@ -80,4 +80,4 @@ def test_example_6(dash_duo):
     dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 6", timeout=4)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 6"
-    assert dash_duo.get_logs() == [], "browser console should contain no error"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"

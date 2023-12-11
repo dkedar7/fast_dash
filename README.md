@@ -4,26 +4,20 @@
 <p align="center">
     <em>Open source, Python-based tool to build prototypes lightning fast ⚡</em>
 </p>
-
 <p align="center">
 <a href="https://pypi.python.org/pypi/fast_dash">
-    <img src="https://img.shields.io/pypi/v/fast_dash?labelColor=black&color=%2334D058"
+    <img src="https://img.shields.io/pypi/v/fast_dash?color=%2334D058&labelColor=black"
         alt = "Release Status">
 </a>
-
 <a href="https://github.com/dkedar7/fast_dash/actions">
     <img src="https://github.com/dkedar7/fast_dash/actions/workflows/release.yml/badge.svg?labelColor=black" alt="CI Status">
 </a>
-
-
 <a href="https://github.com/dkedar7/fast_dash/blob/main/LICENSE">
-    <img src="https://img.shields.io/github/license/dkedar7/fast_dash?labelColor=black&color=%2334D058" alt="MIT License">
+    <img src="https://img.shields.io/github/license/dkedar7/fast_dash?color=2334D058&labelColor=black" alt="MIT License">
 </a>
-
 <a href="https://docs.fastdash.app/">
     <img src="https://img.shields.io/badge/Docs-MkDocs-<COLOR>.svg?labelColor=black&color=%2334D058" alt="Documentation">
 </a>
-
 <a href="https://pepy.tech/project/fast-dash">
     <img src="https://static.pepy.tech/personalized-badge/fast-dash?period=total&units=international_system&left_color=black&right_color=brightgreen&left_text=Downloads" alt="Downloads">
 </a>
@@ -121,6 +115,14 @@ def multiple_output_components(start_date: datetime.date, # Adds a date componen
 # * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)
 ```
 ![Simple example with multiple inputs](https://storage.googleapis.com/fast_dash/0.2.7/Multiple%20components%20using%20mosaic.png)
+
+In just a few lines of code, you can also add a chat component.
+
+![Simple chat](https://storage.googleapis.com/fast_dash/0.2.8/FD%20chat.png)
+
+You can use your favorite Python libraries. Here's an example of an advanced geospatial application built using `geemap` and Google Earth Engine.
+
+![Water spectral indices](https://storage.googleapis.com/fast_dash/0.2.8/FD%20water%20spectral%20indices.png)
 
 ## About
 
