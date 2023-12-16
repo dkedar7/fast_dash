@@ -26,7 +26,7 @@ from .utils import (
     theme_mapper,
     _infer_variable_names,
     _parse_docstring_as_markdown,
-    _get_error_notification_component
+    _get_error_notification_component,
 )
 
 
@@ -178,7 +178,9 @@ class FastDash:
         self.subtitle = (
             subheader
             if subheader is not None
-            else _parse_docstring_as_markdown(callback_fn, title=self.title, get_short=True)
+            else _parse_docstring_as_markdown(
+                callback_fn, title=self.title, get_short=True
+            )
         )
         self.github_url = github_url
         self.linkedin_url = linkedin_url
@@ -253,9 +255,7 @@ class FastDash:
         self.server = self.app.server
 
     def run(self):
-        self.app.run(
-            **self.run_kwargs
-        ) if self.mode is None else self.app.run_server(
+        self.app.run(**self.run_kwargs) if self.mode is None else self.app.run_server(
             jupyter_mode=self.mode, **self.run_kwargs
         )
 
@@ -323,7 +323,10 @@ class FastDash:
             prevent_initial_callback=True,
         )
         def process_input(*args):
-            if ctx.triggered_id not in ["submit_inputs", "reset_inputs"]:
+            if (
+                ctx.triggered_id not in ["submit_inputs", "reset_inputs"]
+                and self.update_live is False
+            ):
                 raise PreventUpdate
 
             default_notification = None
@@ -377,20 +380,22 @@ class FastDash:
                     component_property=input_.ack.component_property,
                 )
                 for input_ in self.inputs_with_ids
-            ],
+            ]
+            + [Output("dummy-div", "children")],
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
                 )
                 for input_ in self.inputs_with_ids
-            ],
+            ]
+            + [Input("dummy-div", "children")],
         )
         def process_ack_outputs(*args):
             ack_components = [
                 ack if mask is True else None
-                for mask, ack in zip(self.ack_mask, list(args))
+                for mask, ack in zip(self.ack_mask, list(args)[:-1])
             ]
-            return ack_components
+            return ack_components + [[]]
 
         # Set layout callbacks
         if not self.minimal:
