@@ -266,6 +266,7 @@ class BaseLayout:
 
         layout = dbc.Container(
             [
+                html.Div(id="dummy-div", style={"display": "none"}),
                 self.generate_navbar_container(),
                 self.generate_header_component(),
                 dbc.Row(
@@ -640,6 +641,7 @@ class SidebarLayout(BaseLayout):
         layout = dmc.MantineProvider(
             dmc.NotificationsProvider(
                 [
+                    html.Div(id="dummy-div", style={"display": "none"}),
                     dbc.Container(
                         [
                             self.generate_navbar_container(),
@@ -672,10 +674,10 @@ class SidebarLayout(BaseLayout):
     def callbacks(self, app):
         @app.app.callback(
             [Output("input-group", "style"), Output("sidebar-button", "opened")],
-            [Input("sidebar-button", "opened"), Input("submit_inputs", "n_clicks")],
+            [Input("sidebar-button", "opened")],
             [State("input-group", "style")],
         )
-        def toggle_sidebar(opened, submit_clicks, input_style):
+        def toggle_sidebar(opened, input_style):
             user_agent = request.headers.get("User-Agent")
             input_style = {} if input_style is None else input_style
 
