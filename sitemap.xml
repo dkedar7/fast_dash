@@ -2,87 +2,87 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
     <url>
          <loc>https://docs.fastdash.app/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/api/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/authors/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/contributing/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/history/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/installation/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/quickstart/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/01_simple_text_to_text/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/02_translate_to_multiple_languages/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/03_chat_over_documents/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/04_land_cover_map_with_geemap/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/05_water_indices_with_spyndex/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/Examples/neural_style_transfer/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/User%20guide/build/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/User%20guide/components/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/User%20guide/deployment/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
     <url>
          <loc>https://docs.fastdash.app/User%20guide/patterns/</loc>
-         <lastmod>2023-12-11</lastmod>
+         <lastmod>2024-02-24</lastmod>
          <changefreq>daily</changefreq>
     </url>
 </urlset>
