@@ -1,7 +1,7 @@
 [tool]
 [tool.poetry]
 name = "fast_dash"
-version = "0.2.7"
+version = "0.2.9"
 homepage = "https://github.com/dkedar7/fast_dash"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
 authors = ["Kedar Dabhadkar <kedar@fastdash.app>"]
