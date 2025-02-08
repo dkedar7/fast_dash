@@ -54,6 +54,8 @@ nav:
     - 3. Chat over documents with Embedchain: Examples/03_chat_over_documents.ipynb
     - 4. US land cover map with Geemap: Examples/04_land_cover_map_with_geemap.ipynb
     - 5. Global map of water indices with Geemap: Examples/05_water_indices_with_spyndex.ipynb
+    - 6. Choropleth maps: Examples/06_choropleth_maps.ipynb
+    - 7. Chlorophyll estimate trends: Examples/07_chlorophyll_a_estimates_with_landsat.ipynb
   - Modules: api.md
   - Contributing: contributing.md
   - Authors: authors.md

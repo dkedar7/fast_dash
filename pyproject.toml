@@ -84,6 +84,7 @@ mkdocs-autorefs = "^0.4.1"
 mkdocstrings-python = "^0.7.1"
 mkdocs-jupyter = "^0.24.1"
 griffe = "<0.31.0"
+docutils = "!=0.21"
 
 [tool.poetry.group.test.dependencies]
 urllib3 = "1.26.15"
