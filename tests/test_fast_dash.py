@@ -100,7 +100,7 @@ def test_fdfd004_click_submit(dash_duo):
     # Click clear
     wait = WebDriverWait(dash_duo.driver, 10)
     reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
-    reset_button.click()
+    dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
 
     dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
 
