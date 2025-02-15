@@ -92,6 +92,7 @@ def test_fdfd004_click_submit(dash_duo):
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
     dash_duo.wait_for_text_to_equal("#output-1", "Sample text", timeout=4)
+    time.sleep(4)
 
     # Click clear
     dash_duo.multiple_click("#reset_inputs", 1)
@@ -119,6 +120,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
     dash_duo.multiple_click("#submit_inputs", 1)
     dash_duo.wait_for_text_to_equal("#output-1", "Sample text", timeout=4)
     dash_duo.wait_for_text_to_equal("#output-2", "Sample text", timeout=4)
+    time.sleep(4)
 
     # Click clear
     dash_duo.multiple_click("#reset_inputs", 1)
