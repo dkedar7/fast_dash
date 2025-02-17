@@ -113,3 +113,4 @@ site/
 # Compressed files
 *.zip
 examples/Simple text to text/.dockerignore
+.pypirc
