@@ -40,7 +40,9 @@ dependencies = [
     "dash-iconify>=0.1.2",
     "Pillow>=9.2.0",
     "matplotlib>=3.5.0",
-    "docstring-parser>=0.15"
+    "docstring-parser>=0.15",
+    "dill (>=0.3.9,<0.4.0)",
+    "pyreadline3 (>=3.5.4,<4.0.0)",
 ]
 
 [project.optional-dependencies]
