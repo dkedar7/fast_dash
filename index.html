@@ -19,7 +19,7 @@
         <link rel="next" href="installation/">
       
       <link rel="icon" href="assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.1.18">
     
     
       
@@ -761,10 +761,10 @@
 <p><img alt="FastDashDemo" src="https://storage.googleapis.com/fast_dash/0.2.6/FastDashDemo.png" /></p>
 <h2 id="examples">Examples</h2>
 <p>With Fast Dash's decorator <code>@fastdash</code>, it's a breeze to deploy any Python function as a web app. Here's how to use it to write your first Fast Dash app:
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">text_to_text_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">text_to_text_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">input_text</span>
 
 <span class="c1"># * Running on http://127.0.0.1:8080/ (Press CTRL+C to quit)</span>
@@ -775,10 +775,10 @@
 <hr />
 <p>Fast Dash can read all the function details, like its name, input and output types, docstring, and uses this information to infer which components to use.</p>
 <p>For example, here's how to deploy an app that takes a string and an integer as inputs and returns some text.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">display_selected_text_and_number</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">display_selected_text_and_number</span><span class="p">(</span><span class="n">text</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">number</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="s2">&quot;Simply display the selected text and number&quot;</span>
 
     <span class="n">processed_text</span> <span class="o">=</span> <span class="sa">f</span><span class="s1">&#39;Selected text is </span><span class="si">{</span><span class="n">text</span><span class="si">}</span><span class="s1"> and the number is </span><span class="si">{</span><span class="n">number</span><span class="si">}</span><span class="s1">.&#39;</span>
@@ -792,8 +792,8 @@
 <p>And with just a few more lines, we can add a title icon, subheader and other social branding details.</p>
 <hr />
 <p>Output components can be arranged using a mosaic layout (ASCII art), inspired from Matplotlib's <code>subplot_mosaic</code> feature.</p>
-<p><div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">UploadImage</span><span class="p">,</span> <span class="n">Graph</span>
-<span class="kn">import</span> <span class="nn">matplotlib.pyplot</span> <span class="k">as</span> <span class="nn">plt</span>
+<p><div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">UploadImage</span><span class="p">,</span> <span class="n">Graph</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">matplotlib.pyplot</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">plt</span>
 
 <span class="n">mosaic</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
 <span class="s2">AB</span>
@@ -801,7 +801,7 @@
 <span class="s2">&quot;&quot;&quot;</span>
 
 <span class="nd">@fastdash</span><span class="p">(</span><span class="n">mosaic</span><span class="o">=</span><span class="n">mosaic</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="s2">&quot;BOOTSTRAP&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">multiple_output_components</span><span class="p">(</span><span class="n">start_date</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="c1"># Adds a date component</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">multiple_output_components</span><span class="p">(</span><span class="n">start_date</span><span class="p">:</span> <span class="n">datetime</span><span class="o">.</span><span class="n">date</span><span class="p">,</span> <span class="c1"># Adds a date component</span>
                             <span class="n">upload_image</span><span class="p">:</span> <span class="n">UploadImage</span><span class="p">,</span> <span class="c1"># Adds an upload component</span>
                             <span class="n">fips</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="p">[</span><span class="n">List</span> <span class="n">of</span> <span class="n">FIPs</span><span class="p">])</span> <span class="c1"># Adds a single select dropdown</span>
                             <span class="o">-&gt;</span> <span class="p">(</span><span class="n">Graph</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">,</span> <span class="n">plt</span><span class="o">.</span><span class="n">Figure</span><span class="p">):</span> 

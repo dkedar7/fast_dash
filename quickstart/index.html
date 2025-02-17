@@ -21,7 +21,7 @@
         <link rel="next" href="../User%20guide/build/">
       
       <link rel="icon" href="../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.1.18">
     
     
       
@@ -751,10 +751,10 @@
 <span class="normal">2</span>
 <span class="normal">3</span>
 <span class="normal">4</span>
-<span class="normal">5</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<span class="normal">5</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">text_to_text_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">text_to_text_function</span><span class="p">(</span><span class="n">input_text</span><span class="p">):</span>
     <span class="k">return</span> <span class="n">input_text</span>
 </code></pre></div></td></tr></table></div>
 <p>This should spin up your first Fast Dash app!</p>
@@ -773,10 +773,10 @@ Here's a dummy chatbot example.</p>
 <span class="normal">4</span>
 <span class="normal">5</span>
 <span class="normal">6</span>
-<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Chat</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Chat</span>
 
 <span class="nd">@fastdash</span><span class="p">(</span><span class="n">theme</span><span class="o">=</span><span class="s2">&quot;sketchy&quot;</span><span class="p">)</span>
-<span class="k">def</span> <span class="nf">virtual_assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chat</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">virtual_assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chat</span><span class="p">:</span>
     <span class="n">response</span> <span class="o">=</span> <span class="s2">&quot;I am Groot.&quot;</span>
     <span class="n">chat</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
     <span class="k">return</span> <span class="n">chat</span>
@@ -796,11 +796,11 @@ We can, of course, write any image analysis transformation we want.</p>
 <span class="normal">4</span>
 <span class="normal">5</span>
 <span class="normal">6</span>
-<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
-<span class="kn">from</span> <span class="nn">PIL</span> <span class="kn">import</span> <span class="n">Image</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">PIL</span><span class="w"> </span><span class="kn">import</span> <span class="n">Image</span>
 
 <span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">image_to_image</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">image_to_image</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Image</span><span class="o">.</span><span class="n">Image</span><span class="p">:</span>
     <span class="s2">&quot;Example of an image to image app with Fast Dash&quot;</span>
     <span class="k">return</span> <span class="n">image</span>
 </code></pre></div></td></tr></table></div>

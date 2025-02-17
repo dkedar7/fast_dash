@@ -21,7 +21,7 @@
         <link rel="next" href="../contributing/">
       
       <link rel="icon" href="../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.1.18">
     
     
       
@@ -774,7 +774,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
         <details class="quote">
-          <summary>Source code in <code>fast_dash\fast_dash.py</code></summary>
+          <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
           <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 33</span>
 <span class="normal"> 34</span>
 <span class="normal"> 35</span>
@@ -1144,7 +1144,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
-<span class="normal">402</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span> <span class="nc">FastDash</span><span class="p">:</span>
+<span class="normal">402</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -1153,7 +1153,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">    sets all parameters required for Fast Dash app deployment.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+    <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span>
         <span class="n">callback_fn</span><span class="p">,</span>
         <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -1368,19 +1368,19 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Allow easier access to Dash server</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
 
-    <span class="k">def</span> <span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
             <span class="n">jupyter_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
             <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
             <span class="n">jupyter_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
-    <span class="k">def</span> <span class="nf">set_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">set_layout</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">input_groups</span> <span class="o">=</span> <span class="n">_make_input_groups</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span><span class="p">)</span>
 
@@ -1414,7 +1414,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span> <span class="o">=</span> <span class="n">app_layout</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">app_layout</span><span class="o">.</span><span class="n">generate_layout</span><span class="p">()</span>
 
-    <span class="k">def</span> <span class="nf">register_callback_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">register_callback_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="nd">@self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="n">Output</span><span class="p">(</span>
@@ -1436,7 +1436,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="p">],</span>
             <span class="n">prevent_initial_callback</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="p">)</span>
-        <span class="k">def</span> <span class="nf">process_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">process_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
             <span class="k">if</span> <span class="p">(</span>
                 <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="s2">&quot;reset_inputs&quot;</span><span class="p">]</span>
                 <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="ow">is</span> <span class="kc">False</span>
@@ -1504,7 +1504,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="p">]</span>
             <span class="o">+</span> <span class="p">[</span><span class="n">Input</span><span class="p">(</span><span class="s2">&quot;dummy-div&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">)],</span>
         <span class="p">)</span>
-        <span class="k">def</span> <span class="nf">process_ack_outputs</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">process_ack_outputs</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
             <span class="n">ack_components</span> <span class="o">=</span> <span class="p">[</span>
                 <span class="n">ack</span> <span class="k">if</span> <span class="n">mask</span> <span class="ow">is</span> <span class="kc">True</span> <span class="k">else</span> <span class="kc">None</span>
                 <span class="k">for</span> <span class="n">mask</span><span class="p">,</span> <span class="n">ack</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">ack_mask</span><span class="p">,</span> <span class="nb">list</span><span class="p">(</span><span class="n">args</span><span class="p">)[:</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
@@ -1787,7 +1787,7 @@ sets all parameters required for Fast Dash app deployment.</p>
   </table>
 
       <details class="quote">
-        <summary>Source code in <code>fast_dash\fast_dash.py</code></summary>
+        <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 42</span>
 <span class="normal"> 43</span>
 <span class="normal"> 44</span>
@@ -2001,7 +2001,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
-<span class="normal">255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -2336,7 +2336,7 @@ sets all parameters required for Fast Dash app deployment.</p>
   </table>
 
       <details class="quote">
-        <summary>Source code in <code>fast_dash\utils.py</code></summary>
+        <summary>Source code in <code>fast_dash/utils.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">24</span>
 <span class="normal">25</span>
 <span class="normal">26</span>
@@ -2379,7 +2379,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
-<span class="normal">66</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">66</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Modify a Dash component into a FastComponent.</span>
 
@@ -2395,8 +2395,8 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        Fast component: Dash component modified to make it compatible with Fast Dash.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="k">class</span> <span class="nc">FastComponent</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">component</span><span class="p">)):</span>
-        <span class="k">def</span> <span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">FastComponent</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">component</span><span class="p">)):</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 
             <span class="bp">self</span><span class="o">.</span><span class="n">component_property</span> <span class="o">=</span> <span class="n">component_property</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ack</span> <span class="o">=</span> <span class="n">ack</span>
@@ -2414,7 +2414,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
 
-        <span class="k">def</span> <span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>            
+        <span class="k">def</span><span class="w"> </span><span class="fm">__call__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>            
             <span class="n">self_copy</span> <span class="o">=</span> <span class="n">copy</span><span class="o">.</span><span class="n">deepcopy</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
             <span class="k">for</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">kwargs</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
                 <span class="nb">setattr</span><span class="p">(</span><span class="n">self_copy</span><span class="p">,</span> <span class="n">key</span><span class="p">,</span> <span class="n">value</span><span class="p">)</span>
@@ -2687,7 +2687,7 @@ sets all parameters required for Fast Dash app deployment.</p>
   </table>
 
       <details class="quote">
-        <summary>Source code in <code>fast_dash\fast_dash.py</code></summary>
+        <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
         <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">405</span>
 <span class="normal">406</span>
 <span class="normal">407</span>
@@ -2822,7 +2822,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">536</span>
 <span class="normal">537</span>
 <span class="normal">538</span>
-<span class="normal">539</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span> <span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">539</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -2916,11 +2916,11 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-    <span class="k">def</span> <span class="nf">decorator_fastdash</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">):</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">decorator_fastdash</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">):</span>
         <span class="s2">&quot;Decorator for callback_fn&quot;</span>
 
         <span class="nd">@functools</span><span class="o">.</span><span class="n">wraps</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
-        <span class="k">def</span> <span class="nf">wrapper_fastdash</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">wrapper_fastdash</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
             <span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">callback_fn</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
             <span class="k">return</span> <span class="n">callback_fn</span>

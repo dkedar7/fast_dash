@@ -21,7 +21,7 @@
         <link rel="next" href="../patterns/">
       
       <link rel="icon" href="../../assets/favicon.ico">
-      <meta name="generator" content="mkdocs-1.5.3, mkdocs-material-9.1.18">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.1.18">
     
     
       
@@ -979,16 +979,16 @@
 <ol>
 <li>Decorating Python functions with the <code>@fastdash</code> decorator</li>
 </ol>
-<p><div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span>
+<p><div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
 
 <span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 2. Instantiating an object of the <code>FastDash</code> class</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">FastDash</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
 
-<span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 
 <span class="hll"><span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">your_function</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
@@ -1007,7 +1007,7 @@
 <p>In a nutshell, Python decorators are function wrappers that enrich the functionality of Python functions. <a href="https://realpython.com/primer-on-python-decorators/">Here's</a> an in-depth write-up on Python decorators, what they are, and how to build them. All we need to know for now is that decorators are Python functions that wrap other functions to give them extra functionality.</p>
 <p>The <code>@fastdash</code> decorator is also just a function (read more here about the implementation in the <a href="../../api/">Modules</a> section) that takes the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> as the first argument and designs a web app around it. But instead of explicitly specifying the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> as the first argument, we use this syntax instead:</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@fastdash</span>
-<span class="k">def</span> <span class="nf">callback_function</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">callback_function</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
     <span class="o">...</span>
 </code></pre></div>
 <h4 id="how-to-use-fastdash">How to use <code>@fastdash</code></h4>
@@ -1017,7 +1017,7 @@
 <div class="admonition question">
 <p class="admonition-title">What are type hints?</p>
 <p>First introduced in Python 3.5, <strong>type hints</strong> are mainly meant to be used by IDEs and linters to raise data type mismatch warnings. They are not executed during runtime, and errors with type hinting don't affect the execution of the function. Read more about Python type hints <a href="https://docs.python.org/3/library/typing.html">here</a>.</p>
-<div class="highlight"><pre><span></span><code><span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
+<div class="highlight"><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> 
                   <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> 
                   <span class="n">c</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="o">...</span>
@@ -1026,17 +1026,17 @@
 </div>
 <p>Fast Dash understands two types of type hints—one, in-built Python data type classes (<code>str</code>, <code>int</code>, <code>float</code>, <code>list</code>, <code>dict</code>, etc.), and two, <a href="../components/">Dash Components</a> directly.</p>
 <p>In addition to type hints, the input arguments can also have default values. In the example below, the default value of string <code>a</code> is <code>Fast</code>, that of integer <code>b</code> is <code>5</code>, and <code>c</code> is a <code>list</code> with a default value of <code>[1, 2, 3]</code>. The function returns a single string value, as indicated by the return variable type hint (<code>-&gt; str:</code>).</p>
-<div class="highlight"><pre><span></span><code><span class="hll"><span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Fast&quot;</span><span class="p">,</span> 
+<div class="highlight"><pre><span></span><code><span class="hll"><span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Fast&quot;</span><span class="p">,</span> 
 </span><span class="hll">                  <span class="n">b</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> 
 </span><span class="hll">                  <span class="n">c</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span>    <span class="o">...</span>
 </code></pre></div>
 <p>Fast Dash determines the best components for each input using their hints and default values. Details about which combination of these values results in what components are in the <a href="../patterns/">patterns documentation</a>.</p>
 <p>Dash components are also valid type hints for Fast Dash. Instead of depending on the hints and default values, using Dash components directly tells Fast Dash which components to use. In the example below, <code>UploadImage</code> and <code>Slider</code> are in-built Fast Component wrappers for <a href="https://dash.plotly.com/dash-core-components/upload"><code>dcc.Upload</code></a> and <a href="https://dash.plotly.com/dash-core-components/slider"><code>dcc.Slider</code></a> respectively. The function returns a text field, represented using the <a href="https://dash.plotly.com/dash-html-components/h1"><code>html.H1</code></a> component by default.</p>
-<div class="highlight"><pre><span></span><code><span class="hll"><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">dcc</span>
+<div class="highlight"><pre><span></span><code><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">dcc</span>
 </span>
 <span class="nd">@fastdash</span>
-<span class="hll"><span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">dcc</span><span class="o">.</span><span class="n">Upload</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> 
+<span class="hll"><span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="n">dcc</span><span class="o">.</span><span class="n">Upload</span><span class="p">(</span><span class="o">...</span><span class="p">),</span> 
 </span><span class="hll">                  <span class="n">number</span><span class="p">:</span> <span class="n">dcc</span><span class="o">.</span><span class="n">Slider</span><span class="p">(</span><span class="o">...</span><span class="p">)):</span>
 </span>    <span class="o">...</span>
 </code></pre></div>
@@ -1054,13 +1054,13 @@
 <p>Short answer: <strong>All of them!</strong></p>
 <p>Fast Dash converts a few Dash components to Fast components natively. But most have to be slightly modified before they can be used in a Fast Dash app.</p>
 <p>For example, Fast Dash doesn't natively support automatic conversion of <a href="https://dash.plotly.com/dash-bio/molecule2dviewer">Dash bio components</a> to Fast components. However, Fast Dash offers a utility function, <code>Fastify</code> that can convert any Dash component to a Fast component. Say, we wanted to use <code>dash.bio.Molecule2dViewer</code> to view a molecule:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Fastify</span>
-<span class="kn">from</span> <span class="nn">dashbio</span> <span class="kn">import</span> <span class="n">Molecule2dViewer</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Fastify</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">dashbio</span><span class="w"> </span><span class="kn">import</span> <span class="n">Molecule2dViewer</span>
 
 <span class="n">molecule_fast_component</span> <span class="o">=</span> <span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="o">=</span><span class="n">Molecule2dViewer</span><span class="p">(),</span> 
                                   <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;modelData&quot;</span><span class="p">)</span>
 
-<span class="k">def</span> <span class="nf">view_molecule</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">molecule_fast_component</span><span class="p">:</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">view_molecule</span><span class="p">(</span><span class="o">...</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">molecule_fast_component</span><span class="p">:</span>
     <span class="o">...</span>
 </code></pre></div>
 <p>Read more about <code>Fastify</code> <a href="../../api/#fast_dash.Fastify">here</a>.</p>
@@ -1072,21 +1072,21 @@
 <p>Fast Dash can read the name of our <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> and display it as the title at the top of the app. Function names resolve to titles the best if they are written in <a href="https://en.wikipedia.org/wiki/Snake_case">snake case</a>.</p>
 <p>For example, <code>your_function</code> resolves to <code>Your Function</code> but <code>yourFunction</code> will resolve to <code>YourFunction</code>. For such cases, we can manually specify the title as an argument to <code>@fastdash</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Your Function&quot;</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="2-subheader">2. Subheader</h5>
 <p>The subheader shows up below the title at the top of the page in an italicized font. Fast Dash attempts to infer this from the function docstring. But we can also overwrite it with the <code>subheader</code> argument to <code>@fastdash</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@fastdash</span><span class="p">(</span><span class="n">title</span><span class="o">=</span><span class="s2">&quot;Your Function&quot;</span><span class="p">,</span> 
 <span class="hll">          <span class="n">subheader</span><span class="o">=</span><span class="s2">&quot;Coolest Function Ever&quot;</span><span class="p">)</span> <span class="c1"># Either here</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
 <span class="hll">    <span class="s2">&quot;Coolest Function Ever&quot;</span> <span class="c1"># or here</span>
 </span>    <span class="o">...</span>
 </code></pre></div>
 <h5 id="3-title-image-path">3. Title image path</h5>
 <p>Fast Dash optionally displays an icon image below the title and subheader. The image path can be set with the argument <code>title_image_path</code>.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">title_image_path</span><span class="o">=</span><span class="s2">&quot;https://tinyurl.com/5fw564ux&quot;</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="4-social-media-urls">4. Social media URLs</h5>
@@ -1094,7 +1094,7 @@
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">github_url</span><span class="o">=</span><span class="s2">&quot;github.com/dkedar7&quot;</span><span class="p">,</span>
 </span><span class="hll">        <span class="n">linkedin_url</span><span class="o">=</span><span class="s2">&quot;linkedin.com/in/dkedar7&quot;</span><span class="p">,</span>
 </span><span class="hll">        <span class="n">twitter_url</span><span class="o">=</span><span class="s2">&quot;twitter.com/dkedar7&quot;</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="5-mosaic-layout">5. Mosaic layout</h5>
@@ -1104,19 +1104,19 @@
 <p>We can hide the navbar and the footer by controlling the boolean <code>navbar</code> and <code>footer</code> arguments respectively. These are set to <code>True</code> by default.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">navbar</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
 </span><span class="hll">        <span class="n">footer</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="7-theme">7. Theme</h5>
 <p>The default theme that Fast Dash uses is called <code>JOURNAL</code>, but there are more themes that Fast Dash supports. See the complete list of supported themes at <a href="https://bootswatch.com/">bootswatch.com</a>.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">theme</span><span class="o">=</span><span class="s1">&#39;JOURNAL&#39;</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="8-update-live">8. Update Live</h5>
 <p>By default, Fast Dash apps update lazily. That means once the user enters inputs, the outputs update only after they click <code>Submit</code>. But on setting the <code>update_live</code> argument to <code>True</code>, the <code>Submit</code> and <code>Reset</code> buttons disappear, and the outputs update instantaneously. This feature is also popularly known as hot reloading.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">update_live</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="9-mode">9. Mode</h5>
@@ -1130,19 +1130,19 @@
 <p><code>mode="External"</code></p>
 <p>This behaves like the default mode with the only difference that the app runs outside your Jupyter notebook environment. Fast Dash display a link that where you can navigate to see how the deployment will look to end users after this application is depoyed to production.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;jupyterlab&#39;</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="10-minimal">10. Minimal</h5>
 <p>Sometimes, we might want to see how our Python functions behave without worrying about the theme or the presence of the navbar or footer. If we set <code>minimal</code> to True, Fast Dash only displays the input and output components and hides the rest.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">minimal</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="11-disable-logs">11. Disable logs</h5>
 <p>Under the hood, setting <code>disable_logs</code> to <code>True</code> turns off the messy log output that sometimes follows a successful Fast Dash deployment. This feature comes in handy when we are deploying apps inside Jupyter environments. On the flip side, we lose a lot of useful debugging information.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">disable_logs</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-</span><span class="k">def</span> <span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+</span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
 <!-- disable_logs -->
@@ -1152,9 +1152,9 @@
 <p>The FastDash class powers all Fast Dash automated app development and deployment. As mentioned before, all the @fastdash decorator does under the hood is instantiate a <code>FastDash</code> object and call the <code>.run()</code> method.</p>
 <p>In other words, all the discussion and arguments that can be passed to the <code>@fastdash</code> decorator are also valid for the <code>FastDash</code> class. But unlike the <code>@fastdash</code> decorator, <code>FastDash</code> class gives us access to other Fast Dash internals and flexibility concerning the deployment of our apps.</p>
 <p>Here's how to define and deploy a Fast Dash app using FastDash. Note the highlighted differences in the code.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span> <span class="nn">fast_dash</span> <span class="kn">import</span> <span class="n">FastDash</span>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
 
-<span class="k">def</span> <span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 
 <span class="hll"><span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">your_function</span><span class="p">,</span> <span class="o">...</span><span class="p">)</span>
