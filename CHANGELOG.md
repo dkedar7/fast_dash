@@ -1,8 +1,8 @@
-# Release 0.2.9
+# Release 0.2.10
 
-## 0.2.9 (2024-02-24)
+## 0.2.10 (2025-02-16)
 
 ### Fixes
 
-- Fix: In case of no input arguments, sidebar either freezes or becomes unresponsive.
-- Fix: When `update_live` is set to `True`, the app fails to reload dynamically.
+- Upgrade Poetry to 0.2.10
+- Fix: Solve issue when building apps directly from the terminal. @https://github.com/dkedar7/fast_dash/issues/58

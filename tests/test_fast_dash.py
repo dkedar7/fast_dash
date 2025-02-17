@@ -9,7 +9,11 @@ import matplotlib.pyplot as plt
 import time
 
 import pytest
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+
 
 
 ## Define callback functions
@@ -94,7 +98,10 @@ def test_fdfd004_click_submit(dash_duo):
     dash_duo.wait_for_text_to_equal("#output-1", "Sample text", timeout=4)
 
     # Click clear
-    dash_duo.multiple_click("#reset_inputs", 1)
+    wait = WebDriverWait(dash_duo.driver, 10)
+    reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
+    dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
+
     dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
 
 
@@ -121,7 +128,10 @@ def test_fdfd005_multiple_outputs(dash_duo):
     dash_duo.wait_for_text_to_equal("#output-2", "Sample text", timeout=4)
 
     # Click clear
-    dash_duo.multiple_click("#reset_inputs", 1)
+    # Click clear
+    wait = WebDriverWait(dash_duo.driver, 10)
+    reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
+    dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
     dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
     dash_duo.wait_for_text_to_equal("#output-2", "", timeout=4)
 

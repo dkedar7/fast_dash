@@ -418,7 +418,14 @@ def _clean_text(string):
 
 
 def _infer_variable_names(func):
-    s = inspect.getsource(func)
+
+    try:
+        s = inspect.getsource(func)
+
+    except OSError:
+        import dill.source
+        s = dill.source.getsource(func)
+
     final_line = s.split("return")[-1].strip()
     line_without_comment = final_line.split("#")[0].strip().split(",")
 
