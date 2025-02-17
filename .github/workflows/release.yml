@@ -39,6 +39,7 @@ jobs:
           prWoLabels: true
           unreleased: true
           addSections: '{"documentation":{"prefix":"**Documentation:**","labels":["documentation"]}}'
+          sinceTag: 'v0.2.9'
           output: CHANGELOG.md
 
       - uses: actions/setup-python@v2
@@ -80,7 +81,7 @@ jobs:
           draft: false
           prerelease: false
 
-      - name:
+      - name: release
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
