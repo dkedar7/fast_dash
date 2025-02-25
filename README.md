@@ -130,7 +130,7 @@ Read different ways to build Fast Dash apps and additional details by navigating
 
 ### Key features
 
-  Duild and deploy a web app by adding a decorator only.
+  Build and deploy a web app by adding a decorator only.
 - Components are inferred from function type hints. Allows using Dash components as type hints.
 - Use multiple input and output components simultaneously.
 - Build fast, share and iterate.
