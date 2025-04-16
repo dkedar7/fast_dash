@@ -6,6 +6,7 @@ import copy
 import inspect
 from io import BytesIO
 
+import dash
 from dash import html, dcc, Patch
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -16,6 +17,7 @@ import logging
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
+import plotly.graph_objects as go
 import pandas as pd
 import warnings
 import re
@@ -40,6 +42,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     class FastComponent(type(component)):
         def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, *args, **kwargs):
             
+            self.component = component
             self.component_property = component_property
             self.ack = ack
             self.label_ = label_
@@ -70,7 +73,81 @@ def Chatify(query_response_dict):
     "Convert a dictionary into a Chat component"
 
     if not isinstance(query_response_dict, dict):
-        raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ...).")
+        raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ..., 'artifacts': ...).")
+    
+    artifacts = query_response_dict.get("artifacts", [])
+
+    if artifacts and not isinstance(artifacts, list):
+        raise TypeError("Artifacts should be a list of artifacts.")
+
+    artifact_components = []
+    for artifact in artifacts:
+        if isinstance(artifact, go.Figure):
+            component = dcc.Graph(figure=artifact, style=dict(height="100%", width="100%"))
+
+        elif isinstance(artifact, pd.DataFrame):
+            component = dash.dash_table.DataTable(
+                            data=artifact.to_dict(orient="records"),
+                            page_size=100,
+                            page_action="native",
+                            sort_action="native",
+                            style_header={
+                                "backgroundColor": "white",
+                                "fontWeight": "bold",
+                                "color": "black",
+                                "textAlign": "center",
+                                "border": "1px solid #f0f0f0",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                            style_cell={
+                                "backgroundColor": "white",
+                                "color": "black",
+                                "textAlign": "center",
+                                "border": "1px solid #f0f0f0",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                            style_table={
+                                "border": "1px solid #f0f0f0",
+                                "overflowY": "auto",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                        )
+            
+        elif isinstance(artifact, PIL.Image.Image):
+            component = html.Img(
+                src=_pil_to_b64(artifact),
+                style={
+                    "object-fit": "contain",
+                    "max-height": "90%",
+                    "max-width": "100%",
+                    "height": "auto",
+                }
+            )
+
+        elif isinstance(artifact, mpl.figure.Figure):
+            component = html.Img(
+                src=_mpl_to_b64(artifact),
+                style={
+                    "object-fit": "contain",
+                    "max-height": "90%",
+                    "max-width": "100%",
+                    "height": "auto",
+                }
+            )
+
+        else:
+            component = dmc.Text(
+                artifact,
+                align="start",
+                style={
+                    "padding": "1% 1%",
+                    "max-width": "80%",
+                    "backgroundColor": "#E8EBFA",
+                },
+                className="border rounded shadow-sm m-3 col-auto",
+            )
+
+        artifact_components.append(component)
 
     ## Chat component
     input_component = dbc.Row(
@@ -101,12 +178,13 @@ def Chatify(query_response_dict):
                         class_name="pb-2",
                     ),
                     dcc.Markdown(query_response_dict["response"]),
-                ],
+                ] + artifact_components if artifact_components else None,
                 align="start",
                 style={
                     "padding": "1% 1%",
                     "max-width": "98%",
                     "backgroundColor": "#F9F9F9",
+                    "gap": "10px",  # Add gap between consecutive elements
                 },
                 className="border rounded shadow-sm m-3",
             )
