@@ -6,8 +6,10 @@ import warnings
 
 import dash
 import flask
-from dash import Input, Output, ctx
+from flask_socketio import SocketIO, emit
+from dash import Input, Output, State, ctx, clientside_callback
 from dash.exceptions import PreventUpdate
+from dash_socketio import DashSocketIO
 
 from .Components import (
     BaseLayout,
@@ -28,6 +30,46 @@ from .utils import (
     _parse_docstring_as_markdown,
     _get_error_notification_component,
 )
+
+import contextvars
+import functools
+import asyncio
+from types import GeneratorType
+
+# Create context variable to hold the stream handler
+stream_handler_var = contextvars.ContextVar('stream_handler', default=None)
+
+def stream(component, data):
+    """When called in user code, invokes the current context's handler"""
+    handler = stream_handler_var.get()
+    if handler is not None:
+        return handler(component, data)
+    else:
+        raise RuntimeError("No stream handler registered in this context")
+    
+# Context manager for easier usage
+class StreamContext:
+    def __init__(self, handler_func):
+        self.handler_func = handler_func
+        self.token = None
+        
+    def __enter__(self):
+        self.token = stream_handler_var.set(self.handler_func)
+        return self
+        
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.token is not None:
+            stream_handler_var.reset(self.token)
+    
+# Decorator for automatically setting up stream handling
+def with_streaming(handler_func):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            with StreamContext(handler_func):
+                return func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 
 class FastDash:
@@ -55,6 +97,7 @@ class FastDash:
         twitter_url=None,
         navbar=True,
         footer=True,
+        loader="bars",
         about=True,
         theme=None,
         update_live=False,
@@ -95,7 +138,6 @@ class FastDash:
             subheader (str, optional): Subheader of the app, displayed below the title image and title\
                 If `None`, Fast Dash tries to use the callback function's docstring instead. Defaults to None.
                 
-
             github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the\
                 specified URL. Defaults to None.
 
@@ -108,6 +150,9 @@ class FastDash:
             navbar (bool, optional): Display navbar. Defaults to True.
 
             footer (bool, optional): Display footer. Defaults to True.
+
+            loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
+                If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
 
             about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
                 the docstring of the callback function. If string, content is used directly as markdown. \
@@ -131,29 +176,6 @@ class FastDash:
             run_kwargs (dict, optional): All values from this variable are passed to Dash's `.run` method.
         """
 
-        self.callback_fn = callback_fn
-        self.layout_pattern = layout
-        self.mosaic = mosaic
-        self.output_labels = output_labels
-
-        if output_labels == "infer":
-            self.output_labels = _infer_variable_names(callback_fn)
-
-        self.inputs = (
-            _infer_input_components(callback_fn)
-            if inputs is None
-            else inputs
-            if isinstance(inputs, list)
-            else [inputs]
-        )
-        self.outputs = _infer_output_components(
-            callback_fn, outputs, self.output_labels
-        )
-        self.update_live = (
-            True
-            if (isinstance(self.inputs, list) and len(self.inputs) == 0)
-            else update_live
-        )
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -174,6 +196,7 @@ class FastDash:
             title = re.sub("[^0-9a-zA-Z]+", " ", callback_fn.__name__).title()
 
         self.title = title
+
         self.title_image_path = title_image_path
         self.subtitle = (
             subheader
@@ -187,9 +210,52 @@ class FastDash:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.loader = loader
         self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
+
+        # Define Flask server
+        server = flask.Flask(__name__)
+        external_stylesheets = [
+            theme_mapper(self.theme),
+            "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
+        ]
+
+        source = dash.Dash
+        self.app = source(
+            __name__,
+            external_stylesheets=external_stylesheets,
+            server=server,
+            **self.kwargs,
+        )
+
+        # Allow easier access to Dash server
+        self.server = self.app.server
+        socketio = SocketIO(self.app.server)
+
+        # Define other attributes
+        self.callback_fn = callback_fn
+        self.layout_pattern = layout
+        self.mosaic = mosaic
+        self.output_labels = output_labels
+
+        if output_labels == "infer":
+            self.output_labels = _infer_variable_names(callback_fn)
+
+        self.inputs = (
+            _infer_input_components(callback_fn)
+            if inputs is None
+            else inputs if isinstance(inputs, list) else [inputs]
+        )
+        self.outputs = _infer_output_components(
+            callback_fn, outputs, self.output_labels
+        )
+        self.update_live = (
+            True
+            if (isinstance(self.inputs, list) and len(self.inputs) == 0)
+            else update_live
+        )
 
         # Extract input tags
         self.input_tags = [inp.tag for inp in self.inputs]
@@ -197,11 +263,13 @@ class FastDash:
 
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
-        self.outputs_with_ids = _assign_ids_to_outputs(self.outputs)
+        self.outputs_with_ids = _assign_ids_to_outputs(self.outputs, self.callback_fn)
         self.ack_mask = [
             False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
             for input_ in self.inputs_with_ids
         ]
+
+        self.stream_outputs = [c for c in self.outputs_with_ids if c.stream == True]
 
         # Default state of outputs
         self.output_state_default = [
@@ -212,47 +280,18 @@ class FastDash:
         self.output_state_blank = [None for output_ in self.outputs_with_ids]
         self.latest_output_state = self.output_state_blank
 
-        # Define Flask server
-        server = flask.Flask(__name__)
-        external_stylesheets = [
-            theme_mapper(self.theme),
-            "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
-        ]
-
-        source = dash.Dash
-        # if self.mode is not None:
-        #     try:
-        #         from jupyter_dash import JupyterDash
-
-        #         source = JupyterDash
-
-        #     except ImportError as e:
-        #         self.mode = None
-        #         warnings.warn(str(e))
-        #         warnings.warn("Ignoring mode argument")
-
-        self.app = source(
-            __name__,
-            external_stylesheets=external_stylesheets,
-            server=server,
-            **self.kwargs
-        )
-        # Define app title
-        self.app.title = self.title or ""
-
         # Intialize layout
+        self.app.title = self.title or ""
         self.set_layout()
 
         # Register callbacks
         self.register_callback_fn()
+        self.add_streaming()
 
         # Keep track of the number of clicks
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
-
-        # Allow easier access to Dash server
-        self.server = self.app.server
 
     def run(self):
         self.app.run(**self.run_kwargs) if self.mode is None else self.app.run_server(
@@ -285,6 +324,7 @@ class FastDash:
             "twitter_url": self.twitter_url,
             "navbar": self.navbar,
             "footer": self.footer,
+            "loader": self.loader,
             "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
@@ -298,7 +338,8 @@ class FastDash:
             app_layout = BaseLayout(**layout_args)
 
         self.layout_object = app_layout
-        self.app.layout = app_layout.generate_layout()
+        streaming_components = [c.id for c in self.stream_outputs]
+        self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
     def register_callback_fn(self):
         @self.app.callback(
@@ -319,6 +360,7 @@ class FastDash:
             + [
                 Input(component_id="reset_inputs", component_property="n_clicks"),
                 Input(component_id="submit_inputs", component_property="n_clicks"),
+                State("socketio", "socketId"),
             ],
             prevent_initial_callback=True,
         )
@@ -332,17 +374,23 @@ class FastDash:
             default_notification = None
 
             try:
-                inputs = _transform_inputs(args[:-2], self.input_tags)
+                inputs = _transform_inputs(args[:-3], self.input_tags)
 
                 if ctx.triggered_id == "submit_inputs" or (
                     self.update_live is True and None not in args
                 ):
                     self.app_initialized = True
 
-                    output_state = self.callback_fn(*inputs)
+                    stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
+                    with StreamContext(stream_handler_func):
+                        output_state = self.callback_fn(*inputs)
+
+                    # if isinstance(output_state, GeneratorType):
+                    #     self.stream_handler(component_id=output_state.id, data=output_state, socket_id=args[-1])
+                    #     return dash.no_update
 
                     if isinstance(output_state, tuple):
-                        self.output_state = list(output_state)
+                        self.output_state = list(output_state) 
 
                     else:
                         self.output_state = [output_state]
@@ -401,6 +449,28 @@ class FastDash:
         if not self.minimal:
             self.layout_object.callbacks(self)
 
+    # Define a stream handler function
+    def stream_handler(self, component_id, data, socket_id):
+        """A simple handler that prints to console and returns a response"""
+
+        emit(component_id, data, namespace="/", to=socket_id)
+
+        return f"Received: {data}"
+
+    def add_streaming(self):
+        """Add streaming functionality to the app."""
+
+        for output_ in self.stream_outputs:
+
+            # All clientside callbacks
+            self.app.clientside_callback(
+                """(word, text) => word ? ((text || "") + word) : (text || "")""",
+                Output(output_.id, output_.component_property, allow_duplicate=True),
+                Input("socketio", f"data-{output_.id}"),
+                State(output_.id, output_.component_property),
+                prevent_initial_call=True,
+            )
+
 
 def fastdash(
     _callback_fn=None,
@@ -418,6 +488,7 @@ def fastdash(
     twitter_url=None,
     navbar=True,
     footer=True,
+    loader="bars",
     about=True,
     theme=None,
     update_live=False,
@@ -474,6 +545,9 @@ def fastdash(
 
         footer (bool, optional): Display footer. Defaults to True.
 
+        loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
+                If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
+
         about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
             the docstring of the callback function. If string, content is used directly as markdown. \
             `About` is hidden if False or None. Defaults to True.
@@ -519,6 +593,7 @@ def fastdash(
             twitter_url=twitter_url,
             navbar=navbar,
             footer=footer,
+            loader=loader,
             about=about,
             theme=theme,
             update_live=update_live,

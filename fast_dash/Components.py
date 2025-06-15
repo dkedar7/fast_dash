@@ -15,6 +15,7 @@ from flask import request
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
+from dash_socketio import DashSocketIO
 
 import matplotlib as mpl
 import numpy as np
@@ -45,6 +46,7 @@ class BaseLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        loader="bars",
         about=True,
         minimal=False,
         scale_height=1,
@@ -61,6 +63,7 @@ class BaseLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.loader = loader
         self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
@@ -600,15 +603,15 @@ class SidebarLayout(BaseLayout):
 
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
-        output_layout = dmc.LoadingOverlay(
-            dbc.Col(
-                [layout] + [self.outputs[-1]],
-                class_name="g-1 d-flex flex-fill flex-column",
-                style={"height": f"{80 * self.scale_height}vh"},
-                width=12,
-            ),
-            loaderProps=dict(variant="bars"),
-        )
+        output_layout = dbc.Col(
+                    [layout] + [self.outputs[-1]],
+                    class_name="g-1 d-flex flex-fill flex-column",
+                    style={"height": f"{80 * self.scale_height}vh"},
+                    width=12,
+                )
+
+        if self.loader:
+            output_layout = dmc.LoadingOverlay(output_layout, loaderProps=dict(variant=self.loader))
 
         return output_layout
 
@@ -631,7 +634,7 @@ class SidebarLayout(BaseLayout):
             id="footer5265971",
         )
 
-    def generate_layout(self):
+    def generate_layout(self, stream_event_names=None):
         # There are four main components:
         # navbar, header, input, output, footer
 
@@ -661,6 +664,7 @@ class SidebarLayout(BaseLayout):
                             ),
                             self.generate_footer_container(),
                             html.Div(id="error-notify-div"),
+                            DashSocketIO(id='socketio', eventNames=stream_event_names),
                         ],
                         fluid=True,
                         style={"height": "100vh", "width": "100%"},

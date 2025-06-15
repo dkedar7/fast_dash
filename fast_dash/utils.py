@@ -23,7 +23,7 @@ import warnings
 import re
 
 
-def Fastify(component, component_property, ack=None, placeholder=None, label_=None,tag=None, *args, **kwargs):
+def Fastify(component, component_property, ack=None, placeholder=None, label_=None, tag=None, stream=False, *args, **kwargs):
     """
     Modify a Dash component into a FastComponent.
 
@@ -40,7 +40,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     """
     
     class FastComponent(type(component)):
-        def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, *args, **kwargs):
+        def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, stream=stream, *args, **kwargs):
             
             self.component = component
             self.component_property = component_property
@@ -48,6 +48,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
             self.label_ = label_
             self.placeholder = placeholder
             self.tag = tag
+            self.stream = stream
             
             # Copy normal attributes
             for attr_name, attr_value in vars(component).items():
@@ -66,7 +67,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
                 
             return self_copy
         
-    return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag)
+    return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, stream=stream)
 
 
 def Chatify(query_response_dict):
@@ -76,6 +77,8 @@ def Chatify(query_response_dict):
         raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ..., 'artifacts': ...).")
     
     artifacts = query_response_dict.get("artifacts", [])
+
+    print (query_response_dict)
 
     if artifacts and not isinstance(artifacts, list):
         raise TypeError("Artifacts should be a list of artifacts.")
@@ -372,7 +375,7 @@ def _make_input_groups(inputs_with_ids, update_live):
 
 
 # Output utils
-def _assign_ids_to_outputs(outputs):
+def _assign_ids_to_outputs(outputs, callback_fn):
     """
     Modify the 'id' property of inputs.
     """
@@ -381,8 +384,8 @@ def _assign_ids_to_outputs(outputs):
 
     outputs_with_ids = []
 
-    for idx, output_ in enumerate(outputs):
-        output_.id = f"output-{idx + 1}"
+    for output_, output_name in zip(outputs, _infer_variable_names(callback_fn)):
+        output_.id = output_name
         outputs_with_ids.append(copy.deepcopy(output_))
 
     return outputs_with_ids
@@ -448,7 +451,10 @@ def _get_transform_function(output, tag):
 def _transform_outputs(outputs, tags):
     "Transform outputs to fit in the desired components"
 
-    return [_get_transform_function(o, tag)(o) for (o, tag) in zip(outputs, tags)]
+    return [
+        _get_transform_function(o, tag)(o)
+        for (o, tag) in zip(outputs, tags)
+    ]
 
 
 def _transform_inputs(inputs, tags):
