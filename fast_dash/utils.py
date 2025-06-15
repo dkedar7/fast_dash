@@ -78,8 +78,6 @@ def Chatify(query_response_dict):
     
     artifacts = query_response_dict.get("artifacts", [])
 
-    print (query_response_dict)
-
     if artifacts and not isinstance(artifacts, list):
         raise TypeError("Artifacts should be a list of artifacts.")
 
@@ -181,7 +179,7 @@ def Chatify(query_response_dict):
                         class_name="pb-2",
                     ),
                     dcc.Markdown(query_response_dict["response"]),
-                ] + artifact_components if artifact_components else None,
+                ] + artifact_components,
                 align="start",
                 style={
                     "padding": "1% 1%",
