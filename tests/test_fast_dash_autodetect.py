@@ -17,7 +17,8 @@ import datetime
 ########### Define callback functions ###########
 def simple_text_to_text_function(input_text: Text):
     "Converts text to text"
-    return input_text
+    output_text = input_text
+    return output_text
 
 
 def simple_number_to_number(input_: Slider):
@@ -26,9 +27,9 @@ def simple_number_to_number(input_: Slider):
 def simple_image_to_image(input_: UploadImage):
     return UploadImage
 
-
 def simple_text_to_multiple_text_function(input_text):
-    return input_text, input_text
+    output_text1 = output_text2 = input_text
+    return output_text1, output_text2
 
 
 ############## Write test cases ################
@@ -778,10 +779,10 @@ def test_fdco017_output_is_chat(dash_duo):
     dash_duo.multiple_click("#submit_inputs", 1)
 
     # Check if any child element has the text "Response to Why?"
-    output_div = dash_duo.find_element("#output-1")
+    output_div = dash_duo.find_element("#chat")
 
     wait = WebDriverWait(dash_duo.driver, timeout=4)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output-1")))
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#chat")))
     time.sleep(4)
 
     child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
@@ -816,7 +817,7 @@ def test_fdco018_output_is_pandas(dash_duo):
     time.sleep(4)
 
     # Ensure the table is present
-    table = dash_duo.find_element("#output-1")
+    table = dash_duo.find_element("#df")
     assert table is not None
     
     # Validate the data (example: check the first cell)

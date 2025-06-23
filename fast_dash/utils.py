@@ -3,9 +3,11 @@ Utility functions
 """
 import base64
 import copy
+import functools
 import inspect
 from io import BytesIO
 
+import dash
 from dash import html, dcc, Patch
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
@@ -16,12 +18,13 @@ import logging
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
+import plotly.graph_objects as go
 import pandas as pd
 import warnings
 import re
 
 
-def Fastify(component, component_property, ack=None, placeholder=None, label_=None,tag=None, *args, **kwargs):
+def Fastify(component, component_property, ack=None, placeholder=None, label_=None, tag=None, stream=False, *args, **kwargs):
     """
     Modify a Dash component into a FastComponent.
 
@@ -38,13 +41,15 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     """
     
     class FastComponent(type(component)):
-        def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, *args, **kwargs):
+        def __init__(self, component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, stream=stream, *args, **kwargs):
             
+            self.component = component
             self.component_property = component_property
             self.ack = ack
             self.label_ = label_
             self.placeholder = placeholder
             self.tag = tag
+            self.stream = stream
             
             # Copy normal attributes
             for attr_name, attr_value in vars(component).items():
@@ -63,19 +68,94 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
                 
             return self_copy
         
-    return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag)
+    return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, stream=stream)
 
 
-def Chatify(query_response_dict):
+def Chatify(query_response_dict, component_id, counter, partial_update=False, stream=False):
     "Convert a dictionary into a Chat component"
 
     if not isinstance(query_response_dict, dict):
-        raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ...).")
+        raise TypeError("Chat component requires a dictionary output ('query': ..., 'response': ..., 'artifacts': ...).")
+    
+    artifacts = query_response_dict.get("artifacts", [])
+
+    if artifacts and not isinstance(artifacts, list):
+        raise TypeError("Artifacts should be a list of artifacts.")
+
+    artifact_components = []
+    for artifact in artifacts:
+        if isinstance(artifact, go.Figure):
+            component = dcc.Graph(figure=artifact, style=dict(height="100%", width="100%"))
+
+        elif isinstance(artifact, pd.DataFrame):
+            component = dash.dash_table.DataTable(
+                            data=artifact.to_dict(orient="records"),
+                            page_size=100,
+                            page_action="native",
+                            sort_action="native",
+                            style_header={
+                                "backgroundColor": "white",
+                                "fontWeight": "bold",
+                                "color": "black",
+                                "textAlign": "center",
+                                "border": "1px solid #f0f0f0",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                            style_cell={
+                                "backgroundColor": "white",
+                                "color": "black",
+                                "textAlign": "center",
+                                "border": "1px solid #f0f0f0",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                            style_table={
+                                "border": "1px solid #f0f0f0",
+                                "overflowY": "auto",
+                                "fontFamily": '"News Cycle","Arial Narrow Bold",sans-serif',
+                            },
+                        )
+            
+        elif isinstance(artifact, PIL.Image.Image):
+            component = html.Img(
+                src=_pil_to_b64(artifact),
+                style={
+                    "object-fit": "contain",
+                    "max-height": "90%",
+                    "max-width": "100%",
+                    "height": "auto",
+                }
+            )
+
+        elif isinstance(artifact, mpl.figure.Figure):
+            component = html.Img(
+                src=_mpl_to_b64(artifact),
+                style={
+                    "object-fit": "contain",
+                    "max-height": "90%",
+                    "max-width": "100%",
+                    "height": "auto",
+                }
+            )
+
+        else:
+            component = dmc.Text(
+                artifact,
+                align="start",
+                style={
+                    "padding": "1% 1%",
+                    "max-width": "80%",
+                    "backgroundColor": "#E8EBFA",
+                },
+                className="border rounded shadow-sm m-3 col-auto",
+            )
+
+        artifact_components.append(component)
 
     ## Chat component
     input_component = dbc.Row(
         dmc.Text(
             [query_response_dict["query"]],
+            id=f"{component_id}_{counter}_query",
             align="end",
             style={
                 "padding": "1% 1%",
@@ -100,13 +180,14 @@ def Chatify(query_response_dict):
                         ),
                         class_name="pb-2",
                     ),
-                    dcc.Markdown(query_response_dict["response"]),
-                ],
+                    dcc.Markdown(query_response_dict["response"], id=f"{component_id}_{counter}_response"),
+                ] + artifact_components,
                 align="start",
                 style={
                     "padding": "1% 1%",
                     "max-width": "98%",
                     "backgroundColor": "#F9F9F9",
+                    "gap": "10px",  # Add gap between consecutive elements
                 },
                 className="border rounded shadow-sm m-3",
             )
@@ -115,17 +196,31 @@ def Chatify(query_response_dict):
         justify="start",
     )
 
-    chat_output = Patch()
-    chat_output.prepend(input_component)
-    chat_output.prepend(output_component)
 
-    return chat_output
+    chat_output_div = html.Div([input_component, output_component])
+
+    # Variable 'partial_update' is an indication of which method requires the component
+    # If component is used in the batch output of callback_fn, then partial_update is False
+    # Whereas, if component is used in 'update', then partial_update is True
+
+    if not partial_update and not stream:
+        chat_output = Patch()
+        chat_output.prepend(chat_output_div)
+        return chat_output
+
+    if partial_update:
+        return chat_output_div
+    
+    if not partial_update and stream:
+        chat_output = Patch()
+        chat_output[0]['props']['children'] = [input_component, output_component]
+        return chat_output   
 
 
 # Add themes mapper
 def theme_mapper(theme_name):
     """
-    Map theme name string ot a dbc theme object
+    Map theme name string to a dbc theme object
     """
 
     theme_mapper_dict = {
@@ -294,7 +389,7 @@ def _make_input_groups(inputs_with_ids, update_live):
 
 
 # Output utils
-def _assign_ids_to_outputs(outputs):
+def _assign_ids_to_outputs(outputs, callback_fn):
     """
     Modify the 'id' property of inputs.
     """
@@ -303,8 +398,8 @@ def _assign_ids_to_outputs(outputs):
 
     outputs_with_ids = []
 
-    for idx, output_ in enumerate(outputs):
-        output_.id = f"output-{idx + 1}"
+    for output_, output_name in zip(outputs, _infer_variable_names(callback_fn, upper_case=False)):
+        output_.id = output_name
         outputs_with_ids.append(copy.deepcopy(output_))
 
     return outputs_with_ids
@@ -347,11 +442,12 @@ def _make_output_groups(outputs, update_live):
     return output_groups
 
 
-def _get_transform_function(output, tag):
+def _get_transform_function(output, tag, component_id, counter, partial_update=False, stream=False):
     "Utility for _transform_outputs. Defines the transform function to be applied to a Fast component's property."
 
     if tag == "Chat":
-        return Chatify
+        chatify_partial = functools.partial(Chatify, component_id=component_id, counter=counter, partial_update=partial_update, stream=stream)
+        return chatify_partial
 
     subclass = type(output)
     _transform_mapper = {plt.Figure: _mpl_to_b64, 
@@ -367,10 +463,13 @@ def _get_transform_function(output, tag):
     return no_transform_fxn
 
 
-def _transform_outputs(outputs, tags):
+def _transform_outputs(output_states, tags, outputs_with_ids, counter):
     "Transform outputs to fit in the desired components"
 
-    return [_get_transform_function(o, tag)(o) for (o, tag) in zip(outputs, tags)]
+    return [
+        _get_transform_function(o, tag, ot.id, counter, False, ot.stream)(o)
+        for (o, tag, ot) in zip(output_states, tags, outputs_with_ids)
+    ]
 
 
 def _transform_inputs(inputs, tags):
@@ -401,7 +500,7 @@ def _get_error_notification_component(error_text):
     )
 
 
-def _clean_text(string):
+def _clean_text(string, upper_case=False):
     # Use regular expression to replace non-alphanumeric characters with underscores
     pattern_non_alpha_numeric = r"\W"  # \W matches any non-alphanumeric character
     replacement_non_alpha_numeric = "_"
@@ -414,10 +513,13 @@ def _clean_text(string):
         pattern_consecutive_underscores, replacement_consecutive_underscores, string
     )
 
-    return string.upper()
+    if upper_case:
+        return string.upper()
+    
+    return string
 
 
-def _infer_variable_names(func):
+def _infer_variable_names(func, upper_case=False):
 
     try:
         s = inspect.getsource(func)
@@ -429,7 +531,7 @@ def _infer_variable_names(func):
     final_line = s.split("return")[-1].strip()
     line_without_comment = final_line.split("#")[0].strip().split(",")
 
-    variable_names = [_clean_text(s) for s in line_without_comment]
+    variable_names = [_clean_text(s, upper_case=upper_case) for s in line_without_comment]
 
     return variable_names
 
