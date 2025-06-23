@@ -3,6 +3,7 @@ Utility functions
 """
 import base64
 import copy
+import functools
 import inspect
 from io import BytesIO
 
@@ -70,7 +71,7 @@ def Fastify(component, component_property, ack=None, placeholder=None, label_=No
     return FastComponent(component, component_property, ack=ack, placeholder=placeholder, label_=label_, tag=tag, stream=stream)
 
 
-def Chatify(query_response_dict):
+def Chatify(query_response_dict, component_id, counter, partial_update=False, stream=False):
     "Convert a dictionary into a Chat component"
 
     if not isinstance(query_response_dict, dict):
@@ -154,6 +155,7 @@ def Chatify(query_response_dict):
     input_component = dbc.Row(
         dmc.Text(
             [query_response_dict["query"]],
+            id=f"{component_id}_{counter}_query",
             align="end",
             style={
                 "padding": "1% 1%",
@@ -178,7 +180,7 @@ def Chatify(query_response_dict):
                         ),
                         class_name="pb-2",
                     ),
-                    dcc.Markdown(query_response_dict["response"]),
+                    dcc.Markdown(query_response_dict["response"], id=f"{component_id}_{counter}_response"),
                 ] + artifact_components,
                 align="start",
                 style={
@@ -194,17 +196,31 @@ def Chatify(query_response_dict):
         justify="start",
     )
 
-    chat_output = Patch()
-    chat_output.prepend(input_component)
-    chat_output.prepend(output_component)
 
-    return chat_output
+    chat_output_div = html.Div([input_component, output_component])
+
+    # Variable 'partial_update' is an indication of which method requires the component
+    # If component is used in the batch output of callback_fn, then partial_update is False
+    # Whereas, if component is used in 'update', then partial_update is True
+
+    if not partial_update and not stream:
+        chat_output = Patch()
+        chat_output.prepend(chat_output_div)
+        return chat_output
+
+    if partial_update:
+        return chat_output_div
+    
+    if not partial_update and stream:
+        chat_output = Patch()
+        chat_output[0]['props']['children'] = [input_component, output_component]
+        return chat_output   
 
 
 # Add themes mapper
 def theme_mapper(theme_name):
     """
-    Map theme name string ot a dbc theme object
+    Map theme name string to a dbc theme object
     """
 
     theme_mapper_dict = {
@@ -426,11 +442,12 @@ def _make_output_groups(outputs, update_live):
     return output_groups
 
 
-def _get_transform_function(output, tag):
+def _get_transform_function(output, tag, component_id, counter, partial_update=False, stream=False):
     "Utility for _transform_outputs. Defines the transform function to be applied to a Fast component's property."
 
     if tag == "Chat":
-        return Chatify
+        chatify_partial = functools.partial(Chatify, component_id=component_id, counter=counter, partial_update=partial_update, stream=stream)
+        return chatify_partial
 
     subclass = type(output)
     _transform_mapper = {plt.Figure: _mpl_to_b64, 
@@ -446,12 +463,12 @@ def _get_transform_function(output, tag):
     return no_transform_fxn
 
 
-def _transform_outputs(outputs, tags):
+def _transform_outputs(output_states, tags, outputs_with_ids, counter):
     "Transform outputs to fit in the desired components"
 
     return [
-        _get_transform_function(o, tag)(o)
-        for (o, tag) in zip(outputs, tags)
+        _get_transform_function(o, tag, ot.id, counter, False, ot.stream)(o)
+        for (o, tag, ot) in zip(output_states, tags, outputs_with_ids)
     ]
 
 

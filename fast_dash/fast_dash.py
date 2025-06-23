@@ -4,6 +4,9 @@ import re
 import traceback
 import warnings
 
+from plotly.io.json import to_json_plotly
+import json
+
 import dash
 import flask
 from flask_socketio import SocketIO, emit
@@ -21,6 +24,7 @@ from .Components import (
 from .utils import (
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
+    _get_transform_function,
     _make_input_groups,
     _make_output_groups,
     _transform_inputs,
@@ -38,18 +42,10 @@ from types import GeneratorType
 
 # Create context variable to hold the stream handler
 stream_handler_var = contextvars.ContextVar('stream_handler', default=None)
-
-def stream(component, data):
-    """When called in user code, invokes the current context's handler"""
-    handler = stream_handler_var.get()
-    if handler is not None:
-        return handler(component, data)
-    else:
-        raise RuntimeError("No stream handler registered in this context")
     
 # Context manager for easier usage
 class StreamContext:
-    def __init__(self, handler_func):
+    def __init__(self, handler_func, chat_handler_func=None):
         self.handler_func = handler_func
         self.token = None
         
@@ -60,16 +56,13 @@ class StreamContext:
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self.token is not None:
             stream_handler_var.reset(self.token)
-    
-# Decorator for automatically setting up stream handling
-def with_streaming(handler_func):
-    def decorator(func):
-        @functools.wraps(func)
-        def wrapper(*args, **kwargs):
-            with StreamContext(handler_func):
-                return func(*args, **kwargs)
-        return wrapper
-    return decorator
+
+def update(component, data, property=None):
+    """When called in user code, invokes the current context's handler"""
+    handler = stream_handler_var.get()
+
+    if handler is not None:
+        return handler(component, data, property=property)
 
 
 class FastDash:
@@ -240,6 +233,9 @@ class FastDash:
         self.mosaic = mosaic
         self.output_labels = output_labels
 
+        # Initialize state indicators
+        self.state_counter = 0
+
         if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn)
 
@@ -269,13 +265,12 @@ class FastDash:
             for input_ in self.inputs_with_ids
         ]
 
-        self.stream_outputs = [c for c in self.outputs_with_ids if c.stream == True]
-
         # Default state of outputs
         self.output_state_default = [
             output_.placeholder if hasattr(output_, "placeholder") else None
             for output_ in self.outputs_with_ids
         ]
+        self.output_state = self.output_state_default
 
         self.output_state_blank = [None for output_ in self.outputs_with_ids]
         self.latest_output_state = self.output_state_blank
@@ -338,7 +333,14 @@ class FastDash:
             app_layout = BaseLayout(**layout_args)
 
         self.layout_object = app_layout
-        streaming_components = [c.id for c in self.stream_outputs]
+        streaming_components = [c.id for c in self.outputs_with_ids]
+        
+        # Add responses of chat components if present
+        chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat"]
+
+        for component in chat_components:
+            [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(100)]
+        
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
     def register_callback_fn(self):
@@ -372,6 +374,7 @@ class FastDash:
                 raise PreventUpdate
 
             default_notification = None
+            self.state_counter += 1
 
             try:
                 inputs = _transform_inputs(args[:-3], self.input_tags)
@@ -385,19 +388,15 @@ class FastDash:
                     with StreamContext(stream_handler_func):
                         output_state = self.callback_fn(*inputs)
 
-                    # if isinstance(output_state, GeneratorType):
-                    #     self.stream_handler(component_id=output_state.id, data=output_state, socket_id=args[-1])
-                    #     return dash.no_update
-
                     if isinstance(output_state, tuple):
-                        self.output_state = list(output_state) 
+                        self.output_state = list(output_state)
 
                     else:
                         self.output_state = [output_state]
 
                     # Transform outputs to fit in the desired components
                     self.output_state = _transform_outputs(
-                        self.output_state, self.output_tags
+                        self.output_state, self.output_tags, self.outputs_with_ids, self.state_counter
                     )
 
                     # Log the latest output state
@@ -450,26 +449,109 @@ class FastDash:
             self.layout_object.callbacks(self)
 
     # Define a stream handler function
-    def stream_handler(self, component_id, data, socket_id):
+    def stream_handler(self, component_id, data, property=None, socket_id=None):
         """A simple handler that prints to console and returns a response"""
 
-        emit(component_id, data, namespace="/", to=socket_id)
+        component = [c for c in self.outputs_with_ids if c.id == component_id][0]
+
+        if component.tag == "Chat" and not property:
+            raise ValueError("Argument 'property' must be specified for chat components. Allowed 'property' values are 'query' and 'response'.")
+
+        if component.tag == "Chat" and property  not in ["query", "response"]:
+            raise ValueError("Invalid 'property' value for chat component. Allowed 'property' values are 'query' and 'response'.")
+    
+        component_state_func = _get_transform_function(output=data, 
+                                                       tag=component.tag, 
+                                                       component_id=component.id, 
+                                                       counter=self.state_counter,
+                                                       partial_update=True)
+
+
+        if component.tag == "Chat" and property == "query":
+
+            # Add a new component to the chat response
+            data = dict(query=data, response="")
+            component_state = json.loads(to_json_plotly(component_state_func(data)))
+            component.stream = True
+
+            emit(component_id, {"value": component_state, "append": True}, namespace="/", to=socket_id)
+
+        elif component.tag == "Chat" and property == "response":
+            component_id = f"{component_id}_{self.state_counter}_response"
+
+            emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
+
+        else:
+            emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
 
         return f"Received: {data}"
+    
 
     def add_streaming(self):
         """Add streaming functionality to the app."""
 
-        for output_ in self.stream_outputs:
+        update_func = """
+            function(payload, current_value) {
+                if (!payload) {
+                    return dash_clientside.no_update;
+                }
+                
+                const { value, append } = payload;
+                
+                if (value === null || value === undefined) {
+                    return dash_clientside.no_update;
+                }
+                
+                let new_value;
+                
+                // Parse the incoming value if it's a string
+                if (typeof value === 'string' && value !== '') {
+                    try {
+                        new_value = JSON.parse(value);
+                    } catch (e) {
+                        new_value = value;
+                    }
+                } else {
+                    new_value = value;
+                }
+                
+                // If append is true, combine with current value
+                if (append) {
+                    const current = current_value || [];
+                    const current_array = Array.isArray(current) ? current : [current];
+                    
+                    if (Array.isArray(new_value)) {
+                        return [...new_value, ...current_array];
+                    } else {
+                        return [new_value, ...current_array];
+                    }
+                }
+                
+                return new_value;
+            }
+            """
+
+        for component in self.outputs_with_ids:
 
             # All clientside callbacks
             self.app.clientside_callback(
-                """(word, text) => word ? ((text || "") + word) : (text || "")""",
-                Output(output_.id, output_.component_property, allow_duplicate=True),
-                Input("socketio", f"data-{output_.id}"),
-                State(output_.id, output_.component_property),
+                update_func,
+                Output(component.id, component.component_property, allow_duplicate=True),
+                Input("socketio", f"data-{component.id}"),
+                State(component.id, component.component_property),
                 prevent_initial_call=True,
             )
+
+            if component.tag == "Chat":
+                for i in range(100):
+                    c_id = f"{component.id}_{i + 1}_response"
+                    self.app.clientside_callback(
+                            update_func,
+                            Output(c_id, "children", allow_duplicate=True),
+                            Input("socketio", f"data-{c_id}"),
+                            State(c_id, "children"),
+                            prevent_initial_call=True,
+                        )
 
 
 def fastdash(
