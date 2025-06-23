@@ -237,7 +237,7 @@ class FastDash:
         self.state_counter = 0
 
         if output_labels == "infer":
-            self.output_labels = _infer_variable_names(callback_fn)
+            self.output_labels = _infer_variable_names(callback_fn, upper_case=True)
 
         self.inputs = (
             _infer_input_components(callback_fn)
@@ -452,7 +452,12 @@ class FastDash:
     def stream_handler(self, component_id, data, property=None, socket_id=None):
         """A simple handler that prints to console and returns a response"""
 
-        component = [c for c in self.outputs_with_ids if c.id == component_id][0]
+        component = [c for c in self.outputs_with_ids if c.id == component_id]
+
+        if not component:
+            raise ValueError(f"Component with id {component_id} not found in outputs.")
+
+        component = component[0]
 
         if component.tag == "Chat" and not property:
             raise ValueError("Argument 'property' must be specified for chat components. Allowed 'property' values are 'query' and 'response'.")

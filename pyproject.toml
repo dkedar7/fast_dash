@@ -43,6 +43,8 @@ dependencies = [
     "docstring-parser>=0.15",
     "dill (>=0.3.9,<0.4.0)",
     "pyreadline3 (>=3.5.4,<4.0.0)",
+    "dash-socketio (>=1.1.1,<2.0.0)",
+    "flask-socketio (>=5.5.1,<6.0.0)",
 ]
 
 [project.optional-dependencies]

@@ -7,7 +7,8 @@ def example_1_simple_text_to_text():
     "Fast Dash example 1. Simple text to text Fast Dash app"
     ## Define callback functions
     def simple_text_to_text_function(input_text):
-        return input_text
+        output_text = input_text
+        return output_text
 
     app = FastDash(
         callback_fn=simple_text_to_text_function,
@@ -43,7 +44,8 @@ def example_3_image_to_image():
 
     # Step 1: Define your model inference
     def callback_fn(image):
-        return image
+        processed_image = image
+        return processed_image
 
     # Step 2: Specify the input and output components
     app = FastDash(
@@ -60,7 +62,8 @@ def example_4_image_slider_to_image_text():
     "Fast Dash example 4. Input is Upload (with ack) and slider. Output is Image and Text."
 
     def callback_fn(input_text, slider_value):
-        return input_text, f"Slider value is {slider_value}"
+        output_text = input_text
+        return output_text, f"Slider value is {slider_value}"
 
     ack_image = Fastify(html.Img(width="100%"), "src")
     fast_upload = Fastify(

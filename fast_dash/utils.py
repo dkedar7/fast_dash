@@ -398,7 +398,7 @@ def _assign_ids_to_outputs(outputs, callback_fn):
 
     outputs_with_ids = []
 
-    for output_, output_name in zip(outputs, _infer_variable_names(callback_fn)):
+    for output_, output_name in zip(outputs, _infer_variable_names(callback_fn, upper_case=False)):
         output_.id = output_name
         outputs_with_ids.append(copy.deepcopy(output_))
 
@@ -500,7 +500,7 @@ def _get_error_notification_component(error_text):
     )
 
 
-def _clean_text(string):
+def _clean_text(string, upper_case=False):
     # Use regular expression to replace non-alphanumeric characters with underscores
     pattern_non_alpha_numeric = r"\W"  # \W matches any non-alphanumeric character
     replacement_non_alpha_numeric = "_"
@@ -513,10 +513,13 @@ def _clean_text(string):
         pattern_consecutive_underscores, replacement_consecutive_underscores, string
     )
 
-    return string.upper()
+    if upper_case:
+        return string.upper()
+    
+    return string
 
 
-def _infer_variable_names(func):
+def _infer_variable_names(func, upper_case=False):
 
     try:
         s = inspect.getsource(func)
@@ -528,7 +531,7 @@ def _infer_variable_names(func):
     final_line = s.split("return")[-1].strip()
     line_without_comment = final_line.split("#")[0].strip().split(",")
 
-    variable_names = [_clean_text(s) for s in line_without_comment]
+    variable_names = [_clean_text(s, upper_case=upper_case) for s in line_without_comment]
 
     return variable_names
 

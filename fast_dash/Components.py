@@ -263,7 +263,7 @@ class BaseLayout:
 
         return footer_container
 
-    def generate_layout(self):
+    def generate_layout(self, stream_event_names=None):
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
 
