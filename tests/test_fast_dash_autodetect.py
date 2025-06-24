@@ -779,10 +779,10 @@ def test_fdco017_output_is_chat(dash_duo):
     dash_duo.multiple_click("#submit_inputs", 1)
 
     # Check if any child element has the text "Response to Why?"
-    output_div = dash_duo.find_element("#chat")
+    output_div = dash_duo.find_element("#output_chat")
 
     wait = WebDriverWait(dash_duo.driver, timeout=4)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#chat")))
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output_chat")))
     time.sleep(4)
 
     child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
@@ -817,7 +817,7 @@ def test_fdco018_output_is_pandas(dash_duo):
     time.sleep(4)
 
     # Ensure the table is present
-    table = dash_duo.find_element("#df")
+    table = dash_duo.find_element("#output_df")
     assert table is not None
     
     # Validate the data (example: check the first cell)
