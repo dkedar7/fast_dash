@@ -139,3 +139,26 @@ def example_6_text_to_plt():
     )
 
     return app
+
+
+def example_7_stream_text():
+    "Fast Dash example 7. Stream text to a Text component."
+
+    from fast_dash import FastDash, update
+    def stream_text_function(input_text):
+
+        expected_output = "This is the expected output text."
+
+        output_text = ""
+        for c in expected_output:
+            update("output_text", str(c))
+            output_text += c
+
+        return output_text
+    
+    app = FastDash(
+        callback_fn=stream_text_function,
+        title="Fast Dash example 7"
+    )
+
+    return app

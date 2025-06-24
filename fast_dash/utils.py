@@ -399,7 +399,7 @@ def _assign_ids_to_outputs(outputs, callback_fn):
     outputs_with_ids = []
 
     for output_, output_name in zip(outputs, _infer_variable_names(callback_fn, upper_case=False)):
-        output_.id = output_name
+        output_.id = f"output_{output_name}"
         outputs_with_ids.append(copy.deepcopy(output_))
 
     return outputs_with_ids

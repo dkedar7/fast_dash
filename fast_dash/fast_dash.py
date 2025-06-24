@@ -452,12 +452,13 @@ class FastDash:
     def stream_handler(self, component_id, data, property=None, socket_id=None):
         """A simple handler that prints to console and returns a response"""
 
-        component = [c for c in self.outputs_with_ids if c.id == component_id]
+        component = [c for c in self.outputs_with_ids if c.id == f"output_{component_id}"]
 
         if not component:
             raise ValueError(f"Component with id {component_id} not found in outputs.")
 
         component = component[0]
+        component_id = component.id
 
         if component.tag == "Chat" and not property:
             raise ValueError("Argument 'property' must be specified for chat components. Allowed 'property' values are 'query' and 'response'.")

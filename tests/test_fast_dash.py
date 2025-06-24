@@ -2,8 +2,7 @@
 """Tests for `fast_dash` package."""
 # pylint: disable=redefined-outer-name
 
-from fast_dash import FastDash
-from fast_dash.Components import Text
+from fast_dash import FastDash, update, Text
 import matplotlib.pyplot as plt
 
 import time
@@ -38,6 +37,20 @@ def simple_text_to_multiple_outputs(
 
     return fig, "Return some text"
 
+def stream_text_function(input_text: str) -> Text:
+
+    expected_output = "output"
+
+    output_text = ""
+    for i, c in enumerate(expected_output):
+        update("output_text", str(c))
+        time.sleep(1)
+        output_text += c
+
+    return output_text
+
+
+# Tests start here
 
 def test_fdfd001_set_title(dash_duo):
     "Test title element"
@@ -357,3 +370,28 @@ def test_fdfd015_close_sidebar(dash_duo):
         item.split(":") for item in sidebar_style.strip(";").split("; ") if item
     )
     assert sidebar_style["display"].strip() == "none", "Sidebar did not close"
+
+
+def test_fdfd016_stream_text_simple(dash_duo):
+    "Test streaming text output"
+
+    app = FastDash(
+        callback_fn=stream_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="Streaming Text Example",
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Streaming Text Example", timeout=4
+    )
+
+    # Enter some text
+    form_textfield = dash_duo.find_element("#input_text")
+    form_textfield.send_keys("Sample text")
+
+    # Click submit
+    dash_duo.multiple_click("#submit_inputs", 1)
+
+    dash_duo.wait_for_text_to_equal("#output_output_text", "output", timeout=20)
