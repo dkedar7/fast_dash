@@ -141,7 +141,7 @@ def example_6_text_to_plt():
     return app
 
 
-def example_7_stream_text():
+def example_7_streaming_text():
     "Fast Dash example 7. Stream text to a Text component."
 
     from fast_dash import FastDash, update
