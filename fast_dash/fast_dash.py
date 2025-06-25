@@ -229,6 +229,7 @@ class FastDash:
 
         # Allow easier access to Dash server
         self.server = self.app.server
+        self.callback = self.app.callback
         socketio = SocketIO(self.app.server)
 
         # Define other attributes

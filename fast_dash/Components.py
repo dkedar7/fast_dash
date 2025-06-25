@@ -816,7 +816,7 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dcc.Dropdown(options=default_value), "value", tag=_hint_type
+                dmc.Select(data=default_value), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Dictionary":
