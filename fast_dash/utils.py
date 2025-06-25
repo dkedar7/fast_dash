@@ -596,7 +596,6 @@ def _get_default_property(component_type):
             dmc.ChipGroup: "value",
             dmc.ColorPicker: "value",
             dmc.DatePicker: "value",
-            dmc.DateRangePicker: "value",
             dmc.JsonInput: "value",
             dmc.MultiSelect: "value",
             dmc.NumberInput: "value",
@@ -612,7 +611,6 @@ def _get_default_property(component_type):
             dmc.Blockquote: "children",
             dmc.Code: "children",
             dmc.List: "children",
-            dmc.Prism: "children",
             dmc.Text: "children",
             dmc.Title: "children",
         }
