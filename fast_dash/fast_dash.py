@@ -289,14 +289,14 @@ class FastDash:
         self.app_initialized = False
 
     def run(self):
-        self.app.run(**self.run_kwargs) if self.mode is None else self.app.run_server(
+        self.app.run(**self.run_kwargs) if self.mode is None else self.app.run(
             jupyter_mode=self.mode, **self.run_kwargs
         )
 
     def run_server(self):
-        self.app.run_server(
+        self.app.run(
             **self.run_kwargs
-        ) if self.mode is None else self.app.run_server(
+        ) if self.mode is None else self.app.run(
             jupyter_mode=self.mode, **self.run_kwargs
         )
 
@@ -344,6 +344,18 @@ class FastDash:
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
     def register_callback_fn(self):
+
+        self.app.clientside_callback(
+            f"""
+            function updateLoadingState(n_clicks) {{
+                return {"true" if self.loader else "false"}; 
+            }}
+            """,
+            Output("loading-overlay", "visible", allow_duplicate=True),
+            Input("submit_inputs", "n_clicks"),
+            prevent_initial_call=True,
+        )
+
         @self.app.callback(
             [
                 Output(
@@ -352,7 +364,7 @@ class FastDash:
                 )
                 for output_ in self.outputs_with_ids
             ]
-            + [Output("error-notify-div", "children")],
+            + [Output("notification-container", "sendNotifications"), Output("loading-overlay", "visible")],
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
@@ -364,7 +376,9 @@ class FastDash:
                 Input(component_id="submit_inputs", component_property="n_clicks"),
                 State("socketio", "socketId"),
             ],
+            running=[(Output("submit_inputs", "disabled"), True, False)],
             prevent_initial_callback=True,
+            prevet_initial_call=True
         )
         def process_input(*args):
             if (
@@ -373,7 +387,7 @@ class FastDash:
             ):
                 raise PreventUpdate
 
-            default_notification = None
+            default_notification = []
             self.state_counter += 1
 
             try:
@@ -402,23 +416,23 @@ class FastDash:
                     # Log the latest output state
                     self.latest_output_state = self.output_state
 
-                    return self.output_state + [default_notification]
+                    return self.output_state + [default_notification, False]
 
                 elif ctx.triggered_id == "reset_inputs":
                     self.output_state = self.output_state_default
-                    return self.output_state + [default_notification]
+                    return self.output_state + [default_notification, False]
 
                 elif self.app_initialized:
-                    return self.output_state + [default_notification]
+                    return self.output_state + [default_notification, False]
 
                 else:
-                    return self.output_state_default + [default_notification]
+                    return self.output_state_default + [default_notification, False]
 
             except Exception as e:
                 traceback.print_exc()
                 notification = _get_error_notification_component(str(e))
 
-                return self.output_state_default + [notification]
+                return self.output_state_default + [notification, False]
 
         @self.app.callback(
             [

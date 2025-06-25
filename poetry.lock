@@ -889,15 +889,21 @@ files = [
 
 [[package]]
 name = "dash-mantine-components"
-version = "0.12.1"
+version = "2.0.0"
 description = "Plotly Dash Components based on Mantine"
 optional = false
 python-versions = "*"
 groups = ["main"]
 files = [
-    {file = "dash_mantine_components-0.12.1-py3-none-any.whl", hash = "sha256:2630bca31cb96d96fb2c4f986e639b9f92d6319aba8cba02f76da6c0d8f5ca48"},
-    {file = "dash_mantine_components-0.12.1.tar.gz", hash = "sha256:c3dcbfd89813a1539654b8d016eb953dc5f67aafe1a77d45b5ec9faa6f25d3e7"},
+    {file = "dash_mantine_components-2.0.0-py3-none-any.whl", hash = "sha256:e084ba1fac9a9ad8672852047d0a97dc3cd7372677d1fa55ef8e655a664fa271"},
+    {file = "dash_mantine_components-2.0.0.tar.gz", hash = "sha256:2e09b7f60b41483a06d270c621b5f23a1a9c9321a7f60d2e2b631cde493456cb"},
 ]
+
+[package.dependencies]
+dash = ">=2"
+
+[package.extras]
+dev = ["black", "build", "dash-iconify", "dash[ci,dev,testing] (>=2)", "pytest (<8.1.0)", "pyyaml (>=5.0)", "selenium (<4.3.0)", "wheel"]
 
 [[package]]
 name = "dash-socketio"
@@ -2768,14 +2774,14 @@ files = [
 
 [[package]]
 name = "narwhals"
-version = "1.43.1"
+version = "1.44.0"
 description = "Extremely lightweight compatibility layer between dataframe libraries"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "test"]
 files = [
-    {file = "narwhals-1.43.1-py3-none-any.whl", hash = "sha256:1ee508fa4dc0e05aa5b88717ba11613d8d9ccf0dd1e48513d4a3afb237dba9f2"},
-    {file = "narwhals-1.43.1.tar.gz", hash = "sha256:6ff56d600da67a0a0980b83bd5577d076772fdba96474076ba4e76c920dbc1e5"},
+    {file = "narwhals-1.44.0-py3-none-any.whl", hash = "sha256:a170ea0bab4cf1f323d9f8bf17f2d7042c3d73802bea321996b39bf075d57de5"},
+    {file = "narwhals-1.44.0.tar.gz", hash = "sha256:8cf0616d4f6f21225b3b56fcde96ccab6d05023561a0f162402aa9b8c33ad31d"},
 ]
 
 [package.extras]
@@ -4895,4 +4901,4 @@ test = ["black", "flake8", "flake8-docstrings", "isort", "pytest", "pytest-cov",
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9,<3.14"
-content-hash = "72239240671d319b69a5753c8287c9c7ccaeeeb0444f9401a944613a4c07a889"
+content-hash = "797c8d5f9ff2c42cec6867827bf9f0d2450670c3123755757f58f8311d0d70eb"

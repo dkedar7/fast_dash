@@ -140,12 +140,12 @@ def Chatify(query_response_dict, component_id, counter, partial_update=False, st
         else:
             component = dmc.Text(
                 artifact,
-                align="start",
                 style={
                     "padding": "1% 1%",
                     "max-width": "80%",
                     "backgroundColor": "#E8EBFA",
                 },
+                ta="left",
                 className="border rounded shadow-sm m-3 col-auto",
             )
 
@@ -156,7 +156,7 @@ def Chatify(query_response_dict, component_id, counter, partial_update=False, st
         dmc.Text(
             [query_response_dict["query"]],
             id=f"{component_id}_{counter}_query",
-            align="end",
+            ta="right",
             style={
                 "padding": "1% 1%",
                 "max-width": "80%",
@@ -182,13 +182,13 @@ def Chatify(query_response_dict, component_id, counter, partial_update=False, st
                     ),
                     dcc.Markdown(query_response_dict["response"], id=f"{component_id}_{counter}_response"),
                 ] + artifact_components,
-                align="start",
                 style={
                     "padding": "1% 1%",
                     "max-width": "98%",
                     "backgroundColor": "#F9F9F9",
                     "gap": "10px",  # Add gap between consecutive elements
                 },
+                ta="left",
                 className="border rounded shadow-sm m-3",
             )
         ],
@@ -490,14 +490,14 @@ def _transform_inputs(inputs, tags):
 
 
 def _get_error_notification_component(error_text):
-    return dmc.Notification(
-        title="Error",
-        id="simple-notify",
+    return [dict(
+        title="Error!",
+        id="show-notify",
         action="show",
         color="red",
         message=error_text.capitalize(),
         icon=DashIconify(icon="bxs:error"),
-    )
+    )]
 
 
 def _clean_text(string, upper_case=False):

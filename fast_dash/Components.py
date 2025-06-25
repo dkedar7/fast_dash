@@ -132,7 +132,7 @@ class BaseLayout:
                         ),
                         self.title,
                     ],
-                    spacing=5,
+                    gap=5,
                 )
             ]
             or "",
@@ -609,9 +609,9 @@ class SidebarLayout(BaseLayout):
                     style={"height": f"{80 * self.scale_height}vh"},
                     width=12,
                 )
-
-        if self.loader:
-            output_layout = dmc.LoadingOverlay(output_layout, loaderProps=dict(variant=self.loader))
+        
+        loader_component = dmc.LoadingOverlay(id="loading-overlay", loaderProps=dict(type=self.loader))
+        output_layout = html.Div([loader_component, output_layout])
 
         return output_layout
 
@@ -621,7 +621,7 @@ class SidebarLayout(BaseLayout):
                 label="Made with Fast Dash!",
                 position="top",
                 withArrow=True,
-                transitionDuration=300,
+                transitionProps={"duration": 300},
                 children=dcc.Link(
                     dmc.Button(
                         DashIconify(icon="ion:rocket-sharp", width=20), radius=500
@@ -642,8 +642,8 @@ class SidebarLayout(BaseLayout):
             self.title = self.subtitle = self.navbar = self.footer = False
 
         layout = dmc.MantineProvider(
-            dmc.NotificationsProvider(
                 [
+                    dmc.NotificationContainer(id="notification-container"),
                     html.Div(id="dummy-div", style={"display": "none"}),
                     dbc.Container(
                         [
@@ -663,7 +663,6 @@ class SidebarLayout(BaseLayout):
                                 class_name="d-flex",
                             ),
                             self.generate_footer_container(),
-                            html.Div(id="error-notify-div"),
                             DashSocketIO(id='socketio', eventNames=stream_event_names),
                         ],
                         fluid=True,
@@ -671,7 +670,6 @@ class SidebarLayout(BaseLayout):
                     )
                 ]
             )
-        )
 
         return layout
 
@@ -894,8 +892,7 @@ def _get_component_from_input(hint, default_value=None):
                 dmc.MultiSelect(
                     data=[default_value],
                     value=[default_value],
-                    searchable=True,
-                    creatable=True,
+                    searchable=True
                 ),
                 "value",
                 tag=_default_value_type,
@@ -924,8 +921,7 @@ def _get_component_from_input(hint, default_value=None):
         else:
             component = Fastify(
                 dmc.MultiSelect(
-                    searchable=True,
-                    creatable=True,
+                    searchable=True
                 ),
                 "value",
                 tag=_default_value_type,
