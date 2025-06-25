@@ -144,7 +144,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.Select().__doc__
         and hasattr(input_component, "options")
         and input_component.options == ["Some text", 2.2, "45.23"]
     ), "Default sequence failed"
@@ -343,7 +343,7 @@ def test_fdco007_input_hint_is_dictionary(dash_duo):
     app = FastDash(callback_fn=simple_dictionary)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.Select().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "options")
         and input_component.options == sample_dictionary
@@ -514,7 +514,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.Select().__doc__
         and hasattr(input_component, "options")
         and input_component.options == ["These", "are", 5, "options", "to select"]
     ), "Default list failed"
@@ -544,7 +544,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
+        input_component.__doc__ == dmc.Select().__doc__
         and hasattr(input_component, "options")
         and input_component.options
         == {"This": "is", "a": "dictionary", 5: "Fast", "Dash": [1, 2, 3]}
