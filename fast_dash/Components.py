@@ -1053,7 +1053,7 @@ def _get_component_from_input(hint, default_value=None):
 
             elif _default_value_type == "Dictionary":
                 component = Fastify(
-                    dmc.Select(data=default_value.keys()),
+                    dmc.Select(data=list(default_value.keys())),
                     "value",
                     tag=_default_value_type,
                 )

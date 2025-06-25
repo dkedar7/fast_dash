@@ -145,8 +145,8 @@ def test_fdco004_input_hint_is_text(dash_duo):
     input_component = app.inputs_with_ids[0]
     assert (
         input_component.__doc__ == dmc.Select().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options == ["Some text", 2.2, "45.23"]
+        and hasattr(input_component, "data")
+        and input_component.data == ["Some text", 2.2, "45.23"]
     ), "Default sequence failed"
 
     # 4. Default is dictionary
@@ -343,10 +343,9 @@ def test_fdco007_input_hint_is_dictionary(dash_duo):
     app = FastDash(callback_fn=simple_dictionary)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dmc.Select().__doc__
-        and not hasattr(input_component, "type")
-        and hasattr(input_component, "options")
-        and input_component.options == sample_dictionary
+        input_component.__doc__ == dmc.MultiSelect().__doc__
+        and hasattr(input_component, "data")
+        and input_component.data == list(sample_dictionary.keys())
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
     ), "Default dictionary failed"
@@ -515,8 +514,8 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
 
     assert (
         input_component.__doc__ == dmc.Select().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options == ["These", "are", 5, "options", "to select"]
+        and hasattr(input_component, "data")
+        and input_component.data == ["These", "are", 5, "options", "to select"]
     ), "Default list failed"
 
     # 3b. Default value is range
@@ -545,9 +544,9 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
 
     assert (
         input_component.__doc__ == dmc.Select().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options
-        == {"This": "is", "a": "dictionary", 5: "Fast", "Dash": [1, 2, 3]}
+        and hasattr(input_component, "data")
+        and input_component.data
+        == ["This", "a", 5, "Dash"]
     ), "Default dictionary failed"
 
     # 5. Default value is boolean
