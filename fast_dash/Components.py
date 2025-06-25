@@ -931,7 +931,7 @@ def _get_component_from_input(hint, default_value=None):
 
     elif _hint_type == "Dictionary":
         component = Fastify(
-            dcc.Dropdown(default_value, multi=True), "value", tag=_hint_type
+            dmc.MultiSelect(data=list(default_value.keys())), "value", tag=_hint_type
         )
 
     elif _hint_type == "Boolean":
@@ -1046,14 +1046,14 @@ def _get_component_from_input(hint, default_value=None):
 
                 else:
                     component = Fastify(
-                        dcc.Dropdown(options=default_value),
+                        dmc.Select(data=default_value),
                         "options",
                         tag=_default_value_type,
                     )
 
             elif _default_value_type == "Dictionary":
                 component = Fastify(
-                    dcc.Dropdown(options=default_value),
+                    dmc.Select(data=default_value.keys()),
                     "value",
                     tag=_default_value_type,
                 )
