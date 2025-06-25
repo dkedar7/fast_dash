@@ -23,7 +23,7 @@ from fast_dash.Components import (
 )
 import dash
 from dash import Output, Input, State, callback, no_update
-from fast_dash.fast_dash import FastDash, fastdash, update
+from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify
 
 __all__ = [

@@ -2,6 +2,7 @@ import functools
 import logging
 import re
 import traceback
+import uuid
 import warnings
 
 from plotly.io.json import to_json_plotly
@@ -63,7 +64,20 @@ def update(component, data, property=None):
 
     if handler is not None:
         return handler(component, data, property=property)
+    
+def notify(data, action="show"):
+    """When called in user code, invokes the current context's handler"""
+    handler = stream_handler_var.get()
+    component = "notification-container"
 
+    if handler is not None:
+        data = [{
+            "action": action,
+            "id": f"show_notification_to_the_web_app_{str(uuid.uuid4())}",
+            "message": data
+        }]
+        return handler(component, data, notification=True)
+    
 
 class FastDash:
     """
@@ -339,7 +353,10 @@ class FastDash:
             app_layout = BaseLayout(**layout_args)
 
         self.layout_object = app_layout
+        notification_components = ["notification-container"]
+
         streaming_components = [c.id for c in self.outputs_with_ids]
+        streaming_components.extend(notification_components)
         
         # Add responses of chat components if present
         chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat"]
@@ -469,8 +486,12 @@ class FastDash:
             self.layout_object.callbacks(self)
 
     # Define a stream handler function
-    def stream_handler(self, component_id, data, property=None, socket_id=None):
+    def stream_handler(self, component_id, data, property=None, socket_id=None, notification=True):
         """A simple handler that prints to console and returns a response"""
+
+        if notification:
+            emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
+            return f"Notification: {data}"
 
         component = [c for c in self.outputs_with_ids if c.id == f"output_{component_id}"]
 
@@ -578,6 +599,16 @@ class FastDash:
                             State(c_id, "children"),
                             prevent_initial_call=True,
                         )
+        
+        component_id = "notification-container"
+        component_property = "sendNotifications"
+        self.app.clientside_callback(
+                update_func,
+                Output(component_id, component_property, allow_duplicate=True),
+                Input("socketio", f"data-{component_id}"),
+                State(component_id, component_property),
+                prevent_initial_call=True,
+            )
 
 
 def fastdash(
