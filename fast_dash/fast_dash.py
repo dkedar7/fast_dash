@@ -91,6 +91,7 @@ class FastDash:
         navbar=True,
         footer=True,
         loader="bars",
+        branding=True,
         about=True,
         theme=None,
         update_live=False,
@@ -146,6 +147,8 @@ class FastDash:
 
             loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
+                
+            branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
 
             about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
                 the docstring of the callback function. If string, content is used directly as markdown. \
@@ -204,6 +207,7 @@ class FastDash:
         self.navbar = navbar
         self.footer = footer
         self.loader = loader
+        self.branding = branding
         self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
@@ -320,6 +324,7 @@ class FastDash:
             "navbar": self.navbar,
             "footer": self.footer,
             "loader": self.loader,
+            "branding": self.branding,
             "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
@@ -591,6 +596,7 @@ def fastdash(
     navbar=True,
     footer=True,
     loader="bars",
+    branding=True,
     about=True,
     theme=None,
     update_live=False,
@@ -649,6 +655,8 @@ def fastdash(
 
         loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
+                
+        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
 
         about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
             the docstring of the callback function. If string, content is used directly as markdown. \
@@ -696,6 +704,7 @@ def fastdash(
             navbar=navbar,
             footer=footer,
             loader=loader,
+            branding=branding,
             about=about,
             theme=theme,
             update_live=update_live,

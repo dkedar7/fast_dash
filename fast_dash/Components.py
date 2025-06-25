@@ -47,6 +47,7 @@ class BaseLayout:
         navbar=True,
         footer=True,
         loader="bars",
+        branding=True,
         about=True,
         minimal=False,
         scale_height=1,
@@ -64,6 +65,7 @@ class BaseLayout:
         self.navbar = navbar
         self.footer = footer
         self.loader = loader
+        self.branding = branding
         self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
@@ -662,7 +664,7 @@ class SidebarLayout(BaseLayout):
                                 ],
                                 class_name="d-flex",
                             ),
-                            self.generate_footer_container(),
+                            self.generate_footer_container() if self.branding else None,
                             DashSocketIO(id='socketio', eventNames=stream_event_names),
                         ],
                         fluid=True,
