@@ -119,3 +119,6 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.poetry.scripts]
+fastdash = "fast_dash.cli:main"
