@@ -96,7 +96,7 @@ docutils = ">0.21"
 [tool.poetry.group.test.dependencies]
 urllib3 = "*"
 dash = {version = ">2.11.0", extras = ["testing"]}
-selenium = "<4.2.0"
+selenium = ">=3.141.0,<=4.2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

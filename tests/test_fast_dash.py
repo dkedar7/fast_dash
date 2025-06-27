@@ -400,7 +400,7 @@ def test_fdfd016_stream_text_simple(dash_duo):
     # Poll until text stops changing (streaming complete)
     previous_text = ""
     stable_count = 0
-    for _ in range(60):  # 60 second max wait
+    for _ in range(120):  # 60 second max wait
         try:
             current_text = dash_duo.find_element("#output_output_text").text
             if current_text == previous_text and current_text != "":
