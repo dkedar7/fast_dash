@@ -43,7 +43,7 @@ def stream_text_function(input_text: str) -> Text:
 
     output_text = ""
     for i, c in enumerate(expected_output):
-        time.sleep(3)
+        time.sleep(1)
         update("output_text", str(c))
         output_text += c
 
@@ -396,4 +396,5 @@ def test_fdfd016_stream_text_simple(dash_duo):
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
 
+    time.sleep(4)
     dash_duo.wait_for_text_to_equal("#output_output_text", "output", timeout=20)
