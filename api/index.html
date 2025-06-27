@@ -577,6 +577,20 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fast_dash.fast_dash.FastDash.add_streaming" class="md-nav__link">
+    add_streaming()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fast_dash.fast_dash.FastDash.stream_handler" class="md-nav__link">
+    stream_handler()
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -695,6 +709,20 @@
   
 </li>
         
+          <li class="md-nav__item">
+  <a href="#fast_dash.fast_dash.FastDash.add_streaming" class="md-nav__link">
+    add_streaming()
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#fast_dash.fast_dash.FastDash.stream_handler" class="md-nav__link">
+    stream_handler()
+  </a>
+  
+</li>
+        
       </ul>
     </nav>
   
@@ -775,56 +803,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 33</span>
-<span class="normal"> 34</span>
-<span class="normal"> 35</span>
-<span class="normal"> 36</span>
-<span class="normal"> 37</span>
-<span class="normal"> 38</span>
-<span class="normal"> 39</span>
-<span class="normal"> 40</span>
-<span class="normal"> 41</span>
-<span class="normal"> 42</span>
-<span class="normal"> 43</span>
-<span class="normal"> 44</span>
-<span class="normal"> 45</span>
-<span class="normal"> 46</span>
-<span class="normal"> 47</span>
-<span class="normal"> 48</span>
-<span class="normal"> 49</span>
-<span class="normal"> 50</span>
-<span class="normal"> 51</span>
-<span class="normal"> 52</span>
-<span class="normal"> 53</span>
-<span class="normal"> 54</span>
-<span class="normal"> 55</span>
-<span class="normal"> 56</span>
-<span class="normal"> 57</span>
-<span class="normal"> 58</span>
-<span class="normal"> 59</span>
-<span class="normal"> 60</span>
-<span class="normal"> 61</span>
-<span class="normal"> 62</span>
-<span class="normal"> 63</span>
-<span class="normal"> 64</span>
-<span class="normal"> 65</span>
-<span class="normal"> 66</span>
-<span class="normal"> 67</span>
-<span class="normal"> 68</span>
-<span class="normal"> 69</span>
-<span class="normal"> 70</span>
-<span class="normal"> 71</span>
-<span class="normal"> 72</span>
-<span class="normal"> 73</span>
-<span class="normal"> 74</span>
-<span class="normal"> 75</span>
-<span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -1144,7 +1123,216 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">399</span>
 <span class="normal">400</span>
 <span class="normal">401</span>
-<span class="normal">402</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">:</span>
+<span class="normal">402</span>
+<span class="normal">403</span>
+<span class="normal">404</span>
+<span class="normal">405</span>
+<span class="normal">406</span>
+<span class="normal">407</span>
+<span class="normal">408</span>
+<span class="normal">409</span>
+<span class="normal">410</span>
+<span class="normal">411</span>
+<span class="normal">412</span>
+<span class="normal">413</span>
+<span class="normal">414</span>
+<span class="normal">415</span>
+<span class="normal">416</span>
+<span class="normal">417</span>
+<span class="normal">418</span>
+<span class="normal">419</span>
+<span class="normal">420</span>
+<span class="normal">421</span>
+<span class="normal">422</span>
+<span class="normal">423</span>
+<span class="normal">424</span>
+<span class="normal">425</span>
+<span class="normal">426</span>
+<span class="normal">427</span>
+<span class="normal">428</span>
+<span class="normal">429</span>
+<span class="normal">430</span>
+<span class="normal">431</span>
+<span class="normal">432</span>
+<span class="normal">433</span>
+<span class="normal">434</span>
+<span class="normal">435</span>
+<span class="normal">436</span>
+<span class="normal">437</span>
+<span class="normal">438</span>
+<span class="normal">439</span>
+<span class="normal">440</span>
+<span class="normal">441</span>
+<span class="normal">442</span>
+<span class="normal">443</span>
+<span class="normal">444</span>
+<span class="normal">445</span>
+<span class="normal">446</span>
+<span class="normal">447</span>
+<span class="normal">448</span>
+<span class="normal">449</span>
+<span class="normal">450</span>
+<span class="normal">451</span>
+<span class="normal">452</span>
+<span class="normal">453</span>
+<span class="normal">454</span>
+<span class="normal">455</span>
+<span class="normal">456</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span>
+<span class="normal">463</span>
+<span class="normal">464</span>
+<span class="normal">465</span>
+<span class="normal">466</span>
+<span class="normal">467</span>
+<span class="normal">468</span>
+<span class="normal">469</span>
+<span class="normal">470</span>
+<span class="normal">471</span>
+<span class="normal">472</span>
+<span class="normal">473</span>
+<span class="normal">474</span>
+<span class="normal">475</span>
+<span class="normal">476</span>
+<span class="normal">477</span>
+<span class="normal">478</span>
+<span class="normal">479</span>
+<span class="normal">480</span>
+<span class="normal">481</span>
+<span class="normal">482</span>
+<span class="normal">483</span>
+<span class="normal">484</span>
+<span class="normal">485</span>
+<span class="normal">486</span>
+<span class="normal">487</span>
+<span class="normal">488</span>
+<span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -1169,6 +1357,8 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
+        <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -1209,7 +1399,6 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">            subheader (str, optional): Subheader of the app, displayed below the title image and title\</span>
 <span class="sd">                If `None`, Fast Dash tries to use the callback function&#39;s docstring instead. Defaults to None.</span>
 
-
 <span class="sd">            github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the\</span>
 <span class="sd">                specified URL. Defaults to None.</span>
 
@@ -1222,6 +1411,11 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">            navbar (bool, optional): Display navbar. Defaults to True.</span>
 
 <span class="sd">            footer (bool, optional): Display footer. Defaults to True.</span>
+
+<span class="sd">            loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \</span>
+<span class="sd">                If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \</span>
+
+<span class="sd">            branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
 
 <span class="sd">            about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">                the docstring of the callback function. If string, content is used directly as markdown. \</span>
@@ -1245,29 +1439,6 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">            run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
 
-        <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
-
-        <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
-            <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span>
-            <span class="k">else</span> <span class="n">inputs</span>
-            <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
-            <span class="k">else</span> <span class="p">[</span><span class="n">inputs</span><span class="p">]</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span>
-            <span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span>
-        <span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="p">(</span>
-            <span class="kc">True</span>
-            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-            <span class="k">else</span> <span class="n">update_live</span>
-        <span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
@@ -1288,6 +1459,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">title</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;[^0-9a-zA-Z]+&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span><span class="o">.</span><span class="n">title</span><span class="p">()</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+
         <span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span> <span class="o">=</span> <span class="n">title_image_path</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">subtitle</span> <span class="o">=</span> <span class="p">(</span>
             <span class="n">subheader</span>
@@ -1301,9 +1473,57 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span> <span class="o">=</span> <span class="n">twitter_url</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span> <span class="o">=</span> <span class="n">navbar</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">branding</span> <span class="o">=</span> <span class="n">branding</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">about</span> <span class="o">=</span> <span class="n">about</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
+
+        <span class="c1"># Define Flask server</span>
+        <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+        <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
+            <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
+        <span class="p">]</span>
+
+        <span class="n">source</span> <span class="o">=</span> <span class="n">dash</span><span class="o">.</span><span class="n">Dash</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">source</span><span class="p">(</span>
+            <span class="vm">__name__</span><span class="p">,</span>
+            <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
+            <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
+            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="c1"># Allow easier access to Dash server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span>
+        <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+
+        <span class="c1"># Define other attributes</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
+
+        <span class="c1"># Initialize state indicators</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">upper_case</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span>
+            <span class="k">else</span> <span class="n">inputs</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">inputs</span><span class="p">]</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span>
+            <span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span>
+        <span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="p">(</span>
+            <span class="kc">True</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+            <span class="k">else</span> <span class="n">update_live</span>
+        <span class="p">)</span>
 
         <span class="c1"># Extract input tags</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span> <span class="o">=</span> <span class="p">[</span><span class="n">inp</span><span class="o">.</span><span class="n">tag</span> <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">]</span>
@@ -1311,7 +1531,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <span class="c1"># Assign IDs to components</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_inputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">)</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">ack_mask</span> <span class="o">=</span> <span class="p">[</span>
             <span class="kc">False</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">input_</span><span class="p">,</span> <span class="s2">&quot;ack&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">input_</span><span class="o">.</span><span class="n">ack</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">))</span> <span class="k">else</span> <span class="kc">True</span>
             <span class="k">for</span> <span class="n">input_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span>
@@ -1322,61 +1542,33 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">output_</span><span class="o">.</span><span class="n">placeholder</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output_</span><span class="p">,</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
             <span class="k">for</span> <span class="n">output_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span>
         <span class="p">]</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">output_state_blank</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">output_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">]</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">latest_output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_blank</span>
 
-        <span class="c1"># Define Flask server</span>
-        <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-        <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
-            <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
-            <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
-        <span class="p">]</span>
-
-        <span class="n">source</span> <span class="o">=</span> <span class="n">dash</span><span class="o">.</span><span class="n">Dash</span>
-        <span class="c1"># if self.mode is not None:</span>
-        <span class="c1">#     try:</span>
-        <span class="c1">#         from jupyter_dash import JupyterDash</span>
-
-        <span class="c1">#         source = JupyterDash</span>
-
-        <span class="c1">#     except ImportError as e:</span>
-        <span class="c1">#         self.mode = None</span>
-        <span class="c1">#         warnings.warn(str(e))</span>
-        <span class="c1">#         warnings.warn(&quot;Ignoring mode argument&quot;)</span>
-
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">source</span><span class="p">(</span>
-            <span class="vm">__name__</span><span class="p">,</span>
-            <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
-            <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
-            <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span>
-        <span class="p">)</span>
-        <span class="c1"># Define app title</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
-
         <span class="c1"># Intialize layout</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">set_layout</span><span class="p">()</span>
 
         <span class="c1"># Register callbacks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">register_callback_fn</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">add_streaming</span><span class="p">()</span>
 
         <span class="c1"># Keep track of the number of clicks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">submit_clicks</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span> <span class="o">=</span> <span class="kc">False</span>
 
-        <span class="c1"># Allow easier access to Dash server</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
-
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">jupyter_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">run_server</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
-        <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run_server</span><span class="p">(</span>
+        <span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="n">jupyter_mode</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">mode</span><span class="p">,</span> <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span>
         <span class="p">)</span>
 
@@ -1399,6 +1591,8 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="s2">&quot;twitter_url&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span><span class="p">,</span>
             <span class="s2">&quot;navbar&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span><span class="p">,</span>
             <span class="s2">&quot;footer&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">footer</span><span class="p">,</span>
+            <span class="s2">&quot;loader&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">loader</span><span class="p">,</span>
+            <span class="s2">&quot;branding&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">branding</span><span class="p">,</span>
             <span class="s2">&quot;about&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">about</span><span class="p">,</span>
             <span class="s2">&quot;minimal&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span><span class="p">,</span>
             <span class="s2">&quot;scale_height&quot;</span><span class="p">:</span> <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span><span class="p">,</span>
@@ -1412,9 +1606,32 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">app_layout</span> <span class="o">=</span> <span class="n">BaseLayout</span><span class="p">(</span><span class="o">**</span><span class="n">layout_args</span><span class="p">)</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span> <span class="o">=</span> <span class="n">app_layout</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">app_layout</span><span class="o">.</span><span class="n">generate_layout</span><span class="p">()</span>
+        <span class="n">notification_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;notification-container&quot;</span><span class="p">]</span>
+
+        <span class="n">streaming_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">]</span>
+        <span class="n">streaming_components</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">notification_components</span><span class="p">)</span>
+
+        <span class="c1"># Add responses of chat components if present</span>
+        <span class="n">chat_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">]</span>
+
+        <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">chat_components</span><span class="p">:</span>
+            <span class="p">[</span><span class="n">streaming_components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">)]</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">app_layout</span><span class="o">.</span><span class="n">generate_layout</span><span class="p">(</span><span class="n">stream_event_names</span><span class="o">=</span><span class="n">streaming_components</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">register_callback_fn</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+            <span class="sa">f</span><span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            function updateLoadingState(n_clicks) </span><span class="se">{{</span>
+<span class="s2">                return </span><span class="si">{</span><span class="s2">&quot;true&quot;</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="bp">self</span><span class="o">.</span><span class="n">loader</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">&quot;false&quot;</span><span class="si">}</span><span class="s2">; </span>
+<span class="s2">            </span><span class="se">}}</span>
+<span class="s2">            &quot;&quot;&quot;</span><span class="p">,</span>
+            <span class="n">Output</span><span class="p">(</span><span class="s2">&quot;loading-overlay&quot;</span><span class="p">,</span> <span class="s2">&quot;visible&quot;</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="s2">&quot;n_clicks&quot;</span><span class="p">),</span>
+            <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
         <span class="nd">@self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="n">Output</span><span class="p">(</span>
@@ -1423,7 +1640,7 @@ sets all parameters required for Fast Dash app deployment.</p>
                 <span class="p">)</span>
                 <span class="k">for</span> <span class="n">output_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span>
             <span class="p">]</span>
-            <span class="o">+</span> <span class="p">[</span><span class="n">Output</span><span class="p">(</span><span class="s2">&quot;error-notify-div&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">)],</span>
+            <span class="o">+</span> <span class="p">[</span><span class="n">Output</span><span class="p">(</span><span class="s2">&quot;notification-container&quot;</span><span class="p">,</span> <span class="s2">&quot;sendNotifications&quot;</span><span class="p">),</span> <span class="n">Output</span><span class="p">(</span><span class="s2">&quot;loading-overlay&quot;</span><span class="p">,</span> <span class="s2">&quot;visible&quot;</span><span class="p">)],</span>
             <span class="p">[</span>
                 <span class="n">Input</span><span class="p">(</span>
                     <span class="n">component_id</span><span class="o">=</span><span class="n">input_</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=</span><span class="n">input_</span><span class="o">.</span><span class="n">component_property</span>
@@ -1433,8 +1650,11 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="o">+</span> <span class="p">[</span>
                 <span class="n">Input</span><span class="p">(</span><span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;reset_inputs&quot;</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;n_clicks&quot;</span><span class="p">),</span>
                 <span class="n">Input</span><span class="p">(</span><span class="n">component_id</span><span class="o">=</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="n">component_property</span><span class="o">=</span><span class="s2">&quot;n_clicks&quot;</span><span class="p">),</span>
+                <span class="n">State</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="s2">&quot;socketId&quot;</span><span class="p">),</span>
             <span class="p">],</span>
+            <span class="n">running</span><span class="o">=</span><span class="p">[(</span><span class="n">Output</span><span class="p">(</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="s2">&quot;disabled&quot;</span><span class="p">),</span> <span class="kc">True</span><span class="p">,</span> <span class="kc">False</span><span class="p">)],</span>
             <span class="n">prevent_initial_callback</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="n">prevet_initial_call</span><span class="o">=</span><span class="kc">True</span>
         <span class="p">)</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">process_input</span><span class="p">(</span><span class="o">*</span><span class="n">args</span><span class="p">):</span>
             <span class="k">if</span> <span class="p">(</span>
@@ -1443,17 +1663,20 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="p">):</span>
                 <span class="k">raise</span> <span class="n">PreventUpdate</span>
 
-            <span class="n">default_notification</span> <span class="o">=</span> <span class="kc">None</span>
+            <span class="n">default_notification</span> <span class="o">=</span> <span class="p">[]</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span> <span class="o">+=</span> <span class="mi">1</span>
 
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="mi">2</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span><span class="p">)</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="mi">3</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="s2">&quot;submit_inputs&quot;</span> <span class="ow">or</span> <span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">args</span>
                 <span class="p">):</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span> <span class="o">=</span> <span class="kc">True</span>
 
-                    <span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
+                    <span class="n">stream_handler_func</span> <span class="o">=</span> <span class="n">functools</span><span class="o">.</span><span class="n">partial</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">stream_handler</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="n">args</span><span class="p">[</span><span class="o">-</span><span class="mi">1</span><span class="p">])</span>
+                    <span class="k">with</span> <span class="n">StreamContext</span><span class="p">(</span><span class="n">stream_handler_func</span><span class="p">):</span>
+                        <span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">(</span><span class="o">*</span><span class="n">inputs</span><span class="p">)</span>
 
                     <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">output_state</span><span class="p">,</span> <span class="nb">tuple</span><span class="p">):</span>
                         <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">output_state</span><span class="p">)</span>
@@ -1463,29 +1686,29 @@ sets all parameters required for Fast Dash app deployment.</p>
 
                     <span class="c1"># Transform outputs to fit in the desired components</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="n">_transform_outputs</span><span class="p">(</span>
-                        <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_tags</span>
+                        <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_tags</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span>
                     <span class="p">)</span>
 
                     <span class="c1"># Log the latest output state</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">latest_output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span>
 
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">]</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
 
                 <span class="k">elif</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="s2">&quot;reset_inputs&quot;</span><span class="p">:</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">]</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
 
                 <span class="k">elif</span> <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">]</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
 
                 <span class="k">else</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">]</span>
+                    <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span> <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
 
             <span class="k">except</span> <span class="ne">Exception</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
                 <span class="n">traceback</span><span class="o">.</span><span class="n">print_exc</span><span class="p">()</span>
                 <span class="n">notification</span> <span class="o">=</span> <span class="n">_get_error_notification_component</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">))</span>
 
-                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span> <span class="o">+</span> <span class="p">[</span><span class="n">notification</span><span class="p">]</span>
+                <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span> <span class="o">+</span> <span class="p">[</span><span class="n">notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
 
         <span class="nd">@self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span>
             <span class="p">[</span>
@@ -1514,6 +1737,131 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Set layout callbacks</span>
         <span class="k">if</span> <span class="ow">not</span> <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span><span class="o">.</span><span class="n">callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
+
+    <span class="c1"># Define a stream handler function</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
+
+        <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
+            <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+            <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Notification: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
+
+        <span class="n">component</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="sa">f</span><span class="s2">&quot;output_</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+
+        <span class="k">if</span> <span class="ow">not</span> <span class="n">component</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component with id </span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2"> not found in outputs.&quot;</span><span class="p">)</span>
+
+        <span class="n">component</span> <span class="o">=</span> <span class="n">component</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+        <span class="n">component_id</span> <span class="o">=</span> <span class="n">component</span><span class="o">.</span><span class="n">id</span>
+
+        <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">property</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument &#39;property&#39; must be specified for chat components. Allowed &#39;property&#39; values are &#39;query&#39; and &#39;response&#39;.&quot;</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span>  <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="s2">&quot;response&quot;</span><span class="p">]:</span>
+            <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid &#39;property&#39; value for chat component. Allowed &#39;property&#39; values are &#39;query&#39; and &#39;response&#39;.&quot;</span><span class="p">)</span>
+
+        <span class="n">component_state_func</span> <span class="o">=</span> <span class="n">_get_transform_function</span><span class="p">(</span><span class="n">output</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> 
+                                                       <span class="n">tag</span><span class="o">=</span><span class="n">component</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span> 
+                                                       <span class="n">component_id</span><span class="o">=</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> 
+                                                       <span class="n">counter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span><span class="p">,</span>
+                                                       <span class="n">partial_update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+        <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span> <span class="o">==</span> <span class="s2">&quot;query&quot;</span><span class="p">:</span>
+
+            <span class="c1"># Add a new component to the chat response</span>
+            <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+            <span class="n">component_state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">to_json_plotly</span><span class="p">(</span><span class="n">component_state_func</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+            <span class="n">component</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="kc">True</span>
+
+            <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">component_state</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+        <span class="k">elif</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span> <span class="o">==</span> <span class="s2">&quot;response&quot;</span><span class="p">:</span>
+            <span class="n">component_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span><span class="si">}</span><span class="s2">_response&quot;</span>
+
+            <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Received: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
+
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
+
+        <span class="n">update_func</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">            function(payload, current_value) {</span>
+<span class="s2">                if (!payload) {</span>
+<span class="s2">                    return dash_clientside.no_update;</span>
+<span class="s2">                }</span>
+
+<span class="s2">                const { value, append } = payload;</span>
+
+<span class="s2">                if (value === null || value === undefined) {</span>
+<span class="s2">                    return dash_clientside.no_update;</span>
+<span class="s2">                }</span>
+
+<span class="s2">                let new_value;</span>
+
+<span class="s2">                // Parse the incoming value if it&#39;s a string</span>
+<span class="s2">                if (typeof value === &#39;string&#39; &amp;&amp; value !== &#39;&#39;) {</span>
+<span class="s2">                    try {</span>
+<span class="s2">                        new_value = JSON.parse(value);</span>
+<span class="s2">                    } catch (e) {</span>
+<span class="s2">                        new_value = value;</span>
+<span class="s2">                    }</span>
+<span class="s2">                } else {</span>
+<span class="s2">                    new_value = value;</span>
+<span class="s2">                }</span>
+
+<span class="s2">                // If append is true, combine with current value</span>
+<span class="s2">                if (append) {</span>
+<span class="s2">                    const current = current_value || [];</span>
+<span class="s2">                    const current_array = Array.isArray(current) ? current : [current];</span>
+
+<span class="s2">                    if (Array.isArray(new_value)) {</span>
+<span class="s2">                        return [...new_value, ...current_array];</span>
+<span class="s2">                    } else {</span>
+<span class="s2">                        return [new_value, ...current_array];</span>
+<span class="s2">                    }</span>
+<span class="s2">                }</span>
+
+<span class="s2">                return new_value;</span>
+<span class="s2">            }</span>
+<span class="s2">            &quot;&quot;&quot;</span>
+
+        <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">:</span>
+
+            <span class="c1"># All clientside callbacks</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+                <span class="n">update_func</span><span class="p">,</span>
+                <span class="n">Output</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">component</span><span class="o">.</span><span class="n">component_property</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+                <span class="n">State</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">component</span><span class="o">.</span><span class="n">component_property</span><span class="p">),</span>
+                <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
+
+            <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">:</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+                    <span class="n">c_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+                            <span class="n">update_func</span><span class="p">,</span>
+                            <span class="n">Output</span><span class="p">(</span><span class="n">c_id</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                            <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">c_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+                            <span class="n">State</span><span class="p">(</span><span class="n">c_id</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">),</span>
+                            <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                        <span class="p">)</span>
+
+        <span class="n">component_id</span> <span class="o">=</span> <span class="s2">&quot;notification-container&quot;</span>
+        <span class="n">component_property</span> <span class="o">=</span> <span class="s2">&quot;sendNotifications&quot;</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+                <span class="n">update_func</span><span class="p">,</span>
+                <span class="n">Output</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+                <span class="n">State</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="n">component_property</span><span class="p">),</span>
+                <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+            <span class="p">)</span>
 </code></pre></div></td></tr></table></div>
         </details>
 
@@ -1534,7 +1882,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h3 id="fast_dash.fast_dash.FastDash.__init__" class="doc doc-heading">
-<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h3>
 
@@ -1694,6 +2042,26 @@ sets all parameters required for Fast Dash app deployment.</p>
           </td>
         </tr>
         <tr>
+          <td><code>loader</code></td>
+          <td>
+                <code>str or bool</code>
+          </td>
+          <td><p>Type of loader to display when the app is loading. If <code>None</code>, no loader is displayed.                 If <code>True</code>, a default loader is displayed. If <code>str</code>, the loader is set to the specified type.                 </p></td>
+          <td>
+                <code>&#39;bars&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>branding</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td><p>Display Fast Dash branding component in the footer. Defaults to True. </p></td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
+        <tr>
           <td><code>about</code></td>
           <td>
                 <code>Union[str, bool]</code>
@@ -1788,56 +2156,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 42</span>
-<span class="normal"> 43</span>
-<span class="normal"> 44</span>
-<span class="normal"> 45</span>
-<span class="normal"> 46</span>
-<span class="normal"> 47</span>
-<span class="normal"> 48</span>
-<span class="normal"> 49</span>
-<span class="normal"> 50</span>
-<span class="normal"> 51</span>
-<span class="normal"> 52</span>
-<span class="normal"> 53</span>
-<span class="normal"> 54</span>
-<span class="normal"> 55</span>
-<span class="normal"> 56</span>
-<span class="normal"> 57</span>
-<span class="normal"> 58</span>
-<span class="normal"> 59</span>
-<span class="normal"> 60</span>
-<span class="normal"> 61</span>
-<span class="normal"> 62</span>
-<span class="normal"> 63</span>
-<span class="normal"> 64</span>
-<span class="normal"> 65</span>
-<span class="normal"> 66</span>
-<span class="normal"> 67</span>
-<span class="normal"> 68</span>
-<span class="normal"> 69</span>
-<span class="normal"> 70</span>
-<span class="normal"> 71</span>
-<span class="normal"> 72</span>
-<span class="normal"> 73</span>
-<span class="normal"> 74</span>
-<span class="normal"> 75</span>
-<span class="normal"> 76</span>
-<span class="normal"> 77</span>
-<span class="normal"> 78</span>
-<span class="normal"> 79</span>
-<span class="normal"> 80</span>
-<span class="normal"> 81</span>
-<span class="normal"> 82</span>
-<span class="normal"> 83</span>
-<span class="normal"> 84</span>
-<span class="normal"> 85</span>
-<span class="normal"> 86</span>
-<span class="normal"> 87</span>
-<span class="normal"> 88</span>
-<span class="normal"> 89</span>
-<span class="normal"> 90</span>
-<span class="normal"> 91</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 91</span>
 <span class="normal"> 92</span>
 <span class="normal"> 93</span>
 <span class="normal"> 94</span>
@@ -2001,7 +2320,60 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">252</span>
 <span class="normal">253</span>
 <span class="normal">254</span>
-<span class="normal">255</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">255</span>
+<span class="normal">256</span>
+<span class="normal">257</span>
+<span class="normal">258</span>
+<span class="normal">259</span>
+<span class="normal">260</span>
+<span class="normal">261</span>
+<span class="normal">262</span>
+<span class="normal">263</span>
+<span class="normal">264</span>
+<span class="normal">265</span>
+<span class="normal">266</span>
+<span class="normal">267</span>
+<span class="normal">268</span>
+<span class="normal">269</span>
+<span class="normal">270</span>
+<span class="normal">271</span>
+<span class="normal">272</span>
+<span class="normal">273</span>
+<span class="normal">274</span>
+<span class="normal">275</span>
+<span class="normal">276</span>
+<span class="normal">277</span>
+<span class="normal">278</span>
+<span class="normal">279</span>
+<span class="normal">280</span>
+<span class="normal">281</span>
+<span class="normal">282</span>
+<span class="normal">283</span>
+<span class="normal">284</span>
+<span class="normal">285</span>
+<span class="normal">286</span>
+<span class="normal">287</span>
+<span class="normal">288</span>
+<span class="normal">289</span>
+<span class="normal">290</span>
+<span class="normal">291</span>
+<span class="normal">292</span>
+<span class="normal">293</span>
+<span class="normal">294</span>
+<span class="normal">295</span>
+<span class="normal">296</span>
+<span class="normal">297</span>
+<span class="normal">298</span>
+<span class="normal">299</span>
+<span class="normal">300</span>
+<span class="normal">301</span>
+<span class="normal">302</span>
+<span class="normal">303</span>
+<span class="normal">304</span>
+<span class="normal">305</span>
+<span class="normal">306</span>
+<span class="normal">307</span>
+<span class="normal">308</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -2017,6 +2389,8 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
+    <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -2057,7 +2431,6 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        subheader (str, optional): Subheader of the app, displayed below the title image and title\</span>
 <span class="sd">            If `None`, Fast Dash tries to use the callback function&#39;s docstring instead. Defaults to None.</span>
 
-
 <span class="sd">        github_url (str, optional): GitHub URL for branding. Displays a GitHub logo in the navbar, which takes users to the\</span>
 <span class="sd">            specified URL. Defaults to None.</span>
 
@@ -2070,6 +2443,11 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        navbar (bool, optional): Display navbar. Defaults to True.</span>
 
 <span class="sd">        footer (bool, optional): Display footer. Defaults to True.</span>
+
+<span class="sd">        loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \</span>
+<span class="sd">            If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \</span>
+
+<span class="sd">        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
 
 <span class="sd">        about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">            the docstring of the callback function. If string, content is used directly as markdown. \</span>
@@ -2093,29 +2471,6 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        run_kwargs (dict, optional): All values from this variable are passed to Dash&#39;s `.run` method.</span>
 <span class="sd">    &quot;&quot;&quot;</span>
 
-    <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
-
-    <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span>
-        <span class="k">else</span> <span class="n">inputs</span>
-        <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span>
-        <span class="k">else</span> <span class="p">[</span><span class="n">inputs</span><span class="p">]</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span>
-        <span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span>
-    <span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="kc">True</span>
-        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
-        <span class="k">else</span> <span class="n">update_live</span>
-    <span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">mode</span> <span class="o">=</span> <span class="n">mode</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
@@ -2136,6 +2491,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">title</span> <span class="o">=</span> <span class="n">re</span><span class="o">.</span><span class="n">sub</span><span class="p">(</span><span class="s2">&quot;[^0-9a-zA-Z]+&quot;</span><span class="p">,</span> <span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">callback_fn</span><span class="o">.</span><span class="vm">__name__</span><span class="p">)</span><span class="o">.</span><span class="n">title</span><span class="p">()</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="n">title</span>
+
     <span class="bp">self</span><span class="o">.</span><span class="n">title_image_path</span> <span class="o">=</span> <span class="n">title_image_path</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">subtitle</span> <span class="o">=</span> <span class="p">(</span>
         <span class="n">subheader</span>
@@ -2149,9 +2505,57 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">twitter_url</span> <span class="o">=</span> <span class="n">twitter_url</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">navbar</span> <span class="o">=</span> <span class="n">navbar</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">branding</span> <span class="o">=</span> <span class="n">branding</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">about</span> <span class="o">=</span> <span class="n">about</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
+
+    <span class="c1"># Define Flask server</span>
+    <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
+    <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
+        <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
+        <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+
+    <span class="n">source</span> <span class="o">=</span> <span class="n">dash</span><span class="o">.</span><span class="n">Dash</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">source</span><span class="p">(</span>
+        <span class="vm">__name__</span><span class="p">,</span>
+        <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
+        <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
+        <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span><span class="p">,</span>
+    <span class="p">)</span>
+
+    <span class="c1"># Allow easier access to Dash server</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span>
+    <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+
+    <span class="c1"># Define other attributes</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">layout_pattern</span> <span class="o">=</span> <span class="n">layout</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">mosaic</span> <span class="o">=</span> <span class="n">mosaic</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">output_labels</span>
+
+    <span class="c1"># Initialize state indicators</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span> <span class="o">=</span> <span class="mi">0</span>
+
+    <span class="k">if</span> <span class="n">output_labels</span> <span class="o">==</span> <span class="s2">&quot;infer&quot;</span><span class="p">:</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span> <span class="o">=</span> <span class="n">_infer_variable_names</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">upper_case</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+    <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="n">_infer_input_components</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
+        <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">else</span> <span class="n">inputs</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">inputs</span><span class="p">]</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span>
+        <span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span>
+    <span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="o">=</span> <span class="p">(</span>
+        <span class="kc">True</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nb">isinstance</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="ow">and</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">)</span> <span class="o">==</span> <span class="mi">0</span><span class="p">)</span>
+        <span class="k">else</span> <span class="n">update_live</span>
+    <span class="p">)</span>
 
     <span class="c1"># Extract input tags</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span> <span class="o">=</span> <span class="p">[</span><span class="n">inp</span><span class="o">.</span><span class="n">tag</span> <span class="k">for</span> <span class="n">inp</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">]</span>
@@ -2159,7 +2563,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
     <span class="c1"># Assign IDs to components</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_inputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">inputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">)</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">)</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="o">=</span> <span class="n">_assign_ids_to_outputs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">ack_mask</span> <span class="o">=</span> <span class="p">[</span>
         <span class="kc">False</span> <span class="k">if</span> <span class="p">(</span><span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">input_</span><span class="p">,</span> <span class="s2">&quot;ack&quot;</span><span class="p">)</span> <span class="ow">or</span> <span class="p">(</span><span class="n">input_</span><span class="o">.</span><span class="n">ack</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">))</span> <span class="k">else</span> <span class="kc">True</span>
         <span class="k">for</span> <span class="n">input_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span>
@@ -2170,51 +2574,307 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">output_</span><span class="o">.</span><span class="n">placeholder</span> <span class="k">if</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">output_</span><span class="p">,</span> <span class="s2">&quot;placeholder&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="kc">None</span>
         <span class="k">for</span> <span class="n">output_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span>
     <span class="p">]</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_default</span>
 
     <span class="bp">self</span><span class="o">.</span><span class="n">output_state_blank</span> <span class="o">=</span> <span class="p">[</span><span class="kc">None</span> <span class="k">for</span> <span class="n">output_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">]</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">latest_output_state</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_state_blank</span>
 
-    <span class="c1"># Define Flask server</span>
-    <span class="n">server</span> <span class="o">=</span> <span class="n">flask</span><span class="o">.</span><span class="n">Flask</span><span class="p">(</span><span class="vm">__name__</span><span class="p">)</span>
-    <span class="n">external_stylesheets</span> <span class="o">=</span> <span class="p">[</span>
-        <span class="n">theme_mapper</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">theme</span><span class="p">),</span>
-        <span class="s2">&quot;https://use.fontawesome.com/releases/v5.9.0/css/all.css&quot;</span><span class="p">,</span>
-    <span class="p">]</span>
-
-    <span class="n">source</span> <span class="o">=</span> <span class="n">dash</span><span class="o">.</span><span class="n">Dash</span>
-    <span class="c1"># if self.mode is not None:</span>
-    <span class="c1">#     try:</span>
-    <span class="c1">#         from jupyter_dash import JupyterDash</span>
-
-    <span class="c1">#         source = JupyterDash</span>
-
-    <span class="c1">#     except ImportError as e:</span>
-    <span class="c1">#         self.mode = None</span>
-    <span class="c1">#         warnings.warn(str(e))</span>
-    <span class="c1">#         warnings.warn(&quot;Ignoring mode argument&quot;)</span>
-
-    <span class="bp">self</span><span class="o">.</span><span class="n">app</span> <span class="o">=</span> <span class="n">source</span><span class="p">(</span>
-        <span class="vm">__name__</span><span class="p">,</span>
-        <span class="n">external_stylesheets</span><span class="o">=</span><span class="n">external_stylesheets</span><span class="p">,</span>
-        <span class="n">server</span><span class="o">=</span><span class="n">server</span><span class="p">,</span>
-        <span class="o">**</span><span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span>
-    <span class="p">)</span>
-    <span class="c1"># Define app title</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
-
     <span class="c1"># Intialize layout</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">title</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">title</span> <span class="ow">or</span> <span class="s2">&quot;&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">set_layout</span><span class="p">()</span>
 
     <span class="c1"># Register callbacks</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">register_callback_fn</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">add_streaming</span><span class="p">()</span>
 
     <span class="c1"># Keep track of the number of clicks</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">submit_clicks</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span> <span class="o">=</span> <span class="mi">0</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span> <span class="o">=</span> <span class="kc">False</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
 
-    <span class="c1"># Allow easier access to Dash server</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="fast_dash.fast_dash.FastDash.add_streaming" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">add_streaming</span><span class="p">()</span></code>
+
+</h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>Add streaming functionality to the app.</p>
+
+      <details class="quote">
+        <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span>
+<span class="normal">545</span>
+<span class="normal">546</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span>
+<span class="normal">565</span>
+<span class="normal">566</span>
+<span class="normal">567</span>
+<span class="normal">568</span>
+<span class="normal">569</span>
+<span class="normal">570</span>
+<span class="normal">571</span>
+<span class="normal">572</span>
+<span class="normal">573</span>
+<span class="normal">574</span>
+<span class="normal">575</span>
+<span class="normal">576</span>
+<span class="normal">577</span>
+<span class="normal">578</span>
+<span class="normal">579</span>
+<span class="normal">580</span>
+<span class="normal">581</span>
+<span class="normal">582</span>
+<span class="normal">583</span>
+<span class="normal">584</span>
+<span class="normal">585</span>
+<span class="normal">586</span>
+<span class="normal">587</span>
+<span class="normal">588</span>
+<span class="normal">589</span>
+<span class="normal">590</span>
+<span class="normal">591</span>
+<span class="normal">592</span>
+<span class="normal">593</span>
+<span class="normal">594</span>
+<span class="normal">595</span>
+<span class="normal">596</span>
+<span class="normal">597</span>
+<span class="normal">598</span>
+<span class="normal">599</span>
+<span class="normal">600</span>
+<span class="normal">601</span>
+<span class="normal">602</span>
+<span class="normal">603</span>
+<span class="normal">604</span>
+<span class="normal">605</span>
+<span class="normal">606</span>
+<span class="normal">607</span>
+<span class="normal">608</span>
+<span class="normal">609</span>
+<span class="normal">610</span>
+<span class="normal">611</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
+
+    <span class="n">update_func</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">        function(payload, current_value) {</span>
+<span class="s2">            if (!payload) {</span>
+<span class="s2">                return dash_clientside.no_update;</span>
+<span class="s2">            }</span>
+
+<span class="s2">            const { value, append } = payload;</span>
+
+<span class="s2">            if (value === null || value === undefined) {</span>
+<span class="s2">                return dash_clientside.no_update;</span>
+<span class="s2">            }</span>
+
+<span class="s2">            let new_value;</span>
+
+<span class="s2">            // Parse the incoming value if it&#39;s a string</span>
+<span class="s2">            if (typeof value === &#39;string&#39; &amp;&amp; value !== &#39;&#39;) {</span>
+<span class="s2">                try {</span>
+<span class="s2">                    new_value = JSON.parse(value);</span>
+<span class="s2">                } catch (e) {</span>
+<span class="s2">                    new_value = value;</span>
+<span class="s2">                }</span>
+<span class="s2">            } else {</span>
+<span class="s2">                new_value = value;</span>
+<span class="s2">            }</span>
+
+<span class="s2">            // If append is true, combine with current value</span>
+<span class="s2">            if (append) {</span>
+<span class="s2">                const current = current_value || [];</span>
+<span class="s2">                const current_array = Array.isArray(current) ? current : [current];</span>
+
+<span class="s2">                if (Array.isArray(new_value)) {</span>
+<span class="s2">                    return [...new_value, ...current_array];</span>
+<span class="s2">                } else {</span>
+<span class="s2">                    return [new_value, ...current_array];</span>
+<span class="s2">                }</span>
+<span class="s2">            }</span>
+
+<span class="s2">            return new_value;</span>
+<span class="s2">        }</span>
+<span class="s2">        &quot;&quot;&quot;</span>
+
+    <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">:</span>
+
+        <span class="c1"># All clientside callbacks</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+            <span class="n">update_func</span><span class="p">,</span>
+            <span class="n">Output</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">component</span><span class="o">.</span><span class="n">component_property</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+            <span class="n">State</span><span class="p">(</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> <span class="n">component</span><span class="o">.</span><span class="n">component_property</span><span class="p">),</span>
+            <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">:</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+                <span class="n">c_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+                        <span class="n">update_func</span><span class="p">,</span>
+                        <span class="n">Output</span><span class="p">(</span><span class="n">c_id</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+                        <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">c_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+                        <span class="n">State</span><span class="p">(</span><span class="n">c_id</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">),</span>
+                        <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="p">)</span>
+
+    <span class="n">component_id</span> <span class="o">=</span> <span class="s2">&quot;notification-container&quot;</span>
+    <span class="n">component_property</span> <span class="o">=</span> <span class="s2">&quot;sendNotifications&quot;</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
+            <span class="n">update_func</span><span class="p">,</span>
+            <span class="n">Output</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">allow_duplicate</span><span class="o">=</span><span class="kc">True</span><span class="p">),</span>
+            <span class="n">Input</span><span class="p">(</span><span class="s2">&quot;socketio&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;data-</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">),</span>
+            <span class="n">State</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="n">component_property</span><span class="p">),</span>
+            <span class="n">prevent_initial_call</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="p">)</span>
+</code></pre></div></td></tr></table></div>
+      </details>
+  </div>
+
+</div>
+
+<div class="doc doc-object doc-function">
+
+
+
+<h3 id="fast_dash.fast_dash.FastDash.stream_handler" class="doc doc-heading">
+<code class="highlight language-python"><span class="n">stream_handler</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></code>
+
+</h3>
+
+
+  <div class="doc doc-contents ">
+  
+      <p>A simple handler that prints to console and returns a response</p>
+
+      <details class="quote">
+        <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">489</span>
+<span class="normal">490</span>
+<span class="normal">491</span>
+<span class="normal">492</span>
+<span class="normal">493</span>
+<span class="normal">494</span>
+<span class="normal">495</span>
+<span class="normal">496</span>
+<span class="normal">497</span>
+<span class="normal">498</span>
+<span class="normal">499</span>
+<span class="normal">500</span>
+<span class="normal">501</span>
+<span class="normal">502</span>
+<span class="normal">503</span>
+<span class="normal">504</span>
+<span class="normal">505</span>
+<span class="normal">506</span>
+<span class="normal">507</span>
+<span class="normal">508</span>
+<span class="normal">509</span>
+<span class="normal">510</span>
+<span class="normal">511</span>
+<span class="normal">512</span>
+<span class="normal">513</span>
+<span class="normal">514</span>
+<span class="normal">515</span>
+<span class="normal">516</span>
+<span class="normal">517</span>
+<span class="normal">518</span>
+<span class="normal">519</span>
+<span class="normal">520</span>
+<span class="normal">521</span>
+<span class="normal">522</span>
+<span class="normal">523</span>
+<span class="normal">524</span>
+<span class="normal">525</span>
+<span class="normal">526</span>
+<span class="normal">527</span>
+<span class="normal">528</span>
+<span class="normal">529</span>
+<span class="normal">530</span>
+<span class="normal">531</span>
+<span class="normal">532</span>
+<span class="normal">533</span>
+<span class="normal">534</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
+        <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Notification: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="n">component</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="o">==</span> <span class="sa">f</span><span class="s2">&quot;output_</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span>
+
+    <span class="k">if</span> <span class="ow">not</span> <span class="n">component</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Component with id </span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2"> not found in outputs.&quot;</span><span class="p">)</span>
+
+    <span class="n">component</span> <span class="o">=</span> <span class="n">component</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="n">component_id</span> <span class="o">=</span> <span class="n">component</span><span class="o">.</span><span class="n">id</span>
+
+    <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="ow">not</span> <span class="nb">property</span><span class="p">:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Argument &#39;property&#39; must be specified for chat components. Allowed &#39;property&#39; values are &#39;query&#39; and &#39;response&#39;.&quot;</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span>  <span class="ow">not</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;query&quot;</span><span class="p">,</span> <span class="s2">&quot;response&quot;</span><span class="p">]:</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">&quot;Invalid &#39;property&#39; value for chat component. Allowed &#39;property&#39; values are &#39;query&#39; and &#39;response&#39;.&quot;</span><span class="p">)</span>
+
+    <span class="n">component_state_func</span> <span class="o">=</span> <span class="n">_get_transform_function</span><span class="p">(</span><span class="n">output</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> 
+                                                   <span class="n">tag</span><span class="o">=</span><span class="n">component</span><span class="o">.</span><span class="n">tag</span><span class="p">,</span> 
+                                                   <span class="n">component_id</span><span class="o">=</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="p">,</span> 
+                                                   <span class="n">counter</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span><span class="p">,</span>
+                                                   <span class="n">partial_update</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+
+
+    <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span> <span class="o">==</span> <span class="s2">&quot;query&quot;</span><span class="p">:</span>
+
+        <span class="c1"># Add a new component to the chat response</span>
+        <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
+        <span class="n">component_state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">to_json_plotly</span><span class="p">(</span><span class="n">component_state_func</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
+        <span class="n">component</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="kc">True</span>
+
+        <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">component_state</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+    <span class="k">elif</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="nb">property</span> <span class="o">==</span> <span class="s2">&quot;response&quot;</span><span class="p">:</span>
+        <span class="n">component_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component_id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span><span class="si">}</span><span class="s2">_response&quot;</span>
+
+        <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
+
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Received: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
@@ -2235,7 +2895,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h2 id="fast_dash.Fastify" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">args</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2337,10 +2997,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/utils.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">24</span>
-<span class="normal">25</span>
-<span class="normal">26</span>
-<span class="normal">27</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
 <span class="normal">28</span>
 <span class="normal">29</span>
 <span class="normal">30</span>
@@ -2379,7 +3036,12 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">63</span>
 <span class="normal">64</span>
 <span class="normal">65</span>
-<span class="normal">66</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span><span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">66</span>
+<span class="normal">67</span>
+<span class="normal">68</span>
+<span class="normal">69</span>
+<span class="normal">70</span>
+<span class="normal">71</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Modify a Dash component into a FastComponent.</span>
 
@@ -2396,13 +3058,15 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">    &quot;&quot;&quot;</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">FastComponent</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">component</span><span class="p">)):</span>
-        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 
+            <span class="bp">self</span><span class="o">.</span><span class="n">component</span> <span class="o">=</span> <span class="n">component</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">component_property</span> <span class="o">=</span> <span class="n">component_property</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">ack</span> <span class="o">=</span> <span class="n">ack</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">label_</span> <span class="o">=</span> <span class="n">label_</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">placeholder</span> <span class="o">=</span> <span class="n">placeholder</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">tag</span> <span class="o">=</span> <span class="n">tag</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
 
             <span class="c1"># Copy normal attributes</span>
             <span class="k">for</span> <span class="n">attr_name</span><span class="p">,</span> <span class="n">attr_value</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="n">component</span><span class="p">)</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -2421,7 +3085,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
             <span class="k">return</span> <span class="n">self_copy</span>
 
-    <span class="k">return</span> <span class="n">FastComponent</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">FastComponent</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="n">ack</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="n">placeholder</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="n">label_</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="n">tag</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">)</span>
 </code></pre></div></td></tr></table></div>
       </details>
   </div>
@@ -2433,7 +3097,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h2 id="fast_dash.fastdash" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -2594,6 +3258,26 @@ sets all parameters required for Fast Dash app deployment.</p>
           </td>
         </tr>
         <tr>
+          <td><code>loader</code></td>
+          <td>
+                <code>str or bool</code>
+          </td>
+          <td><p>Type of loader to display when the app is loading. If <code>None</code>, no loader is displayed.                 If <code>True</code>, a default loader is displayed. If <code>str</code>, the loader is set to the specified type.                 </p></td>
+          <td>
+                <code>&#39;bars&#39;</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>branding</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td><p>Display Fast Dash branding component in the footer. Defaults to True. </p></td>
+          <td>
+                <code>True</code>
+          </td>
+        </tr>
+        <tr>
           <td><code>about</code></td>
           <td>
                 <code>Union[str, bool]</code>
@@ -2688,141 +3372,150 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">405</span>
-<span class="normal">406</span>
-<span class="normal">407</span>
-<span class="normal">408</span>
-<span class="normal">409</span>
-<span class="normal">410</span>
-<span class="normal">411</span>
-<span class="normal">412</span>
-<span class="normal">413</span>
-<span class="normal">414</span>
-<span class="normal">415</span>
-<span class="normal">416</span>
-<span class="normal">417</span>
-<span class="normal">418</span>
-<span class="normal">419</span>
-<span class="normal">420</span>
-<span class="normal">421</span>
-<span class="normal">422</span>
-<span class="normal">423</span>
-<span class="normal">424</span>
-<span class="normal">425</span>
-<span class="normal">426</span>
-<span class="normal">427</span>
-<span class="normal">428</span>
-<span class="normal">429</span>
-<span class="normal">430</span>
-<span class="normal">431</span>
-<span class="normal">432</span>
-<span class="normal">433</span>
-<span class="normal">434</span>
-<span class="normal">435</span>
-<span class="normal">436</span>
-<span class="normal">437</span>
-<span class="normal">438</span>
-<span class="normal">439</span>
-<span class="normal">440</span>
-<span class="normal">441</span>
-<span class="normal">442</span>
-<span class="normal">443</span>
-<span class="normal">444</span>
-<span class="normal">445</span>
-<span class="normal">446</span>
-<span class="normal">447</span>
-<span class="normal">448</span>
-<span class="normal">449</span>
-<span class="normal">450</span>
-<span class="normal">451</span>
-<span class="normal">452</span>
-<span class="normal">453</span>
-<span class="normal">454</span>
-<span class="normal">455</span>
-<span class="normal">456</span>
-<span class="normal">457</span>
-<span class="normal">458</span>
-<span class="normal">459</span>
-<span class="normal">460</span>
-<span class="normal">461</span>
-<span class="normal">462</span>
-<span class="normal">463</span>
-<span class="normal">464</span>
-<span class="normal">465</span>
-<span class="normal">466</span>
-<span class="normal">467</span>
-<span class="normal">468</span>
-<span class="normal">469</span>
-<span class="normal">470</span>
-<span class="normal">471</span>
-<span class="normal">472</span>
-<span class="normal">473</span>
-<span class="normal">474</span>
-<span class="normal">475</span>
-<span class="normal">476</span>
-<span class="normal">477</span>
-<span class="normal">478</span>
-<span class="normal">479</span>
-<span class="normal">480</span>
-<span class="normal">481</span>
-<span class="normal">482</span>
-<span class="normal">483</span>
-<span class="normal">484</span>
-<span class="normal">485</span>
-<span class="normal">486</span>
-<span class="normal">487</span>
-<span class="normal">488</span>
-<span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
-<span class="normal">497</span>
-<span class="normal">498</span>
-<span class="normal">499</span>
-<span class="normal">500</span>
-<span class="normal">501</span>
-<span class="normal">502</span>
-<span class="normal">503</span>
-<span class="normal">504</span>
-<span class="normal">505</span>
-<span class="normal">506</span>
-<span class="normal">507</span>
-<span class="normal">508</span>
-<span class="normal">509</span>
-<span class="normal">510</span>
-<span class="normal">511</span>
-<span class="normal">512</span>
-<span class="normal">513</span>
-<span class="normal">514</span>
-<span class="normal">515</span>
-<span class="normal">516</span>
-<span class="normal">517</span>
-<span class="normal">518</span>
-<span class="normal">519</span>
-<span class="normal">520</span>
-<span class="normal">521</span>
-<span class="normal">522</span>
-<span class="normal">523</span>
-<span class="normal">524</span>
-<span class="normal">525</span>
-<span class="normal">526</span>
-<span class="normal">527</span>
-<span class="normal">528</span>
-<span class="normal">529</span>
-<span class="normal">530</span>
-<span class="normal">531</span>
-<span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span>
+<span class="normal">625</span>
+<span class="normal">626</span>
+<span class="normal">627</span>
+<span class="normal">628</span>
+<span class="normal">629</span>
+<span class="normal">630</span>
+<span class="normal">631</span>
+<span class="normal">632</span>
+<span class="normal">633</span>
+<span class="normal">634</span>
+<span class="normal">635</span>
+<span class="normal">636</span>
+<span class="normal">637</span>
+<span class="normal">638</span>
+<span class="normal">639</span>
+<span class="normal">640</span>
+<span class="normal">641</span>
+<span class="normal">642</span>
+<span class="normal">643</span>
+<span class="normal">644</span>
+<span class="normal">645</span>
+<span class="normal">646</span>
+<span class="normal">647</span>
+<span class="normal">648</span>
+<span class="normal">649</span>
+<span class="normal">650</span>
+<span class="normal">651</span>
+<span class="normal">652</span>
+<span class="normal">653</span>
+<span class="normal">654</span>
+<span class="normal">655</span>
+<span class="normal">656</span>
+<span class="normal">657</span>
+<span class="normal">658</span>
+<span class="normal">659</span>
+<span class="normal">660</span>
+<span class="normal">661</span>
+<span class="normal">662</span>
+<span class="normal">663</span>
+<span class="normal">664</span>
+<span class="normal">665</span>
+<span class="normal">666</span>
+<span class="normal">667</span>
+<span class="normal">668</span>
+<span class="normal">669</span>
+<span class="normal">670</span>
+<span class="normal">671</span>
+<span class="normal">672</span>
+<span class="normal">673</span>
+<span class="normal">674</span>
+<span class="normal">675</span>
+<span class="normal">676</span>
+<span class="normal">677</span>
+<span class="normal">678</span>
+<span class="normal">679</span>
+<span class="normal">680</span>
+<span class="normal">681</span>
+<span class="normal">682</span>
+<span class="normal">683</span>
+<span class="normal">684</span>
+<span class="normal">685</span>
+<span class="normal">686</span>
+<span class="normal">687</span>
+<span class="normal">688</span>
+<span class="normal">689</span>
+<span class="normal">690</span>
+<span class="normal">691</span>
+<span class="normal">692</span>
+<span class="normal">693</span>
+<span class="normal">694</span>
+<span class="normal">695</span>
+<span class="normal">696</span>
+<span class="normal">697</span>
+<span class="normal">698</span>
+<span class="normal">699</span>
+<span class="normal">700</span>
+<span class="normal">701</span>
+<span class="normal">702</span>
+<span class="normal">703</span>
+<span class="normal">704</span>
+<span class="normal">705</span>
+<span class="normal">706</span>
+<span class="normal">707</span>
+<span class="normal">708</span>
+<span class="normal">709</span>
+<span class="normal">710</span>
+<span class="normal">711</span>
+<span class="normal">712</span>
+<span class="normal">713</span>
+<span class="normal">714</span>
+<span class="normal">715</span>
+<span class="normal">716</span>
+<span class="normal">717</span>
+<span class="normal">718</span>
+<span class="normal">719</span>
+<span class="normal">720</span>
+<span class="normal">721</span>
+<span class="normal">722</span>
+<span class="normal">723</span>
+<span class="normal">724</span>
+<span class="normal">725</span>
+<span class="normal">726</span>
+<span class="normal">727</span>
+<span class="normal">728</span>
+<span class="normal">729</span>
+<span class="normal">730</span>
+<span class="normal">731</span>
+<span class="normal">732</span>
+<span class="normal">733</span>
+<span class="normal">734</span>
+<span class="normal">735</span>
+<span class="normal">736</span>
+<span class="normal">737</span>
+<span class="normal">738</span>
+<span class="normal">739</span>
+<span class="normal">740</span>
+<span class="normal">741</span>
+<span class="normal">742</span>
+<span class="normal">743</span>
+<span class="normal">744</span>
+<span class="normal">745</span>
+<span class="normal">746</span>
+<span class="normal">747</span>
+<span class="normal">748</span>
+<span class="normal">749</span>
+<span class="normal">750</span>
+<span class="normal">751</span>
+<span class="normal">752</span>
+<span class="normal">753</span>
+<span class="normal">754</span>
+<span class="normal">755</span>
+<span class="normal">756</span>
+<span class="normal">757</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -2838,6 +3531,8 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
+    <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -2894,6 +3589,11 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 <span class="sd">        footer (bool, optional): Display footer. Defaults to True.</span>
 
+<span class="sd">        loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \</span>
+<span class="sd">                If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \</span>
+
+<span class="sd">        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
+
 <span class="sd">        about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">            the docstring of the callback function. If string, content is used directly as markdown. \</span>
 <span class="sd">            `About` is hidden if False or None. Defaults to True.</span>
@@ -2939,6 +3639,8 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">twitter_url</span><span class="o">=</span><span class="n">twitter_url</span><span class="p">,</span>
             <span class="n">navbar</span><span class="o">=</span><span class="n">navbar</span><span class="p">,</span>
             <span class="n">footer</span><span class="o">=</span><span class="n">footer</span><span class="p">,</span>
+            <span class="n">loader</span><span class="o">=</span><span class="n">loader</span><span class="p">,</span>
+            <span class="n">branding</span><span class="o">=</span><span class="n">branding</span><span class="p">,</span>
             <span class="n">about</span><span class="o">=</span><span class="n">about</span><span class="p">,</span>
             <span class="n">theme</span><span class="o">=</span><span class="n">theme</span><span class="p">,</span>
             <span class="n">update_live</span><span class="o">=</span><span class="n">update_live</span><span class="p">,</span>

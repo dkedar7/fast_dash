@@ -1201,7 +1201,7 @@ query_config = QueryConfig(template=PROMPT)</div>
 <div class="jp-Collapser jp-InputCollapser jp-Cell-inputCollapser">
 </div>
 <div class="jp-InputArea jp-Cell-inputArea">
-<div class="jp-InputPrompt jp-InputArea-prompt">In [4]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
+<div class="jp-InputPrompt jp-InputArea-prompt">In [ ]:</div><div class="jp-CodeMirrorEditor jp-Editor jp-InputArea-editor" data-type="inline">
 <div class="CodeMirror cm-s-jupyter">
 <div class="zeroclipboard-container">
 <clipboard-copy for="cell-4">
@@ -1224,8 +1224,7 @@ query_config = QueryConfig(template=PROMPT)</div>
 <span class="n">web_page_urls_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">MultiSelect</span><span class="p">(</span>
     <span class="n">description</span><span class="o">=</span><span class="s2">"Include all the reference web URLs"</span><span class="p">,</span>
     <span class="n">placeholder</span><span class="o">=</span><span class="s2">"Enter URLs separated by commas"</span><span class="p">,</span>
-    <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-    <span class="n">creatable</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">searchable</span><span class="o">=</span><span class="kc">True</span>
 <span class="p">)</span>
 
 <span class="n">text_component</span> <span class="o">=</span> <span class="n">dmc</span><span class="o">.</span><span class="n">Textarea</span><span class="p">(</span>
@@ -1257,8 +1256,7 @@ openai_api_key_component = dmc.PasswordInput(
 web_page_urls_component = dmc.MultiSelect(
     description="Include all the reference web URLs",
     placeholder="Enter URLs separated by commas",
-    searchable=True,
-    creatable=True,
+    searchable=True
 )
 
 text_component = dmc.Textarea(
