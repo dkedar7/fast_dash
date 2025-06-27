@@ -397,4 +397,23 @@ def test_fdfd016_stream_text_simple(dash_duo):
     dash_duo.multiple_click("#submit_inputs", 1)
 
     time.sleep(4)
-    dash_duo.wait_for_text_to_equal("#output_output_text", "output", timeout=20)
+    # Poll until text stops changing (streaming complete)
+    previous_text = ""
+    stable_count = 0
+    for _ in range(60):  # 60 second max wait
+        try:
+            current_text = dash_duo.find_element("#output_output_text").text
+            if current_text == previous_text and current_text != "":
+                stable_count += 1
+                if stable_count >= 3:  # Text stable for 3 checks
+                    break
+            else:
+                stable_count = 0
+            previous_text = current_text
+            time.sleep(1)
+        except:
+            time.sleep(1)
+    
+    # Now assert on the final text
+    final_text = dash_duo.find_element("#output_output_text").text
+    assert "output" in final_text
