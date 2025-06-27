@@ -81,3 +81,17 @@ def test_example_6(dash_duo):
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 6"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_example_7(dash_duo):
+    "Test streaming text example"
+
+    from .examples import example_7_streaming_text
+
+    app = example_7_streaming_text().app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 7", timeout=4)
+
+    assert dash_duo.find_element("#title8888928").text == "Fast Dash example 7"
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"

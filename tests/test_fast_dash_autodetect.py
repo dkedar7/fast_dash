@@ -17,7 +17,8 @@ import datetime
 ########### Define callback functions ###########
 def simple_text_to_text_function(input_text: Text):
     "Converts text to text"
-    return input_text
+    output_text = input_text
+    return output_text
 
 
 def simple_number_to_number(input_: Slider):
@@ -26,9 +27,9 @@ def simple_number_to_number(input_: Slider):
 def simple_image_to_image(input_: UploadImage):
     return UploadImage
 
-
 def simple_text_to_multiple_text_function(input_text):
-    return input_text, input_text
+    output_text1 = output_text2 = input_text
+    return output_text1, output_text2
 
 
 ############## Write test cases ################
@@ -143,9 +144,9 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options == ["Some text", 2.2, "45.23"]
+        input_component.__doc__ == dmc.Select().__doc__
+        and hasattr(input_component, "data")
+        and input_component.data == ["Some text", 2.2, "45.23"]
     ), "Default sequence failed"
 
     # 4. Default is dictionary
@@ -342,10 +343,9 @@ def test_fdco007_input_hint_is_dictionary(dash_duo):
     app = FastDash(callback_fn=simple_dictionary)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
-        and not hasattr(input_component, "type")
-        and hasattr(input_component, "options")
-        and input_component.options == sample_dictionary
+        input_component.__doc__ == dmc.MultiSelect().__doc__
+        and hasattr(input_component, "data")
+        and input_component.data == list(sample_dictionary.keys())
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
     ), "Default dictionary failed"
@@ -513,9 +513,9 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options == ["These", "are", 5, "options", "to select"]
+        input_component.__doc__ == dmc.Select().__doc__
+        and hasattr(input_component, "data")
+        and input_component.data == ["These", "are", 5, "options", "to select"]
     ), "Default list failed"
 
     # 3b. Default value is range
@@ -543,10 +543,10 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dcc.Dropdown().__doc__
-        and hasattr(input_component, "options")
-        and input_component.options
-        == {"This": "is", "a": "dictionary", 5: "Fast", "Dash": [1, 2, 3]}
+        input_component.__doc__ == dmc.Select().__doc__
+        and hasattr(input_component, "data")
+        and input_component.data
+        == ["This", "a", 5, "Dash"]
     ), "Default dictionary failed"
 
     # 5. Default value is boolean
@@ -778,10 +778,10 @@ def test_fdco017_output_is_chat(dash_duo):
     dash_duo.multiple_click("#submit_inputs", 1)
 
     # Check if any child element has the text "Response to Why?"
-    output_div = dash_duo.find_element("#output-1")
+    output_div = dash_duo.find_element("#output_chat")
 
     wait = WebDriverWait(dash_duo.driver, timeout=4)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output-1")))
+    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output_chat")))
     time.sleep(4)
 
     child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
@@ -816,7 +816,7 @@ def test_fdco018_output_is_pandas(dash_duo):
     time.sleep(4)
 
     # Ensure the table is present
-    table = dash_duo.find_element("#output-1")
+    table = dash_duo.find_element("#output_df")
     assert table is not None
     
     # Validate the data (example: check the first cell)
