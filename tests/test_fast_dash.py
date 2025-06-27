@@ -2,8 +2,7 @@
 """Tests for `fast_dash` package."""
 # pylint: disable=redefined-outer-name
 
-from fast_dash import FastDash
-from fast_dash.Components import Text
+from fast_dash import FastDash, update, Text
 import matplotlib.pyplot as plt
 
 import time
@@ -19,11 +18,13 @@ from selenium.common.exceptions import NoSuchElementException
 ## Define callback functions
 def simple_text_to_text_function(input_text):
     "Converts text to text"
-    return input_text
+    output_text = input_text
+    return output_text
 
 
 def simple_text_to_multiple_text_function(input_text):
-    return input_text, input_text
+    output_text1 = output_text2 = input_text
+    return output_text1, output_text2
 
 
 def simple_text_to_multiple_outputs(
@@ -36,6 +37,20 @@ def simple_text_to_multiple_outputs(
 
     return fig, "Return some text"
 
+def stream_text_function(input_text: str) -> Text:
+
+    expected_output = "output"
+
+    output_text = ""
+    for i, c in enumerate(expected_output):
+        time.sleep(1)
+        update("output_text", str(c))
+        output_text += c
+
+    return output_text
+
+
+# Tests start here
 
 def test_fdfd001_set_title(dash_duo):
     "Test title element"
@@ -95,14 +110,14 @@ def test_fdfd004_click_submit(dash_duo):
 
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
-    dash_duo.wait_for_text_to_equal("#output-1", "Sample text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text", "Sample text", timeout=4)
 
     # Click clear
     wait = WebDriverWait(dash_duo.driver, 10)
     reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
     dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
 
-    dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text", "", timeout=4)
 
 
 def test_fdfd005_multiple_outputs(dash_duo):
@@ -124,16 +139,15 @@ def test_fdfd005_multiple_outputs(dash_duo):
 
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
-    dash_duo.wait_for_text_to_equal("#output-1", "Sample text", timeout=4)
-    dash_duo.wait_for_text_to_equal("#output-2", "Sample text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text1", "Sample text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text2", "Sample text", timeout=4)
 
-    # Click clear
     # Click clear
     wait = WebDriverWait(dash_duo.driver, 10)
     reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
     dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
-    dash_duo.wait_for_text_to_equal("#output-1", "", timeout=4)
-    dash_duo.wait_for_text_to_equal("#output-2", "", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text1", "", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text2", "", timeout=4)
 
 
 def test_fdfd006_live_update(dash_duo):
@@ -355,3 +369,51 @@ def test_fdfd015_close_sidebar(dash_duo):
         item.split(":") for item in sidebar_style.strip(";").split("; ") if item
     )
     assert sidebar_style["display"].strip() == "none", "Sidebar did not close"
+
+
+def test_fdfd016_stream_text_simple(dash_duo):
+    "Test streaming text output"
+
+    app = FastDash(
+        callback_fn=stream_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="Streaming Text Example",
+    ).app
+
+    time.sleep(4)
+    dash_duo.start_server(app)
+    time.sleep(4)
+
+    dash_duo.wait_for_text_to_equal(
+        "#title8888928", "Streaming Text Example", timeout=4
+    )
+
+    # Enter some text
+    form_textfield = dash_duo.find_element("#input_text")
+    form_textfield.send_keys("Sample text")
+
+    # Click submit
+    dash_duo.multiple_click("#submit_inputs", 1)
+
+    time.sleep(4)
+    # Poll until text stops changing (streaming complete)
+    previous_text = ""
+    stable_count = 0
+    for _ in range(120):  # 60 second max wait
+        try:
+            current_text = dash_duo.find_element("#output_output_text").text
+            if current_text == previous_text and current_text != "":
+                stable_count += 1
+                if stable_count >= 3:  # Text stable for 3 checks
+                    break
+            else:
+                stable_count = 0
+            previous_text = current_text
+            time.sleep(1)
+        except:
+            time.sleep(1)
+    
+    # Now assert on the final text
+    final_text = dash_duo.find_element("#output_output_text").text
+    assert "output" in final_text

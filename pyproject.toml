@@ -35,14 +35,16 @@ packages = [
 dependencies = [
     "dash>=2.11.0",
     "pandas>=1.0.0",
-    "dash-bootstrap-components>=1.0.2",
-    "dash-mantine-components>=0.12.1,<0.13",
+    "dash-bootstrap-components>=2.0.0",
+    "dash-mantine-components>=1.0.0",
     "dash-iconify>=0.1.2",
     "Pillow>=9.2.0",
     "matplotlib>=3.5.0",
     "docstring-parser>=0.15",
     "dill (>=0.3.9,<0.4.0)",
     "pyreadline3 (>=3.5.4,<4.0.0)",
+    "dash-socketio (>=1.1.1,<2.0.0)",
+    "flask-socketio (>=5.5.1,<6.0.0)",
 ]
 
 [project.optional-dependencies]
@@ -94,7 +96,7 @@ docutils = ">0.21"
 [tool.poetry.group.test.dependencies]
 urllib3 = "*"
 dash = {version = ">2.11.0", extras = ["testing"]}
-selenium = "<4.2.0"
+selenium = ">=3.141.0,<=4.2.0"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -117,3 +119,6 @@ exclude = '''
   | dist
 )/
 '''
+
+[tool.poetry.scripts]
+fastdash = "fast_dash.cli:main"

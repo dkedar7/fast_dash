@@ -15,6 +15,7 @@ from flask import request
 import dash_bootstrap_components as dbc
 import dash_mantine_components as dmc
 from dash_iconify import DashIconify
+from dash_socketio import DashSocketIO
 
 import matplotlib as mpl
 import numpy as np
@@ -45,6 +46,8 @@ class BaseLayout:
         twitter_url=None,
         navbar=True,
         footer=True,
+        loader="bars",
+        branding=True,
         about=True,
         minimal=False,
         scale_height=1,
@@ -61,6 +64,8 @@ class BaseLayout:
         self.twitter_url = twitter_url
         self.navbar = navbar
         self.footer = footer
+        self.loader = loader
+        self.branding = branding
         self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
@@ -129,7 +134,7 @@ class BaseLayout:
                         ),
                         self.title,
                     ],
-                    spacing=5,
+                    gap=5,
                 )
             ]
             or "",
@@ -260,7 +265,7 @@ class BaseLayout:
 
         return footer_container
 
-    def generate_layout(self):
+    def generate_layout(self, stream_event_names=None):
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
 
@@ -600,15 +605,15 @@ class SidebarLayout(BaseLayout):
 
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
-        output_layout = dmc.LoadingOverlay(
-            dbc.Col(
-                [layout] + [self.outputs[-1]],
-                class_name="g-1 d-flex flex-fill flex-column",
-                style={"height": f"{80 * self.scale_height}vh"},
-                width=12,
-            ),
-            loaderProps=dict(variant="bars"),
-        )
+        output_layout = dbc.Col(
+                    [layout] + [self.outputs[-1]],
+                    class_name="g-1 d-flex flex-fill flex-column",
+                    style={"height": f"{80 * self.scale_height}vh"},
+                    width=12,
+                )
+        
+        loader_component = dmc.LoadingOverlay(id="loading-overlay", loaderProps=dict(type=self.loader))
+        output_layout = html.Div([loader_component, output_layout])
 
         return output_layout
 
@@ -618,7 +623,7 @@ class SidebarLayout(BaseLayout):
                 label="Made with Fast Dash!",
                 position="top",
                 withArrow=True,
-                transitionDuration=300,
+                transitionProps={"duration": 300},
                 children=dcc.Link(
                     dmc.Button(
                         DashIconify(icon="ion:rocket-sharp", width=20), radius=500
@@ -631,7 +636,7 @@ class SidebarLayout(BaseLayout):
             id="footer5265971",
         )
 
-    def generate_layout(self):
+    def generate_layout(self, stream_event_names=None):
         # There are four main components:
         # navbar, header, input, output, footer
 
@@ -639,8 +644,8 @@ class SidebarLayout(BaseLayout):
             self.title = self.subtitle = self.navbar = self.footer = False
 
         layout = dmc.MantineProvider(
-            dmc.NotificationsProvider(
                 [
+                    dmc.NotificationContainer(id="notification-container"),
                     html.Div(id="dummy-div", style={"display": "none"}),
                     dbc.Container(
                         [
@@ -659,15 +664,14 @@ class SidebarLayout(BaseLayout):
                                 ],
                                 class_name="d-flex",
                             ),
-                            self.generate_footer_container(),
-                            html.Div(id="error-notify-div"),
+                            self.generate_footer_container() if self.branding else None,
+                            DashSocketIO(id='socketio', eventNames=stream_event_names),
                         ],
                         fluid=True,
                         style={"height": "100vh", "width": "100%"},
                     )
                 ]
             )
-        )
 
         return layout
 
@@ -812,7 +816,7 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dcc.Dropdown(options=default_value), "value", tag=_hint_type
+                dmc.Select(data=default_value), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Dictionary":
@@ -890,8 +894,7 @@ def _get_component_from_input(hint, default_value=None):
                 dmc.MultiSelect(
                     data=[default_value],
                     value=[default_value],
-                    searchable=True,
-                    creatable=True,
+                    searchable=True
                 ),
                 "value",
                 tag=_default_value_type,
@@ -920,8 +923,7 @@ def _get_component_from_input(hint, default_value=None):
         else:
             component = Fastify(
                 dmc.MultiSelect(
-                    searchable=True,
-                    creatable=True,
+                    searchable=True
                 ),
                 "value",
                 tag=_default_value_type,
@@ -929,7 +931,7 @@ def _get_component_from_input(hint, default_value=None):
 
     elif _hint_type == "Dictionary":
         component = Fastify(
-            dcc.Dropdown(default_value, multi=True), "value", tag=_hint_type
+            dmc.MultiSelect(data=list(default_value.keys())), "value", tag=_hint_type
         )
 
     elif _hint_type == "Boolean":
@@ -1044,14 +1046,14 @@ def _get_component_from_input(hint, default_value=None):
 
                 else:
                     component = Fastify(
-                        dcc.Dropdown(options=default_value),
+                        dmc.Select(data=default_value),
                         "options",
                         tag=_default_value_type,
                     )
 
             elif _default_value_type == "Dictionary":
                 component = Fastify(
-                    dcc.Dropdown(options=default_value),
+                    dmc.Select(data=list(default_value.keys())),
                     "value",
                     tag=_default_value_type,
                 )
