@@ -382,6 +382,8 @@ def test_fdfd016_stream_text_simple(dash_duo):
     ).app
 
     dash_duo.start_server(app)
+    time.sleep(4)
+    
     dash_duo.wait_for_text_to_equal(
         "#title8888928", "Streaming Text Example", timeout=4
     )
