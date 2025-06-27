@@ -381,6 +381,7 @@ def test_fdfd016_stream_text_simple(dash_duo):
         title="Streaming Text Example",
     ).app
 
+    time.sleep(4)
     dash_duo.start_server(app)
     time.sleep(4)
 
