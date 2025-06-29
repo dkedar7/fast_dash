@@ -63,7 +63,7 @@ def update(component, data, property=None):
     handler = stream_handler_var.get()
 
     if handler is not None:
-        return handler(component, data, property=property)
+        return handler(component, data, property=property, notification=False)
     
 def notify(data, action="show"):
     """When called in user code, invokes the current context's handler"""
@@ -124,7 +124,7 @@ class FastDash:
 
             layout (str, optional): App layout style. Currently supports 'base' and 'sidebar'. Defaults to sidebar.
 
-            mosaic (str): Mosaic array layout, if sidebar layout is selected.
+            mosaic (str, optional): Mosaics array layout, if sidebar layout is selected.
 
             inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.\
                 Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type \
