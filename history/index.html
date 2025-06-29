@@ -623,6 +623,17 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-0212">Release 0.2.12</h1>
+<h2 id="0212-2025-06-29">0.2.12 (2025-06-29)</h2>
+<h3 id="improvements">Improvements</h3>
+<ul>
+<li><strong>Dependencies</strong>: <code>fastdash</code> CLI can also be configured with a port number</li>
+<li><strong>Testing</strong>: Modify text streaming test to use <code>update</code> function correctly</li>
+</ul>
+<h3 id="bug-fixes">Bug Fixes</h3>
+<ul>
+<li><strong>Stream handler</strong>: Fix stream handler to use notification=False by default</li>
+</ul>
 <h1 id="release-0211">Release 0.2.11</h1>
 <h2 id="0211-2025-06-26">0.2.11 (2025-06-26)</h2>
 <h3 id="features">Features</h3>
@@ -634,13 +645,13 @@
 <li><strong>Streaming</strong>: Add streaming functionality with socket.io support and loader support to FastDash components</li>
 <li><strong>Chat</strong>: Enhance Chat component with streaming support, partial updates, and artifacts (Plotly figures, images, matplotlib, pandas, text)</li>
 </ul>
-<h3 id="improvements">Improvements</h3>
+<h3 id="improvements_1">Improvements</h3>
 <ul>
 <li><strong>Dependencies</strong>: Update dependencies and improve component configurations for compatibility</li>
 <li><strong>Components</strong>: Replace dcc.Dropdown with dmc.Select and dmc.MultiSelect for improved component handling</li>
 <li><strong>Testing</strong>: Implement polling mechanism and improve synchronization in streaming tests</li>
 </ul>
-<h3 id="bug-fixes">Bug Fixes</h3>
+<h3 id="bug-fixes_1">Bug Fixes</h3>
 <ul>
 <li><strong>Component Data</strong>: Fix component data handling in _get_component_from_input and update tests</li>
 <li><strong>Dependencies</strong>: Remove unused default properties for DateRangePicker and Prism components</li>
@@ -700,12 +711,12 @@
 <li>Updated documentation and tests. </li>
 </ul>
 <h2 id="025-2023-08-13">0.2.5 (2023-08-13)</h2>
-<h3 id="improvements_1">Improvements</h3>
+<h3 id="improvements_2">Improvements</h3>
 <ul>
 <li>Fix: <code>update_live</code> is automatically set to <code>True</code> if the callback function doesn't require any inputs.</li>
 </ul>
 <h2 id="024-2023-08-12">0.2.4 (2023-08-12)</h2>
-<h3 id="improvements_2">Improvements</h3>
+<h3 id="improvements_3">Improvements</h3>
 <ul>
 <li>Improve responsiveness on mobile views.</li>
 <li><code>outputs</code> argument overrides callback function output hints.</li>
@@ -723,7 +734,7 @@
 <ul>
 <li>New example: Chat over docs with Embedchain.</li>
 </ul>
-<h3 id="improvements_3">Improvements</h3>
+<h3 id="improvements_4">Improvements</h3>
 <ul>
 <li>Squashed a bug that was preventing the submit and reset buttons to sync with each other. The result is a more stable deploy using callback context.</li>
 </ul>
@@ -735,7 +746,7 @@
 <li>Use dmc.Burger icon instead of open, close icons. Allows for a clearner sidebar open/close UX</li>
 <li>New examples</li>
 </ul>
-<h3 id="improvements_4">Improvements</h3>
+<h3 id="improvements_5">Improvements</h3>
 <ul>
 <li>[Bug] Components are now initialized with the desired height</li>
 <li>Sidebar collapse burger is not supported in minimal layout</li>
@@ -749,7 +760,7 @@
 <li>Mosaic to build custom layouts.</li>
 <li>Collapsible sidebar.</li>
 </ul>
-<h3 id="improvements_5">Improvements</h3>
+<h3 id="improvements_6">Improvements</h3>
 <ul>
 <li>Sidebar layout improvements to allow flex sizing of components.</li>
 <li>Unit test updates to support the latest tox and poetry versions.</li>
