@@ -44,8 +44,8 @@ def stream_text_function(input_text: str) -> Text:
     output_text = ""
     for i, c in enumerate(expected_output):
         time.sleep(1)
-        update("output_text", str(c))
         output_text += c
+        update("output_text", output_text)
 
     return output_text
 
