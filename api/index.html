@@ -1332,7 +1332,20 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">608</span>
 <span class="normal">609</span>
 <span class="normal">610</span>
-<span class="normal">611</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">:</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -1359,6 +1372,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
         <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
         <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -1416,6 +1430,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">                If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \</span>
 
 <span class="sd">            branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
+
+<span class="sd">            stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \</span>
+<span class="sd">                If False, streaming is disabled. Defaults to False. \</span>
 
 <span class="sd">            about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">                the docstring of the callback function. If string, content is used directly as markdown. \</span>
@@ -1475,6 +1492,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">branding</span> <span class="o">=</span> <span class="n">branding</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">about</span> <span class="o">=</span> <span class="n">about</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
@@ -1497,7 +1515,9 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Allow easier access to Dash server</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span>
-        <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="n">stream</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+            <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
 
         <span class="c1"># Define other attributes</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
@@ -1608,14 +1628,14 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">layout_object</span> <span class="o">=</span> <span class="n">app_layout</span>
         <span class="n">notification_components</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;notification-container&quot;</span><span class="p">]</span>
 
-        <span class="n">streaming_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">]</span>
+        <span class="n">streaming_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span><span class="o">.</span><span class="n">id</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">True</span><span class="p">]</span>
         <span class="n">streaming_components</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">notification_components</span><span class="p">)</span>
 
         <span class="c1"># Add responses of chat components if present</span>
-        <span class="n">chat_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">]</span>
+        <span class="n">chat_components</span> <span class="o">=</span> <span class="p">[</span><span class="n">c</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span> <span class="k">if</span> <span class="n">c</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span> <span class="ow">and</span> <span class="n">c</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">True</span><span class="p">]</span>
 
         <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="n">chat_components</span><span class="p">:</span>
-            <span class="p">[</span><span class="n">streaming_components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">)]</span>
+            <span class="p">[</span><span class="n">streaming_components</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span><span class="p">)</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="s2">&quot;stream_limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">))]</span>
 
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">layout</span> <span class="o">=</span> <span class="n">app_layout</span><span class="o">.</span><span class="n">generate_layout</span><span class="p">(</span><span class="n">stream_event_names</span><span class="o">=</span><span class="n">streaming_components</span><span class="p">)</span>
 
@@ -1742,6 +1762,9 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
 
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">return</span>
+
         <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
             <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Notification: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -1772,7 +1795,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="c1"># Add a new component to the chat response</span>
             <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
             <span class="n">component_state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">to_json_plotly</span><span class="p">(</span><span class="n">component_state_func</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
-            <span class="n">component</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="kc">True</span>
+            <span class="c1"># component.stream = True</span>
 
             <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">component_state</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
 
@@ -1833,6 +1856,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">:</span>
 
+            <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="s2">&quot;stream&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+                <span class="k">continue</span>
+
             <span class="c1"># All clientside callbacks</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
                 <span class="n">update_func</span><span class="p">,</span>
@@ -1843,7 +1869,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="p">)</span>
 
             <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">:</span>
-                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+                <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="s2">&quot;stream_limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)):</span>
                     <span class="n">c_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
                             <span class="n">update_func</span><span class="p">,</span>
@@ -1882,7 +1908,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h3 id="fast_dash.fast_dash.FastDash.__init__" class="doc doc-heading">
-<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h3>
 
@@ -2056,9 +2082,19 @@ sets all parameters required for Fast Dash app deployment.</p>
           <td>
                 <code>bool</code>
           </td>
-          <td><p>Display Fast Dash branding component in the footer. Defaults to True. </p></td>
+          <td><p>Display Fast Dash branding component in the footer. Defaults to True.             </p></td>
           <td>
                 <code>True</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>stream</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td><p>Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data.                 If False, streaming is disabled. Defaults to False. </p></td>
+          <td>
+                <code>False</code>
           </td>
         </tr>
         <tr>
@@ -2373,7 +2409,14 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">305</span>
 <span class="normal">306</span>
 <span class="normal">307</span>
-<span class="normal">308</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">308</span>
+<span class="normal">309</span>
+<span class="normal">310</span>
+<span class="normal">311</span>
+<span class="normal">312</span>
+<span class="normal">313</span>
+<span class="normal">314</span>
+<span class="normal">315</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -2391,6 +2434,7 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
     <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -2448,6 +2492,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">            If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \</span>
 
 <span class="sd">        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
+
+<span class="sd">        stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \</span>
+<span class="sd">            If False, streaming is disabled. Defaults to False. \</span>
 
 <span class="sd">        about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">            the docstring of the callback function. If string, content is used directly as markdown. \</span>
@@ -2507,6 +2554,7 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">footer</span> <span class="o">=</span> <span class="n">footer</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">loader</span> <span class="o">=</span> <span class="n">loader</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">branding</span> <span class="o">=</span> <span class="n">branding</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="n">stream</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">about</span> <span class="o">=</span> <span class="n">about</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">theme</span> <span class="o">=</span> <span class="n">theme</span> <span class="ow">or</span> <span class="s2">&quot;JOURNAL&quot;</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">minimal</span> <span class="o">=</span> <span class="n">minimal</span>
@@ -2529,7 +2577,9 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="c1"># Allow easier access to Dash server</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">server</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">callback</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">callback</span>
-    <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
+
+    <span class="k">if</span> <span class="n">stream</span> <span class="o">==</span> <span class="kc">True</span><span class="p">:</span>
+        <span class="n">socketio</span> <span class="o">=</span> <span class="n">SocketIO</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">)</span>
 
     <span class="c1"># Define other attributes</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">callback_fn</span> <span class="o">=</span> <span class="n">callback_fn</span>
@@ -2613,17 +2663,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">547</span>
 <span class="normal">548</span>
 <span class="normal">549</span>
 <span class="normal">550</span>
@@ -2687,7 +2727,20 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">608</span>
 <span class="normal">609</span>
 <span class="normal">610</span>
-<span class="normal">611</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">611</span>
+<span class="normal">612</span>
+<span class="normal">613</span>
+<span class="normal">614</span>
+<span class="normal">615</span>
+<span class="normal">616</span>
+<span class="normal">617</span>
+<span class="normal">618</span>
+<span class="normal">619</span>
+<span class="normal">620</span>
+<span class="normal">621</span>
+<span class="normal">622</span>
+<span class="normal">623</span>
+<span class="normal">624</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
 
     <span class="n">update_func</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;</span>
@@ -2733,6 +2786,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 
     <span class="k">for</span> <span class="n">component</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">outputs_with_ids</span><span class="p">:</span>
 
+        <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="s2">&quot;stream&quot;</span><span class="p">)</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+            <span class="k">continue</span>
+
         <span class="c1"># All clientside callbacks</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
             <span class="n">update_func</span><span class="p">,</span>
@@ -2743,7 +2799,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="p">)</span>
 
         <span class="k">if</span> <span class="n">component</span><span class="o">.</span><span class="n">tag</span> <span class="o">==</span> <span class="s2">&quot;Chat&quot;</span><span class="p">:</span>
-            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">100</span><span class="p">):</span>
+            <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="nb">getattr</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="s2">&quot;stream_limit&quot;</span><span class="p">,</span> <span class="mi">10</span><span class="p">)):</span>
                 <span class="n">c_id</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">component</span><span class="o">.</span><span class="n">id</span><span class="si">}</span><span class="s2">_</span><span class="si">{</span><span class="n">i</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="mi">1</span><span class="si">}</span><span class="s2">_response&quot;</span>
                 <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">clientside_callback</span><span class="p">(</span>
                         <span class="n">update_func</span><span class="p">,</span>
@@ -2784,14 +2840,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">489</span>
-<span class="normal">490</span>
-<span class="normal">491</span>
-<span class="normal">492</span>
-<span class="normal">493</span>
-<span class="normal">494</span>
-<span class="normal">495</span>
-<span class="normal">496</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">496</span>
 <span class="normal">497</span>
 <span class="normal">498</span>
 <span class="normal">499</span>
@@ -2829,8 +2878,21 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">531</span>
 <span class="normal">532</span>
 <span class="normal">533</span>
-<span class="normal">534</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
+<span class="normal">534</span>
+<span class="normal">535</span>
+<span class="normal">536</span>
+<span class="normal">537</span>
+<span class="normal">538</span>
+<span class="normal">539</span>
+<span class="normal">540</span>
+<span class="normal">541</span>
+<span class="normal">542</span>
+<span class="normal">543</span>
+<span class="normal">544</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
+
+    <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">return</span>
 
     <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
         <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
@@ -2862,7 +2924,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># Add a new component to the chat response</span>
         <span class="n">data</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">data</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="s2">&quot;&quot;</span><span class="p">)</span>
         <span class="n">component_state</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">to_json_plotly</span><span class="p">(</span><span class="n">component_state_func</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
-        <span class="n">component</span><span class="o">.</span><span class="n">stream</span> <span class="o">=</span> <span class="kc">True</span>
+        <span class="c1"># component.stream = True</span>
 
         <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">component_state</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">True</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
 
@@ -3097,7 +3159,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h2 id="fast_dash.fastdash" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">layout</span><span class="o">=</span><span class="s1">&#39;sidebar&#39;</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -3272,9 +3334,19 @@ sets all parameters required for Fast Dash app deployment.</p>
           <td>
                 <code>bool</code>
           </td>
-          <td><p>Display Fast Dash branding component in the footer. Defaults to True. </p></td>
+          <td><p>Display Fast Dash branding component in the footer. Defaults to True.         </p></td>
           <td>
                 <code>True</code>
+          </td>
+        </tr>
+        <tr>
+          <td><code>stream</code></td>
+          <td>
+                <code>bool</code>
+          </td>
+          <td><p>Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data.             If False, streaming is disabled. Defaults to False.</p></td>
+          <td>
+                <code>False</code>
           </td>
         </tr>
         <tr>
@@ -3372,20 +3444,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">614</span>
-<span class="normal">615</span>
-<span class="normal">616</span>
-<span class="normal">617</span>
-<span class="normal">618</span>
-<span class="normal">619</span>
-<span class="normal">620</span>
-<span class="normal">621</span>
-<span class="normal">622</span>
-<span class="normal">623</span>
-<span class="normal">624</span>
-<span class="normal">625</span>
-<span class="normal">626</span>
-<span class="normal">627</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">627</span>
 <span class="normal">628</span>
 <span class="normal">629</span>
 <span class="normal">630</span>
@@ -3515,7 +3574,25 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">754</span>
 <span class="normal">755</span>
 <span class="normal">756</span>
-<span class="normal">757</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">757</span>
+<span class="normal">758</span>
+<span class="normal">759</span>
+<span class="normal">760</span>
+<span class="normal">761</span>
+<span class="normal">762</span>
+<span class="normal">763</span>
+<span class="normal">764</span>
+<span class="normal">765</span>
+<span class="normal">766</span>
+<span class="normal">767</span>
+<span class="normal">768</span>
+<span class="normal">769</span>
+<span class="normal">770</span>
+<span class="normal">771</span>
+<span class="normal">772</span>
+<span class="normal">773</span>
+<span class="normal">774</span>
+<span class="normal">775</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">layout</span><span class="o">=</span><span class="s2">&quot;sidebar&quot;</span><span class="p">,</span>
@@ -3533,6 +3610,7 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">loader</span><span class="o">=</span><span class="s2">&quot;bars&quot;</span><span class="p">,</span>
     <span class="n">branding</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
     <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -3594,6 +3672,9 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 <span class="sd">        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \</span>
 
+<span class="sd">        stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \</span>
+<span class="sd">            If False, streaming is disabled. Defaults to False.</span>
+
 <span class="sd">        about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\</span>
 <span class="sd">            the docstring of the callback function. If string, content is used directly as markdown. \</span>
 <span class="sd">            `About` is hidden if False or None. Defaults to True.</span>
@@ -3641,6 +3722,7 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">footer</span><span class="o">=</span><span class="n">footer</span><span class="p">,</span>
             <span class="n">loader</span><span class="o">=</span><span class="n">loader</span><span class="p">,</span>
             <span class="n">branding</span><span class="o">=</span><span class="n">branding</span><span class="p">,</span>
+            <span class="n">stream</span><span class="o">=</span><span class="n">stream</span><span class="p">,</span>
             <span class="n">about</span><span class="o">=</span><span class="n">about</span><span class="p">,</span>
             <span class="n">theme</span><span class="o">=</span><span class="n">theme</span><span class="p">,</span>
             <span class="n">update_live</span><span class="o">=</span><span class="n">update_live</span><span class="p">,</span>
