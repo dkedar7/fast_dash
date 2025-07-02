@@ -665,7 +665,7 @@ class SidebarLayout(BaseLayout):
                                 class_name="d-flex",
                             ),
                             self.generate_footer_container() if self.branding else None,
-                            DashSocketIO(id='socketio', eventNames=[]),
+                            # DashSocketIO(id='socketio', eventNames=[]),
                         ],
                         fluid=True,
                         style={"height": "100vh", "width": "100%"},
