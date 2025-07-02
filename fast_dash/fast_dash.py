@@ -355,14 +355,14 @@ class FastDash:
         self.layout_object = app_layout
         notification_components = ["notification-container"]
 
-        streaming_components = [c.id for c in self.outputs_with_ids]
+        streaming_components = [c.id for c in self.outputs_with_ids if c.stream == True]
         streaming_components.extend(notification_components)
         
         # Add responses of chat components if present
-        chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat"]
+        chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat" and c.stream == True]
 
         for component in chat_components:
-            [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(100)]
+            [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(getattr(component, "stream_limit", 10))]
         
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
@@ -580,6 +580,9 @@ class FastDash:
 
         for component in self.outputs_with_ids:
 
+            if getattr(component, "stream") == False:
+                continue
+
             # All clientside callbacks
             self.app.clientside_callback(
                 update_func,
@@ -590,7 +593,7 @@ class FastDash:
             )
 
             if component.tag == "Chat":
-                for i in range(100):
+                for i in range(getattr(component, "stream_limit", 10)):
                     c_id = f"{component.id}_{i + 1}_response"
                     self.app.clientside_callback(
                             update_func,
