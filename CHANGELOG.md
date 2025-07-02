@@ -1,10 +1,6 @@
-# Release 0.2.12
+# Release 0.2.13
 
-## 0.2.12 (2025-06-29)
-
-### Improvements
-- **Dependencies**: `fastdash` CLI can also be configured with a port number
-- **Testing**: Modify text streaming test to use `update` function correctly
+## 0.2.13 (2025-07-01)
 
 ### Bug Fixes
-- **Stream handler**: Fix stream handler to use notification=False by default
+- **Disable websockets**: Default behavior is disabled websockets so server deployments are faster.
