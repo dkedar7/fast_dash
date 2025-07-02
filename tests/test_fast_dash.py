@@ -37,7 +37,7 @@ def simple_text_to_multiple_outputs(
 
     return fig, "Return some text"
 
-def stream_text_function(input_text: str) -> Text:
+def stream_text_function(input_text: str) -> Text(stream=True):
 
     expected_output = "output"
 
@@ -376,6 +376,7 @@ def test_fdfd016_stream_text_simple(dash_duo):
 
     app = FastDash(
         callback_fn=stream_text_function,
+        stream=True,
         inputs=Text,
         outputs=Text,
         title="Streaming Text Example",

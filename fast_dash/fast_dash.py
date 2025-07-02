@@ -164,6 +164,9 @@ class FastDash:
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
             branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+            
+            stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
+                If False, streaming is disabled. Defaults to False. \
 
             about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
                 the docstring of the callback function. If string, content is used directly as markdown. \
@@ -700,6 +703,9 @@ def fastdash(
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
         branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+        
+        stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
+            If False, streaming is disabled. Defaults to False.
 
         about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
             the docstring of the callback function. If string, content is used directly as markdown. \
