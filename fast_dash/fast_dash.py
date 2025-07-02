@@ -106,6 +106,7 @@ class FastDash:
         footer=True,
         loader="bars",
         branding=True,
+        stream=False,
         about=True,
         theme=None,
         update_live=False,
@@ -222,6 +223,7 @@ class FastDash:
         self.footer = footer
         self.loader = loader
         self.branding = branding
+        self.stream = stream
         self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
@@ -244,7 +246,9 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
         self.callback = self.app.callback
-        socketio = SocketIO(self.app.server)
+
+        if stream == True:
+            socketio = SocketIO(self.app.server)
 
         # Define other attributes
         self.callback_fn = callback_fn
@@ -421,9 +425,9 @@ class FastDash:
                 ):
                     self.app_initialized = True
 
-                    # stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
-                    # with StreamContext(stream_handler_func):
-                    output_state = self.callback_fn(*inputs)
+                    stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
+                    with StreamContext(stream_handler_func):
+                        output_state = self.callback_fn(*inputs)
 
                     if isinstance(output_state, tuple):
                         self.output_state = list(output_state)
@@ -488,6 +492,9 @@ class FastDash:
     # Define a stream handler function
     def stream_handler(self, component_id, data, property=None, socket_id=None, notification=True):
         """A simple handler that prints to console and returns a response"""
+
+        if self.stream == False:
+            return
 
         if notification:
             emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
@@ -578,40 +585,40 @@ class FastDash:
             }
             """
 
-        # for component in self.outputs_with_ids:
+        for component in self.outputs_with_ids:
 
-        #     if getattr(component, "stream") == False:
-        #         continue
+            if getattr(component, "stream") == False:
+                continue
 
-        #     # All clientside callbacks
-        #     self.app.clientside_callback(
-        #         update_func,
-        #         Output(component.id, component.component_property, allow_duplicate=True),
-        #         Input("socketio", f"data-{component.id}"),
-        #         State(component.id, component.component_property),
-        #         prevent_initial_call=True,
-        #     )
+            # All clientside callbacks
+            self.app.clientside_callback(
+                update_func,
+                Output(component.id, component.component_property, allow_duplicate=True),
+                Input("socketio", f"data-{component.id}"),
+                State(component.id, component.component_property),
+                prevent_initial_call=True,
+            )
 
-        #     if component.tag == "Chat":
-        #         for i in range(getattr(component, "stream_limit", 10)):
-        #             c_id = f"{component.id}_{i + 1}_response"
-        #             self.app.clientside_callback(
-        #                     update_func,
-        #                     Output(c_id, "children", allow_duplicate=True),
-        #                     Input("socketio", f"data-{c_id}"),
-        #                     State(c_id, "children"),
-        #                     prevent_initial_call=True,
-        #                 )
+            if component.tag == "Chat":
+                for i in range(getattr(component, "stream_limit", 10)):
+                    c_id = f"{component.id}_{i + 1}_response"
+                    self.app.clientside_callback(
+                            update_func,
+                            Output(c_id, "children", allow_duplicate=True),
+                            Input("socketio", f"data-{c_id}"),
+                            State(c_id, "children"),
+                            prevent_initial_call=True,
+                        )
         
-        # component_id = "notification-container"
-        # component_property = "sendNotifications"
-        # self.app.clientside_callback(
-        #         update_func,
-        #         Output(component_id, component_property, allow_duplicate=True),
-        #         Input("socketio", f"data-{component_id}"),
-        #         State(component_id, component_property),
-        #         prevent_initial_call=True,
-        #     )
+        component_id = "notification-container"
+        component_property = "sendNotifications"
+        self.app.clientside_callback(
+                update_func,
+                Output(component_id, component_property, allow_duplicate=True),
+                Input("socketio", f"data-{component_id}"),
+                State(component_id, component_property),
+                prevent_initial_call=True,
+            )
 
 
 def fastdash(
@@ -632,6 +639,7 @@ def fastdash(
     footer=True,
     loader="bars",
     branding=True,
+    stream=False,
     about=True,
     theme=None,
     update_live=False,
@@ -740,6 +748,7 @@ def fastdash(
             footer=footer,
             loader=loader,
             branding=branding,
+            stream=stream,
             about=about,
             theme=theme,
             update_live=update_live,
