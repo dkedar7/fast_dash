@@ -106,6 +106,7 @@ class FastDash:
         footer=True,
         loader="bars",
         branding=True,
+        stream=False,
         about=True,
         theme=None,
         update_live=False,
@@ -163,6 +164,9 @@ class FastDash:
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
             branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+            
+            stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
+                If False, streaming is disabled. Defaults to False. \
 
             about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
                 the docstring of the callback function. If string, content is used directly as markdown. \
@@ -222,6 +226,7 @@ class FastDash:
         self.footer = footer
         self.loader = loader
         self.branding = branding
+        self.stream = stream
         self.about = about
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
@@ -244,7 +249,9 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
         self.callback = self.app.callback
-        socketio = SocketIO(self.app.server)
+
+        if stream == True:
+            socketio = SocketIO(self.app.server)
 
         # Define other attributes
         self.callback_fn = callback_fn
@@ -355,14 +362,14 @@ class FastDash:
         self.layout_object = app_layout
         notification_components = ["notification-container"]
 
-        streaming_components = [c.id for c in self.outputs_with_ids]
+        streaming_components = [c.id for c in self.outputs_with_ids if c.stream == True]
         streaming_components.extend(notification_components)
         
         # Add responses of chat components if present
-        chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat"]
+        chat_components = [c for c in self.outputs_with_ids if c.tag == "Chat" and c.stream == True]
 
         for component in chat_components:
-            [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(100)]
+            [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(getattr(component, "stream_limit", 10))]
         
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
@@ -489,6 +496,9 @@ class FastDash:
     def stream_handler(self, component_id, data, property=None, socket_id=None, notification=True):
         """A simple handler that prints to console and returns a response"""
 
+        if self.stream == False:
+            return
+
         if notification:
             emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
             return f"Notification: {data}"
@@ -519,7 +529,7 @@ class FastDash:
             # Add a new component to the chat response
             data = dict(query=data, response="")
             component_state = json.loads(to_json_plotly(component_state_func(data)))
-            component.stream = True
+            # component.stream = True
 
             emit(component_id, {"value": component_state, "append": True}, namespace="/", to=socket_id)
 
@@ -580,6 +590,9 @@ class FastDash:
 
         for component in self.outputs_with_ids:
 
+            if getattr(component, "stream") == False:
+                continue
+
             # All clientside callbacks
             self.app.clientside_callback(
                 update_func,
@@ -590,7 +603,7 @@ class FastDash:
             )
 
             if component.tag == "Chat":
-                for i in range(100):
+                for i in range(getattr(component, "stream_limit", 10)):
                     c_id = f"{component.id}_{i + 1}_response"
                     self.app.clientside_callback(
                             update_func,
@@ -629,6 +642,7 @@ def fastdash(
     footer=True,
     loader="bars",
     branding=True,
+    stream=False,
     about=True,
     theme=None,
     update_live=False,
@@ -689,6 +703,9 @@ def fastdash(
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
         branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+        
+        stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
+            If False, streaming is disabled. Defaults to False.
 
         about (Union[str, bool], optional): App description to display on clicking the `About` button. If True, content is inferred from\
             the docstring of the callback function. If string, content is used directly as markdown. \
@@ -737,6 +754,7 @@ def fastdash(
             footer=footer,
             loader=loader,
             branding=branding,
+            stream=stream,
             about=about,
             theme=theme,
             update_live=update_live,
