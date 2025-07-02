@@ -421,9 +421,9 @@ class FastDash:
                 ):
                     self.app_initialized = True
 
-                    stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
-                    with StreamContext(stream_handler_func):
-                        output_state = self.callback_fn(*inputs)
+                    # stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
+                    # with StreamContext(stream_handler_func):
+                    output_state = self.callback_fn(*inputs)
 
                     if isinstance(output_state, tuple):
                         self.output_state = list(output_state)
