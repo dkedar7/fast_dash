@@ -519,7 +519,7 @@ class FastDash:
             # Add a new component to the chat response
             data = dict(query=data, response="")
             component_state = json.loads(to_json_plotly(component_state_func(data)))
-            component.stream = True
+            # component.stream = True
 
             emit(component_id, {"value": component_state, "append": True}, namespace="/", to=socket_id)
 
@@ -578,40 +578,40 @@ class FastDash:
             }
             """
 
-        for component in self.outputs_with_ids:
+        # for component in self.outputs_with_ids:
 
-            if getattr(component, "stream") == False:
-                continue
+        #     if getattr(component, "stream") == False:
+        #         continue
 
-            # All clientside callbacks
-            self.app.clientside_callback(
-                update_func,
-                Output(component.id, component.component_property, allow_duplicate=True),
-                Input("socketio", f"data-{component.id}"),
-                State(component.id, component.component_property),
-                prevent_initial_call=True,
-            )
+        #     # All clientside callbacks
+        #     self.app.clientside_callback(
+        #         update_func,
+        #         Output(component.id, component.component_property, allow_duplicate=True),
+        #         Input("socketio", f"data-{component.id}"),
+        #         State(component.id, component.component_property),
+        #         prevent_initial_call=True,
+        #     )
 
-            if component.tag == "Chat":
-                for i in range(getattr(component, "stream_limit", 10)):
-                    c_id = f"{component.id}_{i + 1}_response"
-                    self.app.clientside_callback(
-                            update_func,
-                            Output(c_id, "children", allow_duplicate=True),
-                            Input("socketio", f"data-{c_id}"),
-                            State(c_id, "children"),
-                            prevent_initial_call=True,
-                        )
+        #     if component.tag == "Chat":
+        #         for i in range(getattr(component, "stream_limit", 10)):
+        #             c_id = f"{component.id}_{i + 1}_response"
+        #             self.app.clientside_callback(
+        #                     update_func,
+        #                     Output(c_id, "children", allow_duplicate=True),
+        #                     Input("socketio", f"data-{c_id}"),
+        #                     State(c_id, "children"),
+        #                     prevent_initial_call=True,
+        #                 )
         
-        component_id = "notification-container"
-        component_property = "sendNotifications"
-        self.app.clientside_callback(
-                update_func,
-                Output(component_id, component_property, allow_duplicate=True),
-                Input("socketio", f"data-{component_id}"),
-                State(component_id, component_property),
-                prevent_initial_call=True,
-            )
+        # component_id = "notification-container"
+        # component_property = "sendNotifications"
+        # self.app.clientside_callback(
+        #         update_func,
+        #         Output(component_id, component_property, allow_duplicate=True),
+        #         Input("socketio", f"data-{component_id}"),
+        #         State(component_id, component_property),
+        #         prevent_initial_call=True,
+        #     )
 
 
 def fastdash(
