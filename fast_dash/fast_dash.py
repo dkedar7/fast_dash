@@ -403,12 +403,13 @@ class FastDash:
             ]
             + [
                 Input(component_id="reset_inputs", component_property="n_clicks"),
-                Input(component_id="submit_inputs", component_property="n_clicks"),
-                State("socketio", "socketId"),
+                Input(component_id="submit_inputs", component_property="n_clicks")
+            ]
+            + [
+                State("socketio", "socketId") if self.stream == True else []
             ],
             running=[(Output("submit_inputs", "disabled"), True, False)],
-            prevent_initial_callback=True,
-            prevet_initial_call=True
+            prevent_initial_call=False
         )
         def process_input(*args):
             if (
