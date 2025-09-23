@@ -159,15 +159,15 @@ class BaseLayout:
     def generate_header_component(self):
         header_children = []
 
-        if self.title:
-            header_children.append(
-                dbc.Row(
-                    html.H2(
-                        self.title, style={"textAlign": "center"}, id="title8888928"
-                    ),
-                    style={"padding": "1% 0% 1% 0%"},
-                )
-            )
+        # if self.title:
+        #     header_children.append(
+        #         dbc.Row(
+        #             html.H2(
+        #                 self.title, style={"textAlign": "center"}, id="title8888928"
+        #             ),
+        #             style={"padding": "1% 0% 1% 0%"},
+        #         )
+        #     )
 
         if self.title_image_path:
             header_children.append(
@@ -179,19 +179,19 @@ class BaseLayout:
                 )
             )
 
-        if self.subtitle:
-            header_children.append(
-                dbc.Row(
-                    dbc.Row(
-                        html.H5(
-                            self.subtitle,
-                            id="subheader6904007",
-                            style={"textAlign": "center"},
-                        ),
-                        style={"padding": "0% 0% 1% 0%"},
-                    )
-                )
-            )
+        # if self.subtitle:
+        #     header_children.append(
+        #         dbc.Row(
+        #             dbc.Row(
+        #                 html.H5(
+        #                     self.subtitle,
+        #                     id="subheader6904007",
+        #                     style={"textAlign": "center"},
+        #                 ),
+        #                 style={"padding": "0% 0% 1% 0%"},
+        #             )
+        #         )
+        #     )
 
         header_container = dbc.Container(header_children, id="header1162572")
 
@@ -514,7 +514,7 @@ class SidebarLayout(BaseLayout):
     def _set_single_component(self, axis, width, n_rows=1, style=None, label=""):
         style = self.col_style if style is None else style
         component = self.output_component_mapper.get(label, label)
-        style.update({"height": f"{n_rows * self.height_of_single_row}vh"})
+        style.update({"height": f"{n_rows * self.height_of_single_row}vh", "display": "flex", "flex-direction": "column"})
         layout = dbc.Col(
             [component],
             class_name="p-1 bg-white flex-fill d-flex flex-column",
@@ -580,7 +580,7 @@ class SidebarLayout(BaseLayout):
         mosaic = self._normalize_grid_string(self.mosaic)
         mosaic_arr = self._make_array(mosaic)
         mosaic_shape = mosaic_arr.shape
-        self.height_of_single_row = (80 * self.scale_height) / (mosaic_shape[0])
+        self.height_of_single_row = (90 * self.scale_height) / (mosaic_shape[0])
 
         # Check if the mosaic array makes rectangles for all elements
         self._check_if_rectangular(mosaic_arr)
@@ -608,7 +608,7 @@ class SidebarLayout(BaseLayout):
         output_layout = dbc.Col(
                     [layout] + [self.outputs[-1]],
                     class_name="g-1 d-flex flex-fill flex-column",
-                    style={"height": f"{80 * self.scale_height}vh"},
+                    style={"height": f"{90 * self.scale_height}vh"},
                     width=12,
                 )
         
@@ -1305,6 +1305,7 @@ Chat = Fastify(
             "overflow-y": "scroll",
             "overflow-x": "hidden",
             "display": "flex",
+            "flex": "1",
             "flex-direction": "column-reverse",
         }
     ),

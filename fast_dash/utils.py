@@ -414,7 +414,20 @@ def _make_output_groups(outputs, update_live):
         label = label.replace("_", " ")
         output_groups.append(
             dbc.Col(
-                [dbc.Label(label, align="end")] + [output_],
+                [dbc.Label(label, align="end")] + [output_, html.Div(
+            children=[
+                dmc.Group([
+                    dmc.TextInput(placeholder="Type message...", style={"flex": "1"}),
+                    dmc.Button("Send", color="blue")
+                ])
+            ],
+            style={
+                "padding": "15px",
+                # "backgroundColor": "white", 
+                # "borderTop": "1px solid #dee2e6",
+                "flexShrink": "0"
+            }
+        )],
                 align="center",
                 style={"width": "100%", "overflow": "hidden"},
                 class_name="rounded border d-flex flex-column flex-fill",
