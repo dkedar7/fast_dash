@@ -1,6 +1,6 @@
-# Release 0.2.13
+# Release 0.2.14
 
-## 0.2.13 (2025-07-01)
+## 0.2.14 (2025-09-22)
 
 ### Bug Fixes
-- **Disable websockets**: Default behavior is disabled websockets so server deployments are faster.
+- **Automatic updates with no arguments**: Fixes behavior of callback execution when it has no arguments.
