@@ -363,8 +363,8 @@ def test_fdfd015_close_sidebar(dash_duo):
     dash_duo.multiple_click("#sidebar-button", 1)
     time.sleep(2)
 
-    # Find the style of the sidebar
-    sidebar_style = dash_duo.find_element("#input-group").get_attribute("style")
+    # Find the style of the sidebar wrapper (changed from #input-group to #input-group-wrapper)
+    sidebar_style = dash_duo.find_element("#input-group-wrapper").get_attribute("style")
     sidebar_style = dict(
         item.split(":") for item in sidebar_style.strip(";").split("; ") if item
     )

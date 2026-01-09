@@ -24,6 +24,12 @@
         }
 
         resizeHandle.addEventListener('mousedown', function(e) {
+            // Only allow resizing if sidebar is visible
+            const computedStyle = window.getComputedStyle(sidebarWrapper);
+            if (computedStyle.display === 'none') {
+                return;
+            }
+
             isResizing = true;
             startX = e.clientX;
             startWidth = sidebarWrapper.offsetWidth;
