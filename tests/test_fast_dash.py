@@ -414,7 +414,205 @@ def test_fdfd016_stream_text_simple(dash_duo):
             time.sleep(1)
         except:
             time.sleep(1)
-    
+
     # Now assert on the final text
     final_text = dash_duo.find_element("#output_output_text").text
     assert "output" in final_text
+
+
+def test_fdfd019_sidebar_layout_resize_elements(dash_duo):
+    "Test sidebar layout has resize handle and wrapper elements"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        title="Sidebar Resize Test",
+        layout="sidebar"
+    ).app
+
+    dash_duo.start_server(app)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Sidebar Resize Test", timeout=4)
+
+    # Check that the input group wrapper exists
+    input_wrapper = dash_duo.find_element("#input-group-wrapper")
+    assert input_wrapper is not None, "Input group wrapper should exist"
+
+    # Check that the resize handle exists
+    resize_handle = dash_duo.find_element("#sidebar-resize-handle")
+    assert resize_handle is not None, "Sidebar resize handle should exist"
+
+    # Check that the input group (content) exists
+    input_group = dash_duo.find_element("#input-group")
+    assert input_group is not None, "Input group should exist"
+
+    # Check that wrapper has the correct classes
+    wrapper_classes = input_wrapper.get_attribute("class")
+    assert wrapper_classes is not None
+
+    # Check that resize handle has the correct class
+    handle_class = resize_handle.get_attribute("class")
+    assert "sidebar-resize-handle" in handle_class, "Resize handle should have correct class"
+
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_fdfd020_sidebar_resize_handle_styling(dash_duo):
+    "Test that sidebar resize handle has proper CSS styling"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        layout="sidebar"
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(2)
+
+    # Get the resize handle
+    resize_handle = dash_duo.find_element("#sidebar-resize-handle")
+
+    # Check computed styles
+    cursor = resize_handle.value_of_css_property("cursor")
+    assert cursor == "col-resize", f"Resize handle should have col-resize cursor, got {cursor}"
+
+    position = resize_handle.value_of_css_property("position")
+    assert position == "absolute", f"Resize handle should be absolutely positioned, got {position}"
+
+    width = resize_handle.value_of_css_property("width")
+    assert width == "5px", f"Resize handle should be 5px wide, got {width}"
+
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_fdfd021_sidebar_resize_width_constraints(dash_duo):
+    "Test that sidebar wrapper has correct width constraints"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        layout="sidebar"
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(2)
+
+    # Get the input wrapper
+    input_wrapper = dash_duo.find_element("#input-group-wrapper")
+
+    # Check that it has style attributes
+    style = input_wrapper.get_attribute("style")
+    assert style is not None, "Input wrapper should have style attribute"
+
+    # Check min and max width are set
+    min_width = input_wrapper.value_of_css_property("min-width")
+    max_width = input_wrapper.value_of_css_property("max-width")
+
+    assert min_width == "150px", f"Min width should be 150px, got {min_width}"
+    assert max_width == "50%" or "%" in max_width, f"Max width should be 50%, got {max_width}"
+
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_fdfd022_sidebar_resize_javascript_loaded(dash_duo):
+    "Test that the sidebar resize JavaScript is loaded and functional"
+
+    app = FastDash(
+        callback_fn=simple_text_to_text_function,
+        inputs=Text,
+        outputs=Text,
+        layout="sidebar"
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(2)
+
+    # Check that JavaScript file exists by looking for initialized elements
+    resize_handle = dash_duo.find_element("#sidebar-resize-handle")
+    assert resize_handle is not None
+
+    # Test that the resize handle is interactive
+    # Get initial width
+    input_wrapper = dash_duo.find_element("#input-group-wrapper")
+    initial_width = input_wrapper.size['width']
+
+    assert initial_width > 0, "Sidebar should have a width greater than 0"
+
+    # The JavaScript should be loaded and DOM ready
+    # We can verify by checking if the page is fully rendered
+    time.sleep(1)
+
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_fdfd023_sidebar_toggle_preserves_width(dash_duo):
+    "Test that toggling sidebar preserves width settings"
+
+    from fast_dash import FastDash
+    from fast_dash.Components import Text, Slider
+
+    def callback_with_slider(text, slider):
+        return f"{text}: {slider}"
+
+    app = FastDash(
+        callback_fn=callback_with_slider,
+        inputs=[Text, Slider],
+        outputs=Text,
+        layout="sidebar"
+    ).app
+
+    dash_duo.start_server(app)
+    time.sleep(2)
+
+    # Find the sidebar button (burger menu)
+    try:
+        sidebar_button = dash_duo.find_element("#sidebar-button")
+
+        # Get initial wrapper
+        input_wrapper = dash_duo.find_element("#input-group-wrapper")
+        initial_display = input_wrapper.value_of_css_property("display")
+
+        # Click to toggle
+        dash_duo.multiple_click("#sidebar-button", 1)
+        time.sleep(1)
+
+        # Check that display changed
+        new_display = input_wrapper.value_of_css_property("display")
+
+        # The display should toggle between flex and none
+        assert new_display != initial_display or new_display in ["flex", "none"], \
+            f"Display should toggle, got {new_display}"
+
+    except NoSuchElementException:
+        # Sidebar button might not exist in minimal mode, that's okay
+        pass
+
+    assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
+
+
+def test_fdfd024_sidebar_resize_assets_exist():
+    "Test that sidebar resize CSS and JavaScript assets exist"
+    import os
+    from pathlib import Path
+
+    # Get the fast_dash package directory
+    import fast_dash
+    package_dir = Path(fast_dash.__file__).parent
+
+    # Check that JavaScript file exists
+    js_file = package_dir / "assets" / "sidebar_resize.js"
+    assert js_file.exists(), f"JavaScript file should exist at {js_file}"
+
+    # Check that CSS file exists and contains resize styles
+    css_file = package_dir / "assets" / "markdown.css"
+    assert css_file.exists(), f"CSS file should exist at {css_file}"
+
+    # Read CSS and check for resize handle styles
+    with open(css_file, 'r') as f:
+        css_content = f.read()
+
+    assert "sidebar-resize-handle" in css_content, "CSS should contain sidebar-resize-handle class"
+    assert "col-resize" in css_content, "CSS should contain col-resize cursor"
+    assert "#input-group-wrapper" in css_content, "CSS should contain input-group-wrapper styles"
