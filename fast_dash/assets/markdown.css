@@ -18,3 +18,34 @@ th:last-child:not(.CalendarDay),
 td:last-child:not(.CalendarDay) {
     padding-right: 0;
 }
+
+/* Sidebar resize handle styles */
+.sidebar-resize-handle {
+    width: 5px;
+    cursor: col-resize;
+    background-color: transparent;
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: background-color 0.2s ease;
+}
+
+.sidebar-resize-handle:hover {
+    background-color: #007bff;
+}
+
+.sidebar-resize-handle:active {
+    background-color: #0056b3;
+}
+
+/* Ensure input group wrapper has proper positioning */
+#input-group-wrapper {
+    position: relative;
+}
+
+/* Smooth transition for non-dragging width changes */
+#input-group-wrapper:not(:active) {
+    transition: width 0.1s ease;
+}

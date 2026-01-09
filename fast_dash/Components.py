@@ -562,18 +562,33 @@ class SidebarLayout(BaseLayout):
         return layout
 
     def generate_input_component(self):
-        return dbc.Col(
-            children=[dmc.Stack(children=self.inputs)],
-            id="input-group",
-            xs=12,
-            md=2,
+        return html.Div(
+            children=[
+                html.Div(
+                    children=[dmc.Stack(children=self.inputs)],
+                    id="input-group",
+                    style={
+                        "background-color": "#F5F7F7",
+                        "display": "block",
+                        "padding": "2% 20px 0 20px",
+                        "height": f"{self.scale_height * 110}vh",
+                        "overflow-y": "auto",
+                    },
+                    className="border border-right",
+                ),
+                html.Div(
+                    id="sidebar-resize-handle",
+                    className="sidebar-resize-handle",
+                ),
+            ],
+            id="input-group-wrapper",
             style={
-                "background-color": "#F5F7F7",
-                "display": "block",
-                "padding": "2% 20px 0 20px",
-                "height": f"{self.scale_height * 110}vh",
-            },
-            class_name="border border-right",
+                "width": "20%",
+                "min-width": "150px",
+                "max-width": "50%",
+                "position": "relative",
+                "display": "flex",
+            }
         )
 
     def generate_output_component(self):
@@ -650,19 +665,24 @@ class SidebarLayout(BaseLayout):
                     dbc.Container(
                         [
                             self.generate_navbar_container(),
-                            dbc.Row(
+                            html.Div(
                                 [
                                     self.generate_input_component(),
-                                    dbc.Col(
+                                    html.Div(
                                         [
                                             self.generate_header_component(),
                                             self.generate_output_component(),
                                         ],
                                         id="output-group-col",
-                                        style={"padding": "1% 2% 0 2%"},
+                                        style={
+                                            "padding": "1% 2% 0 2%",
+                                            "flex": "1",
+                                            "overflow-x": "auto",
+                                        },
                                     ),
                                 ],
-                                class_name="d-flex",
+                                className="d-flex",
+                                style={"width": "100%", "height": "100%"},
                             ),
                             self.generate_footer_container() if self.branding else None,
                             DashSocketIO(id='socketio', eventNames=stream_event_names),
@@ -677,31 +697,40 @@ class SidebarLayout(BaseLayout):
 
     def callbacks(self, app):
         @app.app.callback(
-            [Output("input-group", "style"), Output("sidebar-button", "opened")],
+            [Output("input-group-wrapper", "style"), Output("sidebar-button", "opened")],
             [Input("sidebar-button", "opened")],
-            [State("input-group", "style")],
+            [State("input-group-wrapper", "style")],
         )
-        def toggle_sidebar(opened, input_style):
+        def toggle_sidebar(opened, wrapper_style):
             user_agent = request.headers.get("User-Agent")
-            input_style = {} if input_style is None else input_style
+            wrapper_style = {} if wrapper_style is None else wrapper_style
+
+            # Preserve the width settings
+            default_style = {
+                "width": wrapper_style.get("width", "20%"),
+                "min-width": "150px",
+                "max-width": "50%",
+                "position": "relative",
+                "display": "flex",
+            }
 
             # Condition to collapse the sidebar:
             # Burger icon is closed or no inputs are specified
             if not opened or self.app.inputs == [] or self.app.inputs is None:
-                input_style.update({"display": "none"})
+                default_style.update({"display": "none"})
                 opened = False
 
             # Another condition to collapse the sidebar:
             # User is on mobile and the inputs are submitted
             elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
-                input_style.update({"display": "none"})
+                default_style.update({"display": "none"})
                 opened = False
 
             # Expand by default
             else:
-                input_style.update({"display": "block"})
+                default_style.update({"display": "flex"})
 
-            return (input_style, opened)
+            return (default_style, opened)
 
         # Optional callbacks specific to the layout
         @app.app.callback(
