@@ -1,11 +1,14 @@
 import copy
 import datetime
+import enum
 import inspect
 import math
 import numbers
 import warnings
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
 from functools import reduce
+from typing import Any, Union, Literal, Annotated, get_origin, get_args
 
 import dash
 from dash import Input, Output, State, dcc, html, ctx, Patch
@@ -730,6 +733,98 @@ class SidebarLayout(BaseLayout):
             raise PreventUpdate
 
 
+@dataclass
+class _ResolvedHint:
+    """Result of resolving a typing generic into actionable info."""
+
+    base_type: Any = None
+    component: Any = None
+    nullable: bool = False
+
+
+def _resolve_typing_hint(hint, default_value=None):
+    """
+    Pre-process a type hint that may be a typing generic.
+    Returns a _ResolvedHint with either a pre-built component or a base_type
+    that can be fed into the existing inference pipeline.
+    """
+    origin = get_origin(hint)
+    args = get_args(hint)
+
+    # Literal["a", "b", "c"] -> Select dropdown
+    if origin is Literal:
+        options = [str(o) for o in args]
+        default = str(default_value) if default_value is not None and str(default_value) in options else options[0] if options else None
+        return _ResolvedHint(
+            component=Fastify(
+                dmc.Select(data=options, value=default),
+                "value",
+                tag="Literal",
+            ),
+        )
+
+    # Enum subclass -> Select dropdown
+    if isinstance(hint, type) and issubclass(hint, enum.Enum):
+        members = [str(e.value) for e in hint]
+        default = str(default_value.value) if isinstance(default_value, enum.Enum) else members[0] if members else None
+        return _ResolvedHint(
+            component=Fastify(
+                dmc.Select(data=members, value=default),
+                "value",
+                tag="Enum",
+            ),
+        )
+
+    # Annotated[T, metadata] -> depends on metadata
+    if origin is Annotated:
+        inner_type = args[0]
+        metadata = args[1] if len(args) > 1 else None
+
+        # Annotated[int, range(0, 100)] -> Slider
+        if isinstance(metadata, range):
+            step = metadata.step if metadata.step != 1 else 1
+            default = default_value if default_value is not None else metadata.start
+            return _ResolvedHint(
+                component=Fastify(
+                    dmc.Slider(min=metadata.start, max=metadata.stop, step=step, value=default),
+                    "value",
+                    tag="Numeric",
+                ),
+            )
+
+        # Annotated[str, ["option1", "option2"]] -> Select
+        if isinstance(metadata, list):
+            options = [str(o) for o in metadata]
+            default = str(default_value) if default_value is not None and str(default_value) in options else options[0] if options else None
+            return _ResolvedHint(
+                component=Fastify(
+                    dmc.Select(data=options, value=default),
+                    "value",
+                    tag="Annotated",
+                ),
+            )
+
+        # Annotated[T, <unknown>] -> resolve inner type
+        return _resolve_typing_hint(inner_type, default_value)
+
+    # Optional[T] i.e. Union[T, None] -> unwrap to T
+    if origin is Union:
+        non_none_args = [a for a in args if a is not type(None)]
+        if len(non_none_args) == 1:
+            resolved = _resolve_typing_hint(non_none_args[0], default_value)
+            resolved.nullable = True
+            return resolved
+        if non_none_args:
+            return _resolve_typing_hint(non_none_args[0], default_value)
+
+    # Parameterized generics like list[str], dict[str, int] -> use origin type
+    if origin is not None:
+        return _ResolvedHint(base_type=origin)
+
+    # Plain type or non-typing object -> pass through unchanged
+    return _ResolvedHint(base_type=hint)
+
+
 def _get_readable_names_from_parent_classes(type_hint):
     "Get a readable label for the object's type. Order is important. If disturbed, type = bool could get matched with float."
     _map_types_to_readable_names = {
@@ -749,8 +844,11 @@ def _get_readable_names_from_parent_classes(type_hint):
     }
 
     for parent_class in _map_types_to_readable_names:
-        if issubclass(type_hint, parent_class):
-            return _map_types_to_readable_names[parent_class]
+        try:
+            if issubclass(type_hint, parent_class):
+                return _map_types_to_readable_names[parent_class]
+        except TypeError:
+            continue
 
     return None
 
@@ -782,6 +880,12 @@ def _get_component_from_input(hint, default_value=None):
 
         return Fastify(component=hint, component_property=default_component_property)
 
+    # Resolve typing generics (Literal, Enum, Optional, Annotated, list[str], etc.)
+    resolved = _resolve_typing_hint(hint, default_value)
+    if resolved.component is not None:
+        return resolved.component
+    hint = resolved.base_type
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(hint, type):
         hint = type(hint)
@@ -790,7 +894,11 @@ def _get_component_from_input(hint, default_value=None):
     _default_value_type = _get_readable_names_from_parent_classes(type(default_value))
 
     # If the hint is a PIL Image
-    if issubclass(hint, PIL.Image.Image):
+    try:
+        _is_pil = issubclass(hint, PIL.Image.Image)
+    except TypeError:
+        _is_pil = False
+    if _is_pil:
         _hint_type = "Image"
 
     # If the default is a PIL Image
@@ -1135,20 +1243,32 @@ def _get_output_components(_hint_type):
             tag=_hint_type,
         )
 
+    # Resolve typing generics
+    resolved = _resolve_typing_hint(_hint_type)
+    if resolved.component is not None:
+        # For outputs, Literal/Enum should display as text, not a Select
+        if resolved.component.tag in ("Literal", "Enum"):
+            return Fastify(html.H1(), "children", tag=resolved.component.tag)
+        return resolved.component
+    _hint_type = resolved.base_type
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(_hint_type, type):
         _hint_type = type(_hint_type)
 
-    if issubclass(_hint_type, PIL.Image.Image):
-        component = Image
+    try:
+        if issubclass(_hint_type, PIL.Image.Image):
+            component = Image
 
-    elif issubclass(_hint_type, pd.DataFrame):
-        component = Table
+        elif issubclass(_hint_type, pd.DataFrame):
+            component = Table
 
-    elif _hint_type == mpl.figure.Figure:
-        component = Image
+        elif _hint_type == mpl.figure.Figure:
+            component = Image
 
-    else:
+        else:
+            component = Fastify(html.H1(), "children", tag=_hint_type)
+    except TypeError:
         component = Fastify(html.H1(), "children", tag=_hint_type)
 
     return component
