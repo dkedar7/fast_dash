@@ -322,7 +322,7 @@ def _get_input_names_from_callback_fn(callback_fn):
 
 
 # Fast Dash app utilities
-def _assign_ids_to_inputs(inputs, callback_fn):
+def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
     """
     Modify the 'id' property of inputs.
     """
@@ -334,13 +334,13 @@ def _assign_ids_to_inputs(inputs, callback_fn):
     for input_, parameter_name in zip(
         inputs, _get_input_names_from_callback_fn(callback_fn)
     ):
-        input_.id = parameter_name
+        input_.id = f"{prefix}{parameter_name}"
         inputs_with_ids.append(copy.deepcopy(input_))
 
     return inputs_with_ids
 
 
-def _make_input_groups(inputs_with_ids, update_live):
+def _make_input_groups(inputs_with_ids, update_live, prefix=""):
     input_groups = []
 
     input_groups.append(html.H4("INPUTS"))
@@ -351,7 +351,12 @@ def _make_input_groups(inputs_with_ids, update_live):
             if (not hasattr(input_, "label_") or input_.label_ is None)
             else input_.label_
         )
-        label = label.replace("_", " ").upper()
+        # Strip the prefix from the label display
+        display_label = label
+        if prefix and display_label.startswith(prefix):
+            display_label = display_label[len(prefix):]
+        display_label = display_label.replace("_", " ").upper()
+
         ack_component = (
             Fastify(component=dbc.Col(), component_property="children")
             if (not hasattr(input_, "ack") or input_.ack is None)
@@ -363,7 +368,7 @@ def _make_input_groups(inputs_with_ids, update_live):
 
         input_groups.append(
             dbc.Col(
-                [dbc.Label(label, align="end"), input_, ack_component],
+                [dbc.Label(display_label, align="end"), input_, ack_component],
                 align="left",
             )
         )
@@ -374,7 +379,7 @@ def _make_input_groups(inputs_with_ids, update_live):
                 "Submit",
                 color="warning",
                 className="me-1",
-                id="submit_inputs",
+                id=f"{prefix}submit_inputs",
                 n_clicks=0,
             )
         ],
@@ -389,9 +394,9 @@ def _make_input_groups(inputs_with_ids, update_live):
 
 
 # Output utils
-def _assign_ids_to_outputs(outputs, callback_fn):
+def _assign_ids_to_outputs(outputs, callback_fn, prefix=""):
     """
-    Modify the 'id' property of inputs.
+    Modify the 'id' property of outputs.
     """
     if not isinstance(outputs, list):
         outputs = [outputs]
@@ -399,18 +404,21 @@ def _assign_ids_to_outputs(outputs, callback_fn):
     outputs_with_ids = []
 
     for output_, output_name in zip(outputs, _infer_variable_names(callback_fn, upper_case=False)):
-        output_.id = f"output_{output_name}"
+        output_.id = f"{prefix}output_{output_name}"
         outputs_with_ids.append(copy.deepcopy(output_))
 
     return outputs_with_ids
 
 
-def _make_output_groups(outputs, update_live):
+def _make_output_groups(outputs, update_live, prefix=""):
     output_groups = []
     # output_groups.append(html.H6("OUTPUT"))
 
     for idx, output_ in enumerate(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
+        # Strip the prefix from the label display
+        if prefix and label.startswith(prefix):
+            label = label[len(prefix):]
         label = label.replace("_", " ")
         output_groups.append(
             dbc.Col(
@@ -428,7 +436,7 @@ def _make_output_groups(outputs, update_live):
                 outline=True,
                 color="primary",
                 className="me-1",
-                id="reset_inputs",
+                id=f"{prefix}reset_inputs",
                 n_clicks=0,
             )
         ],
