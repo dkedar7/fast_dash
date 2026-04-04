@@ -343,8 +343,6 @@ def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
 def _make_input_groups(inputs_with_ids, update_live, prefix=""):
     input_groups = []
 
-    input_groups.append(html.H4("INPUTS"))
-
     for idx, input_ in enumerate(inputs_with_ids):
         label = (
             f"{input_.id}"
@@ -355,10 +353,10 @@ def _make_input_groups(inputs_with_ids, update_live, prefix=""):
         display_label = label
         if prefix and display_label.startswith(prefix):
             display_label = display_label[len(prefix):]
-        display_label = display_label.replace("_", " ").upper()
+        display_label = display_label.replace("_", " ").title()
 
         ack_component = (
-            Fastify(component=dbc.Col(), component_property="children")
+            Fastify(component=html.Div(), component_property="children")
             if (not hasattr(input_, "ack") or input_.ack is None)
             else input_.ack
         )
@@ -367,25 +365,28 @@ def _make_input_groups(inputs_with_ids, update_live, prefix=""):
         input_.ack = ack_component
 
         input_groups.append(
-            dbc.Col(
-                [dbc.Label(display_label, align="end"), input_, ack_component],
-                align="left",
+            dmc.Stack(
+                [
+                    dmc.Text(display_label, size="sm", fw=500),
+                    input_,
+                    ack_component,
+                ],
+                gap=4,
             )
         )
 
     button_row = html.Div(
         [
-            dbc.Button(
+            dmc.Button(
                 "Submit",
-                color="warning",
-                className="me-1",
                 id=f"{prefix}submit_inputs",
                 n_clicks=0,
-            )
+                fullWidth=True,
+            ),
         ],
-        style={"padding": "2% 1% 1% 2%"}
+        style={"paddingTop": "8px"}
         if update_live is False
-        else dict(display="none"),
+        else {"display": "none"},
     )
 
     input_groups.append(button_row)
@@ -412,42 +413,76 @@ def _assign_ids_to_outputs(outputs, callback_fn, prefix=""):
 
 def _make_output_groups(outputs, update_live, prefix=""):
     output_groups = []
-    # output_groups.append(html.H6("OUTPUT"))
 
     for idx, output_ in enumerate(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
         # Strip the prefix from the label display
         if prefix and label.startswith(prefix):
             label = label[len(prefix):]
-        label = label.replace("_", " ")
+        label = label.replace("_", " ").title()
         output_groups.append(
-            dbc.Col(
-                [dbc.Label(label, align="end")] + [output_],
-                align="center",
-                style={"width": "100%", "overflow": "hidden"},
-                class_name="rounded border d-flex flex-column flex-fill",
+            dmc.Paper(
+                [
+                    dmc.Text(label, size="xs", fw=500, c="dimmed", mb=8),
+                    html.Div(
+                        output_,
+                        style={"width": "100%", "overflow": "hidden", "flex": "1"},
+                    ),
+                ],
+                p="md",
+                radius="sm",
+                withBorder=True,
+                style={"width": "100%", "display": "flex", "flexDirection": "column", "flex": "1"},
             )
         )
 
     button_row = html.Div(
         [
-            dbc.Button(
+            dmc.Button(
                 "Clear",
-                outline=True,
-                color="primary",
-                className="me-1",
+                variant="outline",
                 id=f"{prefix}reset_inputs",
                 n_clicks=0,
+                size="compact-sm",
             )
         ],
-        style={"padding": "2% 1% 1% 2%"}
+        style={"paddingTop": "8px"}
         if update_live is False
-        else dict(display="none"),
+        else {"display": "none"},
     )
 
     output_groups.append(button_row)
 
     return output_groups
+
+
+def _make_download_children(download_dict, component_id):
+    """Convert a download dict into a button + hidden dcc.Download pair.
+
+    The button click triggers a clientside callback that copies
+    dcc.Store data into dcc.Download, so the browser download only
+    fires when the user explicitly clicks.
+    """
+    if not isinstance(download_dict, dict) or "content" not in download_dict:
+        return html.Div("No download available", style={"color": "#868e96", "fontSize": "13px"})
+
+    filename = download_dict.get("filename", "download.txt")
+    store_id = f"{component_id}_download_store"
+    download_id = f"{component_id}_download_trigger"
+    btn_id = f"{component_id}_download_btn"
+
+    return html.Div([
+        dcc.Store(id=store_id, data=download_dict),
+        dcc.Download(id=download_id),
+        dmc.Button(
+            f"Download {filename}",
+            id=btn_id,
+            leftSection=DashIconify(icon="ic:baseline-download", width=18),
+            variant="light",
+            size="sm",
+            fullWidth=True,
+        ),
+    ])
 
 
 def _get_transform_function(output, tag, component_id, counter, partial_update=False, stream=False):
@@ -457,8 +492,11 @@ def _get_transform_function(output, tag, component_id, counter, partial_update=F
         chatify_partial = functools.partial(Chatify, component_id=component_id, counter=counter, partial_update=partial_update, stream=stream)
         return chatify_partial
 
+    if tag == "Download":
+        return functools.partial(_make_download_children, component_id=component_id)
+
     subclass = type(output)
-    _transform_mapper = {plt.Figure: _mpl_to_b64, 
+    _transform_mapper = {plt.Figure: _mpl_to_b64,
                          PIL.Image.Image: _pil_to_b64,
                          pd.DataFrame: lambda x: x.to_dict(orient="records")}
 
@@ -497,14 +535,48 @@ def _transform_inputs(inputs, tags):
     return transformed_inputs
 
 
+def _friendly_error_message(error_text):
+    """Translate common Python errors into beginner-friendly messages."""
+    lower = error_text.lower()
+
+    # Type mismatch: function returned wrong number of values
+    if "not enough values to unpack" in lower or "too many values to unpack" in lower:
+        return "Your function returned a different number of values than expected. Check that the number of return values matches the number of output components."
+
+    # Missing return
+    if "'nonetype' object is not" in lower and ("subscriptable" in lower or "iterable" in lower):
+        return "Your function returned None. Make sure it has a return statement that produces the expected output."
+
+    # Chat component format
+    if "chat component requires" in lower:
+        return error_text  # Already a friendly message
+
+    # Common attribute errors
+    if "has no attribute" in lower:
+        return f"A component or object is missing an expected attribute. Details: {error_text}"
+
+    # File not found
+    if "no such file or directory" in lower or "filenotfounderror" in lower:
+        return f"A file could not be found. Details: {error_text}"
+
+    # Import errors
+    if "no module named" in lower:
+        module = error_text.split("'")[1] if "'" in error_text else "unknown"
+        return f"Missing dependency: '{module}'. Install it with: pip install {module}"
+
+    # Fallback: capitalize first letter
+    return error_text.capitalize() if error_text else "An unexpected error occurred."
+
+
 def _get_error_notification_component(error_text):
     return [dict(
-        title="Error!",
+        title="Something went wrong",
         id="show-notify",
         action="show",
         color="red",
-        message=error_text.capitalize(),
+        message=_friendly_error_message(error_text),
         icon=DashIconify(icon="bxs:error"),
+        autoClose=8000,
     )]
 
 

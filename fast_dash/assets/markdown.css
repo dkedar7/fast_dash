@@ -1,12 +1,87 @@
+/* ===== Fast Dash — Professional UI Stylesheet ===== */
+
+/* --- Inter font import --- */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+/* --- Base reset --- */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+    margin: 0;
+    background: var(--mantine-color-body, #ffffff);
+    color: var(--mantine-color-text, #1a1b1e);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* --- AppShell layout polish --- */
+.mantine-AppShell-header {
+    border-bottom: 1px solid var(--mantine-color-default-border, #e9ecef);
+}
+
+.mantine-AppShell-navbar {
+    border-right: 1px solid var(--mantine-color-default-border, #e9ecef);
+    background: var(--mantine-color-gray-0, #f8f9fa);
+}
+
+[data-mantine-color-scheme="dark"] .mantine-AppShell-navbar {
+    background: var(--mantine-color-dark-8, #1c1f2a);
+}
+
+.mantine-AppShell-main {
+    background: var(--mantine-color-body, #ffffff);
+}
+
+/* --- Scrollbar styling (Vizro-inspired, thin) --- */
+::-webkit-scrollbar {
+    height: 6px;
+    width: 6px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--mantine-color-gray-4, #ced4da);
+    border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--mantine-color-gray-5, #adb5bd);
+}
+
+::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* --- Table styling --- */
 table {
     border-collapse: collapse;
+    width: 100%;
+    font-size: 14px;
 }
 
 th:not(.CalendarDay),
 td:not(.CalendarDay) {
-    padding: 12px 15px;
+    padding: 10px 12px;
     text-align: left;
-    border-bottom: 1px solid #E1E1E1;
+    border-bottom: 1px solid var(--mantine-color-default-border, #e9ecef);
+}
+
+th:not(.CalendarDay) {
+    font-weight: 600;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--mantine-color-dimmed, #868e96);
 }
 
 th:first-child:not(.CalendarDay),
@@ -17,4 +92,45 @@ td:first-child:not(.CalendarDay) {
 th:last-child:not(.CalendarDay),
 td:last-child:not(.CalendarDay) {
     padding-right: 0;
+}
+
+/* --- Output card container polish --- */
+.mantine-Paper-root {
+    transition: border-color 0.15s ease;
+}
+
+/* --- Plotly chart: transparent bg in dark mode --- */
+[data-mantine-color-scheme="dark"] .js-plotly-plot .plotly .main-svg {
+    background: transparent !important;
+}
+
+[data-mantine-color-scheme="dark"] .js-plotly-plot .plotly .bg {
+    fill: transparent !important;
+}
+
+[data-mantine-color-scheme="dark"] .js-plotly-plot {
+    background: transparent;
+}
+
+/* --- Chat bubbles: dark-aware --- */
+[data-mantine-color-scheme="dark"] .border.rounded.shadow-sm {
+    background-color: var(--mantine-color-dark-6, #373a44) !important;
+    border-color: var(--mantine-color-dark-4, #545868) !important;
+}
+
+/* --- Loading overlay --- */
+.mantine-LoadingOverlay-root {
+    border-radius: var(--mantine-radius-sm, 4px);
+}
+
+/* --- Sidebar input spacing overrides --- */
+.mantine-AppShell-navbar .mantine-Stack-root > .mantine-Stack-root {
+    padding-bottom: 4px;
+}
+
+/* --- Responsive: collapse sidebar on small screens --- */
+@media (max-width: 768px) {
+    .mantine-AppShell-navbar {
+        width: 100% !important;
+    }
 }

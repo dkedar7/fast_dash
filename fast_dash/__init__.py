@@ -10,6 +10,9 @@ from fast_dash.Components import (
     Slider,
     Text,
     TextArea,
+    NumberInput,
+    DateInput,
+    ColorInput,
     Upload,
     UploadImage,
     acknowledge_image_component,
@@ -19,6 +22,7 @@ from fast_dash.Components import (
     html,
     PIL,
     Chat,
+    Download,
     Table
 )
 import dash
@@ -45,5 +49,9 @@ __all__ = [
     "dash",
     "PIL",
     "Chat",
+    "Download",
+    "NumberInput",
+    "DateInput",
+    "ColorInput",
     "Table"
 ]

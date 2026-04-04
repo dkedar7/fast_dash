@@ -54,6 +54,7 @@ class BaseLayout:
         about=True,
         minimal=False,
         scale_height=1,
+        theme=None,
         app=None,
     ):
         self.mosaic = mosaic
@@ -72,6 +73,7 @@ class BaseLayout:
         self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
+        self.theme = theme
         self.app = app
 
     def generate_navbar_container(self):
@@ -310,10 +312,39 @@ class SidebarLayout(BaseLayout):
     def __init__(self, **kwargs):
         self.unique_components = []
 
-        self.col_style = {"text-align": "center"}
-        self.row_style = {"text-align": "center"}
+        self.col_style = {}
+        self.row_style = {}
 
         super().__init__(**kwargs)
+
+        # Detect dark Bootswatch themes
+        _DARK_THEMES = {"CYBORG", "DARKLY", "QUARTZ", "SLATE", "SOLAR", "SUPERHERO", "VAPOR"}
+        self._color_scheme = "dark" if (self.theme or "").upper() in _DARK_THEMES else "light"
+
+        # Vizro-inspired Mantine theme: flat, professional, Inter font
+        self._mantine_theme = {
+            "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            "primaryColor": "blue",
+            "defaultRadius": 4,
+            "headings": {
+                "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            },
+            "colors": {
+                "dark": [
+                    "#c3c5cb", "#a4a7b0", "#85889a", "#696d81",
+                    "#545868", "#3e4254", "#373a44", "#272a35",
+                    "#1c1f2a", "#141721",
+                ],
+            },
+            "components": {
+                "Button": {"defaultProps": {"size": "sm"}},
+                "TextInput": {"defaultProps": {"size": "sm"}},
+                "Select": {"defaultProps": {"size": "sm"}},
+                "NumberInput": {"defaultProps": {"size": "sm"}},
+                "Textarea": {"defaultProps": {"size": "sm"}},
+                "Switch": {"defaultProps": {"size": "sm"}},
+            },
+        }
 
         if self.mosaic is None:
             self.mosaic = self._infer_mosaic(self.outputs)
@@ -520,7 +551,7 @@ class SidebarLayout(BaseLayout):
         style.update({"height": f"{n_rows * self.height_of_single_row}vh"})
         layout = dbc.Col(
             [component],
-            class_name="p-1 bg-white flex-fill d-flex flex-column",
+            class_name="p-1 flex-fill d-flex flex-column",
             style=style,
             width=width,
             # align="center",
@@ -564,33 +595,151 @@ class SidebarLayout(BaseLayout):
 
         return layout
 
+    def generate_navbar_container(self):
+        """Build AppShell.Header with burger, title, and action icons."""
+        if not self.navbar:
+            return None
+
+        right_items = []
+
+        if self.about:
+            right_items.append(
+                dmc.Button(
+                    "About",
+                    id="about-navlink",
+                    variant="subtle",
+                    color="gray",
+                    size="compact-sm",
+                )
+            )
+
+        if self.github_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="ri:github-fill", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.github_url,
+                    target="_blank",
+                )
+            )
+
+        if self.linkedin_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.linkedin_url,
+                    target="_blank",
+                )
+            )
+
+        if self.twitter_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="formkit:twitter", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.twitter_url,
+                    target="_blank",
+                )
+            )
+
+        header_children = [
+            dmc.Group(
+                [
+                    dmc.Group(
+                        [
+                            dmc.Burger(id="sidebar-button", opened=True, size="sm"),
+                            dmc.Text(
+                                self.title or "",
+                                fw=600,
+                                size="lg",
+                                id="title8888928",
+                            ),
+                        ],
+                        gap="sm",
+                    ),
+                    dmc.Group(
+                        [
+                            *(right_items or []),
+                            dmc.Switch(
+                                id="theme-toggle",
+                                offLabel=DashIconify(icon="radix-icons:sun", width=16),
+                                onLabel=DashIconify(icon="radix-icons:moon", width=16),
+                                size="md",
+                                checked=self._color_scheme == "dark",
+                            ),
+                        ],
+                        gap="xs",
+                    ),
+                ],
+                justify="space-between",
+                style={"width": "100%"},
+            ),
+        ]
+
+        # About modal (outside header but rendered in layout)
+        if self.about:
+            header_children.append(
+                dmc.Modal(id="about-modal", size="80%", zIndex=10000)
+            )
+
+        return header_children
+
     def generate_input_component(self):
-        return dbc.Col(
-            children=[dmc.Stack(children=self.inputs)],
-            id="input-group",
-            xs=12,
-            md=2,
-            style={
-                "background-color": "#F5F7F7",
-                "display": "block",
-                "padding": "2% 20px 0 20px",
-                "height": f"{self.scale_height * 110}vh",
-            },
-            class_name="border border-right",
+        """Build the sidebar navbar content with inputs."""
+        sidebar_children = []
+
+        # Subtitle under inputs
+        if self.subtitle:
+            sidebar_children.append(
+                dmc.Text(
+                    self.subtitle,
+                    size="xs",
+                    c="dimmed",
+                    id="subheader6904007",
+                    style={"paddingBottom": "8px"},
+                )
+            )
+
+        sidebar_children.append(
+            dmc.Stack(
+                children=self.inputs,
+                gap="lg",
+                id="input-group",
+            )
+        )
+
+        return dmc.ScrollArea(
+            dmc.Stack(sidebar_children, gap="md"),
+            style={"height": "100%"},
+            id="input-group-wrapper",
         )
 
     def generate_output_component(self):
+        """Build the main content area with mosaic output grid."""
         mosaic = self._normalize_grid_string(self.mosaic)
         mosaic_arr = self._make_array(mosaic)
         mosaic_shape = mosaic_arr.shape
-        self.height_of_single_row = (80 * self.scale_height) / (mosaic_shape[0])
+        # Approximate available height in vh for row distribution
+        available_vh = 90 * self.scale_height
+        self.height_of_single_row = available_vh / (mosaic_shape[0])
 
-        # Check if the mosaic array makes rectangles for all elements
         self._check_if_rectangular(mosaic_arr)
 
         if self.outputs == []:
             self.output_component_mapper = {}
-
         else:
             unique_locations = np.unique(mosaic_arr)
             unique_locations.sort()
@@ -598,7 +747,6 @@ class SidebarLayout(BaseLayout):
                 m: o for m, o in zip(unique_locations, self.outputs[:-1])
             }
 
-        # Slice along the axis with the most number of unique elements first
         begin_axis = np.argmax(
             [
                 max([len(np.unique(arr)) for arr in mosaic_arr]),
@@ -609,13 +757,16 @@ class SidebarLayout(BaseLayout):
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
         output_layout = dbc.Col(
-                    [layout] + [self.outputs[-1]],
-                    class_name="g-1 d-flex flex-fill flex-column",
-                    style={"height": f"{80 * self.scale_height}vh"},
-                    width=12,
-                )
-        
-        loader_component = dmc.LoadingOverlay(id="loading-overlay", loaderProps=dict(type=self.loader))
+            [layout] + [self.outputs[-1]],
+            class_name="g-1 d-flex flex-fill flex-column",
+            style={"height": f"calc({int(100 * self.scale_height)}vh - 136px)"},
+            width=12,
+        )
+
+        loader_component = dmc.LoadingOverlay(
+            id="loading-overlay",
+            loaderProps=dict(type=self.loader),
+        )
         output_layout = html.Div([loader_component, output_layout])
 
         return output_layout
@@ -628,85 +779,116 @@ class SidebarLayout(BaseLayout):
                 withArrow=True,
                 transitionProps={"duration": 300},
                 children=dcc.Link(
-                    dmc.Button(
-                        DashIconify(icon="ion:rocket-sharp", width=20), radius=500
+                    dmc.ActionIcon(
+                        DashIconify(icon="ion:rocket-sharp", width=18),
+                        variant="filled",
+                        radius="xl",
+                        size="lg",
                     ),
                     href="https://github.com/dkedar7/fast_dash",
                     target="_blank",
                 ),
             ),
-            position={"bottom": "20px", "right": "20px"},
+            position={"bottom": 20, "right": 20},
             id="footer5265971",
         )
 
     def generate_layout(self, stream_event_names=None):
-        # There are four main components:
-        # navbar, header, input, output, footer
-
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
 
+        header_children = self.generate_navbar_container() or []
+        navbar_content = self.generate_input_component()
+        main_content = self.generate_output_component()
+
+        appshell = dmc.AppShell(
+            [
+                dmc.AppShellHeader(
+                    dmc.Group(
+                        header_children[0] if header_children else [],
+                        style={"height": "100%", "padding": "0 20px"},
+                    ),
+                    id="header1162572",
+                ),
+                dmc.AppShellNavbar(
+                    navbar_content,
+                    p="md",
+                    id="navbar3260780",
+                    style={"overflowY": "auto"},
+                ),
+                dmc.AppShellMain(
+                    html.Div(
+                        main_content,
+                        style={"padding": "20px", "height": "100%"},
+                        id="output-group-col",
+                    ),
+                ),
+            ],
+            header={"height": 56},
+            navbar={
+                "width": 300,
+                "breakpoint": "sm",
+                "collapsed": {"mobile": False},
+            },
+            padding=0,
+            id="appshell",
+        )
+
+        # Collect items that go outside AppShell
+        extra = [
+            dmc.NotificationContainer(id="notification-container"),
+            html.Div(id="dummy-div", style={"display": "none"}),
+        ]
+        # About modal
+        if self.about and header_children and len(header_children) > 1:
+            extra.append(header_children[1])
+
+        if self.branding:
+            extra.append(self.generate_footer_container())
+
+        extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
+
         layout = dmc.MantineProvider(
-                [
-                    dmc.NotificationContainer(id="notification-container"),
-                    html.Div(id="dummy-div", style={"display": "none"}),
-                    dbc.Container(
-                        [
-                            self.generate_navbar_container(),
-                            dbc.Row(
-                                [
-                                    self.generate_input_component(),
-                                    dbc.Col(
-                                        [
-                                            self.generate_header_component(),
-                                            self.generate_output_component(),
-                                        ],
-                                        id="output-group-col",
-                                        style={"padding": "1% 2% 0 2%"},
-                                    ),
-                                ],
-                                class_name="d-flex",
-                            ),
-                            self.generate_footer_container() if self.branding else None,
-                            DashSocketIO(id='socketio', eventNames=stream_event_names),
-                        ],
-                        fluid=True,
-                        style={"height": "100vh", "width": "100%"},
-                    )
-                ]
-            )
+            [appshell] + extra,
+            id="mantine-provider",
+            theme=self._mantine_theme,
+            forceColorScheme=self._color_scheme,
+        )
 
         return layout
 
     def callbacks(self, app):
-        @app.app.callback(
-            [Output("input-group", "style"), Output("sidebar-button", "opened")],
-            [Input("sidebar-button", "opened")],
-            [State("input-group", "style")],
+        # Dark mode toggle — clientside for instant response
+        app.app.clientside_callback(
+            """
+            function(checked) {
+                return checked ? "dark" : "light";
+            }
+            """,
+            Output("mantine-provider", "forceColorScheme"),
+            Input("theme-toggle", "checked"),
         )
-        def toggle_sidebar(opened, input_style):
+
+        @app.app.callback(
+            Output("appshell", "navbar"),
+            Input("sidebar-button", "opened"),
+        )
+        def toggle_sidebar(opened):
             user_agent = request.headers.get("User-Agent")
-            input_style = {} if input_style is None else input_style
 
-            # Condition to collapse the sidebar:
-            # Burger icon is closed or no inputs are specified
             if not opened or self.app.inputs == [] or self.app.inputs is None:
-                input_style.update({"display": "none"})
-                opened = False
-
-            # Another condition to collapse the sidebar:
-            # User is on mobile and the inputs are submitted
+                collapsed = {"desktop": True, "mobile": True}
             elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
-                input_style.update({"display": "none"})
-                opened = False
-
-            # Expand by default
+                collapsed = {"desktop": False, "mobile": True}
             else:
-                input_style.update({"display": "block"})
+                collapsed = {"desktop": False, "mobile": False}
 
-            return (input_style, opened)
+            return {
+                "width": 300,
+                "breakpoint": "sm",
+                "collapsed": collapsed,
+            }
 
-        # Optional callbacks specific to the layout
         @app.app.callback(
             Output("about-modal", "opened"),
             Output("about-modal", "children"),
@@ -1342,6 +1524,32 @@ Text = Fastify(
 
 TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
 
+NumberInput = Fastify(
+    component=dmc.NumberInput(
+        placeholder="Enter a number",
+    ),
+    component_property="value",
+    tag="Numeric",
+)
+
+DateInput = Fastify(
+    component=dmc.DateInput(
+        placeholder="Pick a date",
+        valueFormat="YYYY-MM-DD",
+    ),
+    component_property="value",
+    tag="Date",
+)
+
+ColorInput = Fastify(
+    component=dmc.ColorPicker(
+        format="hex",
+        value="#1c7ed6",
+    ),
+    component_property="value",
+    tag="Text",
+)
+
 Slider = Fastify(
     component=dcc.Slider(
         min=0,
@@ -1430,6 +1638,12 @@ Chat = Fastify(
     ),
     "children",
     tag="Chat",
+)
+
+Download = Fastify(
+    component=html.Div(),
+    component_property="children",
+    tag="Download",
 )
 
 Table = Fastify(

@@ -359,16 +359,19 @@ def test_fdfd015_close_sidebar(dash_duo):
         "#title8888928", "Simple Text To Text Function", timeout=4
     )
 
-    # Click sidebar toggle
+    # Sidebar navbar should be visible initially (no transform)
+    navbar = dash_duo.find_element("#navbar3260780")
+    transform = navbar.value_of_css_property("transform")
+    assert transform == "none", "Sidebar should be visible initially"
+
+    # Click sidebar toggle (Burger)
     dash_duo.multiple_click("#sidebar-button", 1)
     time.sleep(2)
 
-    # Find the style of the sidebar
-    sidebar_style = dash_duo.find_element("#input-group").get_attribute("style")
-    sidebar_style = dict(
-        item.split(":") for item in sidebar_style.strip(";").split("; ") if item
-    )
-    assert sidebar_style["display"].strip() == "none", "Sidebar did not close"
+    # After toggling, AppShell translates navbar off-screen via CSS transform
+    navbar = dash_duo.find_element("#navbar3260780")
+    transform = navbar.value_of_css_property("transform")
+    assert transform != "none", "Sidebar did not close"
 
 
 def test_fdfd016_stream_text_simple(dash_duo):

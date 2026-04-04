@@ -438,6 +438,7 @@ class FastDash:
             "about": self.about,
             "minimal": self.minimal,
             "scale_height": self.scale_height,
+            "theme": self.theme,
             "app": self,
         }
 
@@ -738,6 +739,30 @@ class FastDash:
         # Set layout callbacks
         if not self.minimal:
             self.layout_object.callbacks(self)
+
+        # Wire download buttons: click -> copy Store data to dcc.Download
+        for c in self.outputs_with_ids:
+            if c.tag == "Download":
+                self._register_download_callback(c.id)
+
+    def _register_download_callback(self, component_id, prefix=""):
+        """Register a clientside callback that triggers dcc.Download on button click."""
+        store_id = f"{component_id}_download_store"
+        download_id = f"{component_id}_download_trigger"
+        btn_id = f"{component_id}_download_btn"
+
+        self.app.clientside_callback(
+            """
+            function(n_clicks, data) {
+                if (!n_clicks || !data) { return dash_clientside.no_update; }
+                return data;
+            }
+            """,
+            Output(download_id, "data"),
+            Input(btn_id, "n_clicks"),
+            State(store_id, "data"),
+            prevent_initial_call=True,
+        )
 
     def _register_multi_callbacks(self):
         """Register per-function callbacks for multi-function mode."""
