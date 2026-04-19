@@ -48,6 +48,8 @@ Here are some examples:
 | Bounded number via type hint | `Annotated[int, range(min, max, step)]` | Any int/float | `def score(s: Annotated[int, range(0, 100)])` |
 | Dropdown via type hint | `Annotated[str, [list]]` | Any of the values | `def pick(c: Annotated[str, ["USA", "Canada"]])` |
 | Optional value | `Optional[T]` | Any `T` | `def ping(text: Optional[str])` |
+<b>Reactive inputs<b>
+| Cascading dropdown | Use `depends_on(parent, resolver)` as the default | The parent input's name and a resolver that returns options | `def pick(country: str = ["USA"], state: str = depends_on("country", lambda c: states[c]))` |
 
 
 ## 2. Setting output components
@@ -224,7 +226,35 @@ app.run()
 
 `tab_titles` is optional — without it, tabs are named after the functions (converted from `snake_case` to Title Case). The navbar, about modal, and streaming notifications are shared across all tabs; component IDs are namespaced per tab so they don't collide.
 
-## 5. Selecting other configurations
+## 5. Reactive inputs with `depends_on`
+
+When one input's options should depend on another input's value (cascading dropdowns, dynamic ranges, prefilled values), use `depends_on` as the dependent parameter's default:
+
+```py linenums="1"
+from fast_dash import fastdash, depends_on
+
+countries = {
+    "USA": ["California", "Texas", "New York"],
+    "India": ["Maharashtra", "Karnataka", "Delhi"],
+}
+
+@fastdash
+def pick_state(
+    country: str = list(countries),
+    state: str = depends_on("country", lambda c: countries[c]),
+) -> str:
+    return f"{state}, {country}"
+```
+
+The first argument to `depends_on` is the **parameter name** of the parent input. The second is a **resolver** function that receives the parent's current value and returns one of:
+
+- a **list** — sets the dependent dropdown's options and clears its value;
+- a **dict** like `{"data": [...], "value": ...}` — sets either or both;
+- a **scalar** — sets just the dependent's value (e.g. derived numbers, prefilled text).
+
+If the resolver raises an exception, no update fires. Chains work: `A → B → C` is just two `depends_on` declarations.
+
+## 6. Selecting other configurations
 
 Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.
 

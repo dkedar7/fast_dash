@@ -99,10 +99,9 @@ Outputs (return type → UI component):
 | `str`, `int`, `float`, etc. | Text (rendered as `<h1>`) |
 | `pd.DataFrame` | Table |
 | `PIL.Image.Image`, `matplotlib.figure.Figure` | Image |
+| `plotly.graph_objects.Figure` (or string-form `"go.Figure"`, `"Figure"`) | Plotly chart |
 | Tuple of types | Multiple outputs (one component each) |
 | Any Fast Dash component (`Graph`, `Image`, ...) | Used directly |
-
-For **Plotly figures**, annotate the return as `Graph` rather than `plotly.graph_objects.Figure` — the latter is not auto-detected:
 
 ```python
 from fast_dash import fastdash, Graph
@@ -114,6 +113,23 @@ def chart(rows: int = 100) -> Graph:
 ```
 
 Unknown hints fall back to text. Source-introspection failures (REPL, `exec`) fall back to generic `OUTPUT_1`, `OUTPUT_2` labels — the app still works.
+
+### Built-in components
+
+The package exports ready-to-use Fast Dash components you can pass directly as `inputs=` or `outputs=`:
+
+| Component | Use as | Notes |
+| --- | --- | --- |
+| `Text`, `TextArea`, `PasswordInput` | input or output | Single-line, multi-line, masked text |
+| `NumberInput`, `Slider` | input | Numeric with optional bounds |
+| `Switch` | input | Toggle (True / False) |
+| `MultiSelect` | input | Multi-select dropdown |
+| `DateInput`, `DateRange` | input | Single date / date range picker |
+| `ColorInput` | input | Color picker, returns hex |
+| `Upload`, `UploadImage` | input | File / image upload |
+| `Graph`, `Image`, `Table`, `Markdown` | output | Plotly chart, image, DataFrame table, rendered Markdown |
+| `Chat` | output | Streaming chat history (with `stream=True`) |
+| `Download` | output | Triggers a browser download |
 
 ## Common patterns
 
@@ -159,6 +175,29 @@ custom_slider = Fastify(dcc.Slider(min=0, max=100, value=50), "value")
 def my_app(x: custom_slider) -> str:
     return f"You picked {x}"
 ```
+
+**Cascading inputs** with `depends_on` — wire one input's options to another input's value:
+
+```python
+from fast_dash import fastdash, depends_on
+
+countries = {
+    "USA": ["California", "Texas", "New York"],
+    "India": ["Maharashtra", "Karnataka", "Delhi"],
+}
+
+@fastdash
+def pick_state(
+    country: str = list(countries),
+    state: str = depends_on("country", lambda c: countries[c]),
+) -> str:
+    return f"{state}, {country}"
+```
+
+The resolver receives the parent input's current value. Return:
+- a **list** to set the dependent dropdown's options (and clear its value),
+- a **dict** like `{"data": [...], "value": ...}` to set both, or
+- a **scalar** to set just the value.
 
 **Skip the decorator** when you want more control over the lifecycle:
 
