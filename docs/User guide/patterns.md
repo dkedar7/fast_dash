@@ -42,6 +42,12 @@ Here are some examples:
 | Any document | Built-in component `Upload` | Blank | `def upload_doc(doc: Upload)` |
 <b>Dates<b>
 | Single date | `datetime.date` or `datetime.datetime` | Blank or default date | `def set_date(date: datetime.date = datetime.date(2023, 1, 1))` |
+<b>Modern type hints<b>
+| Fixed set of string options | `Literal["a", "b", "c"]` | Any of the values | `def pick(choice: Literal["red", "green", "blue"])` |
+| Enum members | `enum.Enum` subclass | Any enum member | `class Color(Enum): RED = "red"`<br>`def pick(c: Color)` |
+| Bounded number via type hint | `Annotated[int, range(min, max, step)]` | Any int/float | `def score(s: Annotated[int, range(0, 100)])` |
+| Dropdown via type hint | `Annotated[str, [list]]` | Any of the values | `def pick(c: Annotated[str, ["USA", "Canada"]])` |
+| Optional value | `Optional[T]` | Any `T` | `def ping(text: Optional[str])` |
 
 
 ## 2. Setting output components
@@ -199,7 +205,26 @@ Refer to the examples below to understand this idea better.
 
     ![Example 5](https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex5.png)
 
-## 4. Selecting other configurations
+## 4. Multi-function tabbed apps
+
+When you have several related functions and want them in one app, pass a list of callbacks. Fast Dash builds a tabbed layout where each function gets its own tab with independent inputs, outputs, and callbacks.
+
+```py linenums="1"
+from fast_dash import FastDash
+
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+def add(a: int, b: int) -> int:
+    return a + b
+
+app = FastDash([greet, add], tab_titles=["Greeter", "Adder"])
+app.run()
+```
+
+`tab_titles` is optional — without it, tabs are named after the functions (converted from `snake_case` to Title Case). The navbar, about modal, and streaming notifications are shared across all tabs; component IDs are namespaced per tab so they don't collide.
+
+## 5. Selecting other configurations
 
 Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.
 

@@ -1,11 +1,14 @@
 import copy
 import datetime
+import enum
 import inspect
 import math
 import numbers
 import warnings
 from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, field
 from functools import reduce
+from typing import Any, Union, Literal, Annotated, get_origin, get_args
 
 import dash
 from dash import Input, Output, State, dcc, html, ctx, Patch
@@ -32,7 +35,7 @@ from .utils import (
 )
 
 
-class BaseLayout:
+class AppLayout:
     def __init__(
         self,
         mosaic=None,
@@ -47,10 +50,11 @@ class BaseLayout:
         navbar=True,
         footer=True,
         loader="bars",
-        branding=True,
+        branding=False,
         about=True,
         minimal=False,
         scale_height=1,
+        theme=None,
         app=None,
     ):
         self.mosaic = mosaic
@@ -69,248 +73,41 @@ class BaseLayout:
         self.about = about
         self.minimal = minimal
         self.scale_height = scale_height
+        self.theme = theme
         self.app = app
 
-    def generate_navbar_container(self):
-        if not self.navbar:
-            return None
-
-        navbar_components = []
-
-        # 1. Add navbar components
-        if self.about:
-            navbar_components.append(
-                dbc.Row(dbc.Button("About", color="primary", id="about-navlink"))
-            )
-
-            # Add modal component
-            navbar_components.append(
-                dmc.Modal(id="about-modal", size="80%", zIndex=10000)
-            )
-
-        if self.github_url:
-            navbar_components.append(
-                dmc.NavLink(
-                    label=DashIconify(icon="ri:github-fill", color="#ffffff", width=30),
-                    href=self.github_url,
-                    target="_blank",
-                    variant="light",
-                )
-            )
-
-        if self.linkedin_url:
-            navbar_components.append(
-                dmc.NavLink(
-                    label=DashIconify(
-                        icon="entypo-social:linkedin-with-circle",
-                        color="#ffffff",
-                        width=30,
-                    ),
-                    href=self.linkedin_url,
-                    target="_blank",
-                    variant="light",
-                )
-            )
-
-        if self.twitter_url:
-            navbar_components.append(
-                dmc.NavLink(
-                    label=DashIconify(
-                        icon="formkit:twitter", color="#ffffff", width=30
-                    ),
-                    href=self.twitter_url,
-                    target="_blank",
-                    variant="light",
-                )
-            )
-
-        navbar = dbc.NavbarSimple(
-            children=[] + navbar_components,
-            brand=[
-                dmc.Group(
-                    [
-                        dmc.Burger(
-                            id="sidebar-button", opened=True, color="white", size=15
-                        ),
-                        self.title,
-                    ],
-                    gap=5,
-                )
-            ]
-            or "",
-            color="primary",
-            dark=True,
-            fluid=True,
-            fixed=None,
-            expand=True,
-            style={"padding": "0 0 0 0"},
-        )
-
-        navbar_container = dbc.Row(
-            [navbar],
-            # fluid=True,
-            style={"padding": "0 0 0 0"},
-            id="navbar3260780",
-            # className="dbc",
-        )
-
-        return navbar_container
-
-    def generate_header_component(self):
-        header_children = []
-
-        if self.title:
-            header_children.append(
-                dbc.Row(
-                    html.H2(
-                        self.title, style={"textAlign": "center"}, id="title8888928"
-                    ),
-                    style={"padding": "1% 0% 1% 0%"},
-                )
-            )
-
-        if self.title_image_path:
-            header_children.append(
-                dbc.Row(
-                    dbc.Row(
-                        html.Img(src=self.title_image_path, style={"width": "250px"}),
-                        justify="center",
-                    )
-                )
-            )
-
-        if self.subtitle:
-            header_children.append(
-                dbc.Row(
-                    dbc.Row(
-                        html.H5(
-                            self.subtitle,
-                            id="subheader6904007",
-                            style={"textAlign": "center"},
-                        ),
-                        style={"padding": "0% 0% 1% 0%"},
-                    )
-                )
-            )
-
-        header_container = dbc.Container(header_children, id="header1162572")
-
-        return header_container
-
-    def generate_input_component(self):
-        input_container = dbc.Col(
-            children=self.inputs,
-            id="input-group",
-            style={
-                "padding": "2% 1% 1% 2%",
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderRadius": "5px",
-                "background-color": "#F2F2F2",
-            },
-            width=5,
-            xs=12,
-            sm=12,
-            md=5,
-            lg=5,
-            xl=5,
-            xxl=5,
-        )
-
-        return input_container
-
-    def generate_output_component(self):
-        output_container = dbc.Col(
-            children=self.outputs,
-            id="output-group",
-            style={
-                "padding": "2% 1% 1% 2%",
-                "lineHeight": "60px",
-                "borderWidth": "1px",
-                "borderRadius": "5px",
-                "background-color": "#F2F2F2",
-            },
-            width=5,
-            xs=12,
-            sm=12,
-            md=5,
-            lg=5,
-            xl=5,
-            xxl=5,
-        )
-
-        return output_container
-
-    def generate_footer_container(self):
-        if self.footer is False:
-            return None
-
-        footer = dbc.NavbarSimple(
-            brand="Made with Fast Dash",
-            brand_href="https://fastdash.app/",
-            color="primary",
-            dark=True,
-            fluid=True,
-            fixed=None,
-            style={"padding": "0 0 0 0"},
-        )
-
-        footer = html.A(
-            "Made with Fast Dash", href="https://fastdash.app/", target="_blank"
-        )
-
-        footer_container = dbc.Container(
-            [footer], fluid=True, style={"padding": "0 0 0 2%"}, id="footer5265971"
-        )
-
-        return footer_container
-
-    def generate_layout(self, stream_event_names=None):
-        if self.minimal:
-            self.title = self.subtitle = self.navbar = self.footer = False
-
-        layout = dbc.Container(
-            [
-                html.Div(id="dummy-div", style={"display": "none"}),
-                self.generate_navbar_container(),
-                self.generate_header_component(),
-                dbc.Row(
-                    [self.generate_input_component(), self.generate_output_component()],
-                    justify="evenly",
-                    style={"padding": "2% 1% 0% 2%"},
-                ),
-                self.generate_footer_container(),
-            ],
-            fluid=True,
-            style={"padding": "0 0 0 0"},
-        )
-
-        return layout
-
-    def callbacks(self, app):
-        "Optional callbacks specific to the layout"
-
-        @app.app.callback(
-            Output("about-modal", "opened"),
-            Output("about-modal", "children"),
-            Input("about-navlink", "n_clicks"),
-            State("about-modal", "opened"),
-        )
-        def display_function_about_information(n_clicks, opened):
-            if n_clicks:
-                return not opened, app.callback_fn.__doc__
-
-            raise PreventUpdate
-
-
-class SidebarLayout(BaseLayout):
-    def __init__(self, **kwargs):
         self.unique_components = []
+        self.col_style = {}
+        self.row_style = {}
 
-        self.col_style = {"text-align": "center"}
-        self.row_style = {"text-align": "center"}
+        # Detect dark Bootswatch themes
+        _DARK_THEMES = {"CYBORG", "DARKLY", "QUARTZ", "SLATE", "SOLAR", "SUPERHERO", "VAPOR"}
+        self._color_scheme = "dark" if (self.theme or "").upper() in _DARK_THEMES else "light"
 
-        super().__init__(**kwargs)
+        # Vizro-inspired Mantine theme: flat, professional, Inter font
+        self._mantine_theme = {
+            "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            "primaryColor": "blue",
+            "defaultRadius": 4,
+            "headings": {
+                "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+            },
+            "colors": {
+                "dark": [
+                    "#c3c5cb", "#a4a7b0", "#85889a", "#696d81",
+                    "#545868", "#3e4254", "#373a44", "#272a35",
+                    "#1c1f2a", "#141721",
+                ],
+            },
+            "components": {
+                "Button": {"defaultProps": {"size": "sm"}},
+                "TextInput": {"defaultProps": {"size": "sm"}},
+                "Select": {"defaultProps": {"size": "sm"}},
+                "NumberInput": {"defaultProps": {"size": "sm"}},
+                "Textarea": {"defaultProps": {"size": "sm"}},
+                "Switch": {"defaultProps": {"size": "sm"}},
+            },
+        }
 
         if self.mosaic is None:
             self.mosaic = self._infer_mosaic(self.outputs)
@@ -517,7 +314,7 @@ class SidebarLayout(BaseLayout):
         style.update({"height": f"{n_rows * self.height_of_single_row}vh"})
         layout = dbc.Col(
             [component],
-            class_name="p-1 bg-white flex-fill d-flex flex-column",
+            class_name="p-1 flex-fill d-flex flex-column",
             style=style,
             width=width,
             # align="center",
@@ -561,33 +358,151 @@ class SidebarLayout(BaseLayout):
 
         return layout
 
+    def generate_navbar_container(self):
+        """Build AppShell.Header with burger, title, and action icons."""
+        if not self.navbar:
+            return None
+
+        right_items = []
+
+        if self.about:
+            right_items.append(
+                dmc.Button(
+                    "About",
+                    id="about-navlink",
+                    variant="subtle",
+                    color="gray",
+                    size="compact-sm",
+                )
+            )
+
+        if self.github_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="ri:github-fill", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.github_url,
+                    target="_blank",
+                )
+            )
+
+        if self.linkedin_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.linkedin_url,
+                    target="_blank",
+                )
+            )
+
+        if self.twitter_url:
+            right_items.append(
+                html.A(
+                    dmc.ActionIcon(
+                        DashIconify(icon="formkit:twitter", width=20),
+                        variant="subtle",
+                        color="gray",
+                        size="lg",
+                    ),
+                    href=self.twitter_url,
+                    target="_blank",
+                )
+            )
+
+        header_children = [
+            dmc.Group(
+                [
+                    dmc.Group(
+                        [
+                            dmc.Burger(id="sidebar-button", opened=True, size="sm"),
+                            dmc.Text(
+                                self.title or "",
+                                fw=600,
+                                size="lg",
+                                id="title8888928",
+                            ),
+                        ],
+                        gap="sm",
+                    ),
+                    dmc.Group(
+                        [
+                            *(right_items or []),
+                            dmc.Switch(
+                                id="theme-toggle",
+                                offLabel=DashIconify(icon="radix-icons:sun", width=16),
+                                onLabel=DashIconify(icon="radix-icons:moon", width=16),
+                                size="md",
+                                checked=self._color_scheme == "dark",
+                            ),
+                        ],
+                        gap="xs",
+                    ),
+                ],
+                justify="space-between",
+                style={"width": "100%"},
+            ),
+        ]
+
+        # About modal (outside header but rendered in layout)
+        if self.about:
+            header_children.append(
+                dmc.Modal(id="about-modal", size="80%", zIndex=10000)
+            )
+
+        return header_children
+
     def generate_input_component(self):
-        return dbc.Col(
-            children=[dmc.Stack(children=self.inputs)],
-            id="input-group",
-            xs=12,
-            md=2,
-            style={
-                "background-color": "#F5F7F7",
-                "display": "block",
-                "padding": "2% 20px 0 20px",
-                "height": f"{self.scale_height * 110}vh",
-            },
-            class_name="border border-right",
+        """Build the sidebar navbar content with inputs."""
+        sidebar_children = []
+
+        # Subtitle under inputs
+        if self.subtitle:
+            sidebar_children.append(
+                dmc.Text(
+                    self.subtitle,
+                    size="xs",
+                    c="dimmed",
+                    id="subheader6904007",
+                    style={"paddingBottom": "8px"},
+                )
+            )
+
+        sidebar_children.append(
+            dmc.Stack(
+                children=self.inputs,
+                gap="lg",
+                id="input-group",
+            )
+        )
+
+        return dmc.ScrollArea(
+            dmc.Stack(sidebar_children, gap="md"),
+            style={"height": "100%"},
+            id="input-group-wrapper",
         )
 
     def generate_output_component(self):
+        """Build the main content area with mosaic output grid."""
         mosaic = self._normalize_grid_string(self.mosaic)
         mosaic_arr = self._make_array(mosaic)
         mosaic_shape = mosaic_arr.shape
-        self.height_of_single_row = (80 * self.scale_height) / (mosaic_shape[0])
+        # Approximate available height in vh for row distribution
+        available_vh = 90 * self.scale_height
+        self.height_of_single_row = available_vh / (mosaic_shape[0])
 
-        # Check if the mosaic array makes rectangles for all elements
         self._check_if_rectangular(mosaic_arr)
 
         if self.outputs == []:
             self.output_component_mapper = {}
-
         else:
             unique_locations = np.unique(mosaic_arr)
             unique_locations.sort()
@@ -595,7 +510,6 @@ class SidebarLayout(BaseLayout):
                 m: o for m, o in zip(unique_locations, self.outputs[:-1])
             }
 
-        # Slice along the axis with the most number of unique elements first
         begin_axis = np.argmax(
             [
                 max([len(np.unique(arr)) for arr in mosaic_arr]),
@@ -606,13 +520,16 @@ class SidebarLayout(BaseLayout):
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
         layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
         output_layout = dbc.Col(
-                    [layout] + [self.outputs[-1]],
-                    class_name="g-1 d-flex flex-fill flex-column",
-                    style={"height": f"{80 * self.scale_height}vh"},
-                    width=12,
-                )
-        
-        loader_component = dmc.LoadingOverlay(id="loading-overlay", loaderProps=dict(type=self.loader))
+            [layout] + [self.outputs[-1]],
+            class_name="g-1 d-flex flex-fill flex-column",
+            style={"height": f"calc({int(100 * self.scale_height)}vh - 136px)"},
+            width=12,
+        )
+
+        loader_component = dmc.LoadingOverlay(
+            id="loading-overlay",
+            loaderProps=dict(type=self.loader),
+        )
         output_layout = html.Div([loader_component, output_layout])
 
         return output_layout
@@ -625,85 +542,116 @@ class SidebarLayout(BaseLayout):
                 withArrow=True,
                 transitionProps={"duration": 300},
                 children=dcc.Link(
-                    dmc.Button(
-                        DashIconify(icon="ion:rocket-sharp", width=20), radius=500
+                    dmc.ActionIcon(
+                        DashIconify(icon="ion:rocket-sharp", width=18),
+                        variant="filled",
+                        radius="xl",
+                        size="lg",
                     ),
                     href="https://github.com/dkedar7/fast_dash",
                     target="_blank",
                 ),
             ),
-            position={"bottom": "20px", "right": "20px"},
+            position={"bottom": 20, "right": 20},
             id="footer5265971",
         )
 
     def generate_layout(self, stream_event_names=None):
-        # There are four main components:
-        # navbar, header, input, output, footer
-
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
 
+        header_children = self.generate_navbar_container() or []
+        navbar_content = self.generate_input_component()
+        main_content = self.generate_output_component()
+
+        appshell = dmc.AppShell(
+            [
+                dmc.AppShellHeader(
+                    dmc.Group(
+                        header_children[0] if header_children else [],
+                        style={"height": "100%", "padding": "0 20px"},
+                    ),
+                    id="header1162572",
+                ),
+                dmc.AppShellNavbar(
+                    navbar_content,
+                    p="md",
+                    id="navbar3260780",
+                    style={"overflowY": "auto"},
+                ),
+                dmc.AppShellMain(
+                    html.Div(
+                        main_content,
+                        style={"padding": "20px", "height": "100%"},
+                        id="output-group-col",
+                    ),
+                ),
+            ],
+            header={"height": 56},
+            navbar={
+                "width": 300,
+                "breakpoint": "sm",
+                "collapsed": {"mobile": False},
+            },
+            padding=0,
+            id="appshell",
+        )
+
+        # Collect items that go outside AppShell
+        extra = [
+            dmc.NotificationContainer(id="notification-container"),
+            html.Div(id="dummy-div", style={"display": "none"}),
+        ]
+        # About modal
+        if self.about and header_children and len(header_children) > 1:
+            extra.append(header_children[1])
+
+        if self.branding:
+            extra.append(self.generate_footer_container())
+
+        extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
+
         layout = dmc.MantineProvider(
-                [
-                    dmc.NotificationContainer(id="notification-container"),
-                    html.Div(id="dummy-div", style={"display": "none"}),
-                    dbc.Container(
-                        [
-                            self.generate_navbar_container(),
-                            dbc.Row(
-                                [
-                                    self.generate_input_component(),
-                                    dbc.Col(
-                                        [
-                                            self.generate_header_component(),
-                                            self.generate_output_component(),
-                                        ],
-                                        id="output-group-col",
-                                        style={"padding": "1% 2% 0 2%"},
-                                    ),
-                                ],
-                                class_name="d-flex",
-                            ),
-                            self.generate_footer_container() if self.branding else None,
-                            DashSocketIO(id='socketio', eventNames=stream_event_names),
-                        ],
-                        fluid=True,
-                        style={"height": "100vh", "width": "100%"},
-                    )
-                ]
-            )
+            [appshell] + extra,
+            id="mantine-provider",
+            theme=self._mantine_theme,
+            forceColorScheme=self._color_scheme,
+        )
 
         return layout
 
     def callbacks(self, app):
-        @app.app.callback(
-            [Output("input-group", "style"), Output("sidebar-button", "opened")],
-            [Input("sidebar-button", "opened")],
-            [State("input-group", "style")],
+        # Dark mode toggle — clientside for instant response
+        app.app.clientside_callback(
+            """
+            function(checked) {
+                return checked ? "dark" : "light";
+            }
+            """,
+            Output("mantine-provider", "forceColorScheme"),
+            Input("theme-toggle", "checked"),
         )
-        def toggle_sidebar(opened, input_style):
+
+        @app.app.callback(
+            Output("appshell", "navbar"),
+            Input("sidebar-button", "opened"),
+        )
+        def toggle_sidebar(opened):
             user_agent = request.headers.get("User-Agent")
-            input_style = {} if input_style is None else input_style
 
-            # Condition to collapse the sidebar:
-            # Burger icon is closed or no inputs are specified
             if not opened or self.app.inputs == [] or self.app.inputs is None:
-                input_style.update({"display": "none"})
-                opened = False
-
-            # Another condition to collapse the sidebar:
-            # User is on mobile and the inputs are submitted
+                collapsed = {"desktop": True, "mobile": True}
             elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
-                input_style.update({"display": "none"})
-                opened = False
-
-            # Expand by default
+                collapsed = {"desktop": False, "mobile": True}
             else:
-                input_style.update({"display": "block"})
+                collapsed = {"desktop": False, "mobile": False}
 
-            return (input_style, opened)
+            return {
+                "width": 300,
+                "breakpoint": "sm",
+                "collapsed": collapsed,
+            }
 
-        # Optional callbacks specific to the layout
         @app.app.callback(
             Output("about-modal", "opened"),
             Output("about-modal", "children"),
@@ -730,6 +678,98 @@ class SidebarLayout(BaseLayout):
             raise PreventUpdate
 
 
+@dataclass
+class _ResolvedHint:
+    """Result of resolving a typing generic into actionable info."""
+
+    base_type: Any = None
+    component: Any = None
+    nullable: bool = False
+
+
+def _resolve_typing_hint(hint, default_value=None):
+    """
+    Pre-process a type hint that may be a typing generic.
+    Returns a _ResolvedHint with either a pre-built component or a base_type
+    that can be fed into the existing inference pipeline.
+    """
+    origin = get_origin(hint)
+    args = get_args(hint)
+
+    # Literal["a", "b", "c"] -> Select dropdown
+    if origin is Literal:
+        options = [str(o) for o in args]
+        default = str(default_value) if default_value is not None and str(default_value) in options else options[0] if options else None
+        return _ResolvedHint(
+            component=Fastify(
+                dmc.Select(data=options, value=default),
+                "value",
+                tag="Literal",
+            ),
+        )
+
+    # Enum subclass -> Select dropdown
+    if isinstance(hint, type) and issubclass(hint, enum.Enum):
+        members = [str(e.value) for e in hint]
+        default = str(default_value.value) if isinstance(default_value, enum.Enum) else members[0] if members else None
+        return _ResolvedHint(
+            component=Fastify(
+                dmc.Select(data=members, value=default),
+                "value",
+                tag="Enum",
+            ),
+        )
+
+    # Annotated[T, metadata] -> depends on metadata
+    if origin is Annotated:
+        inner_type = args[0]
+        metadata = args[1] if len(args) > 1 else None
+
+        # Annotated[int, range(0, 100)] -> Slider
+        if isinstance(metadata, range):
+            step = metadata.step if metadata.step != 1 else 1
+            default = default_value if default_value is not None else metadata.start
+            return _ResolvedHint(
+                component=Fastify(
+                    dmc.Slider(min=metadata.start, max=metadata.stop, step=step, value=default),
+                    "value",
+                    tag="Numeric",
+                ),
+            )
+
+        # Annotated[str, ["option1", "option2"]] -> Select
+        if isinstance(metadata, list):
+            options = [str(o) for o in metadata]
+            default = str(default_value) if default_value is not None and str(default_value) in options else options[0] if options else None
+            return _ResolvedHint(
+                component=Fastify(
+                    dmc.Select(data=options, value=default),
+                    "value",
+                    tag="Annotated",
+                ),
+            )
+
+        # Annotated[T, <unknown>] -> resolve inner type
+        return _resolve_typing_hint(inner_type, default_value)
+
+    # Optional[T] i.e. Union[T, None] -> unwrap to T
+    if origin is Union:
+        non_none_args = [a for a in args if a is not type(None)]
+        if len(non_none_args) == 1:
+            resolved = _resolve_typing_hint(non_none_args[0], default_value)
+            resolved.nullable = True
+            return resolved
+        if non_none_args:
+            return _resolve_typing_hint(non_none_args[0], default_value)
+
+    # Parameterized generics like list[str], dict[str, int] -> use origin type
+    if origin is not None:
+        return _ResolvedHint(base_type=origin)
+
+    # Plain type or non-typing object -> pass through unchanged
+    return _ResolvedHint(base_type=hint)
+
+
 def _get_readable_names_from_parent_classes(type_hint):
     "Get a readable label for the object's type. Order is important. If disturbed, type = bool could get matched with float."
     _map_types_to_readable_names = {
@@ -749,8 +789,11 @@ def _get_readable_names_from_parent_classes(type_hint):
     }
 
     for parent_class in _map_types_to_readable_names:
-        if issubclass(type_hint, parent_class):
-            return _map_types_to_readable_names[parent_class]
+        try:
+            if issubclass(type_hint, parent_class):
+                return _map_types_to_readable_names[parent_class]
+        except TypeError:
+            continue
 
     return None
 
@@ -782,6 +825,12 @@ def _get_component_from_input(hint, default_value=None):
 
         return Fastify(component=hint, component_property=default_component_property)
 
+    # Resolve typing generics (Literal, Enum, Optional, Annotated, list[str], etc.)
+    resolved = _resolve_typing_hint(hint, default_value)
+    if resolved.component is not None:
+        return resolved.component
+    hint = resolved.base_type
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(hint, type):
         hint = type(hint)
@@ -790,7 +839,11 @@ def _get_component_from_input(hint, default_value=None):
     _default_value_type = _get_readable_names_from_parent_classes(type(default_value))
 
     # If the hint is a PIL Image
-    if issubclass(hint, PIL.Image.Image):
+    try:
+        _is_pil = issubclass(hint, PIL.Image.Image)
+    except TypeError:
+        _is_pil = False
+    if _is_pil:
         _hint_type = "Image"
 
     # If the default is a PIL Image
@@ -1135,20 +1188,32 @@ def _get_output_components(_hint_type):
             tag=_hint_type,
         )
 
+    # Resolve typing generics
+    resolved = _resolve_typing_hint(_hint_type)
+    if resolved.component is not None:
+        # For outputs, Literal/Enum should display as text, not a Select
+        if resolved.component.tag in ("Literal", "Enum"):
+            return Fastify(html.H1(), "children", tag=resolved.component.tag)
+        return resolved.component
+    _hint_type = resolved.base_type
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(_hint_type, type):
         _hint_type = type(_hint_type)
 
-    if issubclass(_hint_type, PIL.Image.Image):
-        component = Image
+    try:
+        if issubclass(_hint_type, PIL.Image.Image):
+            component = Image
 
-    elif issubclass(_hint_type, pd.DataFrame):
-        component = Table
+        elif issubclass(_hint_type, pd.DataFrame):
+            component = Table
 
-    elif _hint_type == mpl.figure.Figure:
-        component = Image
+        elif _hint_type == mpl.figure.Figure:
+            component = Image
 
-    else:
+        else:
+            component = Fastify(html.H1(), "children", tag=_hint_type)
+    except TypeError:
         component = Fastify(html.H1(), "children", tag=_hint_type)
 
     return component
@@ -1192,9 +1257,7 @@ def _infer_output_components(func, outputs, output_labels):
         output_labels = [None] * len(parameters)
 
     if isinstance(output_labels, list) and len(output_labels) != len(parameters):
-        raise ValueError(
-            "Length of output labels must be equal to the number of outputs."
-        )
+        output_labels = [f"OUTPUT_{i + 1}" for i in range(len(parameters))]
 
     for (_, hint), label in zip(parameters, output_labels):
         component = _get_output_components(hint)
@@ -1221,6 +1284,32 @@ Text = Fastify(
 )
 
 TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
+
+NumberInput = Fastify(
+    component=dmc.NumberInput(
+        placeholder="Enter a number",
+    ),
+    component_property="value",
+    tag="Numeric",
+)
+
+DateInput = Fastify(
+    component=dmc.DateInput(
+        placeholder="Pick a date",
+        valueFormat="YYYY-MM-DD",
+    ),
+    component_property="value",
+    tag="Date",
+)
+
+ColorInput = Fastify(
+    component=dmc.ColorPicker(
+        format="hex",
+        value="#1c7ed6",
+    ),
+    component_property="value",
+    tag="Text",
+)
 
 Slider = Fastify(
     component=dcc.Slider(
@@ -1310,6 +1399,12 @@ Chat = Fastify(
     ),
     "children",
     tag="Chat",
+)
+
+Download = Fastify(
+    component=html.Div(),
+    component_property="children",
+    tag="Download",
 )
 
 Table = Fastify(

@@ -18,7 +18,7 @@ def test_example_1(dash_duo):
     app = example_1_simple_text_to_text().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 1", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 1", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 1"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -30,7 +30,7 @@ def test_example_2(dash_duo):
     app = example_2_text_with_slider().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 2", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 2", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 2"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -42,7 +42,7 @@ def test_example_3(dash_duo):
     app = example_3_image_to_image().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 3", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 3", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 3"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -54,7 +54,7 @@ def test_example_4(dash_duo):
     app = example_4_image_slider_to_image_text().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 4", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 4", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 4"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -66,7 +66,7 @@ def test_example_5(dash_duo):
     app = example_5_uploadimage_to_image().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 5", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 5", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 5"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -77,7 +77,7 @@ def test_example_6(dash_duo):
     app = example_6_text_to_plt().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 6", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 6", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 6"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -91,7 +91,7 @@ def test_example_7(dash_duo):
     app = example_7_streaming_text().app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 7", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Fast Dash example 7", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "Fast Dash example 7"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"

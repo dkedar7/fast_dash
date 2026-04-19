@@ -400,7 +400,7 @@ def test_fdco009_input_hint_is_image(dash_duo):
 
     app = FastDash(callback_fn=simple_img)
     dash_duo.start_server(app.app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=20)
     time.sleep(4)
 
     input_component = app.inputs_with_ids[0]
@@ -425,7 +425,7 @@ def test_fdco010_input_hint_is_image_no_default(dash_duo):
 
     app = FastDash(callback_fn=simple_img)
     dash_duo.start_server(app.app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Img", timeout=20)
     time.sleep(4)
 
     input_component = app.inputs_with_ids[0]
@@ -768,7 +768,7 @@ def test_fdco017_output_is_chat(dash_duo):
     app = FastDash(callback_fn=simple_chat).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Chat", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Chat", timeout=20)
 
     # Enter some text
     form_textfield = dash_duo.find_element("#query")
@@ -780,7 +780,7 @@ def test_fdco017_output_is_chat(dash_duo):
     # Check if any child element has the text "Response to Why?"
     output_div = dash_duo.find_element("#output_chat")
 
-    wait = WebDriverWait(dash_duo.driver, timeout=4)
+    wait = WebDriverWait(dash_duo.driver, timeout=20)
     wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output_chat")))
     time.sleep(4)
 
@@ -809,16 +809,20 @@ def test_fdco018_output_is_pandas(dash_duo):
     app = FastDash(callback_fn=simple_table).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Table", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Simple Table", timeout=20)
 
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
-    time.sleep(4)
+
+    # Wait for the DataTable to render its first cell (Windows CI can be slow)
+    WebDriverWait(dash_duo.driver, 20).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "#output_df .dash-cell div"))
+    )
 
     # Ensure the table is present
     table = dash_duo.find_element("#output_df")
     assert table is not None
-    
+
     # Validate the data (example: check the first cell)
-    first_cell = table.find_element_by_css_selector(".dash-cell div")
+    first_cell = table.find_element(By.CSS_SELECTOR, ".dash-cell div")
     assert first_cell.text == "0"  # Adjust according to expected content

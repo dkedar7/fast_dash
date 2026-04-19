@@ -1,7 +1,7 @@
 [tool]
 [project]
 name = "fast_dash"
-version = "0.2.14"
+version = "0.2.15"
 homepage = "https://github.com/dkedar7/fast_dash"
 documentation = "https://docs.fastdash.app"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
@@ -18,14 +18,13 @@ classifiers=[
     'License :: OSI Approved :: MIT License',
     'Natural Language :: English',
     'Programming Language :: Python :: 3',
-    'Programming Language :: Python :: 3.9',
-    'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
-    'Programming Language :: Python :: 3.13'
+    'Programming Language :: Python :: 3.13',
+    'Programming Language :: Python :: 3.14'
 ]
 
-requires-python = ">=3.9,<3.14"
+requires-python = ">=3.11,<3.15"
 
 packages = [
     { include = "fast_dash" },
@@ -34,7 +33,7 @@ packages = [
 
 dependencies = [
     "dash>=2.11.0",
-    "pandas>=1.0.0",
+    "pandas>=2.3.3",
     "dash-bootstrap-components>=2.0.0",
     "dash-mantine-components>=1.0.0",
     "dash-iconify>=0.1.2",
