@@ -606,6 +606,38 @@ def _friendly_error_message(error_text):
     if "'nonetype' object is not" in lower and ("subscriptable" in lower or "iterable" in lower):
         return "Your function returned None. Make sure it has a return statement that produces the expected output."
 
+    # Wrong number of arguments
+    if "argument" in lower and ("takes" in lower or "missing" in lower or "unexpected keyword" in lower):
+        return f"Function argument mismatch. {error_text}"
+
+    # Type errors (general)
+    if "typeerror" in lower and "unsupported operand" in lower:
+        return f"Type mismatch in a calculation. Check that your inputs have the correct type. Details: {error_text}"
+
+    # Key errors
+    if "keyerror" in lower:
+        return f"A dictionary key was not found. Details: {error_text}"
+
+    # Value errors
+    if "valueerror" in lower and "could not convert" in lower:
+        return f"A value couldn't be converted to the expected type. Check your input formats. Details: {error_text}"
+
+    # Division by zero
+    if "division by zero" in lower or "zerodivisionerror" in lower:
+        return "Division by zero occurred. Check that your divisor inputs are not zero."
+
+    # Index errors
+    if "index out of range" in lower or "indexerror" in lower:
+        return f"A list index was out of range. Details: {error_text}"
+
+    # JSON / serialization errors
+    if "is not json serializable" in lower:
+        return f"A return value can't be displayed. Make sure your function returns standard Python types (strings, numbers, lists, dicts). Details: {error_text}"
+
+    # Timeout
+    if "timeout" in lower or "timed out" in lower:
+        return "The operation timed out. Try with smaller inputs or check your network connection."
+
     # Chat component format
     if "chat component requires" in lower:
         return error_text  # Already a friendly message
@@ -618,10 +650,22 @@ def _friendly_error_message(error_text):
     if "no such file or directory" in lower or "filenotfounderror" in lower:
         return f"A file could not be found. Details: {error_text}"
 
+    # Permission errors
+    if "permission denied" in lower or "permissionerror" in lower:
+        return f"Permission denied when accessing a resource. Details: {error_text}"
+
     # Import errors
     if "no module named" in lower:
         module = error_text.split("'")[1] if "'" in error_text else "unknown"
         return f"Missing dependency: '{module}'. Install it with: pip install {module}"
+
+    # Connection errors
+    if "connectionerror" in lower or "connection refused" in lower or "urlopen error" in lower:
+        return f"A network connection failed. Check your internet connection or the service URL. Details: {error_text}"
+
+    # Memory errors
+    if "memoryerror" in lower:
+        return "The operation ran out of memory. Try with smaller inputs or data."
 
     # Fallback: capitalize first letter
     return error_text.capitalize() if error_text else "An unexpected error occurred."
@@ -748,6 +792,9 @@ def _get_default_property(component_type):
             dmc.TextInput: "value",
             dmc.Textarea: "value",
             dmc.TimeInput: "value",
+            dmc.DateInput: "value",
+            dmc.DatePickerInput: "value",
+            dmc.PasswordInput: "value",
             dmc.Blockquote: "children",
             dmc.Code: "children",
             dmc.List: "children",
