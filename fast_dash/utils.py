@@ -14,7 +14,6 @@ import dash_mantine_components as dmc
 from dash_iconify import DashIconify
 
 import docstring_parser
-import logging
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import PIL
@@ -721,24 +720,20 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
     Returns:
         str: Markdown documentation string.
     """
-    logging.warning("Parsing function docstring is still an experimental feature. To reduce uncertainty, consider setting `about` to `False`.")
-
     parsed = docstring_parser.parse(func.__doc__)
 
     if get_short == True:
         return parsed.short_description
 
-    # Start with the function description
-    md_list = [
-        f"#### {func.__name__.replace('_', ' ').title() if not title else title}",
-        "",
-        parsed.short_description or "",
-        "",
-        parsed.long_description or "",
-        "",
-    ]
+    heading = title or func.__name__.replace("_", " ").title()
+    md_list = [f"#### {heading}", ""]
 
-    # Add parameters in table format
+    if parsed.short_description:
+        md_list.extend([parsed.short_description, ""])
+
+    if parsed.long_description:
+        md_list.extend([parsed.long_description, ""])
+
     if parsed.params:
         md_list.extend(
             [
@@ -758,12 +753,11 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
             )
             md_list.append(param_line)
 
-    md_list.extend(["# ", "# "])
+        md_list.append("")
 
-    # Add return values in table format
     if parsed.returns:
         md_list.extend(
-            ["", "##### Returns", "| Type | Description |", "| ---- | ----------- |"]
+            ["##### Returns", "| Type | Description |", "| ---- | ----------- |"]
         )
 
         return_line = (
@@ -772,5 +766,4 @@ def _parse_docstring_as_markdown(func, title=None, get_short=False):
         )
         md_list.append(return_line)
 
-    # Join all and return markdown string
     return "\n".join(md_list)
