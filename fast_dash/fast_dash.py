@@ -123,8 +123,9 @@ class FastDash:
     ):
         """
         Args:
-            callback_fn (func): Python function that Fast Dash deploys. \
-                This function guides the behavior of and interaction between input and output components.
+            callback_fn (func or list of funcs): Python function (or list of functions) that Fast Dash deploys. \
+                This function guides the behavior of and interaction between input and output components. \
+                Passing a list of functions creates a tabbed multi-function app, one tab per function.
 
             mosaic (str, optional): Mosaic string specifying how output components are arranged in the main area.
 
@@ -189,6 +190,9 @@ class FastDash:
             scale_height (float, optional): Height of the app container is enlarged as a multiple of this. Defaults to 1.
 
             run_kwargs (dict, optional): All values from this variable are passed to Dash's `.run` method.
+
+            tab_titles (list of str, optional): Tab titles when ``callback_fn`` is a list of functions. \
+                If None, tab titles are derived from the function names. Ignored for single-function apps. Defaults to None.
         """
 
         # Detect multi-function mode
@@ -1071,6 +1075,9 @@ def fastdash(
 ):
     """
     Function decorator / wrapper for Fast Dash.
+
+    Decorates a single Python function and launches a Fast Dash app immediately.
+    For multi-function tabbed apps, use ``FastDash([fn_a, fn_b, ...], tab_titles=[...]).run()`` directly.
 
     Args:
         callback_fn (func): Python function that Fast Dash deploys. \

@@ -48,6 +48,22 @@ Whereas the `@fastdash` decorator deploys our app when defining our functions (e
 !!! note
     Both the `@fastdash` decorator and the `FastDash` class objects are functionally equivalent. The `@fastdash` decorator is built on top of the `FastDash` class. That means any argument valid for `FastDash` object initialization can also be specified to `@fastdash`.
 
+### Multi-function tabbed apps
+
+The `FastDash` class also accepts a list of functions, which produces a tabbed app — one tab per function:
+
+``` py
+from fast_dash import FastDash
+
+def greet(name: str) -> str: ...
+def add(a: int, b: int) -> int: ...
+
+app = FastDash([greet, add], tab_titles=["Greeter", "Adder"])
+app.run()
+```
+
+Each function gets its own inputs, outputs, and callbacks. See the [patterns](patterns.md#4-multi-function-tabbed-apps) page for more detail.
+
     Using decorators is a very convenient way to give additional abilities to a function, the callback function in our case. It also allows us to add various automations, like instant deployments!
 
 

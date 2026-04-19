@@ -171,6 +171,23 @@ app = FastDash(callback_fn=my_fn, title="Doubler", port=8050)
 app.run()
 ```
 
+**Multiple functions in a single tabbed app** — pass a list of callbacks:
+
+```python
+from fast_dash import FastDash
+
+def greet(name: str) -> str:
+    return f"Hello, {name}!"
+
+def add(a: int, b: int) -> int:
+    return a + b
+
+app = FastDash([greet, add], tab_titles=["Greeter", "Adder"])
+app.run()
+```
+
+Each function gets its own tab with independent inputs, outputs, and callbacks. `tab_titles` is optional — without it, tabs are named after the functions.
+
 ## Decorator options
 
 Most apps need none of these — defaults are sensible. Pass any of them as kwargs to `@fastdash(...)` or `FastDash(...)`.
@@ -189,7 +206,7 @@ Most apps need none of these — defaults are sensible. Pass any of them as kwar
 | `branding` | `False` | Show the Fast Dash rocket footer |
 | `stream` | `False` | Enable streaming outputs (see docs) |
 
-The full list, including multi-function tabs and pipeline modes, lives in the [docs](https://docs.fastdash.app).
+The full list lives in the [docs](https://docs.fastdash.app).
 
 ## Limits and gotchas
 
