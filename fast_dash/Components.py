@@ -1197,6 +1197,25 @@ def _get_output_components(_hint_type):
         return resolved.component
     _hint_type = resolved.base_type
 
+    # Resolve string annotations (e.g. "plotly.graph_objects.Figure")
+    if isinstance(_hint_type, str):
+        _graph_hints = {
+            "plotly.graph_objects.Figure", "plotly.graph_objs.Figure",
+            "go.Figure", "Figure",
+        }
+        _df_hints = {"pd.DataFrame", "DataFrame", "pandas.DataFrame"}
+        _img_hints = {"PIL.Image.Image", "Image"}
+        if _hint_type in _graph_hints:
+            return Fastify(
+                component=dcc.Graph(style=dict(height="100%", width="100%")),
+                component_property="figure",
+                tag="Graph",
+            )
+        elif _hint_type in _df_hints:
+            _hint_type = pd.DataFrame
+        elif _hint_type in _img_hints:
+            _hint_type = PIL.Image.Image
+
     # If hint is not type, assume that the user specified an object. Change it to type
     if not isinstance(_hint_type, type):
         _hint_type = type(_hint_type)
@@ -1308,6 +1327,48 @@ ColorInput = Fastify(
         value="#1c7ed6",
     ),
     component_property="value",
+    tag="Text",
+)
+
+MultiSelect = Fastify(
+    component=dmc.MultiSelect(
+        placeholder="Select options",
+    ),
+    component_property="value",
+    tag="Text",
+)
+
+DateRange = Fastify(
+    component=dmc.DatePickerInput(
+        placeholder="Pick date range",
+        type="range",
+        valueFormat="YYYY-MM-DD",
+    ),
+    component_property="value",
+    tag="Text",
+)
+
+Switch = Fastify(
+    component=dmc.Switch(
+        label="Toggle",
+    ),
+    component_property="checked",
+    tag="Bool",
+)
+
+PasswordInput = Fastify(
+    component=dmc.PasswordInput(
+        placeholder="Enter password",
+    ),
+    component_property="value",
+    tag="Text",
+)
+
+Markdown = Fastify(
+    component=dcc.Markdown(
+        style={"padding": "10px"},
+    ),
+    component_property="children",
     tag="Text",
 )
 

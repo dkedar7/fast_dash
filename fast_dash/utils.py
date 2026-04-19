@@ -23,6 +23,61 @@ import warnings
 import re
 
 
+class from_step:
+    """Declare that a step parameter receives its value from a previous step's output.
+
+    Used in ``FastDash(steps=[...])`` pipelines to wire the output of one step
+    function into a parameter of the next.
+
+    Parameters
+    ----------
+    source_fn : callable
+        The step function whose return value feeds this parameter.
+    transform : callable, optional
+        A function applied to the source output before passing it.
+        Commonly used to derive UI props (e.g. column names from a DataFrame).
+
+    Example::
+
+        def load_data(path: str = "data.csv") -> pd.DataFrame:
+            return pd.read_csv(path)
+
+        def select_columns(
+            data=from_step(load_data),
+            columns: list = MultiSelect,
+        ) -> pd.DataFrame:
+            return data[columns]
+    """
+
+    def __init__(self, source_fn, transform=None):
+        self.source_fn = source_fn
+        self.transform = transform
+
+
+class depends_on:
+    """Declare that an input depends on another input's value.
+
+    The *resolver* callable receives the current value of the parent input
+    and returns property updates for the dependent component:
+
+    - **list** → sets the ``data`` property (dropdown options).
+    - **dict** → sets the specified component properties (e.g. ``min``, ``max``).
+    - **scalar** → sets the component's main ``value``.
+
+    Example::
+
+        def my_app(
+            country: str = ["USA", "India"],
+            state: str = depends_on("country", lambda val: countries[val]),
+        ) -> str:
+            return f"{state}, {country}"
+    """
+
+    def __init__(self, parent: str, resolver):
+        self.parent = parent
+        self.resolver = resolver
+
+
 def Fastify(component, component_property, ack=None, placeholder=None, label_=None, tag=None, stream=False, *args, **kwargs):
     """
     Modify a Dash component into a FastComponent.
@@ -339,7 +394,7 @@ def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
     return inputs_with_ids
 
 
-def _make_input_groups(inputs_with_ids, update_live, prefix=""):
+def _make_input_groups(inputs_with_ids, update_live, prefix="", show_submit=True):
     input_groups = []
 
     for idx, input_ in enumerate(inputs_with_ids):
@@ -374,21 +429,22 @@ def _make_input_groups(inputs_with_ids, update_live, prefix=""):
             )
         )
 
-    button_row = html.Div(
-        [
-            dmc.Button(
-                "Submit",
-                id=f"{prefix}submit_inputs",
-                n_clicks=0,
-                fullWidth=True,
-            ),
-        ],
-        style={"paddingTop": "8px"}
-        if update_live is False
-        else {"display": "none"},
-    )
+    if show_submit:
+        button_row = html.Div(
+            [
+                dmc.Button(
+                    "Run",
+                    id=f"{prefix}submit_inputs",
+                    n_clicks=0,
+                    fullWidth=True,
+                ),
+            ],
+            style={"paddingTop": "8px"}
+            if update_live is False
+            else {"display": "none"},
+        )
 
-    input_groups.append(button_row)
+        input_groups.append(button_row)
 
     return input_groups
 
