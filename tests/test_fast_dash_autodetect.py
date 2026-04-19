@@ -820,5 +820,5 @@ def test_fdco018_output_is_pandas(dash_duo):
     assert table is not None
     
     # Validate the data (example: check the first cell)
-    first_cell = table.find_element_by_css_selector(".dash-cell div")
+    first_cell = table.find_element(By.CSS_SELECTOR, ".dash-cell div")
     assert first_cell.text == "0"  # Adjust according to expected content
