@@ -32,6 +32,7 @@ from .utils import (
     _pil_to_b64,
     _get_default_property,
     _parse_docstring_as_markdown,
+    depends_on,
 )
 
 
@@ -1247,8 +1248,20 @@ def _infer_input_components(func):
         hint = value.annotation
         default = None if value.default == inspect._empty else value.default
 
-        component = _get_component_from_input(hint, default)
-        components.append(component)
+        # Handle depends_on defaults — reactive input wired to a parent input
+        if isinstance(default, depends_on):
+            dep = default
+            component = Fastify(
+                dmc.Select(placeholder="Select..."),
+                "value",
+                tag="Text",
+            )
+            component._depends_on_parent = dep.parent
+            component._depends_on_resolver = dep.resolver
+            components.append(component)
+        else:
+            component = _get_component_from_input(hint, default)
+            components.append(component)
 
     return components
 

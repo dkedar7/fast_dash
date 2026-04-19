@@ -739,6 +739,84 @@ class FastDash:
             if c.tag == "Download":
                 self._register_download_callback(c.id)
 
+        # Wire depends_on callbacks
+        self._register_depends_on_callbacks()
+
+    def _register_depends_on_callbacks(self, prefix=""):
+        """Register callbacks for inputs that use depends_on."""
+        # Build a parameter-name → component lookup. Component ids are
+        # "input_<param_name>" (optionally prefixed), so strip both the
+        # shared prefix and the "input_" marker.
+        name_to_component = {}
+        for inp in self.inputs_with_ids:
+            key = inp.id
+            if prefix and key.startswith(prefix):
+                key = key[len(prefix):]
+            if key.startswith("input_"):
+                key = key[len("input_"):]
+            name_to_component[key] = inp
+
+        for inp in self.inputs_with_ids:
+            if not hasattr(inp, "_depends_on_parent"):
+                continue
+
+            parent_name = inp._depends_on_parent
+            resolver = inp._depends_on_resolver
+            parent_component = name_to_component.get(parent_name)
+
+            if parent_component is None:
+                warnings.warn(
+                    f"depends_on: parent '{parent_name}' not found in function parameters. "
+                    f"Available: {list(name_to_component.keys())}"
+                )
+                continue
+
+            self._register_single_dependency(
+                parent_component.id,
+                parent_component.component_property,
+                inp.id,
+                resolver,
+            )
+
+    @staticmethod
+    def _apply_dependency_resolver(resolver, parent_value):
+        """Apply a depends_on resolver and map the result to (data, value).
+
+        Pure helper, extracted so tests can exercise the resolver contract
+        without needing a Dash request context. Returns ``(data, value)``
+        where each slot is either a concrete update or ``dash.no_update``.
+        """
+        import dash as _dash
+
+        if parent_value is None:
+            return _dash.no_update, _dash.no_update
+
+        try:
+            result = resolver(parent_value)
+        except Exception:
+            return _dash.no_update, _dash.no_update
+
+        if isinstance(result, list):
+            return result, None
+
+        if isinstance(result, dict):
+            data = result.get("data", _dash.no_update)
+            value = result.get("value", _dash.no_update)
+            return data, value
+
+        return _dash.no_update, result
+
+    def _register_single_dependency(self, parent_id, parent_prop, dependent_id, resolver):
+        """Register a single dependency callback between two inputs."""
+        @self.app.callback(
+            Output(dependent_id, "data"),
+            Output(dependent_id, "value"),
+            Input(parent_id, parent_prop),
+            prevent_initial_call=False,
+        )
+        def update_dependent(parent_value):
+            return self._apply_dependency_resolver(resolver, parent_value)
+
     def _register_download_callback(self, component_id, prefix=""):
         """Register a clientside callback that triggers dcc.Download on button click."""
         store_id = f"{component_id}_download_store"
