@@ -8,7 +8,7 @@ on:
   # push:
   #   branches: [ master,main,release ]
   pull_request:
-    branches: [ master,main,release,stage ]
+    branches: [ master,main,release,stage,dev ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
