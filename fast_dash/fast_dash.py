@@ -20,8 +20,7 @@ import dash_mantine_components as dmc
 from dash import html as dash_html
 
 from .Components import (
-    BaseLayout,
-    SidebarLayout,
+    AppLayout,
     _infer_input_components,
     _infer_output_components,
 )
@@ -95,7 +94,6 @@ class FastDash:
     def __init__(
         self,
         callback_fn,
-        layout="sidebar",
         mosaic=None,
         inputs=None,
         outputs=None,
@@ -128,9 +126,7 @@ class FastDash:
             callback_fn (func): Python function that Fast Dash deploys. \
                 This function guides the behavior of and interaction between input and output components.
 
-            layout (str, optional): App layout style. Currently supports 'base' and 'sidebar'. Defaults to sidebar.
-
-            mosaic (str, optional): Mosaics array layout, if sidebar layout is selected.
+            mosaic (str, optional): Mosaic string specifying how output components are arranged in the main area.
 
             inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.\
                 Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type \
@@ -270,7 +266,6 @@ class FastDash:
 
         # Define other attributes
         self.callback_fn = callback_fn
-        self.layout_pattern = layout
         self.mosaic = mosaic
         self.output_labels = output_labels
         self.update_live = update_live
@@ -442,12 +437,7 @@ class FastDash:
             "app": self,
         }
 
-        if self.layout_pattern == "sidebar":
-            app_layout = SidebarLayout(**layout_args)
-
-        else:
-            app_layout = BaseLayout(**layout_args)
-
+        app_layout = AppLayout(**layout_args)
         self.layout_object = app_layout
         notification_components = ["notification-container"]
 
@@ -543,7 +533,7 @@ class FastDash:
 
         tabs_component = dbc.Tabs(tabs, id="multi-function-tabs", active_tab="tab-0")
 
-        # Build navbar (matching SidebarLayout style)
+        # Build navbar
         navbar_components = []
         if self.about:
             navbar_components.append(
@@ -584,7 +574,7 @@ class FastDash:
             id="about-modal", is_open=False, size="lg",
         ) if self.about else dash_html.Div(id="about-modal", style={"display": "none"})
 
-        # Footer (matching SidebarLayout rocket icon style)
+        # Footer (rocket icon)
         if self.branding and self.footer and not self.minimal:
             footer = dmc.Affix(
                 dmc.Tooltip(
@@ -1053,7 +1043,6 @@ class FastDash:
 def fastdash(
     _callback_fn=None,
     *,
-    layout="sidebar",
     mosaic=None,
     inputs=None,
     outputs=None,
@@ -1087,9 +1076,7 @@ def fastdash(
         callback_fn (func): Python function that Fast Dash deploys. \
             This function guides the behavior of and interaction between input and output components.
 
-        layout (str, optional): App layout style. Currently supports 'base' and 'sidebar'. Defaults to sidebar.
-
-        mosaic (str): Mosaic array layout, if sidebar layout is selected.
+        mosaic (str, optional): Mosaic string specifying how output components are arranged in the main area.
 
         inputs (Fast component, list of Fast components, optional): Components to represent inputs of the callback function.\
             Defaults to None. If `None`, Fast Dash attempts to infer the best components from callback function's type \
@@ -1165,7 +1152,6 @@ def fastdash(
             return callback_fn
 
         return wrapper_fastdash(
-            layout=layout,
             mosaic=mosaic,
             inputs=inputs,
             outputs=outputs,

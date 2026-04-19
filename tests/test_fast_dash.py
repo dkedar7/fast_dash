@@ -240,10 +240,10 @@ def test_fdfd010_output_labels(dash_duo):
     assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
 
 
-def test_fdfd011_base_layout(dash_duo):
-    "Test base layout"
+def test_fdfd011_default_layout(dash_duo):
+    "Test default layout construction"
 
-    app = FastDash(callback_fn=simple_text_to_multiple_outputs, layout="base")
+    app = FastDash(callback_fn=simple_text_to_multiple_outputs)
     assert app.output_labels == ["FIG", "RETURN_SOME_TEXT"]
 
 
