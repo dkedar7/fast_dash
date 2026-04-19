@@ -100,7 +100,7 @@ class FastDash:
 
     def __init__(
         self,
-        callback_fn,
+        callback_fn=None,
         mosaic=None,
         inputs=None,
         outputs=None,
@@ -210,6 +210,13 @@ class FastDash:
         # Detect pipeline (steps) mode
         self.is_steps = steps is not None
         self.steps = steps
+
+        # callback_fn is required unless steps= is provided
+        if callback_fn is None and not self.is_steps:
+            raise TypeError(
+                "FastDash requires either `callback_fn` (a function or list of "
+                "functions) or `steps` (a list of step functions). Got neither."
+            )
 
         # Detect multi-function mode (suppressed if steps mode is active)
         self.is_multi = isinstance(callback_fn, list) and not self.is_steps

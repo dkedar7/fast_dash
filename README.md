@@ -227,6 +227,29 @@ app.run()
 
 Each function gets its own tab with independent inputs, outputs, and callbacks. `tab_titles` is optional — without it, tabs are named after the functions.
 
+**Multi-step pipelines** with `steps=` — chain functions into a wizard, threading outputs forward via `from_step`:
+
+```python
+from fast_dash import FastDash, from_step
+import pandas as pd
+
+def load_data(rows: int = 100) -> pd.DataFrame:
+    """Load a sample dataset."""
+    return pd.DataFrame({"x": range(rows), "y": [i * 2 for i in range(rows)]})
+
+def double(data=from_step(load_data)) -> pd.DataFrame:
+    """Double every value."""
+    return data * 2
+
+def summarise(data=from_step(double), prefix: str = "Result:") -> str:
+    """One-line summary."""
+    return f"{prefix} {len(data)} rows, sum={data.values.sum()}"
+
+FastDash(steps=[load_data, double, summarise], title="Pipeline Demo").run()
+```
+
+Each step is shown one at a time with a stepper progress indicator. Click **Run** to execute the active step, then **Next** to advance. Use `from_step(prev_fn)` as a parameter default to wire an upstream output into a downstream input. Steps without `from_step` parameters can mix in regular UI inputs (like `prefix` above).
+
 ## Decorator options
 
 Most apps need none of these — defaults are sensible. Pass any of them as kwargs to `@fastdash(...)` or `FastDash(...)`.

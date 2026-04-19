@@ -143,6 +143,18 @@ class TestStepsAppBuild:
         assert app.is_steps is True
         assert app.is_multi is False
 
+    def test_callback_fn_optional_when_steps_provided(self):
+        """Users should be able to write FastDash(steps=[...]) without callback_fn."""
+        app = FastDash(steps=[_load_data, _double])
+        assert app.is_steps is True
+        assert app.app.layout is not None
+
+    def test_no_callback_fn_and_no_steps_raises(self):
+        """Construction with neither callback_fn nor steps must fail loudly."""
+        import pytest
+        with pytest.raises(TypeError, match="callback_fn|steps"):
+            FastDash()
+
     def test_layout_contains_step_containers_and_buttons(self):
         app = FastDash(callback_fn=_load_data, steps=[_load_data, _double])
         layout_str = str(app.app.layout)

@@ -254,7 +254,53 @@ The first argument to `depends_on` is the **parameter name** of the parent input
 
 If the resolver raises an exception, no update fires. Chains work: `A → B → C` is just two `depends_on` declarations.
 
-## 6. Selecting other configurations
+## 6. Multi-step pipelines
+
+When your workflow naturally splits into stages — load data → transform → visualize — turn the whole pipeline into a single app with `steps=`:
+
+```py linenums="1"
+from fast_dash import FastDash, from_step
+import pandas as pd
+
+def load_data(rows: int = 100) -> pd.DataFrame:
+    """Load a sample dataset."""
+    return pd.DataFrame({"x": range(rows), "y": [i * 2 for i in range(rows)]})
+
+def double(data=from_step(load_data)) -> pd.DataFrame:
+    """Double every value."""
+    return data * 2
+
+def summarise(data=from_step(double), prefix: str = "Result:") -> str:
+    """One-line summary."""
+    return f"{prefix} {len(data)} rows, sum={data.values.sum()}"
+
+FastDash(steps=[load_data, double, summarise], title="Pipeline Demo").run()
+```
+
+Each step is rendered as a dedicated panel with its own inputs and outputs. A stepper progress indicator at the top of the main area shows the current step. Click **Run** to execute the active step, then **Next** to advance.
+
+### Wiring upstream outputs into downstream inputs
+
+Use `from_step(prev_fn)` as a parameter default to pull a previous step's return value into the current step's parameter:
+
+- The framework caches each step's return value per browser session.
+- When a downstream step runs, `from_step` parameters are filled in automatically — no UI is rendered for them.
+- Mix `from_step` parameters with regular UI parameters freely (see `summarise`'s `prefix` above).
+- `from_step(prev_fn, transform=lambda x: ...)` applies a function to the cached value before passing it.
+
+### Navigation and state
+
+- **Back** rewinds one step and clears all downstream cached results, so you can rerun a different branch of inputs.
+- **Run** executes the currently visible step. Until you click Run, the **Next** button is disabled.
+- Trying to run a downstream step before its `from_step` source has been run produces a friendly error message instead of a traceback.
+- State is keyed by a UUID stored in the browser's session storage, so opening the app in a new tab gives you a fresh pipeline.
+
+### Limits
+
+- Linear pipelines only — no conditional branching in this release.
+- The cache lives in the FastDash process; a server restart or a multi-worker deployment loses session state. Acceptable for prototyping.
+
+## 7. Selecting other configurations
 
 Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.
 
