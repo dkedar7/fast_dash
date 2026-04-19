@@ -380,6 +380,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#multi-function-tabbed-apps" class="md-nav__link">
+    Multi-function tabbed apps
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#1-fastdash-decorator" class="md-nav__link">
     1. @fastdash decorator
   </a>
@@ -807,6 +814,13 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
+  <a href="#multi-function-tabbed-apps" class="md-nav__link">
+    Multi-function tabbed apps
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
   <a href="#1-fastdash-decorator" class="md-nav__link">
     1. @fastdash decorator
   </a>
@@ -999,8 +1013,20 @@
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>Both the <code>@fastdash</code> decorator and the <code>FastDash</code> class objects are functionally equivalent. The <code>@fastdash</code> decorator is built on top of the <code>FastDash</code> class. That means any argument valid for <code>FastDash</code> object initialization can also be specified to <code>@fastdash</code>.</p>
-<p>Using decorators is a very convenient way to give additional abilities to a function, the <abbr title="Python function that Fast Dash deploys as web apps">callback function</abbr> in our case. It also allows us to add various automations, like instant deployments!</p>
 </div>
+<h3 id="multi-function-tabbed-apps">Multi-function tabbed apps</h3>
+<p>The <code>FastDash</code> class also accepts a list of functions, which produces a tabbed app — one tab per function:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span> <span class="o">...</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span> <span class="o">...</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">([</span><span class="n">greet</span><span class="p">,</span> <span class="n">add</span><span class="p">],</span> <span class="n">tab_titles</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Greeter&quot;</span><span class="p">,</span> <span class="s2">&quot;Adder&quot;</span><span class="p">])</span>
+<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p>Each function gets its own inputs, outputs, and callbacks. See the <a href="../patterns/#4-multi-function-tabbed-apps">patterns</a> page for more detail.</p>
+<pre><code>Using decorators is a very convenient way to give additional abilities to a function, the callback function in our case. It also allows us to add various automations, like instant deployments!
+</code></pre>
 <p>Let's first understand how we can build Fast Dash apps using the <code>@fastdash</code> decorator and then extend these ideas to the <code>FastDash</code> class.</p>
 <h3 id="1-fastdash-decorator">1. <code>@fastdash</code> decorator</h3>
 <h4 id="whats-a-decorator">What's a decorator?</h4>

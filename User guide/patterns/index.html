@@ -407,8 +407,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-selecting-other-configurations" class="md-nav__link">
-    4. Selecting other configurations
+  <a href="#4-multi-function-tabbed-apps" class="md-nav__link">
+    4. Multi-function tabbed apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-selecting-other-configurations" class="md-nav__link">
+    5. Selecting other configurations
   </a>
   
 </li>
@@ -704,8 +711,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#4-selecting-other-configurations" class="md-nav__link">
-    4. Selecting other configurations
+  <a href="#4-multi-function-tabbed-apps" class="md-nav__link">
+    4. Multi-function tabbed apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#5-selecting-other-configurations" class="md-nav__link">
+    5. Selecting other configurations
   </a>
   
 </li>
@@ -834,6 +848,42 @@ you, the innovator, write as less UI development code as possible. </p>
 <td><code>datetime.date</code> or <code>datetime.datetime</code></td>
 <td>Blank or default date</td>
 <td><code>def set_date(date: datetime.date = datetime.date(2023, 1, 1))</code></td>
+</tr>
+<tr>
+<td><b>Modern type hints<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Fixed set of string options</td>
+<td><code>Literal["a", "b", "c"]</code></td>
+<td>Any of the values</td>
+<td><code>def pick(choice: Literal["red", "green", "blue"])</code></td>
+</tr>
+<tr>
+<td>Enum members</td>
+<td><code>enum.Enum</code> subclass</td>
+<td>Any enum member</td>
+<td><code>class Color(Enum): RED = "red"</code><br><code>def pick(c: Color)</code></td>
+</tr>
+<tr>
+<td>Bounded number via type hint</td>
+<td><code>Annotated[int, range(min, max, step)]</code></td>
+<td>Any int/float</td>
+<td><code>def score(s: Annotated[int, range(0, 100)])</code></td>
+</tr>
+<tr>
+<td>Dropdown via type hint</td>
+<td><code>Annotated[str, [list]]</code></td>
+<td>Any of the values</td>
+<td><code>def pick(c: Annotated[str, ["USA", "Canada"]])</code></td>
+</tr>
+<tr>
+<td>Optional value</td>
+<td><code>Optional[T]</code></td>
+<td>Any <code>T</code></td>
+<td><code>def ping(text: Optional[str])</code></td>
 </tr>
 </tbody>
 </table>
@@ -999,7 +1049,30 @@ Here's what we want:</p>
 <p>Output: </p>
 <p><img alt="Example 5" src="https://storage.googleapis.com/fast_dash/0.2.7/Mosaic%20examples/ex5.png" /></p>
 </details>
-<h2 id="4-selecting-other-configurations">4. Selecting other configurations</h2>
+<h2 id="4-multi-function-tabbed-apps">4. Multi-function tabbed apps</h2>
+<p>When you have several related functions and want them in one app, pass a list of callbacks. Fast Dash builds a tabbed layout where each function gets its own tab with independent inputs, outputs, and callbacks.</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">greet</span><span class="p">(</span><span class="n">name</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Hello, </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">!&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">add</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">b</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">a</span> <span class="o">+</span> <span class="n">b</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">([</span><span class="n">greet</span><span class="p">,</span> <span class="n">add</span><span class="p">],</span> <span class="n">tab_titles</span><span class="o">=</span><span class="p">[</span><span class="s2">&quot;Greeter&quot;</span><span class="p">,</span> <span class="s2">&quot;Adder&quot;</span><span class="p">])</span>
+<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+<p><code>tab_titles</code> is optional — without it, tabs are named after the functions (converted from <code>snake_case</code> to Title Case). The navbar, about modal, and streaming notifications are shared across all tabs; component IDs are namespaced per tab so they don't collide.</p>
+<h2 id="5-selecting-other-configurations">5. Selecting other configurations</h2>
 <p>Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.</p>
 <p>In the <a href="../components/">next section</a>, we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.</p>
 
