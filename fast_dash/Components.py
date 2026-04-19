@@ -50,7 +50,7 @@ class AppLayout:
         navbar=True,
         footer=True,
         loader="bars",
-        branding=True,
+        branding=False,
         about=True,
         minimal=False,
         scale_height=1,
@@ -1257,9 +1257,7 @@ def _infer_output_components(func, outputs, output_labels):
         output_labels = [None] * len(parameters)
 
     if isinstance(output_labels, list) and len(output_labels) != len(parameters):
-        raise ValueError(
-            "Length of output labels must be equal to the number of outputs."
-        )
+        output_labels = [f"OUTPUT_{i + 1}" for i in range(len(parameters))]
 
     for (_, hint), label in zip(parameters, output_labels):
         component = _get_output_components(hint)

@@ -107,7 +107,7 @@ class FastDash:
         navbar=True,
         footer=True,
         loader="bars",
-        branding=True,
+        branding=False,
         stream=False,
         about=True,
         theme=None,
@@ -164,7 +164,7 @@ class FastDash:
             loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
-            branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+            branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to False. \
             
             stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
                 If False, streaming is disabled. Defaults to False. \
@@ -1056,7 +1056,7 @@ def fastdash(
     navbar=True,
     footer=True,
     loader="bars",
-    branding=True,
+    branding=False,
     stream=False,
     about=True,
     theme=None,
@@ -1115,7 +1115,7 @@ def fastdash(
         loader (str or bool, optional): Type of loader to display when the app is loading. If `None`, no loader is displayed. \
                 If `True`, a default loader is displayed. If `str`, the loader is set to the specified type. \
                 
-        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to True. \
+        branding (bool, optional): Display Fast Dash branding component in the footer. Defaults to False. \
         
         stream (bool, optional): Enable streaming functionality. If True, the app will use DashSocketIO to handle streaming data. \
             If False, streaming is disabled. Defaults to False.

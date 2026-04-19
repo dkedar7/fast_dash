@@ -402,9 +402,13 @@ def _assign_ids_to_outputs(outputs, callback_fn, prefix=""):
     if not isinstance(outputs, list):
         outputs = [outputs]
 
+    inferred = _infer_variable_names(callback_fn, upper_case=False)
+    if not inferred or len(inferred) != len(outputs):
+        inferred = [f"output_{i + 1}" for i in range(len(outputs))]
+
     outputs_with_ids = []
 
-    for output_, output_name in zip(outputs, _infer_variable_names(callback_fn, upper_case=False)):
+    for output_, output_name in zip(outputs, inferred):
         output_.id = f"{prefix}output_{output_name}"
         outputs_with_ids.append(copy.deepcopy(output_))
 
@@ -600,13 +604,14 @@ def _clean_text(string, upper_case=False):
 
 
 def _infer_variable_names(func, upper_case=False):
-
     try:
         s = inspect.getsource(func)
-
     except OSError:
-        import dill.source
-        s = dill.source.getsource(func)
+        try:
+            import dill.source
+            s = dill.source.getsource(func)
+        except OSError:
+            return None
 
     final_line = s.split("return")[-1].strip()
     line_without_comment = final_line.split("#")[0].strip().split(",")
