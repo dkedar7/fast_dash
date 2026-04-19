@@ -11,7 +11,7 @@ import json
 import dash
 import flask
 from flask_socketio import SocketIO, emit
-from dash import Input, Output, State, ctx, clientside_callback
+from dash import Input, Output, State, ctx, clientside_callback, dcc
 from dash.exceptions import PreventUpdate
 from dash_socketio import DashSocketIO
 
@@ -37,6 +37,7 @@ from .utils import (
     _infer_variable_names,
     _parse_docstring_as_markdown,
     _get_error_notification_component,
+    from_step,
 )
 
 import contextvars
@@ -91,6 +92,12 @@ class FastDash:
     sets all parameters required for Fast Dash app deployment.
     """
 
+    # Per-process cache for step-pipeline outputs, keyed by browser session id.
+    # Each session maps {step_index: result_value} so downstream from_step
+    # parameters can resolve. Note: this is process-global; a server restart
+    # or multi-worker deploy will lose state. Acceptable for prototyping.
+    _step_cache = {}
+
     def __init__(
         self,
         callback_fn,
@@ -119,6 +126,7 @@ class FastDash:
         scale_height=1,
         run_kwargs=dict(),
         tab_titles=None,
+        steps=None,
         **kwargs
     ):
         """
@@ -193,11 +201,24 @@ class FastDash:
 
             tab_titles (list of str, optional): Tab titles when ``callback_fn`` is a list of functions. \
                 If None, tab titles are derived from the function names. Ignored for single-function apps. Defaults to None.
+
+            steps (list of funcs, optional): A linear pipeline of step functions. Each step gets its own \
+                page in a stepper UI; outputs of earlier steps can feed downstream steps via ``from_step``. \
+                When provided, ``callback_fn`` is ignored. Defaults to None.
         """
 
-        # Detect multi-function mode
-        self.is_multi = isinstance(callback_fn, list)
-        if self.is_multi:
+        # Detect pipeline (steps) mode
+        self.is_steps = steps is not None
+        self.steps = steps
+
+        # Detect multi-function mode (suppressed if steps mode is active)
+        self.is_multi = isinstance(callback_fn, list) and not self.is_steps
+
+        if self.is_steps:
+            callback_fn = steps[0]  # Use first step for shared chrome
+            self.callback_fns = list(steps)
+            self.tab_titles = None
+        elif self.is_multi:
             self.callback_fns = callback_fn
             self.tab_titles = tab_titles
             callback_fn = callback_fn[0]  # Use first function for shared chrome
@@ -274,7 +295,9 @@ class FastDash:
         self.output_labels = output_labels
         self.update_live = update_live
 
-        if self.is_multi:
+        if self.is_steps:
+            self._init_steps()
+        elif self.is_multi:
             self._init_multi_function()
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
@@ -396,6 +419,442 @@ class FastDash:
         self.set_layout()
         self.register_callback_fn()
         self.add_streaming()
+
+    def _init_steps(self):
+        """Initialize a linear multi-step pipeline app.
+
+        For each step, separate parameters that take their value from a
+        previous step (``from_step``) from parameters the user provides
+        through the UI. Build component metadata for each step the same
+        way single-function apps do, then hand off to the layout and
+        callback registration.
+        """
+        import inspect as _inspect
+
+        self.step_data = []
+        self.fn_to_idx = {}
+
+        for idx, fn in enumerate(self.steps):
+            self.fn_to_idx[fn] = idx
+            sig = _inspect.signature(fn)
+            prefix = f"step{idx}_"
+
+            # Split params into wired-from-cache vs user-facing
+            from_step_params = {}
+            user_params = []
+            for pname, pobj in sig.parameters.items():
+                default = (None if pobj.default == _inspect.Parameter.empty
+                           else pobj.default)
+                if isinstance(default, from_step):
+                    from_step_params[pname] = default
+                else:
+                    user_params.append((pname, pobj))
+
+            # Build a synthetic function whose signature contains only the
+            # user-facing parameters, so the existing component-inference
+            # pipeline works unchanged.
+            if user_params:
+                user_fn = self._make_user_params_fn(user_params)
+                fn_inputs = _infer_input_components(user_fn)
+            else:
+                user_fn = lambda: None
+                fn_inputs = []
+
+            # Use a deterministic output label per step (avoids the inferred
+            # label bug when a step has multiple visible outputs).
+            step_title = re.sub("[^0-9a-zA-Z]+", " ", fn.__name__).title()
+            fn_output_labels = [step_title + " Output"]
+            fn_outputs = _infer_output_components(fn, None, fn_output_labels)
+
+            inputs_with_ids = _assign_ids_to_inputs(fn_inputs, user_fn, prefix=prefix)
+            outputs_with_ids = _assign_ids_to_outputs(fn_outputs, fn, prefix=prefix)
+
+            step_desc = _parse_docstring_as_markdown(fn, title=step_title, get_short=True)
+
+            self.step_data.append({
+                "fn": fn,
+                "idx": idx,
+                "prefix": prefix,
+                "title": step_title,
+                "description": step_desc or "",
+                "from_step_params": from_step_params,
+                "user_params": user_params,
+                "inputs": fn_inputs,
+                "outputs": fn_outputs,
+                "input_tags": [inp.tag for inp in fn_inputs],
+                "output_tags": [out.tag for out in fn_outputs],
+                "inputs_with_ids": inputs_with_ids,
+                "outputs_with_ids": outputs_with_ids,
+            })
+
+        # Set references for backward compat with single-function plumbing
+        self.inputs_with_ids = self.step_data[0]["inputs_with_ids"]
+        self.outputs_with_ids = self.step_data[0]["outputs_with_ids"]
+
+        self.app.title = self.title or ""
+        self._set_steps_layout()
+        self._register_steps_callbacks()
+
+    @staticmethod
+    def _make_user_params_fn(user_params):
+        """Create a synthetic function with only the user-visible parameters.
+
+        ``_infer_input_components`` reads ``inspect.signature(fn)`` to decide
+        what UI components to build. For step functions, we want to skip
+        parameters wired via ``from_step`` (those don't get UI). This helper
+        rebuilds a fresh signature containing only the user-facing params,
+        and returns a no-op function carrying it.
+        """
+        import inspect as _inspect
+
+        params = []
+        annotations = {}
+        for pname, pobj in user_params:
+            params.append(_inspect.Parameter(
+                pname,
+                kind=_inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                default=pobj.default,
+                annotation=pobj.annotation,
+            ))
+            if pobj.annotation != _inspect.Parameter.empty:
+                annotations[pname] = pobj.annotation
+
+        def _user_fn(**kwargs):
+            pass
+
+        _user_fn.__signature__ = _inspect.Signature(params)
+        _user_fn.__annotations__ = annotations
+        _user_fn.__name__ = "user_params"
+        return _user_fn
+
+    def _set_steps_layout(self):
+        """Build the multi-step pipeline layout.
+
+        Reuses ``AppLayout`` for the surrounding chrome (header, theme,
+        sidebar, dark-mode toggle, footer) by subclassing it and overriding
+        the input and output region builders. Only the per-step content is
+        steps-specific; everything else is shared with single-function apps.
+        """
+        from .Components import AppLayout
+
+        # Build the per-step input containers (one Div per step, only the
+        # active one is shown). Steps with no user inputs render a small
+        # "no inputs needed" hint.
+        step_input_containers = []
+        for i, sd in enumerate(self.step_data):
+            prefix = sd["prefix"]
+            if sd["inputs_with_ids"]:
+                input_groups = _make_input_groups(
+                    sd["inputs_with_ids"], False, prefix=prefix, show_submit=False
+                )
+            else:
+                input_groups = [dmc.Text("No inputs needed for this step.",
+                                          c="dimmed", size="sm")]
+            step_input_containers.append(
+                dash_html.Div(
+                    [
+                        dmc.Text(sd["title"], fw=600, size="sm",
+                                  style={"paddingBottom": "8px"}),
+                        dmc.Stack(children=input_groups, gap="lg"),
+                    ],
+                    id=f"step-inputs-{i}",
+                    style={"display": "block" if i == 0 else "none"},
+                )
+            )
+
+        # Run / Back / Next buttons
+        run_btn = dmc.Button(
+            "Run", id="step-run-btn", fullWidth=True, size="sm",
+            style={"marginTop": "16px"},
+        )
+        nav_group = dmc.Group(
+            [
+                dmc.Button("Back", id="step-back-btn", variant="light",
+                            size="sm", disabled=True),
+                dmc.Button("Next", id="step-next-btn", variant="filled",
+                            size="sm", disabled=True),
+            ],
+            justify="space-between",
+            style={"marginTop": "12px"},
+        )
+
+        sidebar_payload = dmc.Stack(
+            [dash_html.Div(step_input_containers, id="step-inputs-wrapper"),
+             run_btn, nav_group],
+            gap="md",
+        )
+
+        # Build the per-step output containers
+        step_output_containers = []
+        for i, sd in enumerate(self.step_data):
+            prefix = sd["prefix"]
+            if sd["outputs_with_ids"]:
+                output_content = _make_output_groups(
+                    sd["outputs_with_ids"], False, prefix=prefix
+                )
+            else:
+                output_content = []
+            step_output_containers.append(
+                dash_html.Div(
+                    output_content,
+                    id=f"step-outputs-{i}",
+                    style={"display": "block" if i == 0 else "none"},
+                )
+            )
+
+        # Stepper progress indicator above the per-step output area
+        stepper_steps = [
+            dmc.StepperStep(
+                label=sd["title"],
+                description=(sd["description"] or "")[:50],
+            )
+            for sd in self.step_data
+        ]
+        stepper_steps.append(
+            dmc.StepperCompleted(
+                children=dmc.Text("All steps complete!", c="green", fw=500)
+            )
+        )
+        stepper = dmc.Stepper(
+            id="pipeline-stepper",
+            active=0,
+            children=stepper_steps,
+            allowNextStepsSelect=False,
+            color="blue",
+            size="sm",
+            style={"padding": "0 0 16px 0"},
+        )
+
+        loading_overlay = dmc.LoadingOverlay(
+            id="loading-overlay",
+            loaderProps=dict(type=self.loader) if self.loader else {},
+        )
+
+        main_payload = dash_html.Div(
+            [
+                stepper,
+                loading_overlay,
+                dash_html.Div(step_output_containers, id="step-outputs-wrapper"),
+            ]
+        )
+
+        # Subclass AppLayout to inject our pre-built sidebar / main content
+        # while keeping all the standard chrome.
+        class _StepsLayout(AppLayout):
+            def generate_input_component(self_inner):
+                return dmc.ScrollArea(
+                    sidebar_payload,
+                    style={"height": "100%"},
+                    id="input-group-wrapper",
+                )
+
+            def generate_output_component(self_inner):
+                return main_payload
+
+        # Instantiate with empty inputs/outputs (we overrode the methods)
+        # and a benign mosaic so the parent's __init__ doesn't try to infer one.
+        layout_args = {
+            "mosaic": "A",
+            "inputs": [],
+            "outputs": [step_output_containers[0]],  # at least one element
+            "title": self.title,
+            "title_image_path": self.title_image_path,
+            "subtitle": self.subtitle,
+            "github_url": self.github_url,
+            "linkedin_url": self.linkedin_url,
+            "twitter_url": self.twitter_url,
+            "navbar": self.navbar,
+            "footer": self.footer,
+            "loader": self.loader,
+            "branding": self.branding,
+            "about": self.about,
+            "minimal": self.minimal,
+            "scale_height": self.scale_height,
+            "theme": self.theme,
+            "app": self,
+        }
+        self.layout_object = _StepsLayout(**layout_args)
+        # Stores for step state — appended after AppShell so they're not
+        # inside the navbar/main scroll regions.
+        self.app.layout = self.layout_object.generate_layout(
+            stream_event_names=["notification-container"],
+        )
+        # Add Dash stores to the layout's children
+        self.app.layout.children.extend([
+            dcc.Store(id="step-session-id", storage_type="session"),
+            dcc.Store(id="step-current-idx", data=0),
+            dcc.Store(id="step-completed-set", data=[]),
+        ])
+
+    def _register_steps_callbacks(self):
+        """Register callbacks for the step pipeline: session init, run, next, back, visibility."""
+        import uuid as _uuid
+
+        total_steps = len(self.step_data)
+
+        # ---- Session init: assign a UUID per browser session on first load ----
+        @self.app.callback(
+            Output("step-session-id", "data"),
+            Input("step-session-id", "data"),
+        )
+        def init_session(current_id):
+            if current_id:
+                return current_id
+            sid = str(_uuid.uuid4())
+            FastDash._step_cache[sid] = {}
+            return sid
+
+        # ---- Layout chrome callbacks (dark mode, sidebar, about) ----
+        if not self.minimal:
+            self.layout_object.callbacks(self)
+
+        # ---- Run: execute the current step ----
+        all_output_targets = []
+        for sd in self.step_data:
+            for out in sd["outputs_with_ids"]:
+                all_output_targets.append(
+                    Output(out.id, out.component_property, allow_duplicate=True)
+                )
+
+        all_input_sources = []
+        for sd in self.step_data:
+            for inp in sd["inputs_with_ids"]:
+                all_input_sources.append(State(inp.id, inp.component_property))
+
+        @self.app.callback(
+            all_output_targets + [
+                Output("notification-container", "sendNotifications", allow_duplicate=True),
+                Output("loading-overlay", "visible", allow_duplicate=True),
+                Output("step-completed-set", "data", allow_duplicate=True),
+            ],
+            Input("step-run-btn", "n_clicks"),
+            [State("step-current-idx", "data"),
+             State("step-session-id", "data"),
+             State("step-completed-set", "data")] + all_input_sources,
+            prevent_initial_call=True,
+            running=[(Output("step-run-btn", "disabled"), True, False)],
+        )
+        def run_step(n_clicks, current_idx, session_id, completed_set, *input_values):
+            if not n_clicks or session_id is None:
+                raise PreventUpdate
+
+            sd = self.step_data[current_idx]
+            fn = sd["fn"]
+            kwargs = {}
+
+            cache = FastDash._step_cache.setdefault(session_id, {})
+
+            # 1) Inject from_step values from cache
+            for pname, fs in sd["from_step_params"].items():
+                source_idx = self.fn_to_idx.get(fs.source_fn)
+                if source_idx is None or source_idx not in cache:
+                    notification = _get_error_notification_component(
+                        f"Step '{sd['title']}' depends on a previous step that hasn't been run yet."
+                    )
+                    return ([dash.no_update] * len(all_output_targets)
+                            + [notification, False, completed_set])
+                cached_val = cache[source_idx]
+                kwargs[pname] = fs.transform(cached_val) if fs.transform else cached_val
+
+            # 2) Slice the relevant input values out of the flat tuple
+            input_offset = sum(
+                len(s["inputs_with_ids"])
+                for s in self.step_data[:current_idx]
+            )
+            user_input_vals = list(input_values[
+                input_offset:input_offset + len(sd["inputs_with_ids"])
+            ])
+            user_input_vals = _transform_inputs(user_input_vals, sd["input_tags"])
+            for (pname, _pobj), val in zip(sd["user_params"], user_input_vals):
+                kwargs[pname] = val
+
+            # 3) Execute and cache the result
+            try:
+                result = fn(**kwargs)
+            except Exception as e:
+                traceback.print_exc()
+                notification = _get_error_notification_component(str(e))
+                return ([dash.no_update] * len(all_output_targets)
+                        + [notification, False, completed_set])
+            cache[current_idx] = result
+
+            # 4) Transform outputs for display
+            output_vals = list(result) if isinstance(result, tuple) else [result]
+            output_vals = _transform_outputs(
+                output_vals, sd["output_tags"], sd["outputs_with_ids"], 0
+            )
+
+            # 5) Build the full output array (no_update for non-active steps)
+            all_outputs = []
+            for other_sd in self.step_data:
+                if other_sd["idx"] == current_idx:
+                    all_outputs.extend(output_vals)
+                else:
+                    all_outputs.extend([dash.no_update] * len(other_sd["outputs_with_ids"]))
+
+            if current_idx not in completed_set:
+                completed_set = list(completed_set) + [current_idx]
+            return all_outputs + [[], False, completed_set]
+
+        # ---- Next: advance to the next step ----
+        @self.app.callback(
+            Output("step-current-idx", "data", allow_duplicate=True),
+            Output("pipeline-stepper", "active", allow_duplicate=True),
+            Input("step-next-btn", "n_clicks"),
+            State("step-current-idx", "data"),
+            prevent_initial_call=True,
+        )
+        def step_next(n, current_idx):
+            if not n:
+                raise PreventUpdate
+            if current_idx + 1 < total_steps:
+                return current_idx + 1, current_idx + 1
+            return total_steps, total_steps  # Completed
+
+        # ---- Back: rewind one step, clearing downstream cached results ----
+        @self.app.callback(
+            Output("step-current-idx", "data", allow_duplicate=True),
+            Output("pipeline-stepper", "active", allow_duplicate=True),
+            Output("step-completed-set", "data", allow_duplicate=True),
+            Input("step-back-btn", "n_clicks"),
+            State("step-current-idx", "data"),
+            State("step-completed-set", "data"),
+            State("step-session-id", "data"),
+            prevent_initial_call=True,
+        )
+        def step_back(n, current_idx, completed_set, session_id):
+            if not n or current_idx <= 0:
+                raise PreventUpdate
+            cache = FastDash._step_cache.get(session_id, {})
+            for k in [k for k in cache if k >= current_idx]:
+                del cache[k]
+            completed_set = [c for c in completed_set if c < current_idx]
+            return current_idx - 1, current_idx - 1, completed_set
+
+        # ---- Visibility: show the active step's inputs + outputs; toggle nav button states ----
+        visibility_outputs = []
+        for i in range(total_steps):
+            visibility_outputs.append(Output(f"step-inputs-{i}", "style"))
+            visibility_outputs.append(Output(f"step-outputs-{i}", "style"))
+        visibility_outputs.extend([
+            Output("step-back-btn", "disabled"),
+            Output("step-next-btn", "disabled"),
+        ])
+
+        @self.app.callback(
+            visibility_outputs,
+            Input("step-current-idx", "data"),
+            Input("step-completed-set", "data"),
+        )
+        def update_step_visibility(current_idx, completed_set):
+            styles = []
+            for i in range(total_steps):
+                show = "block" if i == current_idx else "none"
+                styles.append({"display": show})  # inputs
+                styles.append({"display": show})  # outputs
+            back_disabled = current_idx == 0
+            next_disabled = current_idx not in (completed_set or [])
+            return styles + [back_disabled, next_disabled]
 
     def run(self):
         self.app.run(**self.run_kwargs) if self.mode is None else self.app.run(
