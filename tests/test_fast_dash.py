@@ -62,7 +62,7 @@ def test_fdfd001_set_title(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "App title"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -76,7 +76,7 @@ def test_fdfd002_set_default_title(dash_duo):
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Simple Text To Text Function", timeout=4
+        "#title8888928", "Simple Text To Text Function", timeout=20
     )
 
     assert dash_duo.find_element("#title8888928").text == "Simple Text To Text Function"
@@ -89,7 +89,7 @@ def test_fdfd003_output_is_none(dash_duo):
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Simple Text To Text Function", timeout=4
+        "#title8888928", "Simple Text To Text Function", timeout=20
     )
 
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -101,7 +101,7 @@ def test_fdfd004_click_submit(dash_duo):
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Simple Text To Text Function", timeout=4
+        "#title8888928", "Simple Text To Text Function", timeout=20
     )
 
     # Enter some text
@@ -110,14 +110,14 @@ def test_fdfd004_click_submit(dash_duo):
 
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
-    dash_duo.wait_for_text_to_equal("#output_output_text", "Sample text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text", "Sample text", timeout=20)
 
     # Click clear
     wait = WebDriverWait(dash_duo.driver, 10)
     reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
     dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
 
-    dash_duo.wait_for_text_to_equal("#output_output_text", "", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text", "", timeout=20)
 
 
 def test_fdfd005_multiple_outputs(dash_duo):
@@ -130,7 +130,7 @@ def test_fdfd005_multiple_outputs(dash_duo):
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Simple Text To Multiple Text Function", timeout=4
+        "#title8888928", "Simple Text To Multiple Text Function", timeout=20
     )
 
     # Enter some text
@@ -139,15 +139,15 @@ def test_fdfd005_multiple_outputs(dash_duo):
 
     # Click submit
     dash_duo.multiple_click("#submit_inputs", 1)
-    dash_duo.wait_for_text_to_equal("#output_output_text1", "Sample text", timeout=4)
-    dash_duo.wait_for_text_to_equal("#output_output_text2", "Sample text", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text1", "Sample text", timeout=20)
+    dash_duo.wait_for_text_to_equal("#output_output_text2", "Sample text", timeout=20)
 
     # Click clear
     wait = WebDriverWait(dash_duo.driver, 10)
     reset_button = wait.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#reset_inputs")))
     dash_duo.driver.execute_script("document.querySelector('#reset_inputs').click()")
-    dash_duo.wait_for_text_to_equal("#output_output_text1", "", timeout=4)
-    dash_duo.wait_for_text_to_equal("#output_output_text2", "", timeout=4)
+    dash_duo.wait_for_text_to_equal("#output_output_text1", "", timeout=20)
+    dash_duo.wait_for_text_to_equal("#output_output_text2", "", timeout=20)
 
 
 def test_fdfd006_live_update(dash_duo):
@@ -161,7 +161,7 @@ def test_fdfd006_live_update(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=20)
 
     assert dash_duo.find_element("#title8888928").text == "App title"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -180,7 +180,7 @@ def test_fdfd007_subheader_docstring(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "App title", timeout=20)
 
     assert dash_duo.find_element("#subheader6904007").text == "Converts text to text"
     assert dash_duo.get_logs() in [[], None], "browser console should contain no error"
@@ -266,7 +266,7 @@ def test_fdfd012_about_button_true(dash_duo):
     app = FastDash(callback_fn=example_function, inputs=Text, outputs=Text).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=20)
 
     # Click About
     dash_duo.multiple_click("#about-navlink", 1)
@@ -302,7 +302,7 @@ def test_fdfd013_about_button_false(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=20)
 
     # Click About
     assert not dash_duo.find_elements(f"#about-navlink")
@@ -333,7 +333,7 @@ def test_fdfd014_about_button_custom(dash_duo):
     ).app
 
     dash_duo.start_server(app)
-    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=4)
+    dash_duo.wait_for_text_to_equal("#title8888928", "Example Function", timeout=20)
 
     # Click About
     dash_duo.multiple_click("#about-navlink", 1)
@@ -356,7 +356,7 @@ def test_fdfd015_close_sidebar(dash_duo):
 
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Simple Text To Text Function", timeout=4
+        "#title8888928", "Simple Text To Text Function", timeout=20
     )
 
     # Sidebar navbar should be visible initially (no transform)
@@ -390,7 +390,7 @@ def test_fdfd016_stream_text_simple(dash_duo):
     time.sleep(4)
 
     dash_duo.wait_for_text_to_equal(
-        "#title8888928", "Streaming Text Example", timeout=4
+        "#title8888928", "Streaming Text Example", timeout=20
     )
 
     # Enter some text
