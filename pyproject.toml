@@ -33,7 +33,7 @@ packages = [
 
 dependencies = [
     "dash>=2.11.0",
-    "pandas>=1.0.0",
+    "pandas>=2.3.3",
     "dash-bootstrap-components>=2.0.0",
     "dash-mantine-components>=1.0.0",
     "dash-iconify>=0.1.2",
