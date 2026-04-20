@@ -923,77 +923,85 @@ class FastDash:
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
     def _set_multi_layout(self):
-        """Build a tabbed layout for multi-function mode."""
-        from dash_iconify import DashIconify as _DashIconify
-        from dash import dcc as _dcc
+        """Build a tabbed layout for multi-function mode using AppLayout.
 
-        tabs = []
+        Reuses ``AppLayout`` for the surrounding chrome (header, theme,
+        sidebar shell, dark-mode toggle, About modal, footer). Each tab
+        gets its own input panel (rendered in the navbar) and its own
+        output panel (rendered in the main pane). A ``dmc.Tabs`` strip
+        sits at the top of the main pane and drives a callback that
+        toggles the visibility of the per-tab panels.
+        """
+        from .Components import AppLayout
+
         all_streaming_components = ["notification-container"]
+        tab_titles_resolved = []
 
+        # Build per-tab input panels (one Div per tab; only the active
+        # one is shown).
+        per_tab_input_panels = []
         for idx, fd in enumerate(self.func_data):
             prefix = fd["prefix"]
-            input_groups = _make_input_groups(fd["inputs_with_ids"], fd["update_live"], prefix=prefix)
-            output_groups = _make_output_groups(fd["outputs_with_ids"], fd["update_live"], prefix=prefix)
+            input_groups = _make_input_groups(
+                fd["inputs_with_ids"], fd["update_live"], prefix=prefix
+            )
 
-            # Tab title and subtitle from function
             if self.tab_titles and idx < len(self.tab_titles):
                 tab_title = self.tab_titles[idx]
             else:
                 tab_title = re.sub("[^0-9a-zA-Z]+", " ", fd["fn"].__name__).title()
+            tab_titles_resolved.append(tab_title)
 
-            fn_subtitle = _parse_docstring_as_markdown(
-                fd["fn"], title=tab_title, get_short=True
+            per_tab_input_panels.append(
+                dash_html.Div(
+                    [dmc.Stack(children=input_groups, gap="lg")],
+                    id=f"{prefix}input-panel",
+                    style={"display": "block" if idx == 0 else "none"},
+                )
             )
 
-            # Per-tab header (title + subtitle)
-            tab_header_children = [
-                dbc.Row(
-                    dash_html.H2(tab_title, style={"textAlign": "center"}),
-                    style={"padding": "1% 0% 0% 0%"},
-                ),
-            ]
+        sidebar_payload = dmc.ScrollArea(
+            dmc.Stack(per_tab_input_panels, gap="md", id="multi-input-wrapper"),
+            style={"height": "100%"},
+            id="input-group-wrapper",
+        )
+
+        # Build per-tab output panels (one Div per tab; only the active
+        # one is shown). Each panel includes its own loading overlay so
+        # the per-function callbacks can target it by prefix.
+        per_tab_output_panels = []
+        for idx, fd in enumerate(self.func_data):
+            prefix = fd["prefix"]
+            output_groups = _make_output_groups(
+                fd["outputs_with_ids"], fd["update_live"], prefix=prefix
+            )
+
+            fn_subtitle = _parse_docstring_as_markdown(
+                fd["fn"], title=tab_titles_resolved[idx], get_short=True
+            )
+
+            panel_children = []
             if fn_subtitle:
-                tab_header_children.append(
-                    dbc.Row(
-                        dash_html.H5(fn_subtitle, style={"textAlign": "center", "color": "#666"}),
-                        style={"padding": "0% 0% 1% 0%"},
-                    )
+                panel_children.append(
+                    dmc.Text(fn_subtitle, size="sm", c="dimmed",
+                              style={"paddingBottom": "12px"})
                 )
+            panel_children.append(
+                dmc.LoadingOverlay(
+                    id=f"{prefix}loading-overlay",
+                    loaderProps=dict(type=self.loader) if self.loader else {},
+                )
+            )
+            panel_children.append(dash_html.Div(output_groups))
 
-            tab_header = dbc.Container(tab_header_children)
+            per_tab_output_panels.append(
+                dash_html.Div(
+                    panel_children,
+                    id=f"{prefix}output-panel",
+                    style={"display": "block" if idx == 0 else "none"},
+                )
+            )
 
-            # Build sidebar-style content for this tab
-            tab_content = dbc.Row([
-                dbc.Col(
-                    children=[dmc.Stack(children=input_groups)],
-                    id=f"{prefix}input-group",
-                    xs=12, md=2,
-                    style={
-                        "background-color": "#F5F7F7",
-                        "display": "block",
-                        "padding": "2% 20px 0 20px",
-                        "height": f"{self.scale_height * 80}vh",
-                    },
-                    class_name="border border-right",
-                ),
-                dbc.Col([
-                    tab_header,
-                    dmc.LoadingOverlay(
-                        id=f"{prefix}loading-overlay",
-                        loaderProps=dict(type=self.loader) if self.loader else {},
-                    ),
-                    dash_html.Div(id=f"{prefix}dummy-div", style={"display": "none"}),
-                    dbc.Col(
-                        output_groups,
-                        class_name="g-1 d-flex flex-fill flex-column",
-                        style={"height": f"{self.scale_height * 65}vh"},
-                    ),
-                ], style={"padding": "1% 2% 0 2%"}),
-            ], class_name="d-flex")
-
-            tabs.append(dbc.Tab(tab_content, label=tab_title, tab_id=f"tab-{idx}"))
-
-            # Collect streaming components
             for c in fd["outputs_with_ids"]:
                 if getattr(c, "stream", False):
                     all_streaming_components.append(c.id)
@@ -1001,81 +1009,60 @@ class FastDash:
                         for i in range(getattr(c, "stream_limit", 10)):
                             all_streaming_components.append(f"{c.id}_{i + 1}_response")
 
-        tabs_component = dbc.Tabs(tabs, id="multi-function-tabs", active_tab="tab-0")
+        # Tabs strip across the top of the main pane.
+        tabs_strip = dmc.Tabs(
+            [
+                dmc.TabsList(
+                    [
+                        dmc.TabsTab(t, value=f"tab-{i}")
+                        for i, t in enumerate(tab_titles_resolved)
+                    ]
+                )
+            ],
+            value="tab-0",
+            id="multi-function-tabs",
+            style={"marginBottom": "16px"},
+        )
 
-        # Build navbar
-        navbar_components = []
-        if self.about:
-            navbar_components.append(
-                dbc.NavLink("About", id="about-navlink",
-                            style={"cursor": "pointer", "color": "white"})
-            )
+        main_payload = dash_html.Div(
+            [
+                tabs_strip,
+                dash_html.Div(per_tab_output_panels, id="multi-output-wrapper"),
+            ]
+        )
 
-        social_links = []
-        if self.github_url:
-            social_links.append(
-                dbc.NavLink(dash_html.I(className="fab fa-github fa-lg"),
-                            href=self.github_url, target="_blank")
-            )
-        if self.linkedin_url:
-            social_links.append(
-                dbc.NavLink(dash_html.I(className="fab fa-linkedin fa-lg"),
-                            href=self.linkedin_url, target="_blank")
-            )
-        if self.twitter_url:
-            social_links.append(
-                dbc.NavLink(dash_html.I(className="fab fa-twitter fa-lg"),
-                            href=self.twitter_url, target="_blank")
-            )
-        navbar_components.extend(social_links)
+        # Subclass AppLayout to inject our pre-built sidebar / main content.
+        class _MultiLayout(AppLayout):
+            def generate_input_component(self_inner):
+                return sidebar_payload
 
-        app_navbar = dbc.NavbarSimple(
-            children=navbar_components,
-            brand=self.title or "",
-            color="primary",
-            dark=True,
-            fluid=True,
-            expand=True,
-            style={"padding": "0 0 0 0"},
-        ) if self.navbar and not self.minimal else dash_html.Div()
+            def generate_output_component(self_inner):
+                return main_payload
 
-        # About modal
-        about_modal = dbc.Modal(
-            id="about-modal", is_open=False, size="lg",
-        ) if self.about else dash_html.Div(id="about-modal", style={"display": "none"})
-
-        # Footer (rocket icon)
-        if self.branding and self.footer and not self.minimal:
-            footer = dmc.Affix(
-                dmc.Tooltip(
-                    label="Made with Fast Dash!",
-                    position="top",
-                    withArrow=True,
-                    transitionProps={"duration": 300},
-                    children=_dcc.Link(
-                        dmc.Button(
-                            _DashIconify(icon="ion:rocket-sharp", width=20), radius=500
-                        ),
-                        href="https://github.com/dkedar7/fast_dash",
-                        target="_blank",
-                    ),
-                ),
-                position={"bottom": "20px", "right": "20px"},
-            )
-        else:
-            footer = dash_html.Div()
-
-        self.app.layout = dmc.MantineProvider([
-            dmc.NotificationContainer(id="notification-container", position="bottom-right"),
-            dash_html.Div(id="dummy-div", style={"display": "none"}),
-            dbc.Container([
-                dbc.Row([app_navbar], style={"padding": "0 0 0 0"}),
-                about_modal,
-                tabs_component,
-                footer,
-                DashSocketIO(id="socketio", eventNames=all_streaming_components) if self.stream else dash_html.Div(id="socketio", style={"display": "none"}),
-            ], fluid=True, style={"height": "100vh", "width": "100%"}),
-        ])
+        layout_args = {
+            "mosaic": "A",
+            "inputs": [],
+            "outputs": [per_tab_output_panels[0]],
+            "title": self.title,
+            "title_image_path": self.title_image_path,
+            "subtitle": self.subtitle,
+            "github_url": self.github_url,
+            "linkedin_url": self.linkedin_url,
+            "twitter_url": self.twitter_url,
+            "navbar": self.navbar,
+            "footer": self.footer,
+            "loader": self.loader,
+            "branding": self.branding,
+            "about": self.about,
+            "minimal": self.minimal,
+            "scale_height": self.scale_height,
+            "theme": self.theme,
+            "app": self,
+        }
+        self.layout_object = _MultiLayout(**layout_args)
+        self.app.layout = self.layout_object.generate_layout(
+            stream_event_names=all_streaming_components,
+        )
 
     def register_callback_fn(self):
         if self.is_multi:
@@ -1307,27 +1294,83 @@ class FastDash:
         for idx, fd in enumerate(self.func_data):
             self._register_fn_callback(idx, fd)
 
-        # About modal callback
+        # Tab switcher: toggle visibility of per-tab input/output panels.
+        n_tabs = len(self.func_data)
+        prefixes = [fd["prefix"] for fd in self.func_data]
+
+        @self.app.callback(
+            [Output(f"{p}input-panel", "style") for p in prefixes]
+            + [Output(f"{p}output-panel", "style") for p in prefixes],
+            Input("multi-function-tabs", "value"),
+        )
+        def _switch_tabs(active):
+            try:
+                active_idx = int(str(active).replace("tab-", ""))
+            except (TypeError, ValueError):
+                active_idx = 0
+            input_styles = [
+                {"display": "block" if i == active_idx else "none"}
+                for i in range(n_tabs)
+            ]
+            output_styles = list(input_styles)
+            return input_styles + output_styles
+
+        # Layout chrome callbacks (sidebar burger, dark mode). The About
+        # modal callback inside AppLayout.callbacks() is unsafe in multi
+        # mode because it expects a single callback_fn, so we register
+        # only the chrome bits and supply our own About callback below.
+        if not self.minimal:
+            self._register_multi_chrome_callbacks()
+
+        # About modal callback (combined docstrings across all functions).
         if self.about and not self.minimal:
             @self.app.callback(
-                Output("about-modal", "is_open"),
+                Output("about-modal", "opened"),
                 Output("about-modal", "children"),
                 Input("about-navlink", "n_clicks"),
-                State("about-modal", "is_open"),
+                State("about-modal", "opened"),
                 prevent_initial_call=True,
             )
-            def toggle_about(n_clicks, is_open):
+            def toggle_about(n_clicks, opened):
                 if n_clicks:
+                    from dash import dcc
                     sections = []
                     for fd_ in self.func_data:
                         fn = fd_["fn"]
                         fn_title = re.sub("[^0-9a-zA-Z]+", " ", fn.__name__).title()
                         about_text = _parse_docstring_as_markdown(fn, title=fn_title)
-                        from dash import dcc
                         sections.append(dcc.Markdown(about_text))
                         sections.append(dash_html.Hr())
-                    return not is_open, dash_html.Div(sections[:-1])  # Remove trailing Hr
+                    return not opened, dash_html.Div(sections[:-1])
                 raise PreventUpdate
+
+    def _register_multi_chrome_callbacks(self):
+        """Wire dark-mode toggle + sidebar burger for multi-function mode.
+
+        Mirrors the relevant bits of ``AppLayout.callbacks`` but skips the
+        single-function About modal handler (we register our own).
+        """
+        self.app.clientside_callback(
+            """
+            function(checked) {
+                return checked ? "dark" : "light";
+            }
+            """,
+            Output("mantine-provider", "forceColorScheme"),
+            Input("theme-toggle", "checked"),
+        )
+
+        @self.app.callback(
+            Output("appshell", "navbar"),
+            Input("sidebar-button", "opened"),
+        )
+        def _toggle_sidebar(opened):
+            collapsed = {"mobile": not opened, "desktop": not opened}
+            return {
+                "width": 300,
+                "breakpoint": "sm",
+                "collapsed": collapsed,
+            }
 
     def _register_fn_callback(self, idx, fd):
         """Register callbacks for a single function in multi-function mode."""
