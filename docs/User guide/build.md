@@ -234,6 +234,9 @@ def yourFunction(...):
     ...
 ```
 
+!!! note "Current limitation"
+    The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`). Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables).
+
 ##### 8. Update Live
 
 By default, Fast Dash apps update lazily. That means once the user enters inputs, the outputs update only after they click `Submit`. But on setting the `update_live` argument to `True`, the `Submit` and `Reset` buttons disappear, and the outputs update instantaneously. This feature is also popularly known as hot reloading.

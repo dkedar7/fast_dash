@@ -274,7 +274,7 @@ The full list lives in the [docs](https://docs.fastdash.app).
 
 - **Output labels are inferred from the `return` line of your source.** If the source can't be retrieved (REPL, `exec`, frozen environments), Fast Dash falls back to generic `OUTPUT_1`, `OUTPUT_2` labels rather than crashing. Pass `output_labels=[...]` explicitly to control them.
 - **Reusing component instances across inputs and outputs** can mutate shared attributes. Construct fresh components per slot (or use `inputs=Text` rather than `inputs=text_instance`).
-- **The `theme` arg expects a Bootswatch name**, not a CSS URL. Theme drives both the Bootstrap stylesheet and the dark/light mode (Bootswatch's dark themes — `CYBORG`, `DARKLY`, `SLATE`, etc. — auto-enable dark mode).
+- **The `theme` arg expects a Bootswatch name**, not a CSS URL. The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`). Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables).
 
 ## Development
 
