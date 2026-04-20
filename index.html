@@ -310,6 +310,19 @@
     Type hint → component reference
   </a>
   
+    <nav class="md-nav" aria-label="Type hint → component reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-components" class="md-nav__link">
+    Built-in components
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -726,6 +739,19 @@
     Type hint → component reference
   </a>
   
+    <nav class="md-nav" aria-label="Type hint → component reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#built-in-components" class="md-nav__link">
+    Built-in components
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -823,6 +849,7 @@
 <li><strong>Documentation</strong>: <a href="https://docs.fastdash.app/..">docs.fastdash.app</a></li>
 <li><strong>Source</strong>: <a href="https://github.com/dkedar7/fast_dash">github.com/dkedar7/fast_dash</a></li>
 <li><strong>Install</strong>: <code>pip install fast-dash</code></li>
+<li><strong>Claude Code users</strong>: <code>/plugin marketplace add dkedar7/fast_dash</code> then <code>/plugin install fast-dash@fast-dash</code> to load the Fast Dash skill — agents will pick it up automatically when you ask them to "turn this function into a web app".</li>
 </ul>
 <hr />
 <h2 id="what-is-fast-dash">What is Fast Dash?</h2>
@@ -947,6 +974,10 @@
 <td>Image</td>
 </tr>
 <tr>
+<td><code>plotly.graph_objects.Figure</code> (or string-form <code>"go.Figure"</code>, <code>"Figure"</code>)</td>
+<td>Plotly chart</td>
+</tr>
+<tr>
 <td>Tuple of types</td>
 <td>Multiple outputs (one component each)</td>
 </tr>
@@ -956,7 +987,6 @@
 </tr>
 </tbody>
 </table>
-<p>For <strong>Plotly figures</strong>, annotate the return as <code>Graph</code> rather than <code>plotly.graph_objects.Figure</code> — the latter is not auto-detected:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Graph</span>
 
 <span class="nd">@fastdash</span>
@@ -965,6 +995,69 @@
     <span class="k">return</span> <span class="n">px</span><span class="o">.</span><span class="n">scatter</span><span class="p">(</span><span class="n">px</span><span class="o">.</span><span class="n">data</span><span class="o">.</span><span class="n">iris</span><span class="p">()</span><span class="o">.</span><span class="n">head</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span> <span class="n">x</span><span class="o">=</span><span class="s2">&quot;sepal_width&quot;</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="s2">&quot;sepal_length&quot;</span><span class="p">)</span>
 </code></pre></div>
 <p>Unknown hints fall back to text. Source-introspection failures (REPL, <code>exec</code>) fall back to generic <code>OUTPUT_1</code>, <code>OUTPUT_2</code> labels — the app still works.</p>
+<h3 id="built-in-components">Built-in components</h3>
+<p>The package exports ready-to-use Fast Dash components you can pass directly as <code>inputs=</code> or <code>outputs=</code>:</p>
+<table>
+<thead>
+<tr>
+<th>Component</th>
+<th>Use as</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>Text</code>, <code>TextArea</code>, <code>PasswordInput</code></td>
+<td>input or output</td>
+<td>Single-line, multi-line, masked text</td>
+</tr>
+<tr>
+<td><code>NumberInput</code>, <code>Slider</code></td>
+<td>input</td>
+<td>Numeric with optional bounds</td>
+</tr>
+<tr>
+<td><code>Switch</code></td>
+<td>input</td>
+<td>Toggle (True / False)</td>
+</tr>
+<tr>
+<td><code>MultiSelect</code></td>
+<td>input</td>
+<td>Multi-select dropdown</td>
+</tr>
+<tr>
+<td><code>DateInput</code>, <code>DateRange</code></td>
+<td>input</td>
+<td>Single date / date range picker</td>
+</tr>
+<tr>
+<td><code>ColorInput</code></td>
+<td>input</td>
+<td>Color picker, returns hex</td>
+</tr>
+<tr>
+<td><code>Upload</code>, <code>UploadImage</code></td>
+<td>input</td>
+<td>File / image upload</td>
+</tr>
+<tr>
+<td><code>Graph</code>, <code>Image</code>, <code>Table</code>, <code>Markdown</code></td>
+<td>output</td>
+<td>Plotly chart, image, DataFrame table, rendered Markdown</td>
+</tr>
+<tr>
+<td><code>Chat</code></td>
+<td>output</td>
+<td>Streaming chat history (with <code>stream=True</code>)</td>
+</tr>
+<tr>
+<td><code>Download</code></td>
+<td>output</td>
+<td>Triggers a browser download</td>
+</tr>
+</tbody>
+</table>
 <h2 id="common-patterns">Common patterns</h2>
 <p><strong>Multiple inputs and outputs</strong></p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
@@ -999,6 +1092,25 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">my_app</span><span class="p">(</span><span class="n">x</span><span class="p">:</span> <span class="n">custom_slider</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
     <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;You picked </span><span class="si">{</span><span class="n">x</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
+<p><strong>Cascading inputs</strong> with <code>depends_on</code> — wire one input's options to another input's value:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">depends_on</span>
+
+<span class="n">countries</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;USA&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;California&quot;</span><span class="p">,</span> <span class="s2">&quot;Texas&quot;</span><span class="p">,</span> <span class="s2">&quot;New York&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;India&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Maharashtra&quot;</span><span class="p">,</span> <span class="s2">&quot;Karnataka&quot;</span><span class="p">,</span> <span class="s2">&quot;Delhi&quot;</span><span class="p">],</span>
+<span class="p">}</span>
+
+<span class="nd">@fastdash</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">pick_state</span><span class="p">(</span>
+    <span class="n">country</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">countries</span><span class="p">),</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">depends_on</span><span class="p">(</span><span class="s2">&quot;country&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">countries</span><span class="p">[</span><span class="n">c</span><span class="p">]),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">country</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div>
+<p>The resolver receives the parent input's current value. Return:
+- a <strong>list</strong> to set the dependent dropdown's options (and clear its value),
+- a <strong>dict</strong> like <code>{"data": [...], "value": ...}</code> to set both, or
+- a <strong>scalar</strong> to set just the value.</p>
 <p><strong>Skip the decorator</strong> when you want more control over the lifecycle:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
 
@@ -1020,6 +1132,25 @@
 <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
 <p>Each function gets its own tab with independent inputs, outputs, and callbacks. <code>tab_titles</code> is optional — without it, tabs are named after the functions.</p>
+<p><strong>Multi-step pipelines</strong> with <code>steps=</code> — chain functions into a wizard, threading outputs forward via <code>from_step</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span><span class="p">,</span> <span class="n">from_step</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_data</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a sample dataset.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">)]})</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">double</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">from_step</span><span class="p">(</span><span class="n">load_data</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Double every value.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">data</span> <span class="o">*</span> <span class="mi">2</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">summarise</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">from_step</span><span class="p">(</span><span class="n">double</span><span class="p">),</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Result:&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-line summary.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows, sum=</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="n">FastDash</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">load_data</span><span class="p">,</span> <span class="n">double</span><span class="p">,</span> <span class="n">summarise</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Pipeline Demo&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p>Each step is shown one at a time with a stepper progress indicator. Click <strong>Run</strong> to execute the active step, then <strong>Next</strong> to advance. Use <code>from_step(prev_fn)</code> as a parameter default to wire an upstream output into a downstream input. Steps without <code>from_step</code> parameters can mix in regular UI inputs (like <code>prefix</code> above).</p>
 <h2 id="decorator-options">Decorator options</h2>
 <p>Most apps need none of these — defaults are sensible. Pass any of them as kwargs to <code>@fastdash(...)</code> or <code>FastDash(...)</code>.</p>
 <table>
@@ -1093,7 +1224,7 @@
 <ul>
 <li><strong>Output labels are inferred from the <code>return</code> line of your source.</strong> If the source can't be retrieved (REPL, <code>exec</code>, frozen environments), Fast Dash falls back to generic <code>OUTPUT_1</code>, <code>OUTPUT_2</code> labels rather than crashing. Pass <code>output_labels=[...]</code> explicitly to control them.</li>
 <li><strong>Reusing component instances across inputs and outputs</strong> can mutate shared attributes. Construct fresh components per slot (or use <code>inputs=Text</code> rather than <code>inputs=text_instance</code>).</li>
-<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. Theme drives both the Bootstrap stylesheet and the dark/light mode (Bootswatch's dark themes — <code>CYBORG</code>, <code>DARKLY</code>, <code>SLATE</code>, etc. — auto-enable dark mode).</li>
+<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (<code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>). Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables).</li>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/dkedar7/fast_dash.git

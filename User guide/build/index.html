@@ -1139,6 +1139,10 @@
 </span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
     <span class="o">...</span>
 </code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Current limitation</p>
+<p>The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (<code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>). Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables).</p>
+</div>
 <h5 id="8-update-live">8. Update Live</h5>
 <p>By default, Fast Dash apps update lazily. That means once the user enters inputs, the outputs update only after they click <code>Submit</code>. But on setting the <code>update_live</code> argument to <code>True</code>, the <code>Submit</code> and <code>Reset</code> buttons disappear, and the outputs update instantaneously. This feature is also popularly known as hot reloading.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">update_live</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>

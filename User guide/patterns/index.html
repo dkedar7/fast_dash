@@ -414,8 +414,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-selecting-other-configurations" class="md-nav__link">
-    5. Selecting other configurations
+  <a href="#5-reactive-inputs-with-depends_on" class="md-nav__link">
+    5. Reactive inputs with depends_on
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-multi-step-pipelines" class="md-nav__link">
+    6. Multi-step pipelines
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Multi-step pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wiring-upstream-outputs-into-downstream-inputs" class="md-nav__link">
+    Wiring upstream outputs into downstream inputs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#navigation-and-state" class="md-nav__link">
+    Navigation and state
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limits" class="md-nav__link">
+    Limits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-selecting-other-configurations" class="md-nav__link">
+    7. Selecting other configurations
   </a>
   
 </li>
@@ -718,8 +759,49 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#5-selecting-other-configurations" class="md-nav__link">
-    5. Selecting other configurations
+  <a href="#5-reactive-inputs-with-depends_on" class="md-nav__link">
+    5. Reactive inputs with depends_on
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#6-multi-step-pipelines" class="md-nav__link">
+    6. Multi-step pipelines
+  </a>
+  
+    <nav class="md-nav" aria-label="6. Multi-step pipelines">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#wiring-upstream-outputs-into-downstream-inputs" class="md-nav__link">
+    Wiring upstream outputs into downstream inputs
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#navigation-and-state" class="md-nav__link">
+    Navigation and state
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#limits" class="md-nav__link">
+    Limits
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#7-selecting-other-configurations" class="md-nav__link">
+    7. Selecting other configurations
   </a>
   
 </li>
@@ -884,6 +966,18 @@ you, the innovator, write as less UI development code as possible. </p>
 <td><code>Optional[T]</code></td>
 <td>Any <code>T</code></td>
 <td><code>def ping(text: Optional[str])</code></td>
+</tr>
+<tr>
+<td><b>Reactive inputs<b></td>
+<td></td>
+<td></td>
+<td></td>
+</tr>
+<tr>
+<td>Cascading dropdown</td>
+<td>Use <code>depends_on(parent, resolver)</code> as the default</td>
+<td>The parent input's name and a resolver that returns options</td>
+<td><code>def pick(country: str = ["USA"], state: str = depends_on("country", lambda c: states[c]))</code></td>
 </tr>
 </tbody>
 </table>
@@ -1072,7 +1166,97 @@ Here's what we want:</p>
 <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div></td></tr></table></div>
 <p><code>tab_titles</code> is optional — without it, tabs are named after the functions (converted from <code>snake_case</code> to Title Case). The navbar, about modal, and streaming notifications are shared across all tabs; component IDs are namespaced per tab so they don't collide.</p>
-<h2 id="5-selecting-other-configurations">5. Selecting other configurations</h2>
+<h2 id="5-reactive-inputs-with-depends_on">5. Reactive inputs with <code>depends_on</code></h2>
+<p>When one input's options should depend on another input's value (cascading dropdowns, dynamic ranges, prefilled values), use <code>depends_on</code> as the dependent parameter's default:</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">depends_on</span>
+
+<span class="n">countries</span> <span class="o">=</span> <span class="p">{</span>
+    <span class="s2">&quot;USA&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;California&quot;</span><span class="p">,</span> <span class="s2">&quot;Texas&quot;</span><span class="p">,</span> <span class="s2">&quot;New York&quot;</span><span class="p">],</span>
+    <span class="s2">&quot;India&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;Maharashtra&quot;</span><span class="p">,</span> <span class="s2">&quot;Karnataka&quot;</span><span class="p">,</span> <span class="s2">&quot;Delhi&quot;</span><span class="p">],</span>
+<span class="p">}</span>
+
+<span class="nd">@fastdash</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">pick_state</span><span class="p">(</span>
+    <span class="n">country</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">countries</span><span class="p">),</span>
+    <span class="n">state</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="n">depends_on</span><span class="p">(</span><span class="s2">&quot;country&quot;</span><span class="p">,</span> <span class="k">lambda</span> <span class="n">c</span><span class="p">:</span> <span class="n">countries</span><span class="p">[</span><span class="n">c</span><span class="p">]),</span>
+<span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">country</span><span class="si">}</span><span class="s2">&quot;</span>
+</code></pre></div></td></tr></table></div>
+<p>The first argument to <code>depends_on</code> is the <strong>parameter name</strong> of the parent input. The second is a <strong>resolver</strong> function that receives the parent's current value and returns one of:</p>
+<ul>
+<li>a <strong>list</strong> — sets the dependent dropdown's options and clears its value;</li>
+<li>a <strong>dict</strong> like <code>{"data": [...], "value": ...}</code> — sets either or both;</li>
+<li>a <strong>scalar</strong> — sets just the dependent's value (e.g. derived numbers, prefilled text).</li>
+</ul>
+<p>If the resolver raises an exception, no update fires. Chains work: <code>A → B → C</code> is just two <code>depends_on</code> declarations.</p>
+<h2 id="6-multi-step-pipelines">6. Multi-step pipelines</h2>
+<p>When your workflow naturally splits into stages — load data → transform → visualize — turn the whole pipeline into a single app with <code>steps=</code>:</p>
+<div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 1</span>
+<span class="normal"> 2</span>
+<span class="normal"> 3</span>
+<span class="normal"> 4</span>
+<span class="normal"> 5</span>
+<span class="normal"> 6</span>
+<span class="normal"> 7</span>
+<span class="normal"> 8</span>
+<span class="normal"> 9</span>
+<span class="normal">10</span>
+<span class="normal">11</span>
+<span class="normal">12</span>
+<span class="normal">13</span>
+<span class="normal">14</span>
+<span class="normal">15</span>
+<span class="normal">16</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span><span class="p">,</span> <span class="n">from_step</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">pandas</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">pd</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">load_data</span><span class="p">(</span><span class="n">rows</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load a sample dataset.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">({</span><span class="s2">&quot;x&quot;</span><span class="p">:</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">),</span> <span class="s2">&quot;y&quot;</span><span class="p">:</span> <span class="p">[</span><span class="n">i</span> <span class="o">*</span> <span class="mi">2</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">rows</span><span class="p">)]})</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">double</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">from_step</span><span class="p">(</span><span class="n">load_data</span><span class="p">))</span> <span class="o">-&gt;</span> <span class="n">pd</span><span class="o">.</span><span class="n">DataFrame</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Double every value.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">data</span> <span class="o">*</span> <span class="mi">2</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">summarise</span><span class="p">(</span><span class="n">data</span><span class="o">=</span><span class="n">from_step</span><span class="p">(</span><span class="n">double</span><span class="p">),</span> <span class="n">prefix</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Result:&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;One-line summary.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">prefix</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="nb">len</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="si">}</span><span class="s2"> rows, sum=</span><span class="si">{</span><span class="n">data</span><span class="o">.</span><span class="n">values</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="n">FastDash</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">load_data</span><span class="p">,</span> <span class="n">double</span><span class="p">,</span> <span class="n">summarise</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Pipeline Demo&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div></td></tr></table></div>
+<p>Each step is rendered as a dedicated panel with its own inputs and outputs. A stepper progress indicator at the top of the main area shows the current step. Click <strong>Run</strong> to execute the active step, then <strong>Next</strong> to advance.</p>
+<h3 id="wiring-upstream-outputs-into-downstream-inputs">Wiring upstream outputs into downstream inputs</h3>
+<p>Use <code>from_step(prev_fn)</code> as a parameter default to pull a previous step's return value into the current step's parameter:</p>
+<ul>
+<li>The framework caches each step's return value per browser session.</li>
+<li>When a downstream step runs, <code>from_step</code> parameters are filled in automatically — no UI is rendered for them.</li>
+<li>Mix <code>from_step</code> parameters with regular UI parameters freely (see <code>summarise</code>'s <code>prefix</code> above).</li>
+<li><code>from_step(prev_fn, transform=lambda x: ...)</code> applies a function to the cached value before passing it.</li>
+</ul>
+<h3 id="navigation-and-state">Navigation and state</h3>
+<ul>
+<li><strong>Back</strong> rewinds one step and clears all downstream cached results, so you can rerun a different branch of inputs.</li>
+<li><strong>Run</strong> executes the currently visible step. Until you click Run, the <strong>Next</strong> button is disabled.</li>
+<li>Trying to run a downstream step before its <code>from_step</code> source has been run produces a friendly error message instead of a traceback.</li>
+<li>State is keyed by a UUID stored in the browser's session storage, so opening the app in a new tab gives you a fresh pipeline.</li>
+</ul>
+<h3 id="limits">Limits</h3>
+<ul>
+<li>Linear pipelines only — no conditional branching in this release.</li>
+<li>The cache lives in the FastDash process; a server restart or a multi-worker deployment loses session state. Acceptable for prototyping.</li>
+</ul>
+<h2 id="7-selecting-other-configurations">7. Selecting other configurations</h2>
 <p>Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.</p>
 <p>In the <a href="../components/">next section</a>, we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.</p>
 
