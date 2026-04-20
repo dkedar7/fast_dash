@@ -62,21 +62,29 @@ body {
     background: transparent;
 }
 
-/* --- Table styling --- */
-table {
+/* --- Table styling (scoped to data tables, not Mantine calendars/pickers) --- */
+.dash-table-container table,
+.dash-spreadsheet table,
+.fast-dash-table table {
     border-collapse: collapse;
     width: 100%;
     font-size: 14px;
 }
 
-th:not(.CalendarDay),
-td:not(.CalendarDay) {
+.dash-table-container th,
+.dash-spreadsheet th,
+.fast-dash-table th,
+.dash-table-container td,
+.dash-spreadsheet td,
+.fast-dash-table td {
     padding: 10px 12px;
     text-align: left;
     border-bottom: 1px solid var(--mantine-color-default-border, #e9ecef);
 }
 
-th:not(.CalendarDay) {
+.dash-table-container th,
+.dash-spreadsheet th,
+.fast-dash-table th {
     font-weight: 600;
     font-size: 12px;
     text-transform: uppercase;
@@ -84,13 +92,21 @@ th:not(.CalendarDay) {
     color: var(--mantine-color-dimmed, #868e96);
 }
 
-th:first-child:not(.CalendarDay),
-td:first-child:not(.CalendarDay) {
+.dash-table-container th:first-child,
+.dash-spreadsheet th:first-child,
+.fast-dash-table th:first-child,
+.dash-table-container td:first-child,
+.dash-spreadsheet td:first-child,
+.fast-dash-table td:first-child {
     padding-left: 0;
 }
 
-th:last-child:not(.CalendarDay),
-td:last-child:not(.CalendarDay) {
+.dash-table-container th:last-child,
+.dash-spreadsheet th:last-child,
+.fast-dash-table th:last-child,
+.dash-table-container td:last-child,
+.dash-spreadsheet td:last-child,
+.fast-dash-table td:last-child {
     padding-right: 0;
 }
 
