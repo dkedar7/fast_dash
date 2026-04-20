@@ -48,6 +48,8 @@ Here are some examples:
 | Bounded number via type hint | `Annotated[int, range(min, max, step)]` | Any int/float | `def score(s: Annotated[int, range(0, 100)])` |
 | Dropdown via type hint | `Annotated[str, [list]]` | Any of the values | `def pick(c: Annotated[str, ["USA", "Canada"]])` |
 | Optional value | `Optional[T]` | Any `T` | `def ping(text: Optional[str])` |
+<b>Reactive inputs<b>
+| Cascading dropdown | Use `depends_on(parent, resolver)` as the default | The parent input's name and a resolver that returns options | `def pick(country: str = ["USA"], state: str = depends_on("country", lambda c: states[c]))` |
 
 
 ## 2. Setting output components
@@ -224,7 +226,81 @@ app.run()
 
 `tab_titles` is optional — without it, tabs are named after the functions (converted from `snake_case` to Title Case). The navbar, about modal, and streaming notifications are shared across all tabs; component IDs are namespaced per tab so they don't collide.
 
-## 5. Selecting other configurations
+## 5. Reactive inputs with `depends_on`
+
+When one input's options should depend on another input's value (cascading dropdowns, dynamic ranges, prefilled values), use `depends_on` as the dependent parameter's default:
+
+```py linenums="1"
+from fast_dash import fastdash, depends_on
+
+countries = {
+    "USA": ["California", "Texas", "New York"],
+    "India": ["Maharashtra", "Karnataka", "Delhi"],
+}
+
+@fastdash
+def pick_state(
+    country: str = list(countries),
+    state: str = depends_on("country", lambda c: countries[c]),
+) -> str:
+    return f"{state}, {country}"
+```
+
+The first argument to `depends_on` is the **parameter name** of the parent input. The second is a **resolver** function that receives the parent's current value and returns one of:
+
+- a **list** — sets the dependent dropdown's options and clears its value;
+- a **dict** like `{"data": [...], "value": ...}` — sets either or both;
+- a **scalar** — sets just the dependent's value (e.g. derived numbers, prefilled text).
+
+If the resolver raises an exception, no update fires. Chains work: `A → B → C` is just two `depends_on` declarations.
+
+## 6. Multi-step pipelines
+
+When your workflow naturally splits into stages — load data → transform → visualize — turn the whole pipeline into a single app with `steps=`:
+
+```py linenums="1"
+from fast_dash import FastDash, from_step
+import pandas as pd
+
+def load_data(rows: int = 100) -> pd.DataFrame:
+    """Load a sample dataset."""
+    return pd.DataFrame({"x": range(rows), "y": [i * 2 for i in range(rows)]})
+
+def double(data=from_step(load_data)) -> pd.DataFrame:
+    """Double every value."""
+    return data * 2
+
+def summarise(data=from_step(double), prefix: str = "Result:") -> str:
+    """One-line summary."""
+    return f"{prefix} {len(data)} rows, sum={data.values.sum()}"
+
+FastDash(steps=[load_data, double, summarise], title="Pipeline Demo").run()
+```
+
+Each step is rendered as a dedicated panel with its own inputs and outputs. A stepper progress indicator at the top of the main area shows the current step. Click **Run** to execute the active step, then **Next** to advance.
+
+### Wiring upstream outputs into downstream inputs
+
+Use `from_step(prev_fn)` as a parameter default to pull a previous step's return value into the current step's parameter:
+
+- The framework caches each step's return value per browser session.
+- When a downstream step runs, `from_step` parameters are filled in automatically — no UI is rendered for them.
+- Mix `from_step` parameters with regular UI parameters freely (see `summarise`'s `prefix` above).
+- `from_step(prev_fn, transform=lambda x: ...)` applies a function to the cached value before passing it.
+
+### Navigation and state
+
+- **Back** rewinds one step and clears all downstream cached results, so you can rerun a different branch of inputs.
+- **Run** executes the currently visible step. Until you click Run, the **Next** button is disabled.
+- Trying to run a downstream step before its `from_step` source has been run produces a friendly error message instead of a traceback.
+- State is keyed by a UUID stored in the browser's session storage, so opening the app in a new tab gives you a fresh pipeline.
+
+### Limits
+
+- Linear pipelines only — no conditional branching in this release.
+- The cache lives in the FastDash process; a server restart or a multi-worker deployment loses session state. Acceptable for prototyping.
+
+## 7. Selecting other configurations
 
 Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.
 

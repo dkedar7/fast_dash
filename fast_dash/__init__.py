@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.2.15"
+__version__ = "0.2.16"
 
 from fast_dash.Components import (
     Graph,
@@ -13,6 +13,11 @@ from fast_dash.Components import (
     NumberInput,
     DateInput,
     ColorInput,
+    MultiSelect,
+    DateRange,
+    Switch,
+    PasswordInput,
+    Markdown,
     Upload,
     UploadImage,
     acknowledge_image_component,
@@ -28,12 +33,14 @@ from fast_dash.Components import (
 import dash
 from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
-from fast_dash.utils import Fastify
+from fast_dash.utils import Fastify, depends_on, from_step
 
 __all__ = [
     "FastDash",
     "fastdash",
     "Fastify",
+    "depends_on",
+    "from_step",
     "Text",
     "TextArea",
     "Slider",
@@ -53,5 +60,10 @@ __all__ = [
     "NumberInput",
     "DateInput",
     "ColorInput",
+    "MultiSelect",
+    "DateRange",
+    "Switch",
+    "PasswordInput",
+    "Markdown",
     "Table"
 ]

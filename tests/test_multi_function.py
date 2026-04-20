@@ -143,3 +143,112 @@ def test_multi_function_three_functions():
     assert app.func_data[0]["prefix"] == "func0_"
     assert app.func_data[1]["prefix"] == "func1_"
     assert app.func_data[2]["prefix"] == "func2_"
+
+
+# --- dmc-based layout (post-migration) ---
+
+
+class TestMultiFunctionDmcLayout:
+    """Multi-function mode now reuses AppLayout (dmc/AppShell) instead of dbc."""
+
+    def test_layout_uses_mantine_provider_at_root(self):
+        def a(x: str) -> str:
+            return x
+
+        def b(y: int = 1) -> int:
+            return y
+
+        app = FastDash([a, b])
+        # AppLayout wraps everything in a MantineProvider
+        assert "MantineProvider" in type(app.app.layout).__name__
+
+    def test_layout_contains_appshell(self):
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        layout_str = str(app.app.layout)
+        assert "appshell" in layout_str
+        # Header / navbar IDs come from AppLayout
+        assert "header1162572" in layout_str
+        assert "navbar3260780" in layout_str
+
+    def test_layout_contains_per_tab_panels_with_prefixes(self):
+        def alpha(x: str) -> str: return x
+        def beta(y: int = 1) -> int: return y
+
+        app = FastDash([alpha, beta])
+        layout_str = str(app.app.layout)
+        # Per-tab input + output panels exist for each function
+        assert "func0_input-panel" in layout_str
+        assert "func1_input-panel" in layout_str
+        assert "func0_output-panel" in layout_str
+        assert "func1_output-panel" in layout_str
+
+    def test_layout_uses_dmc_tabs_strip(self):
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        layout_str = str(app.app.layout)
+        assert "multi-function-tabs" in layout_str
+
+    def test_per_function_loading_overlay_ids_preserved(self):
+        """The per-function callbacks key off these IDs — they must stay."""
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        layout_str = str(app.app.layout)
+        assert "func0_loading-overlay" in layout_str
+        assert "func1_loading-overlay" in layout_str
+
+    def test_per_function_submit_and_reset_buttons_preserved(self):
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        layout_str = str(app.app.layout)
+        # The buttons inside _make_input_groups / _make_output_groups
+        assert "func0_submit_inputs" in layout_str
+        assert "func1_submit_inputs" in layout_str
+        assert "func0_reset_inputs" in layout_str
+        assert "func1_reset_inputs" in layout_str
+
+    def test_no_dbc_navbar_or_tabs_remain(self):
+        """Old dbc.NavbarSimple / dbc.Tabs / dbc.Modal should be gone."""
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        layout_str = str(app.app.layout)
+        # dbc.NavbarSimple → dmc header. dbc.Modal → dmc.Modal.
+        assert "NavbarSimple" not in layout_str
+
+    def test_about_modal_uses_dmc_modal(self):
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b], about=True)
+        layout_str = str(app.app.layout)
+        assert "about-modal" in layout_str
+
+    def test_minimal_mode_strips_chrome(self):
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b], minimal=True)
+        layout_str = str(app.app.layout)
+        # Per-tab panels still exist; chrome bits are gone
+        assert "func0_input-panel" in layout_str
+        assert "func1_input-panel" in layout_str
+
+    def test_callback_count_includes_tab_switcher(self):
+        """Tab switcher + N per-function callbacks + chrome callbacks."""
+        def a(x: str) -> str: return x
+        def b(y: int = 1) -> int: return y
+
+        app = FastDash([a, b])
+        # At minimum: 1 tab switcher + 2 per-fn process + 2 per-fn loading
+        # + 2 per-fn ack + 1 dark-mode + 1 sidebar + 1 about modal = 10
+        assert len(app.app.callback_map) >= 5

@@ -1,0 +1,15 @@
+{
+  "name": "fast-dash",
+  "owner": {
+    "name": "Kedar Dabhadkar",
+    "url": "https://github.com/dkedar7"
+  },
+  "description": "Fast Dash — turn any Python function into a web app with a single decorator.",
+  "plugins": [
+    {
+      "name": "fast-dash",
+      "source": "./plugins/fast-dash",
+      "description": "Build Fast Dash apps: type-hint inference, depends_on cascading inputs, multi-function tabs, multi-step pipelines."
+    }
+  ]
+}

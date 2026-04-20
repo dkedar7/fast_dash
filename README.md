@@ -30,6 +30,7 @@
 - **Documentation**: [docs.fastdash.app](https://docs.fastdash.app)
 - **Source**: [github.com/dkedar7/fast_dash](https://github.com/dkedar7/fast_dash)
 - **Install**: `pip install fast-dash`
+- **Claude Code users**: `/plugin marketplace add dkedar7/fast_dash` then `/plugin install fast-dash@fast-dash` to load the Fast Dash skill — agents will pick it up automatically when you ask them to "turn this function into a web app".
 
 ---
 
@@ -99,10 +100,9 @@ Outputs (return type → UI component):
 | `str`, `int`, `float`, etc. | Text (rendered as `<h1>`) |
 | `pd.DataFrame` | Table |
 | `PIL.Image.Image`, `matplotlib.figure.Figure` | Image |
+| `plotly.graph_objects.Figure` (or string-form `"go.Figure"`, `"Figure"`) | Plotly chart |
 | Tuple of types | Multiple outputs (one component each) |
 | Any Fast Dash component (`Graph`, `Image`, ...) | Used directly |
-
-For **Plotly figures**, annotate the return as `Graph` rather than `plotly.graph_objects.Figure` — the latter is not auto-detected:
 
 ```python
 from fast_dash import fastdash, Graph
@@ -114,6 +114,23 @@ def chart(rows: int = 100) -> Graph:
 ```
 
 Unknown hints fall back to text. Source-introspection failures (REPL, `exec`) fall back to generic `OUTPUT_1`, `OUTPUT_2` labels — the app still works.
+
+### Built-in components
+
+The package exports ready-to-use Fast Dash components you can pass directly as `inputs=` or `outputs=`:
+
+| Component | Use as | Notes |
+| --- | --- | --- |
+| `Text`, `TextArea`, `PasswordInput` | input or output | Single-line, multi-line, masked text |
+| `NumberInput`, `Slider` | input | Numeric with optional bounds |
+| `Switch` | input | Toggle (True / False) |
+| `MultiSelect` | input | Multi-select dropdown |
+| `DateInput`, `DateRange` | input | Single date / date range picker |
+| `ColorInput` | input | Color picker, returns hex |
+| `Upload`, `UploadImage` | input | File / image upload |
+| `Graph`, `Image`, `Table`, `Markdown` | output | Plotly chart, image, DataFrame table, rendered Markdown |
+| `Chat` | output | Streaming chat history (with `stream=True`) |
+| `Download` | output | Triggers a browser download |
 
 ## Common patterns
 
@@ -160,6 +177,29 @@ def my_app(x: custom_slider) -> str:
     return f"You picked {x}"
 ```
 
+**Cascading inputs** with `depends_on` — wire one input's options to another input's value:
+
+```python
+from fast_dash import fastdash, depends_on
+
+countries = {
+    "USA": ["California", "Texas", "New York"],
+    "India": ["Maharashtra", "Karnataka", "Delhi"],
+}
+
+@fastdash
+def pick_state(
+    country: str = list(countries),
+    state: str = depends_on("country", lambda c: countries[c]),
+) -> str:
+    return f"{state}, {country}"
+```
+
+The resolver receives the parent input's current value. Return:
+- a **list** to set the dependent dropdown's options (and clear its value),
+- a **dict** like `{"data": [...], "value": ...}` to set both, or
+- a **scalar** to set just the value.
+
 **Skip the decorator** when you want more control over the lifecycle:
 
 ```python
@@ -188,6 +228,29 @@ app.run()
 
 Each function gets its own tab with independent inputs, outputs, and callbacks. `tab_titles` is optional — without it, tabs are named after the functions.
 
+**Multi-step pipelines** with `steps=` — chain functions into a wizard, threading outputs forward via `from_step`:
+
+```python
+from fast_dash import FastDash, from_step
+import pandas as pd
+
+def load_data(rows: int = 100) -> pd.DataFrame:
+    """Load a sample dataset."""
+    return pd.DataFrame({"x": range(rows), "y": [i * 2 for i in range(rows)]})
+
+def double(data=from_step(load_data)) -> pd.DataFrame:
+    """Double every value."""
+    return data * 2
+
+def summarise(data=from_step(double), prefix: str = "Result:") -> str:
+    """One-line summary."""
+    return f"{prefix} {len(data)} rows, sum={data.values.sum()}"
+
+FastDash(steps=[load_data, double, summarise], title="Pipeline Demo").run()
+```
+
+Each step is shown one at a time with a stepper progress indicator. Click **Run** to execute the active step, then **Next** to advance. Use `from_step(prev_fn)` as a parameter default to wire an upstream output into a downstream input. Steps without `from_step` parameters can mix in regular UI inputs (like `prefix` above).
+
 ## Decorator options
 
 Most apps need none of these — defaults are sensible. Pass any of them as kwargs to `@fastdash(...)` or `FastDash(...)`.
@@ -212,7 +275,7 @@ The full list lives in the [docs](https://docs.fastdash.app).
 
 - **Output labels are inferred from the `return` line of your source.** If the source can't be retrieved (REPL, `exec`, frozen environments), Fast Dash falls back to generic `OUTPUT_1`, `OUTPUT_2` labels rather than crashing. Pass `output_labels=[...]` explicitly to control them.
 - **Reusing component instances across inputs and outputs** can mutate shared attributes. Construct fresh components per slot (or use `inputs=Text` rather than `inputs=text_instance`).
-- **The `theme` arg expects a Bootswatch name**, not a CSS URL. Theme drives both the Bootstrap stylesheet and the dark/light mode (Bootswatch's dark themes — `CYBORG`, `DARKLY`, `SLATE`, etc. — auto-enable dark mode).
+- **The `theme` arg expects a Bootswatch name**, not a CSS URL. The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`). Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables).
 
 ## Development
 
