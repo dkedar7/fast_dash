@@ -30,6 +30,7 @@
 - **Documentation**: [docs.fastdash.app](https://docs.fastdash.app)
 - **Source**: [github.com/dkedar7/fast_dash](https://github.com/dkedar7/fast_dash)
 - **Install**: `pip install fast-dash`
+- **Claude Code users**: `/plugin marketplace add dkedar7/fast_dash` then `/plugin install fast-dash@fast-dash` to load the Fast Dash skill — agents will pick it up automatically when you ask them to "turn this function into a web app".
 
 ---
 

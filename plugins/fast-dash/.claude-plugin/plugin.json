@@ -1,0 +1,13 @@
+{
+  "name": "fast-dash",
+  "version": "0.2.16",
+  "description": "Build Fast Dash apps: turn Python functions into web apps via type-hint inference. Supports cascading inputs (depends_on), multi-function tabs, and multi-step pipelines (steps=).",
+  "author": {
+    "name": "Kedar Dabhadkar",
+    "url": "https://github.com/dkedar7"
+  },
+  "homepage": "https://docs.fastdash.app",
+  "repository": "https://github.com/dkedar7/fast_dash",
+  "license": "MIT",
+  "keywords": ["dash", "plotly", "web-app", "decorator", "python", "ui"]
+}
