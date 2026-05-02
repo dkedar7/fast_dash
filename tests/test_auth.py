@@ -175,6 +175,29 @@ class TestAuthConfigValidation:
             assert app._auth_config is None
 
 
+# --- header logout button -----------------------------------------------
+
+
+class TestLogoutButton:
+    def test_logout_button_in_header_when_auth_enabled(self):
+        app = _make_app(auth={"alice": "wonderland"})
+        layout_str = str(app.app.layout)
+        assert "logout-button" in layout_str
+        assert "Sign out" in layout_str
+
+    def test_no_logout_button_when_auth_disabled(self):
+        app = _make_app()
+        layout_str = str(app.app.layout)
+        assert "logout-button" not in layout_str
+        assert "Sign out" not in layout_str
+
+    def test_logout_button_links_to_logout_route(self):
+        app = _make_app(auth={"alice": "wonderland"})
+        layout_str = str(app.app.layout)
+        # The button is wrapped in an <html.A href="/logout">.
+        assert "/logout" in layout_str
+
+
 # --- current_user inside a request --------------------------------------
 
 
