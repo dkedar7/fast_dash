@@ -127,6 +127,9 @@ class FastDash:
         run_kwargs=dict(),
         tab_titles=None,
         steps=None,
+        mcp_server=False,
+        mcp_port=8001,
+        mcp_host="127.0.0.1",
         **kwargs
     ):
         """
@@ -210,6 +213,10 @@ class FastDash:
         # Detect pipeline (steps) mode
         self.is_steps = steps is not None
         self.steps = steps
+        self.mcp_server_enabled = bool(mcp_server)
+        self.mcp_port = mcp_port
+        self.mcp_host = mcp_host
+        self._mcp_thread = None
 
         # callback_fn is required unless steps= is provided
         if callback_fn is None and not self.is_steps:
@@ -864,8 +871,34 @@ class FastDash:
             return styles + [back_disabled, next_disabled]
 
     def run(self):
+        if self.mcp_server_enabled:
+            self._start_mcp_server()
         self.app.run(**self.run_kwargs) if self.mode is None else self.app.run(
             jupyter_mode=self.mode, **self.run_kwargs
+        )
+
+    def _start_mcp_server(self):
+        """Launch an MCP server in a daemon thread alongside the Dash app.
+
+        Skipped silently in multi-function and steps modes — the MCP
+        single-tool model assumes a single callback. We log a warning
+        instead of failing so existing apps keep working.
+        """
+        if self.is_multi or self.is_steps:
+            warnings.warn(
+                "mcp_server=True is currently supported only for "
+                "single-function apps; ignoring for multi-function / "
+                "steps mode.",
+                stacklevel=2,
+            )
+            return
+        from .mcp import serve_mcp_in_thread
+
+        self._mcp_thread = serve_mcp_in_thread(
+            self.callback_fn,
+            host=self.mcp_host,
+            port=self.mcp_port,
+            title=self.title,
         )
 
     def run_server(self):
@@ -1658,6 +1691,9 @@ def fastdash(
     disable_logs=False,
     scale_height=1,
     run_kwargs=dict(),
+    mcp_server=False,
+    mcp_port=8001,
+    mcp_host="127.0.0.1",
     **kwargs
 ):
     """
@@ -1770,6 +1806,9 @@ def fastdash(
             disable_logs=disable_logs,
             scale_height=scale_height,
             run_kwargs=run_kwargs,
+            mcp_server=mcp_server,
+            mcp_port=mcp_port,
+            mcp_host=mcp_host,
             **kwargs
         )
 
