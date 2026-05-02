@@ -77,15 +77,17 @@ Each app below is a single Python function decorated with `@fastdash`. Click any
 from fast_dash import fastdash, Graph
 import plotly.express as px
 
-@fastdash(mosaic="AB\nAC")
+@fastdash(
+    mosaic="AB\nAC",
+    output_labels=["Sepal", "Petal width", "Petal length"],
+)
 def iris_dashboard(rows: int = 150) -> (Graph, Graph, Graph):
     """Explore the Iris dataset with linked plots."""
     df = px.data.iris().head(rows)
-    return (
-        px.scatter(df, x="sepal_width", y="sepal_length", color="species"),
-        px.histogram(df, x="petal_width", color="species"),
-        px.box(df, y="petal_length", color="species"),
-    )
+    sepal = px.scatter(df, x="sepal_width", y="sepal_length", color="species")
+    petal_width = px.histogram(df, x="petal_width", color="species")
+    petal_length = px.box(df, y="petal_length", color="species")
+    return sepal, petal_width, petal_length
 ```
 
 <a name="choropleth-map"></a>
