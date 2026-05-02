@@ -437,6 +437,7 @@ class AppLayout:
                     dmc.Group(
                         [
                             *(right_items or []),
+                            *self._auth_header_items(),
                             dmc.Switch(
                                 id="theme-toggle",
                                 offLabel=DashIconify(icon="radix-icons:sun", width=16),
@@ -460,6 +461,28 @@ class AppLayout:
             )
 
         return header_children
+
+    def _auth_header_items(self):
+        """Return header items for the auth gate (Sign out button).
+
+        Empty list when auth is disabled. Rendered just before the
+        theme toggle in the right-hand header group. Uses an html.A
+        wrapper because dmc.ActionIcon does not support href directly.
+        """
+        if not getattr(self.app, "_auth_config", None):
+            return []
+        return [
+            html.A(
+                dmc.Button(
+                    "Sign out",
+                    id="logout-button",
+                    variant="subtle",
+                    color="gray",
+                    size="compact-sm",
+                ),
+                href="/logout",
+            )
+        ]
 
     def generate_input_component(self):
         """Build the sidebar navbar content with inputs."""

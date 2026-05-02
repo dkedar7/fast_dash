@@ -34,6 +34,7 @@ import dash
 from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
+from fast_dash.auth import current_user
 
 __all__ = [
     "FastDash",
@@ -41,6 +42,7 @@ __all__ = [
     "Fastify",
     "depends_on",
     "from_step",
+    "current_user",
     "Text",
     "TextArea",
     "Slider",
