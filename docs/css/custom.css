@@ -26,16 +26,19 @@
     box-shadow: 5px 5px 10px #999;
   }
 
-  /* Soft shadow + subtle border on screenshots in figure blocks so the
-     edges of light-background app screenshots are visible on the
-     light docs theme. */
-  .md-content figure img {
+  /* Soft shadow + subtle border on screenshots so the edges of
+     light-background app screenshots are visible against the white
+     docs background. Applies to images in figure blocks (e.g.
+     Quickstart) and gallery tables (homepage README). */
+  .md-content figure img,
+  .md-content table img {
     border-radius: 6px;
     border: 1px solid rgba(0, 0, 0, 0.08);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.06);
   }
 
-  [data-md-color-scheme="slate"] .md-content figure img {
+  [data-md-color-scheme="slate"] .md-content figure img,
+  [data-md-color-scheme="slate"] .md-content table img {
     border-color: rgba(255, 255, 255, 0.1);
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4), 0 1px 3px rgba(0, 0, 0, 0.3);
   }
