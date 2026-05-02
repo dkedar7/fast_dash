@@ -1,5 +1,42 @@
 # History
 
+# Release 0.2.16
+
+## 0.2.16 (2026-04-19)
+
+### Features
+- **New components**: `MultiSelect`, `DateRange`, `Switch`, `PasswordInput`, `Markdown` are now first-class built-in components.
+- **Cascading inputs**: `depends_on(parent_name, resolver)` wires one input's options/value to another input's current value, enabling reactive dropdowns.
+- **Multi-step pipelines**: `FastDash(steps=[fn_a, fn_b, ...])` renders a wizard-style stepper UI; `from_step(prev_fn)` threads upstream outputs into downstream parameters. `callback_fn` is optional when `steps=` is provided.
+- **Multi-function mode migrated to dmc AppLayout**: tabbed multi-function apps now share the same Mantine chrome (header, navbar, dark mode, About modal) as single-function and `steps=` apps.
+- **Plotly string-form annotations**: `-> 'plotly.graph_objects.Figure'`, `-> 'go.Figure'`, and `-> 'Figure'` now resolve correctly to the `Graph` component.
+- **Friendly error messages**: common Python exceptions (ZeroDivisionError, KeyError, IndexError, etc.) are caught and rendered as human-readable in-app notifications.
+- **Claude Code plugin**: `/plugin marketplace add dkedar7/fast_dash` then `/plugin install fast-dash@fast-dash` loads a Fast Dash skill for AI agents.
+
+### Improvements
+- Multi-function mode renders with the modern Mantine chrome, matching single-function look.
+- Calendar grids in `DateInput`/`DateRange` no longer get clipped by global table CSS rules.
+- The "Submit" button is renamed **Run** to match agent / function-running language.
+
+# Release 0.2.15
+
+## 0.2.15 (2026-04-19)
+
+### Features
+- **Multi-function tabbed apps**: pass a list of functions to `FastDash([fn_a, fn_b], tab_titles=[...])` to get a tabbed app with one tab per function.
+- **Modern type hints**: `Literal[...]`, `Annotated[T, ...]`, `enum.Enum` subclasses, and `Optional[T]` now drive component inference. `Annotated[int, range(0, 100)]` becomes a slider; `Literal["a", "b"]` becomes a dropdown.
+- **UI overhaul**: chrome (header, navbar, sidebar, buttons) renders with Mantine components for a flat, professional look. Dark Bootswatch themes (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`) auto-flip dark mode.
+- **Single AppLayout**: `BaseLayout` and `SidebarLayout` were consolidated into a single `AppLayout` class.
+
+### Improvements
+- **Robust source introspection**: REPL / `exec` / frozen environments fall back to generic `OUTPUT_1`, `OUTPUT_2` labels instead of crashing.
+- **Branding disabled by default**: the Fast Dash rocket footer is opt-in (`branding=True`).
+- **Cleaner docstring parsing**: the "experimental" warning is gone; NumPy-style docstrings parse reliably.
+- **README rewrite**: optimised for both human and AI-agent readers.
+
+### Compatibility
+- **Python 3.11–3.14** supported. Python 3.9 and 3.10 are dropped.
+
 # Release 0.2.14
 
 ## 0.2.14 (2025-09-22)
