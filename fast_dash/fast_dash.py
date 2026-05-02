@@ -127,6 +127,7 @@ class FastDash:
         run_kwargs=dict(),
         tab_titles=None,
         steps=None,
+        auth=None,
         **kwargs
     ):
         """
@@ -205,6 +206,13 @@ class FastDash:
             steps (list of funcs, optional): A linear pipeline of step functions. Each step gets its own \
                 page in a stepper UI; outputs of earlier steps can feed downstream steps via ``from_step``. \
                 When provided, ``callback_fn`` is ignored. Defaults to None.
+
+            auth (dict or callable, optional): Enable a password gate in front of the app. \
+                Pass ``{"alice": "secret", ...}`` for a static user/password dict, or a \
+                callable ``(username, password) -> bool`` for custom verification (e.g. \
+                against a hashed store). When set, every URL except ``/login`` and \
+                ``/logout`` requires a valid session. Use ``fast_dash.current_user()`` \
+                inside callbacks to read the signed-in username. Defaults to None (no auth).
         """
 
         # Detect pipeline (steps) mode
@@ -292,6 +300,15 @@ class FastDash:
         # Allow easier access to Dash server
         self.server = self.app.server
         self.callback = self.app.callback
+
+        # Optional password gate. Installs before any callbacks so
+        # /login and /logout are reachable without auth, and every
+        # other request gets redirected if the user isn't signed in.
+        from .auth import _normalize_auth_config, install_auth
+
+        self._auth_config = _normalize_auth_config(auth)
+        if self._auth_config is not None:
+            install_auth(self.server, self._auth_config, title=title)
 
         if stream == True:
             socketio = SocketIO(self.app.server)
@@ -1658,6 +1675,7 @@ def fastdash(
     disable_logs=False,
     scale_height=1,
     run_kwargs=dict(),
+    auth=None,
     **kwargs
 ):
     """
@@ -1770,6 +1788,7 @@ def fastdash(
             disable_logs=disable_logs,
             scale_height=scale_height,
             run_kwargs=run_kwargs,
+            auth=auth,
             **kwargs
         )
 
