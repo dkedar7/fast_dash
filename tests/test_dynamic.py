@@ -157,15 +157,29 @@ def test_dynamicdash_form_only_construction():
     assert "dyn-output-0" in ids
 
 
-def test_dynamicdash_layout_has_mcp_spec_store():
-    """The set_form MCP tool depends on this hidden store existing."""
+def test_dynamicdash_no_mcp_wiring_by_default():
+    """When mcp_server=False (default), no Interval is in the layout."""
     app = DynamicDash(
         callback_fn=lambda x=1: x,
         initial_specs=[{"name": "x", "type": "Text"}],
         output_components=[Markdown],
     )
     ids = _collect_ids(app.app.layout)
-    assert "_mcp_spec_store" in ids
+    assert "_mcp_poll" not in ids
+    assert app._mcp_state is None
+
+
+def test_dynamicdash_mcp_server_true_adds_poll_interval():
+    """With mcp_server=True, the drain Interval and MCPState are wired."""
+    app = DynamicDash(
+        callback_fn=lambda x=1: x,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        mcp_server=True,
+    )
+    ids = _collect_ids(app.app.layout)
+    assert "_mcp_poll" in ids
+    assert app._mcp_state is not None
 
 
 def test_dynamicdash_rejects_parent_without_resolver():

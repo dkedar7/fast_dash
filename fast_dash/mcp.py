@@ -51,13 +51,28 @@ Implementation notes
   this module succeeds without them; the helpful error fires only when
   the server is actually constructed.
 
-v0.1 limitations
+Server → browser push (v0.2)
+----------------------------
+
+Agent mutations (``set_input`` / ``set_inputs`` / ``set_form``) write
+into per-state pending queues. A ``dcc.Interval(500ms)``-driven drain
+callback in the Dash app pops them atomically and applies them live —
+no reload needed. Browser update latency is bounded by the Interval
+period (~500ms).
+
+v0.2 limitations
 ----------------
 
-* **Browser does not auto-sync from agent-driven state changes.**
-  ``set_input``/``set_inputs``/``set_form`` update the server-side
-  mirror only. To see the change in the browser, reload the page. Full
-  socket.io push to the browser is planned for v0.2.
+* **Per-field ``set_input`` on a DynamicDash form is server-only.**
+  Pattern-matching outputs from a static callback can't address
+  runtime-created inputs by name. ``set_form`` (which re-renders the
+  whole form) is the supported live mutation for DynamicDash. Full
+  per-field push is a v0.3 piece, likely on top of Dash 4.2 WebSocket
+  callbacks + relaxed ``MATCH`` semantics.
+* Race with human typing: if a human is editing the same input the
+  agent writes to, the drain will overwrite their keystrokes within
+  500ms. ``mcp_host`` defaults to ``127.0.0.1`` so this only matters
+  when a local agent and local user collide.
 * Multi-function and steps modes skip MCP entirely (inherited from the
   initial ``feature/mcp`` design).
 * No auth on the MCP port; bind ``127.0.0.1`` only. A warning is logged
@@ -82,11 +97,16 @@ _active_mcp_thread: threading.Thread | None = None
 class MCPState:
     """Server-side mirror of a fast_dash app's input/output state.
 
-    Shared between the Dash main thread (writes from mirror callbacks)
-    and the MCP server thread (reads from resource handlers, writes
-    from mutation tools). CPython GIL handles single-key writes;
-    ``deque(maxlen=N)`` is thread-safe for ``append``. Resource handlers
-    snapshot dicts before iterating.
+    Shared between the Dash main thread (writes from mirror callbacks
+    + drain callbacks) and the MCP server thread (reads from resource
+    handlers, writes from mutation tools). CPython GIL handles single-
+    key writes; ``deque(maxlen=N)`` is thread-safe for ``append``.
+    Resource handlers snapshot dicts before iterating.
+
+    For server→browser push (v0.2), MCP tools also write to
+    ``pending_inputs`` / ``pending_specs``. A Dash ``dcc.Interval``-
+    driven drain callback pops these atomically and applies them to
+    the live UI.
     """
 
     def __init__(self, history_size: int = 20):
@@ -97,8 +117,11 @@ class MCPState:
         # `get_invocation(index)` lookups.
         self.full_history: collections.OrderedDict = collections.OrderedDict()
         self._history_size = history_size
-        # set_form parks specs here; the running DynamicDash app reads on
-        # next page load (v0.1 limitation — no live push yet).
+        # --- Push queues (drained by the Dash drain callback) ---------------
+        # set_input / set_inputs write here; FastDash drain fans out to
+        # each input component.
+        self.pending_inputs: dict[str, Any] = {}
+        # set_form writes here; DynamicDash drain re-renders the form.
         self.pending_specs: list[dict] | None = None
 
     def append_history(self, entry_summary: dict, entry_full: dict) -> int:
@@ -112,6 +135,23 @@ class MCPState:
         while len(self.full_history) > self._history_size:
             self.full_history.popitem(last=False)
         return idx
+
+    def pop_pending_inputs(self) -> dict[str, Any]:
+        """Atomically swap and return the pending-inputs dict.
+
+        Thread safety: rebinding ``self.pending_inputs`` to a fresh
+        dict is atomic under CPython, so any concurrent
+        ``state.pending_inputs[id] = v`` write either lands in the
+        returned old dict (eventually delivered) or in the new empty
+        dict (delivered on the next drain). No writes are dropped.
+        """
+        out, self.pending_inputs = self.pending_inputs, {}
+        return out
+
+    def pop_pending_specs(self) -> list[dict] | None:
+        """Atomically swap and return the pending-specs list."""
+        out, self.pending_specs = self.pending_specs, None
+        return out
 
 
 def _ensure_mcp_deps() -> tuple[Any, Any]:
@@ -308,11 +348,12 @@ def _register_tools(server, fd):
 
     @server.tool()
     def set_input(component_id: str, value: Any) -> dict:
-        """Update one input's server-side value.
+        """Update one input's value, server-side AND live in the browser.
 
-        v0.1: the browser does not auto-sync. Reload the page to see the
-        change in the UI. The agent-driven invoke() call reads from this
-        mirror, so subsequent invocations behave as expected.
+        Browser update lands within ~500ms (Dash ``Interval``-driven
+        drain). For DynamicDash apps the per-field push is not wired in
+        v0.2; the value still updates the server mirror but the browser
+        won't reflect it until the next ``set_form`` re-renders the form.
         """
         ids = {d["id"] for d in _enumerate_inputs(fd)}
         if ids and component_id not in ids:
@@ -322,11 +363,12 @@ def _register_tools(server, fd):
                 "known_ids": sorted(ids),
             }
         state.inputs[component_id] = value
+        state.pending_inputs[component_id] = value
         return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
 
     @server.tool()
     def set_inputs(values: dict) -> dict:
-        """Bulk-update multiple input values. Same v0.1 caveat as set_input."""
+        """Bulk-update multiple input values. Same browser-push contract as set_input."""
         ids = {d["id"] for d in _enumerate_inputs(fd)}
         applied, errors = {}, {}
         for k, v in (values or {}).items():
@@ -334,6 +376,7 @@ def _register_tools(server, fd):
                 errors[k] = "unknown id"
                 continue
             state.inputs[k] = v
+            state.pending_inputs[k] = v
             applied[k] = _jsonify_for_mcp(v)
         return {"ok": not errors, "applied": applied, "errors": errors}
 
@@ -407,9 +450,9 @@ def _register_tools(server, fd):
     def set_form(specs: list) -> dict:
         """Replace the form on a DynamicDash app with a new spec list.
 
-        v0.1: stored in `_mcp_state.pending_specs`. The browser does not
-        live-update; reload the page to see the new form. Plain
-        FastDash apps reject this tool.
+        The DynamicDash drain callback picks up the specs within ~500ms
+        and re-renders the form live in the browser. Plain FastDash apps
+        reject this tool.
         """
         from fast_dash.dynamic import _spec_to_component
 
@@ -426,14 +469,7 @@ def _register_tools(server, fd):
             except (TypeError, ValueError) as e:
                 return {"ok": False, "error": f"invalid spec: {e}", "spec": spec}
         state.pending_specs = specs
-        return {
-            "ok": True,
-            "count": len(specs),
-            "note": (
-                "v0.1: reload the browser page to see the new form. "
-                "Live push is planned for v0.2."
-            ),
-        }
+        return {"ok": True, "count": len(specs)}
 
     @server.tool()
     def get_invocation(index: int) -> dict:

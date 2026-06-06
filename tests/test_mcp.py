@@ -290,6 +290,39 @@ class TestMCPState:
             idx = s.append_history({"i": i}, {"i_full": i})
             assert idx == i
 
+    def test_pop_pending_inputs_returns_and_clears(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        s.pending_inputs["a"] = 1
+        s.pending_inputs["b"] = 2
+        out = s.pop_pending_inputs()
+        assert out == {"a": 1, "b": 2}
+        assert s.pending_inputs == {}
+        # A concurrent-style write after pop lands in the new dict.
+        s.pending_inputs["c"] = 3
+        assert s.pop_pending_inputs() == {"c": 3}
+
+    def test_pop_pending_inputs_atomic_swap_preserves_writes(self):
+        """Writes between pop's read and rebind go into the returned dict."""
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        s.pending_inputs["a"] = 1
+        out = s.pop_pending_inputs()
+        assert out == {"a": 1}
+        assert s.pending_inputs == {}
+
+    def test_pop_pending_specs_returns_and_clears(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        assert s.pop_pending_specs() is None
+        s.pending_specs = [{"name": "x", "type": "Text"}]
+        out = s.pop_pending_specs()
+        assert out == [{"name": "x", "type": "Text"}]
+        assert s.pending_specs is None
+
 
 # --- Resource reads -------------------------------------------------------
 
@@ -384,7 +417,7 @@ class TestTools:
 
     def _build_dynamic(self):
         from fast_dash import DynamicDash, Markdown
-        from fast_dash.mcp import build_mcp_server, MCPState
+        from fast_dash.mcp import build_mcp_server
 
         def my_dyn_fn(x: str = "hi") -> str:
             """Dynamic-form callback for tests."""
@@ -394,8 +427,8 @@ class TestTools:
             callback_fn=my_dyn_fn,
             initial_specs=[{"name": "x", "type": "Text"}],
             output_components=[Markdown],
+            mcp_server=True,
         )
-        app._mcp_state = MCPState()
         return app, build_mcp_server(app)
 
     def test_set_input_updates_state(self):
@@ -406,6 +439,55 @@ class TestTools:
         data = json.loads(res)
         assert data["ok"] is True
         assert app._mcp_state.inputs["name"] == "Claude"
+
+    def test_set_input_queues_for_browser_drain(self):
+        """v0.2 push: set_input writes to pending_inputs so the drain callback fans it out."""
+        app, server = self._build_plain()
+        _run_async(server.call_tool(
+            "set_input", {"component_id": "name", "value": "Claude"}
+        ))
+        assert app._mcp_state.pending_inputs == {"name": "Claude"}
+
+    def test_set_inputs_queues_for_browser_drain(self):
+        app, server = self._build_plain()
+        _run_async(server.call_tool(
+            "set_inputs", {"values": {"name": "X", "count": 7}}
+        ))
+        assert app._mcp_state.pending_inputs == {"name": "X", "count": 7}
+
+    def test_set_form_queues_for_browser_drain(self):
+        """v0.2 push: set_form on DynamicDash writes pending_specs for the Interval drain."""
+        app, server = self._build_dynamic()
+        specs = [{"name": "y", "type": "Slider", "props": {"min": 0, "max": 1}}]
+        _run_async(server.call_tool("set_form", {"specs": specs}))
+        assert app._mcp_state.pending_specs == specs
+
+    def test_fastdash_layout_includes_drain_interval(self):
+        """v0.2: FastDash with mcp_server=True has the _mcp_poll Interval in the layout."""
+        from fast_dash.mcp import build_mcp_server  # noqa: F401
+
+        def my_fn(name: str = "world") -> str:
+            return name
+
+        app = FastDash(callback_fn=my_fn, mcp_server=True)
+        # Walk the layout collecting ids
+        def walk_ids(comp, out):
+            cid = getattr(comp, "id", None)
+            if isinstance(cid, str):
+                out.add(cid)
+            children = getattr(comp, "children", None)
+            if children is None:
+                return
+            if not isinstance(children, (list, tuple)):
+                children = [children]
+            for c in children:
+                if c is not None:
+                    walk_ids(c, out)
+
+        ids = set()
+        walk_ids(app.app.layout, ids)
+        assert "_mcp_poll" in ids
+        assert "_mcp_mirror_store" in ids
 
     def test_set_input_rejects_unknown_id(self):
         app, server = self._build_plain()

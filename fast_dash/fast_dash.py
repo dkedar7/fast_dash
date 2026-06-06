@@ -920,10 +920,18 @@ class FastDash:
         )
 
     def _register_mcp_mirror(self):
-        """Wire a fan-in callback that mirrors every input's value into
-        ``self._mcp_state.inputs`` so the MCP ``fastdash://app/inputs``
-        resource (and ``invoke`` tool) reflect what the user is doing in
-        the browser.
+        """Wire the two MCP integration callbacks.
+
+        **Mirror** (browser → server): fan-in callback that copies every
+        input's value into ``self._mcp_state.inputs`` so the MCP
+        ``fastdash://app/inputs`` resource (and ``invoke`` tool) reflect
+        live browser state.
+
+        **Drain** (server → browser, v0.2): a ``dcc.Interval``-driven
+        callback that pops ``state.pending_inputs`` every 500ms and
+        fans the values back out to the corresponding input components.
+        Agent calls to ``set_input`` / ``set_inputs`` become visible in
+        the live UI within that window.
 
         Single-function mode only — multi-function and steps modes skip
         MCP entirely.
@@ -931,13 +939,17 @@ class FastDash:
         from .utils import _jsonify_for_mcp
 
         state = self._mcp_state
-        # Append a hidden Store as a layout sibling — Dash needs every
-        # callback Output to exist in the layout, and we don't want to
-        # mutate the user's chosen layout structure beyond that.
+        # Append hidden Store + Interval as layout siblings — Dash needs
+        # every callback Output/Input to exist in the layout.
         self.app.layout = dash_html.Div(
             [
                 self.app.layout,
                 dcc.Store(id="_mcp_mirror_store"),
+                dcc.Interval(
+                    id="_mcp_poll",
+                    interval=500,
+                    n_intervals=0,
+                ),
             ]
         )
 
@@ -953,6 +965,27 @@ class FastDash:
             for c, v in zip(self.inputs_with_ids, values):
                 state.inputs[c.id] = _jsonify_for_mcp(v)
             return None
+
+        # No-op early-return when inputs_with_ids is empty: nothing to
+        # drain to, no callback to register.
+        if not self.inputs_with_ids:
+            return
+
+        from dash import no_update
+
+        @self.app.callback(
+            [
+                Output(c.id, c.component_property, allow_duplicate=True)
+                for c in self.inputs_with_ids
+            ],
+            Input("_mcp_poll", "n_intervals"),
+            prevent_initial_call=True,
+        )
+        def _mcp_drain(_n):
+            pending = state.pop_pending_inputs()
+            if not pending:
+                return [no_update] * len(self.inputs_with_ids)
+            return [pending.get(c.id, no_update) for c in self.inputs_with_ids]
 
     def run_server(self):
         self.app.run(

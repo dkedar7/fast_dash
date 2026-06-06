@@ -187,6 +187,7 @@ class DynamicDash:
         spec_resolver: Callable[[Any], list[dict]] | None = None,
         output_components: list | None = None,
         title: str = "Dynamic Dash",
+        mcp_server: bool = False,
         **dash_kwargs,
     ):
         if parent_control is not None and spec_resolver is None:
@@ -201,6 +202,11 @@ class DynamicDash:
         self.spec_resolver = spec_resolver
         self.output_components = list(output_components or [])
         self.title = title
+        self.mcp_server_enabled = bool(mcp_server)
+        self._mcp_state = None
+        if self.mcp_server_enabled:
+            from fast_dash.mcp import MCPState
+            self._mcp_state = MCPState()
 
         sig = inspect.signature(callback_fn)
         self._has_var_kw = any(
@@ -287,31 +293,36 @@ class DynamicDash:
                 dmc.Text("(no output components configured)", c="dimmed")
             )
 
+        shell_children = [
+            dmc.AppShellHeader(
+                dmc.Group(
+                    [
+                        DashIconify(icon="mdi:auto-fix", width=22),
+                        dmc.Text(self.title, fw=600, size="lg"),
+                    ],
+                    gap="xs",
+                    p="md",
+                )
+            ),
+            dmc.AppShellNavbar(
+                dmc.ScrollArea(
+                    dmc.Stack(navbar_children, gap="sm", p="md"),
+                ),
+            ),
+            dmc.AppShellMain(
+                dmc.Stack(main_children, gap="md", p="md"),
+            ),
+        ]
+        if self.mcp_server_enabled:
+            # The MCP drain callback polls this Interval to pop
+            # `_mcp_state.pending_specs` and re-render the form.
+            shell_children.append(
+                dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0)
+            )
+
         return dmc.MantineProvider(
             dmc.AppShell(
-                [
-                    dmc.AppShellHeader(
-                        dmc.Group(
-                            [
-                                DashIconify(icon="mdi:auto-fix", width=22),
-                                dmc.Text(self.title, fw=600, size="lg"),
-                            ],
-                            gap="xs",
-                            p="md",
-                        )
-                    ),
-                    dmc.AppShellNavbar(
-                        dmc.ScrollArea(
-                            dmc.Stack(navbar_children, gap="sm", p="md"),
-                        ),
-                    ),
-                    dmc.AppShellMain(
-                        dmc.Stack(main_children, gap="md", p="md"),
-                    ),
-                    # MCP set_form pushes spec lists here; the from_mcp callback
-                    # below re-renders the form.
-                    dcc.Store(id="_mcp_spec_store"),
-                ],
+                shell_children,
                 header={"height": 56},
                 navbar={"width": 340, "breakpoint": "sm"},
                 padding="md",
@@ -342,22 +353,26 @@ class DynamicDash:
                 except Exception:
                     return no_update
 
-        # ----- (ii) MCP set_form → form (agent-driven) -----------------------
-        # An external agent calls the set_form MCP tool, which pushes a spec
-        # list into the _mcp_spec_store via socket.io. This callback re-renders
-        # the form from those specs.
-        @app.callback(
-            Output("dyn-form", "children", allow_duplicate=True),
-            Input("_mcp_spec_store", "data"),
-            prevent_initial_call=True,
-        )
-        def reshape_from_mcp(specs):
-            if not specs:
-                return no_update
-            try:
-                return render_spec(specs).children
-            except Exception:
-                return no_update
+        # ----- (ii) MCP set_form → form (agent-driven, v0.2 drain) -----------
+        # An external agent calls the set_form MCP tool, which writes the
+        # specs to `_mcp_state.pending_specs`. The Interval-driven drain
+        # below pops them within ~500ms and re-renders the form.
+        if self.mcp_server_enabled:
+            state = self._mcp_state
+
+            @app.callback(
+                Output("dyn-form", "children", allow_duplicate=True),
+                Input("_mcp_poll", "n_intervals"),
+                prevent_initial_call=True,
+            )
+            def reshape_from_mcp(_n):
+                specs = state.pop_pending_specs()
+                if specs is None:
+                    return no_update
+                try:
+                    return render_spec(specs).children
+                except Exception:
+                    return no_update
 
         # ----- (iii) Run → invoke callback_fn --------------------------------
         if self._outputs_with_ids:
