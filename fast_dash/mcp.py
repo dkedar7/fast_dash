@@ -1,8 +1,9 @@
-"""Model Context Protocol (MCP) server output for Fast Dash apps.
+"""Model Context Protocol (MCP) server for Fast Dash apps.
 
 Lets a Fast Dash app simultaneously serve as a web app *and* an MCP
-tool callable by AI agents (Claude, Cursor, Cline, etc.). The same
-type hints that drive the UI also drive the MCP tool's input schema.
+endpoint that AI agents (Claude Code, Cursor, Cline, CopilotKit) can
+inspect and drive. The same type hints that drive the UI also drive the
+MCP schemas.
 
 Usage::
 
@@ -14,32 +15,103 @@ Usage::
         ...
 
 The web app runs on the usual port (8080 by default). The MCP server
-runs on a separate port (8001 by default) at the path ``/mcp``. An
-agent can connect with the streamable-http transport::
+runs on a separate port (8001 by default) at the path ``/mcp``. Agents
+connect via streamable-HTTP::
 
-    {"command": "mcp", "args": ["--http", "http://localhost:8001/mcp"]}
+    {"servers": {"my-app": {"url": "http://localhost:8001/mcp"}}}
 
-Implementation notes:
+What an agent sees
+-------------------
 
-- We use the official ``mcp`` SDK (``mcp.server.fastmcp.FastMCP``).
-  Schema is derived automatically from type hints + docstring via
-  pydantic, so a well-typed Fast Dash function needs no extra work.
-- The MCP server is mounted as a Starlette ASGI app served by uvicorn
-  in a daemon thread. Flask (Dash) and Starlette use different
-  protocols (WSGI vs ASGI), so a single port would require an extra
-  bridging dependency. Two ports keeps the surface clean.
-- ``mcp`` is an optional dependency. ``import fast_dash.mcp`` succeeds
-  on plain installs; the helpful import error fires only when a user
-  passes ``mcp_server=True`` without the package installed.
+* **Tool** named after ``callback_fn`` — schema derived from type hints
+  + docstring. Calling it executes the function directly (no UI).
+* **Tools** for state manipulation:
+    - ``set_input(component_id, value)``
+    - ``set_inputs({...})``
+    - ``invoke()`` — runs callback with current input mirror
+    - ``set_form(specs)`` — DynamicDash only
+    - ``get_invocation(index)`` — full kwargs+result from history
+    - ``screenshot()`` — server-side render of current outputs
+    - ``list_component_types()``
+* **Resources** (read-only state, polled):
+    - ``fastdash://app`` — title, callback signature, mode
+    - ``fastdash://app/inputs`` — current input panel state
+    - ``fastdash://app/outputs`` — current output state
+    - ``fastdash://app/layout`` — full component tree
+    - ``fastdash://app/history`` — last 20 invocation summaries
+
+Implementation notes
+--------------------
+
+* Uses the official ``mcp`` SDK (``mcp.server.fastmcp.FastMCP``).
+* The MCP server is mounted as a Starlette ASGI app served by uvicorn
+  in a daemon thread alongside Flask (Dash). Two ports keep WSGI/ASGI
+  cleanly separated.
+* ``mcp`` and ``uvicorn`` are optional deps (``[mcp]`` extra). Importing
+  this module succeeds without them; the helpful error fires only when
+  the server is actually constructed.
+
+v0.1 limitations
+----------------
+
+* **Browser does not auto-sync from agent-driven state changes.**
+  ``set_input``/``set_inputs``/``set_form`` update the server-side
+  mirror only. To see the change in the browser, reload the page. Full
+  socket.io push to the browser is planned for v0.2.
+* Multi-function and steps modes skip MCP entirely (inherited from the
+  initial ``feature/mcp`` design).
+* No auth on the MCP port; bind ``127.0.0.1`` only. A warning is logged
+  if ``mcp_host`` is overridden.
 """
 
 from __future__ import annotations
 
+import base64
+import collections
+import datetime
+import io
+import json
 import threading
+import time
 from typing import Any, Callable
 
 # Holder for an active MCP thread so tests can introspect / shut down.
 _active_mcp_thread: threading.Thread | None = None
+
+
+class MCPState:
+    """Server-side mirror of a fast_dash app's input/output state.
+
+    Shared between the Dash main thread (writes from mirror callbacks)
+    and the MCP server thread (reads from resource handlers, writes
+    from mutation tools). CPython GIL handles single-key writes;
+    ``deque(maxlen=N)`` is thread-safe for ``append``. Resource handlers
+    snapshot dicts before iterating.
+    """
+
+    def __init__(self, history_size: int = 20):
+        self.inputs: dict[str, Any] = {}
+        self.outputs: dict[str, Any] = {}
+        self.history: collections.deque = collections.deque(maxlen=history_size)
+        # Parallel to `history`, holds the unsummarized payload for
+        # `get_invocation(index)` lookups.
+        self.full_history: collections.OrderedDict = collections.OrderedDict()
+        self._history_size = history_size
+        # set_form parks specs here; the running DynamicDash app reads on
+        # next page load (v0.1 limitation — no live push yet).
+        self.pending_specs: list[dict] | None = None
+
+    def append_history(self, entry_summary: dict, entry_full: dict) -> int:
+        self.history.append(entry_summary)
+        idx = (
+            next(reversed(self.full_history), -1) + 1
+            if self.full_history
+            else 0
+        )
+        self.full_history[idx] = entry_full
+        while len(self.full_history) > self._history_size:
+            self.full_history.popitem(last=False)
+        return idx
 
 
 def _ensure_mcp_deps() -> tuple[Any, Any]:
@@ -61,31 +133,430 @@ def _ensure_mcp_deps() -> tuple[Any, Any]:
     return FastMCP, uvicorn
 
 
-def build_mcp_server(
-    callback_fn: Callable[..., Any],
-    *,
-    title: str | None = None,
-):
-    """Build a FastMCP server that exposes ``callback_fn`` as a tool.
+def _is_fastdash_instance(obj) -> bool:
+    """Duck-type FastDash without importing it (avoids circular import)."""
+    return hasattr(obj, "callback_fn") and hasattr(obj, "app") and (
+        hasattr(obj, "inputs_with_ids") or hasattr(obj, "_outputs_with_ids")
+    )
 
-    The function's signature, type hints, and docstring drive the tool
-    schema directly — no extra annotations required. Returns the
-    ``FastMCP`` instance configured for streamable-HTTP transport.
+
+def _is_dynamic(fd) -> bool:
+    try:
+        from fast_dash.dynamic import DynamicDash
+        return isinstance(fd, DynamicDash)
+    except Exception:
+        return False
+
+
+def _component_types() -> list[str]:
+    try:
+        from fast_dash.dynamic import COMPONENT_REGISTRY
+        return sorted(COMPONENT_REGISTRY.keys())
+    except Exception:
+        return []
+
+
+def _stringify_id(cid) -> str:
+    if isinstance(cid, str):
+        return cid
+    return json.dumps(cid, sort_keys=True)
+
+
+def _enumerate_inputs(fd) -> list[dict]:
+    """Return a normalized list of input descriptors for whichever app mode."""
+    descriptors = []
+    if hasattr(fd, "inputs_with_ids") and fd.inputs_with_ids:
+        for c in fd.inputs_with_ids:
+            descriptors.append(
+                {
+                    "id": _stringify_id(c.id),
+                    "tag": getattr(c, "tag", None),
+                    "label": getattr(c, "label_", None),
+                    "property": c.component_property,
+                }
+            )
+    return descriptors
+
+
+def _enumerate_outputs(fd) -> list[dict]:
+    descriptors = []
+    candidates = (
+        getattr(fd, "outputs_with_ids", None)
+        or getattr(fd, "_outputs_with_ids", None)
+        or []
+    )
+    for c in candidates:
+        descriptors.append(
+            {
+                "id": _stringify_id(c.id),
+                "tag": getattr(c, "tag", None),
+                "property": c.component_property,
+            }
+        )
+    return descriptors
+
+
+def _param_name_from_id(component_id: str) -> str:
+    """Strip the `input_` prefix FastDash adds, to convert id → kwarg name."""
+    if component_id.startswith("input_"):
+        return component_id[len("input_"):]
+    return component_id
+
+
+def build_mcp_server(app_or_callable, *, title: str | None = None):
+    """Build a FastMCP server for either a FastDash instance or a callable.
+
+    * **FastDash instance**: registers callback as a tool *and* the full
+      app surface (resources + manipulation tools), closing over
+      ``fd._mcp_state``.
+    * **Plain callable**: registers just the callable as a single tool
+      (legacy behavior from the original ``feature/mcp`` commit).
     """
     FastMCP, _ = _ensure_mcp_deps()
+
+    if _is_fastdash_instance(app_or_callable):
+        fd = app_or_callable
+        callback_fn = fd.callback_fn
+        server_title = title or getattr(fd, "title", None) or callback_fn.__name__
+    else:
+        fd = None
+        callback_fn = app_or_callable
+        server_title = title or callback_fn.__name__
+
     server = FastMCP(
-        title or callback_fn.__name__,
+        server_title,
         stateless_http=True,
         json_response=True,
     )
-    # ``@server.tool()`` reads the signature on registration; passing
-    # the function object directly preserves annotations and __doc__.
-    server.tool()(callback_fn)
+    # Always register the callback itself — agents can call it directly
+    # without going through the UI / mirror.
+    if callback_fn is not None:
+        server.tool()(callback_fn)
+
+    if fd is None:
+        return server
+
+    # Lazy-init MCPState on the FastDash if it wasn't constructed by
+    # FastDash.__init__ (defensive — keeps build_mcp_server callable
+    # standalone in tests).
+    if not hasattr(fd, "_mcp_state") or fd._mcp_state is None:
+        fd._mcp_state = MCPState()
+
+    _register_resources(server, fd)
+    _register_tools(server, fd)
     return server
 
 
+def _register_resources(server, fd):
+    """Register the read-only `fastdash://...` resources."""
+    from fast_dash.utils import _jsonify_for_mcp
+
+    state: MCPState = fd._mcp_state
+
+    @server.resource("fastdash://app")
+    def app_info() -> str:
+        return json.dumps(
+            {
+                "title": getattr(fd, "title", None) or "",
+                "callback": getattr(fd.callback_fn, "__name__", "callback"),
+                "doc": (getattr(fd.callback_fn, "__doc__", "") or "").strip(),
+                "is_dynamic": _is_dynamic(fd),
+                "is_multi": bool(getattr(fd, "is_multi", False)),
+                "is_steps": bool(getattr(fd, "is_steps", False)),
+                "component_types": _component_types(),
+            },
+            indent=2,
+            default=str,
+        )
+
+    @server.resource("fastdash://app/inputs")
+    def app_inputs() -> str:
+        descriptors = _enumerate_inputs(fd)
+        snapshot = dict(state.inputs)
+        for d in descriptors:
+            d["value"] = _jsonify_for_mcp(snapshot.get(d["id"]))
+        return json.dumps(descriptors, indent=2, default=str)
+
+    @server.resource("fastdash://app/outputs")
+    def app_outputs() -> str:
+        descriptors = _enumerate_outputs(fd)
+        snapshot = dict(state.outputs)
+        for d in descriptors:
+            d["value"] = _jsonify_for_mcp(snapshot.get(d["id"]))
+        return json.dumps(descriptors, indent=2, default=str)
+
+    @server.resource("fastdash://app/layout")
+    def app_layout() -> str:
+        try:
+            layout = fd.app.layout
+            if hasattr(layout, "to_plotly_json"):
+                return json.dumps(layout.to_plotly_json(), indent=2, default=str)
+            return json.dumps({"repr": str(layout)})
+        except Exception as e:
+            return json.dumps({"error": str(e)})
+
+    @server.resource("fastdash://app/history")
+    def app_history() -> str:
+        return json.dumps(list(state.history), indent=2, default=str)
+
+
+def _register_tools(server, fd):
+    """Register the mutation/action tools."""
+    from fast_dash.utils import _jsonify_for_mcp, _summarize_for_history
+
+    state: MCPState = fd._mcp_state
+
+    @server.tool()
+    def set_input(component_id: str, value: Any) -> dict:
+        """Update one input's server-side value.
+
+        v0.1: the browser does not auto-sync. Reload the page to see the
+        change in the UI. The agent-driven invoke() call reads from this
+        mirror, so subsequent invocations behave as expected.
+        """
+        ids = {d["id"] for d in _enumerate_inputs(fd)}
+        if ids and component_id not in ids:
+            return {
+                "ok": False,
+                "error": f"Unknown input id {component_id!r}",
+                "known_ids": sorted(ids),
+            }
+        state.inputs[component_id] = value
+        return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
+
+    @server.tool()
+    def set_inputs(values: dict) -> dict:
+        """Bulk-update multiple input values. Same v0.1 caveat as set_input."""
+        ids = {d["id"] for d in _enumerate_inputs(fd)}
+        applied, errors = {}, {}
+        for k, v in (values or {}).items():
+            if ids and k not in ids:
+                errors[k] = "unknown id"
+                continue
+            state.inputs[k] = v
+            applied[k] = _jsonify_for_mcp(v)
+        return {"ok": not errors, "applied": applied, "errors": errors}
+
+    @server.tool()
+    def invoke() -> dict:
+        """Run the app's callback with current input mirror values.
+
+        Returns a summary of outputs and writes them into the server-side
+        outputs mirror (visible via `fastdash://app/outputs`).
+        """
+        if getattr(fd, "is_multi", False) or getattr(fd, "is_steps", False):
+            return {
+                "ok": False,
+                "error": "invoke not supported in multi-function/steps mode",
+            }
+
+        # Build kwargs: map component id (e.g. "input_x") → parameter name "x"
+        kwargs = {}
+        snapshot = dict(state.inputs)
+        for d in _enumerate_inputs(fd):
+            cid = d["id"]
+            param = _param_name_from_id(cid)
+            if cid in snapshot:
+                kwargs[param] = snapshot[cid]
+            elif param in snapshot:
+                kwargs[param] = snapshot[param]
+
+        t0 = time.time()
+        try:
+            result = fd.callback_fn(**kwargs)
+        except Exception as e:
+            return {
+                "ok": False,
+                "error": f"{type(e).__name__}: {e}",
+                "kwargs_summary": {
+                    k: _summarize_for_history(v) for k, v in kwargs.items()
+                },
+            }
+        dt_ms = round((time.time() - t0) * 1000, 1)
+
+        if not isinstance(result, (list, tuple)):
+            result_list = [result]
+        else:
+            result_list = list(result)
+        out_summary = {}
+        outs = _enumerate_outputs(fd)
+        for d, val in zip(outs, result_list):
+            state.outputs[d["id"]] = val
+            out_summary[d["id"]] = _summarize_for_history(val)
+
+        entry_summary = {
+            "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+            "duration_ms": dt_ms,
+            "kwargs": {k: _summarize_for_history(v) for k, v in kwargs.items()},
+            "outputs": out_summary,
+        }
+        entry_full = {
+            **entry_summary,
+            "_full_kwargs": kwargs,
+            "_full_result": result,
+        }
+        idx = state.append_history(entry_summary, entry_full)
+        return {
+            "ok": True,
+            "duration_ms": dt_ms,
+            "outputs": out_summary,
+            "history_index": idx,
+        }
+
+    @server.tool()
+    def set_form(specs: list) -> dict:
+        """Replace the form on a DynamicDash app with a new spec list.
+
+        v0.1: stored in `_mcp_state.pending_specs`. The browser does not
+        live-update; reload the page to see the new form. Plain
+        FastDash apps reject this tool.
+        """
+        from fast_dash.dynamic import _spec_to_component
+
+        if not _is_dynamic(fd):
+            return {
+                "ok": False,
+                "error": "set_form requires a DynamicDash app",
+            }
+        if not isinstance(specs, list):
+            return {"ok": False, "error": "specs must be a list of dicts"}
+        for spec in specs:
+            try:
+                _spec_to_component(spec)
+            except (TypeError, ValueError) as e:
+                return {"ok": False, "error": f"invalid spec: {e}", "spec": spec}
+        state.pending_specs = specs
+        return {
+            "ok": True,
+            "count": len(specs),
+            "note": (
+                "v0.1: reload the browser page to see the new form. "
+                "Live push is planned for v0.2."
+            ),
+        }
+
+    @server.tool()
+    def get_invocation(index: int) -> dict:
+        """Look up a past invocation by history index (returned by invoke)."""
+        if index not in state.full_history:
+            return {
+                "ok": False,
+                "error": f"index {index} not in history",
+                "available": list(state.full_history.keys()),
+            }
+        entry = state.full_history[index]
+        return {
+            "ok": True,
+            "ts": entry["ts"],
+            "duration_ms": entry["duration_ms"],
+            "kwargs_summary": entry["kwargs"],
+            "outputs_summary": entry["outputs"],
+        }
+
+    @server.tool()
+    def list_component_types() -> dict:
+        """List the legal `type` values for a UI spec.
+
+        Returns ``{"types": [...]}`` — wrapped in a dict because raw lists
+        get serialized as N separate content blocks by the MCP SDK.
+        """
+        return {"types": _component_types()}
+
+    @server.tool()
+    def screenshot() -> dict:
+        """Render current outputs to images/text server-side.
+
+        Plotly Figure → PNG via lazy kaleido import. PIL Image → PNG.
+        Pandas DataFrame → CSV (first 50 rows). Strings → text. Anything
+        else → unsupported marker. Returns ``{"outputs": [...]}`` with
+        one entry per output.
+        """
+        results = []
+        outs_snapshot = dict(state.outputs)
+        for d in _enumerate_outputs(fd):
+            entry = {"id": d["id"], "tag": d["tag"]}
+            val = outs_snapshot.get(d["id"])
+            if val is None:
+                entry["content"] = None
+                results.append(entry)
+                continue
+            entry.update(_render_one_output(val))
+            results.append(entry)
+        return {"outputs": results}
+
+
+def _render_one_output(val) -> dict:
+    """Render a single output value for `screenshot()`."""
+    try:
+        import plotly.graph_objects as go
+        if isinstance(val, go.Figure):
+            try:
+                png = val.to_image(format="png", width=900, height=600)
+                return {
+                    "mime": "image/png",
+                    "content_b64": base64.b64encode(png).decode("ascii"),
+                }
+            except Exception as e:
+                return {
+                    "mime": None,
+                    "error": (
+                        f"Plotly→PNG failed (kaleido may be missing): "
+                        f"{type(e).__name__}: {e}"
+                    ),
+                    "fallback": val.to_plotly_json(),
+                }
+    except ImportError:
+        pass
+
+    try:
+        import PIL.Image
+        if isinstance(val, PIL.Image.Image):
+            buf = io.BytesIO()
+            val.save(buf, format="PNG")
+            return {
+                "mime": "image/png",
+                "content_b64": base64.b64encode(buf.getvalue()).decode("ascii"),
+            }
+    except ImportError:
+        pass
+
+    try:
+        import pandas as pd
+        if isinstance(val, pd.DataFrame):
+            return {
+                "mime": "text/csv",
+                "content": val.head(50).to_csv(index=False),
+                "shape": list(val.shape),
+            }
+    except ImportError:
+        pass
+
+    if isinstance(val, str):
+        if val.startswith("data:") and ";base64," in val:
+            header = val.split(",", 1)[0]
+            return {
+                "mime": "text/plain",
+                "content": f"<{header}, {len(val)} chars>",
+            }
+        return {"mime": "text/plain", "content": val}
+
+    if isinstance(val, (bytes, bytearray)):
+        return {
+            "mime": "application/octet-stream",
+            "content_b64": base64.b64encode(bytes(val)).decode("ascii"),
+            "size": len(val),
+        }
+
+    return {
+        "mime": None,
+        "unsupported": True,
+        "type": type(val).__name__,
+        "repr": repr(val)[:200],
+    }
+
+
 def serve_mcp_in_thread(
-    callback_fn: Callable[..., Any],
+    app_or_callable,
     *,
     host: str = "127.0.0.1",
     port: int = 8001,
@@ -93,11 +564,10 @@ def serve_mcp_in_thread(
 ) -> threading.Thread:
     """Start the MCP server on a background daemon thread.
 
-    Returns the thread object. The Dash/Flask main loop continues on
-    the parent thread; the MCP server lives only for the lifetime of
-    the parent process.
+    Accepts a FastDash instance (full surface) or a plain callable
+    (legacy: callback registered as the only tool). Returns the thread.
     """
-    server = build_mcp_server(callback_fn, title=title)
+    server = build_mcp_server(app_or_callable, title=title)
     _, uvicorn = _ensure_mcp_deps()
 
     asgi_app = server.streamable_http_app()
@@ -111,8 +581,6 @@ def serve_mcp_in_thread(
     uv_server = uvicorn.Server(config)
 
     def _run():
-        # uvicorn.Server.run() spins up its own asyncio loop on the
-        # current thread, which is what we want for a side-thread server.
         uv_server.run()
 
     thread = threading.Thread(target=_run, daemon=True, name="fastdash-mcp")

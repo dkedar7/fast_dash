@@ -217,6 +217,18 @@ class FastDash:
         self.mcp_port = mcp_port
         self.mcp_host = mcp_host
         self._mcp_thread = None
+        self._mcp_state = None
+        if self.mcp_server_enabled:
+            from .mcp import MCPState
+            self._mcp_state = MCPState()
+            if mcp_host not in ("127.0.0.1", "localhost"):
+                warnings.warn(
+                    f"mcp_host={mcp_host!r} binds the MCP port to a non-loopback "
+                    "address. The MCP port has no authentication; anyone who "
+                    "can reach it can invoke your callback. Use 127.0.0.1 unless "
+                    "you have a deliberate reason to expose it.",
+                    stacklevel=2,
+                )
 
         # callback_fn is required unless steps= is provided
         if callback_fn is None and not self.is_steps:
@@ -368,6 +380,8 @@ class FastDash:
         # Register callbacks
         self.register_callback_fn()
         self.add_streaming()
+        if self.mcp_server_enabled:
+            self._register_mcp_mirror()
 
         # Keep track of the number of clicks
         self.submit_clicks = 0
@@ -894,12 +908,51 @@ class FastDash:
             return
         from .mcp import serve_mcp_in_thread
 
+        # Pass the FastDash instance (not just callback_fn) so the MCP
+        # server can register the full app surface — resources for
+        # state introspection plus mutation tools — closing over
+        # ``self._mcp_state``.
         self._mcp_thread = serve_mcp_in_thread(
-            self.callback_fn,
+            self,
             host=self.mcp_host,
             port=self.mcp_port,
             title=self.title,
         )
+
+    def _register_mcp_mirror(self):
+        """Wire a fan-in callback that mirrors every input's value into
+        ``self._mcp_state.inputs`` so the MCP ``fastdash://app/inputs``
+        resource (and ``invoke`` tool) reflect what the user is doing in
+        the browser.
+
+        Single-function mode only — multi-function and steps modes skip
+        MCP entirely.
+        """
+        from .utils import _jsonify_for_mcp
+
+        state = self._mcp_state
+        # Append a hidden Store as a layout sibling — Dash needs every
+        # callback Output to exist in the layout, and we don't want to
+        # mutate the user's chosen layout structure beyond that.
+        self.app.layout = dash_html.Div(
+            [
+                self.app.layout,
+                dcc.Store(id="_mcp_mirror_store"),
+            ]
+        )
+
+        @self.app.callback(
+            Output("_mcp_mirror_store", "data"),
+            [
+                Input(c.id, c.component_property)
+                for c in self.inputs_with_ids
+            ],
+            prevent_initial_call=False,
+        )
+        def _mcp_mirror(*values):
+            for c, v in zip(self.inputs_with_ids, values):
+                state.inputs[c.id] = _jsonify_for_mcp(v)
+            return None
 
     def run_server(self):
         self.app.run(

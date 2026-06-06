@@ -1,14 +1,24 @@
-"""Tests for MCP server output (v0.2.17).
+"""Tests for the MCP app surface.
 
-These tests exercise the wiring without actually binding a port — the
-``build_mcp_server`` helper produces a FastMCP instance whose schema we
-can introspect, and the integration test for ``serve_mcp_in_thread``
-binds an ephemeral port only when ``mcp`` is installed.
+The original ``feature/mcp`` tests (TestKwargPlumbing / TestBuildServer /
+TestModeGuards / TestServeInThread) stay green. New classes below cover:
+
+* ``TestMCPState`` — the server-side state container
+* ``TestResources`` — each ``fastdash://...`` resource read
+* ``TestTools`` — set_input, set_inputs, invoke, set_form, get_invocation,
+  list_component_types, screenshot
+
+Resource and tool tests construct a server via ``build_mcp_server`` and
+call the registered handlers via FastMCP's high-level API in an asyncio
+loop (no pytest-asyncio dep). No port is bound except in
+``TestServeInThread`` (inherited from the foundation commit).
 """
 
 from __future__ import annotations
 
+import asyncio
 import importlib.util
+import json
 import socket
 import time
 import warnings
@@ -214,3 +224,312 @@ def _wait_for_port(port: int, timeout: float = 5.0) -> None:
         except OSError:
             time.sleep(0.05)
     raise TimeoutError(f"port {port} never opened within {timeout}s")
+
+
+def _run_async(coro):
+    """Run an async coroutine to completion (no pytest-asyncio dep)."""
+    return asyncio.new_event_loop().run_until_complete(coro)
+
+
+def _text(content_list):
+    """Extract the .text from MCP TextContent return values."""
+    if not content_list:
+        return ""
+    item = content_list[0]
+    if hasattr(item, "text"):
+        return item.text
+    if hasattr(item, "content"):
+        return item.content
+    return str(item)
+
+
+def _read(content_list):
+    """Extract the content string from MCP resource read results."""
+    if not content_list:
+        return ""
+    item = content_list[0]
+    if hasattr(item, "content"):
+        return item.content
+    if hasattr(item, "text"):
+        return item.text
+    return str(item)
+
+
+# --- MCPState basics ------------------------------------------------------
+
+
+@requires_mcp
+class TestMCPState:
+    """The state container's contract: history cap, append, helper methods."""
+
+    def test_default_state_is_empty(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        assert s.inputs == {}
+        assert s.outputs == {}
+        assert list(s.history) == []
+        assert s.full_history == {}
+        assert s.pending_specs is None
+
+    def test_history_capped_at_maxlen(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState(history_size=3)
+        for i in range(5):
+            s.append_history({"i": i}, {"i_full": i})
+        assert len(s.history) == 3
+        assert [e["i"] for e in s.history] == [2, 3, 4]
+        assert len(s.full_history) == 3
+
+    def test_full_history_indices_are_monotonic(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        for i in range(3):
+            idx = s.append_history({"i": i}, {"i_full": i})
+            assert idx == i
+
+
+# --- Resource reads -------------------------------------------------------
+
+
+@requires_mcp
+class TestResources:
+    """Each `fastdash://...` resource returns the expected JSON shape."""
+
+    def _build(self):
+        from fast_dash.mcp import build_mcp_server, MCPState
+
+        def my_fn(name: str = "world", count: int = 3) -> str:
+            """Greet someone count times."""
+            return ", ".join([name] * count)
+
+        app = FastDash(callback_fn=my_fn, mcp_server=True)
+        # MCPState already constructed by FastDash.__init__
+        assert isinstance(app._mcp_state, MCPState)
+        return app, build_mcp_server(app)
+
+    def test_app_info_resource(self):
+        app, server = self._build()
+        raw = _read(_run_async(server.read_resource("fastdash://app")))
+        data = json.loads(raw)
+        assert data["callback"] == "my_fn"
+        assert "Greet someone" in data["doc"]
+        assert data["is_dynamic"] is False
+        assert data["is_multi"] is False
+        assert "Slider" in data["component_types"]
+
+    def test_app_inputs_resource(self):
+        app, server = self._build()
+        raw = _read(_run_async(server.read_resource("fastdash://app/inputs")))
+        data = json.loads(raw)
+        ids = {d["id"] for d in data}
+        assert ids == {"name", "count"}
+        for d in data:
+            assert d["property"] == "value"
+            # No interactions yet, mirror is empty.
+            assert d["value"] is None
+
+    def test_app_inputs_reflects_state_writes(self):
+        app, server = self._build()
+        app._mcp_state.inputs["name"] = "Claude"
+        app._mcp_state.inputs["count"] = 5
+        raw = _read(_run_async(server.read_resource("fastdash://app/inputs")))
+        data = json.loads(raw)
+        by_id = {d["id"]: d["value"] for d in data}
+        assert by_id["name"] == "Claude"
+        assert by_id["count"] == 5
+
+    def test_app_outputs_resource(self):
+        app, server = self._build()
+        raw = _read(_run_async(server.read_resource("fastdash://app/outputs")))
+        data = json.loads(raw)
+        assert isinstance(data, list)
+        assert len(data) >= 1
+        for d in data:
+            assert "id" in d and "value" in d
+
+    def test_app_layout_resource(self):
+        app, server = self._build()
+        raw = _read(_run_async(server.read_resource("fastdash://app/layout")))
+        data = json.loads(raw)
+        # Layout should be a Dash component tree (dict with 'type' and 'props')
+        # or, on weird Dash versions, a {"repr": "..."} fallback.
+        assert isinstance(data, dict)
+        assert ("type" in data) or ("repr" in data)
+
+    def test_app_history_resource_starts_empty(self):
+        app, server = self._build()
+        raw = _read(_run_async(server.read_resource("fastdash://app/history")))
+        assert json.loads(raw) == []
+
+
+# --- Tool invocations -----------------------------------------------------
+
+
+@requires_mcp
+class TestTools:
+    """End-to-end behavior of the mutation tools."""
+
+    def _build_plain(self):
+        from fast_dash.mcp import build_mcp_server
+
+        def my_fn(name: str = "world", count: int = 3) -> str:
+            """Greet."""
+            return ", ".join([name] * count)
+
+        app = FastDash(callback_fn=my_fn, mcp_server=True)
+        return app, build_mcp_server(app)
+
+    def _build_dynamic(self):
+        from fast_dash import DynamicDash, Markdown
+        from fast_dash.mcp import build_mcp_server, MCPState
+
+        def my_dyn_fn(x: str = "hi") -> str:
+            """Dynamic-form callback for tests."""
+            return x
+
+        app = DynamicDash(
+            callback_fn=my_dyn_fn,
+            initial_specs=[{"name": "x", "type": "Text"}],
+            output_components=[Markdown],
+        )
+        app._mcp_state = MCPState()
+        return app, build_mcp_server(app)
+
+    def test_set_input_updates_state(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "set_input", {"component_id": "name", "value": "Claude"}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert app._mcp_state.inputs["name"] == "Claude"
+
+    def test_set_input_rejects_unknown_id(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "set_input", {"component_id": "bogus", "value": 1}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "Unknown input id" in data["error"]
+        assert "known_ids" in data
+
+    def test_set_inputs_bulk(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "set_inputs", {"values": {"name": "X", "count": 2}}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert app._mcp_state.inputs == {"name": "X", "count": 2}
+
+    def test_set_inputs_records_partial_errors(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "set_inputs", {"values": {"name": "X", "bogus": 99}}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "applied" in data and "name" in data["applied"]
+        assert "errors" in data and "bogus" in data["errors"]
+
+    def test_invoke_calls_callback_and_records_history(self):
+        app, server = self._build_plain()
+        app._mcp_state.inputs["name"] = "X"
+        app._mcp_state.inputs["count"] = 3
+        res = _text(_run_async(server.call_tool("invoke", {})))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert data["history_index"] == 0
+        assert app._mcp_state.outputs  # some output recorded
+        assert len(app._mcp_state.history) == 1
+        entry = list(app._mcp_state.history)[0]
+        assert entry["kwargs"] == {"name": "X", "count": 3}
+
+    def test_invoke_reports_callback_exception(self):
+        from fast_dash.mcp import build_mcp_server
+
+        def boom(name: str = "x") -> str:
+            raise RuntimeError("kapow")
+
+        app = FastDash(callback_fn=boom, mcp_server=True)
+        server = build_mcp_server(app)
+        app._mcp_state.inputs["name"] = "x"
+        res = _text(_run_async(server.call_tool("invoke", {})))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "kapow" in data["error"]
+
+    def test_get_invocation_returns_summary(self):
+        app, server = self._build_plain()
+        app._mcp_state.inputs["name"] = "X"
+        app._mcp_state.inputs["count"] = 2
+        _run_async(server.call_tool("invoke", {}))
+        res = _text(_run_async(server.call_tool("get_invocation", {"index": 0})))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert data["kwargs_summary"] == {"name": "X", "count": 2}
+
+    def test_get_invocation_unknown_index(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool("get_invocation", {"index": 99})))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "not in history" in data["error"]
+
+    def test_list_component_types(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool("list_component_types", {})))
+        data = json.loads(res)
+        assert "Slider" in data["types"]
+        assert "Text" in data["types"]
+
+    def test_set_form_rejects_plain_fastdash(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "set_form", {"specs": [{"name": "y", "type": "Text"}]}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "DynamicDash" in data["error"]
+
+    def test_set_form_accepts_valid_specs_on_dynamicdash(self):
+        app, server = self._build_dynamic()
+        specs = [
+            {"name": "rate", "type": "Slider", "props": {"min": 0, "max": 1}},
+            {"name": "mode", "type": "Select", "props": {"data": ["a", "b"]}},
+        ]
+        res = _text(_run_async(server.call_tool("set_form", {"specs": specs})))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert data["count"] == 2
+        assert app._mcp_state.pending_specs == specs
+
+    def test_set_form_rejects_invalid_spec(self):
+        app, server = self._build_dynamic()
+        res = _text(_run_async(server.call_tool(
+            "set_form", {"specs": [{"name": "x", "type": "NotReal"}]}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "Unknown component type" in data["error"]
+
+    def test_screenshot_returns_text_for_string_output(self):
+        from fast_dash.mcp import build_mcp_server
+
+        def fn(name: str = "x") -> str:
+            return "hello world"
+
+        app = FastDash(callback_fn=fn, mcp_server=True)
+        server = build_mcp_server(app)
+        _run_async(server.call_tool("invoke", {}))
+        res = _text(_run_async(server.call_tool("screenshot", {})))
+        data = json.loads(res)
+        outs = data["outputs"]
+        assert isinstance(outs, list)
+        assert len(outs) >= 1
+        # The text output should round-trip through screenshot as text/plain.
+        assert any(d.get("mime") == "text/plain" for d in outs)
