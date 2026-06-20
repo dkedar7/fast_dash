@@ -23,6 +23,7 @@ import socket
 import time
 import warnings
 
+import pandas as pd  # module-level so FastMCP can eval `-> pd.DataFrame`
 import plotly.graph_objects as go  # module-level so FastMCP can eval `-> go.Figure`
 import pytest
 
@@ -668,6 +669,67 @@ class TestTools:
         assert len(outs) >= 1
         # The text output should round-trip through screenshot as text/plain.
         assert any(d.get("mime") == "text/plain" for d in outs)
+
+
+class TestOutputDrainParity:
+    """#3: agent-driven invoke() must render identically to a UI submit.
+
+    The submit callback runs raw returns through `_transform_outputs`; the
+    output drain must apply the same per-output transform, or non-Plotly
+    outputs (matplotlib/PIL/DataFrame) reach the browser as raw objects and
+    render blank.
+    """
+
+    @staticmethod
+    def _df_app():
+        def make_df(n: int = 2) -> pd.DataFrame:
+            return pd.DataFrame({"a": list(range(n)), "b": list(range(n))})
+
+        # Construct only (no build_mcp_server): the drain transform is
+        # value-based, so we exercise it without registering the DataFrame-
+        # returning callback as an MCP tool (which FastMCP can't schema).
+        return FastDash(callback_fn=make_df, mcp_server=True)
+
+    def test_drain_transforms_dataframe_like_submit(self):
+        from fast_dash.utils import _transform_outputs
+
+        app = self._df_app()
+        oid = app.outputs_with_ids[0].id
+        df = pd.DataFrame({"a": [0, 1, 2], "b": [0, 1, 2]})
+
+        # The drain produces exactly what a UI submit's _transform_outputs would.
+        drained = app._mcp_apply_output_transforms({oid: df})
+        expected = _transform_outputs(
+            [df], app.output_tags, app.outputs_with_ids, app.state_counter
+        )
+        assert drained == expected
+        # DataFrame transform == records, NOT a raw DataFrame object — the bug
+        # was the drain pushing the raw object, which renders blank.
+        assert drained[0] == [
+            {"a": 0, "b": 0}, {"a": 1, "b": 1}, {"a": 2, "b": 2}
+        ]
+        assert not isinstance(drained[0], pd.DataFrame)
+
+    def test_drain_skips_outputs_absent_from_pending(self):
+        from dash import no_update
+
+        app = self._df_app()
+        # Empty pending → every output untouched.
+        out = app._mcp_apply_output_transforms({})
+        assert out == [no_update] * len(app.outputs_with_ids)
+
+    def test_build_server_resilient_to_unschemable_return(self):
+        """A DataFrame-returning callback must not crash server build."""
+        from fast_dash.mcp import build_mcp_server
+
+        def make_df(n: int = 2) -> pd.DataFrame:
+            return pd.DataFrame({"a": [1]})
+
+        app = FastDash(callback_fn=make_df, mcp_server=True)
+        # FastMCP can't schema a DataFrame return; build must degrade, not raise.
+        with pytest.warns(UserWarning, match="direct MCP tool"):
+            server = build_mcp_server(app)
+        assert server is not None
 
 
 class TestRobustness:

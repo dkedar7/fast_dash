@@ -993,6 +993,10 @@ class FastDash:
 
         # Output drain: invoke() → state.pending_outputs → browser output
         # components. Lets agent-triggered callbacks render in the live UI.
+        # Raw results are run through the SAME per-output transform the submit
+        # callback applies, so an agent invoke() renders identically to a Run
+        # click for every output type (matplotlib/PIL/DataFrame need the
+        # transform; a Plotly figure is the identity case).
         if self.outputs_with_ids:
             @self.app.callback(
                 [
@@ -1006,7 +1010,34 @@ class FastDash:
                 pending = state.pop_pending_outputs()
                 if not pending:
                     return [no_update] * len(self.outputs_with_ids)
-                return [pending.get(c.id, no_update) for c in self.outputs_with_ids]
+                return self._mcp_apply_output_transforms(pending)
+
+    def _mcp_apply_output_transforms(self, pending):
+        """Transform raw agent-`invoke()` outputs exactly like a UI submit.
+
+        The submit callback runs every raw callback return through
+        ``_get_transform_function`` (matplotlib Figure → base64, DataFrame →
+        records, PIL → base64, …) before assigning it to the output
+        component. The agent output-drain must do the same or non-Plotly
+        outputs render blank. Returns a list aligned to ``outputs_with_ids``;
+        any id absent from ``pending`` maps to ``dash.no_update`` so it stays
+        untouched.
+        """
+        from dash import no_update
+
+        from .utils import _get_transform_function
+
+        results = []
+        for c, tag in zip(self.outputs_with_ids, self.output_tags):
+            if c.id not in pending:
+                results.append(no_update)
+                continue
+            raw = pending[c.id]
+            transform = _get_transform_function(
+                raw, tag, c.id, self.state_counter, False, c.stream
+            )
+            results.append(transform(raw))
+        return results
 
     def run_server(self):
         self.app.run(

@@ -96,6 +96,7 @@ import io
 import json
 import threading
 import time
+import warnings
 from typing import Any, Callable
 
 # Holder for an active MCP thread so tests can introspect / shut down.
@@ -365,9 +366,22 @@ def build_mcp_server(app_or_callable, *, title: str | None = None):
         json_response=True,
     )
     # Always register the callback itself — agents can call it directly
-    # without going through the UI / mirror.
+    # without going through the UI / mirror. Some return annotations (e.g. a
+    # pandas DataFrame) can't be modeled by FastMCP's schema generator; rather
+    # than crash app startup, skip just the direct tool and keep the rest of
+    # the surface intact (invoke() still runs the callback).
     if callback_fn is not None:
-        server.tool()(callback_fn)
+        try:
+            server.tool()(callback_fn)
+        except Exception as e:  # noqa: BLE001 — degrade, don't crash startup
+            warnings.warn(
+                f"Could not register "
+                f"{getattr(callback_fn, '__name__', 'callback')!r} as a direct "
+                f"MCP tool ({type(e).__name__}: {e}). The app's other tools "
+                f"(invoke, set_inputs, set_form, ...) and resources still work; "
+                f"agents can run the callback via invoke().",
+                stacklevel=2,
+            )
 
     if fd is None:
         return server
