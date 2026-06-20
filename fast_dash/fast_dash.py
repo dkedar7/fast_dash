@@ -305,15 +305,12 @@ class FastDash:
         # callbacks for real-time server -> browser push (set_props) instead of
         # the ~500ms polling Interval drain used on Flask.
         self._backend = self.kwargs.pop("backend", None)
+        # Native-WebSocket streaming: when streaming is requested on an ASGI
+        # backend, partial updates are pushed with set_props instead of
+        # flask-socketio (which is WSGI-only).
+        self._native_stream = bool(stream) and bool(self._backend)
         source = dash.Dash
         if self._backend:
-            if stream:
-                raise ValueError(
-                    "stream=True uses flask-socketio and requires the default "
-                    f"Flask backend; it is not supported with "
-                    f"backend={self._backend!r} yet (native-WebSocket streaming "
-                    "is planned)."
-                )
             self.kwargs.setdefault("websocket_callbacks", True)
             self.app = source(
                 __name__,
@@ -334,7 +331,8 @@ class FastDash:
         self.server = self.app.server
         self.callback = self.app.callback
 
-        if stream == True:
+        # Legacy flask-socketio server: only for the Flask streaming path.
+        if stream == True and not self._native_stream:
             socketio = SocketIO(self.app.server)
 
         # Define other attributes
@@ -1310,6 +1308,16 @@ class FastDash:
             prevent_initial_call=True,
         )
 
+        # Native streaming makes the main callback a WebSocket callback so
+        # set_props can stream partial updates mid-execution. The legacy Flask
+        # path is unchanged (no websocket kwarg, socketId State present).
+        _proc_cb_kwargs = dict(
+            running=[(Output("submit_inputs", "disabled"), True, False)],
+            prevent_initial_call=False,
+        )
+        if self._native_stream:
+            _proc_cb_kwargs["websocket"] = True
+
         @self.app.callback(
             [
                 Output(
@@ -1330,10 +1338,11 @@ class FastDash:
                 Input(component_id="submit_inputs", component_property="n_clicks")
             ]
             + [
-                State("socketio", "socketId") if self.stream == True else []
+                State("socketio", "socketId")
+                if (self.stream == True and not self._native_stream)
+                else []
             ],
-            running=[(Output("submit_inputs", "disabled"), True, False)],
-            prevent_initial_call=False
+            **_proc_cb_kwargs,
         )
         def process_input(*args):
             if (
@@ -1353,7 +1362,13 @@ class FastDash:
                 ):
                     self.app_initialized = True
 
-                    stream_handler_func = functools.partial(self.stream_handler, socket_id=args[-1])
+                    if self._native_stream:
+                        # ASGI: push partial updates via set_props (no socket.io).
+                        stream_handler_func = self.stream_handler_native
+                    else:
+                        stream_handler_func = functools.partial(
+                            self.stream_handler, socket_id=args[-1]
+                        )
                     with StreamContext(stream_handler_func):
                         output_state = self.callback_fn(*inputs)
 
@@ -1771,10 +1786,57 @@ class FastDash:
             emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
 
         return f"Received: {data}"
-    
+
+    def stream_handler_native(self, component_id, data, property=None, notification=True, func_data=None):
+        """Native-WebSocket streaming handler — pushes via ``set_props``.
+
+        The ASGI counterpart of :meth:`stream_handler`. Called by
+        ``update()`` / ``notify()`` inside the ``websocket=True`` main
+        callback, it streams partial updates straight to the live browser with
+        ``set_props`` — no socket id, no ``DashSocketIO``, no clientside
+        plumbing.
+
+        Note: Chat append semantics (multiple response slots) are not yet
+        ported to ``set_props`` + ``Patch``; chat updates currently replace
+        rather than append on the native path.
+        """
+        from dash import set_props
+
+        if self.stream == False:
+            return
+
+        if notification:
+            set_props("notification-container", {"sendNotifications": data})
+            return
+
+        outputs_to_search = func_data["outputs_with_ids"] if func_data else self.outputs_with_ids
+        prefix = func_data["prefix"] if func_data else ""
+        match = [c for c in outputs_to_search if c.id == f"{prefix}output_{component_id}"]
+        if not match:
+            raise ValueError(f"Component with id {component_id} not found in outputs.")
+        component = match[0]
+
+        if component.tag == "Chat" and not property:
+            raise ValueError("Argument 'property' must be specified for chat components. Allowed 'property' values are 'query' and 'response'.")
+        if component.tag == "Chat" and property not in ["query", "response"]:
+            raise ValueError("Invalid 'property' value for chat component. Allowed 'property' values are 'query' and 'response'.")
+
+        counter = func_data["state_counter"] if func_data else self.state_counter
+        transform = _get_transform_function(
+            output=data,
+            tag=component.tag,
+            component_id=component.id,
+            counter=counter,
+            partial_update=True,
+        )
+        set_props(component.id, {component.component_property: transform(data)})
 
     def add_streaming(self):
         """Add streaming functionality to the app."""
+        # Native-WebSocket streaming pushes via set_props directly; the
+        # socket.io clientside listeners below are only for the Flask path.
+        if getattr(self, "_native_stream", False):
+            return
 
         update_func = """
             function(payload, current_value) {

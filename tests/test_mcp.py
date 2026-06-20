@@ -134,11 +134,23 @@ class TestBackendOptIn:
         assert "_mcp_poll" not in _layout_ids(app.app.layout)
         assert "_mcp_mirror_store" in _layout_ids(app.app.layout)
 
-    def test_stream_with_backend_is_rejected(self):
+    @requires_fastapi
+    def test_stream_with_backend_uses_native_websocket(self):
         def fig(n: int = 3) -> go.Figure:
             return go.Figure()
-        with pytest.raises(ValueError, match="flask-socketio"):
-            FastDash(callback_fn=fig, stream=True, backend="fastapi")
+        # stream + ASGI backend now builds the native-WebSocket streaming path
+        # (set_props) instead of raising; legacy flask-socketio stays on Flask.
+        app = FastDash(callback_fn=fig, stream=True, backend="fastapi")
+        assert app._native_stream is True
+        assert type(app.server).__name__ == "FastAPI"
+        assert hasattr(app, "stream_handler_native")
+
+    def test_stream_on_flask_stays_legacy(self):
+        def fig(n: int = 3) -> go.Figure:
+            return go.Figure()
+        app = FastDash(callback_fn=fig, stream=True)
+        assert app._native_stream is False
+        assert type(app.server).__name__ == "Flask"
 
 
 class TestMCPState:
