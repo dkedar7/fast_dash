@@ -32,7 +32,7 @@ packages = [
 ]
 
 dependencies = [
-    "dash>=2.11.0",
+    "dash (>=4.3.0)",
     "pandas>=2.3.3",
     "dash-bootstrap-components>=2.0.0",
     "dash-mantine-components>=1.0.0",
@@ -99,7 +99,7 @@ docutils = ">0.21"
 
 [tool.poetry.group.test.dependencies]
 urllib3 = "*"
-dash = {version = ">2.11.0", extras = ["testing"]}
+dash = {version = ">=4.3.0", extras = ["testing"]}
 selenium = ">=3.141.0,<=4.2.0"
 
 [build-system]
