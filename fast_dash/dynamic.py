@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import copy
 import inspect
+import warnings
 from typing import Any, Callable, Iterable
 
 import dash
@@ -187,7 +188,10 @@ class DynamicDash:
         spec_resolver: Callable[[Any], list[dict]] | None = None,
         output_components: list | None = None,
         title: str = "Dynamic Dash",
+        placeholder: str | None = None,
         mcp_server: bool = False,
+        mcp_port: int = 8001,
+        mcp_host: str = "127.0.0.1",
         **dash_kwargs,
     ):
         if parent_control is not None and spec_resolver is None:
@@ -198,15 +202,33 @@ class DynamicDash:
 
         self.callback_fn = callback_fn
         self.initial_specs = list(initial_specs or [])
+        # `placeholder` is sugar for the common "empty form with a hint"
+        # case: instead of hand-writing a Markdown spec, pass a string.
+        # An explicit initial_specs always wins.
+        if placeholder is not None and not self.initial_specs:
+            self.initial_specs = [
+                {"name": "_hint", "type": "Markdown", "value": placeholder, "label": ""}
+            ]
         self.parent_control = parent_control
         self.spec_resolver = spec_resolver
         self.output_components = list(output_components or [])
         self.title = title
         self.mcp_server_enabled = bool(mcp_server)
+        self.mcp_port = mcp_port
+        self.mcp_host = mcp_host
+        self._mcp_thread = None
         self._mcp_state = None
         if self.mcp_server_enabled:
             from fast_dash.mcp import MCPState
             self._mcp_state = MCPState()
+            if mcp_host not in ("127.0.0.1", "localhost"):
+                warnings.warn(
+                    f"mcp_host={mcp_host!r} binds the MCP port to a non-loopback "
+                    "address. The MCP port has no authentication; anyone who can "
+                    "reach it can invoke your callback. Use 127.0.0.1 unless you "
+                    "have a deliberate reason to expose it.",
+                    stacklevel=2,
+                )
 
         sig = inspect.signature(callback_fn)
         self._has_var_kw = any(
@@ -374,6 +396,26 @@ class DynamicDash:
                 except Exception:
                     return no_update
 
+            # Output drain: invoke() pushes results into pending_outputs;
+            # this drain fans them into the actual output components.
+            if self._outputs_with_ids:
+                @app.callback(
+                    [
+                        Output(c.id, c.component_property, allow_duplicate=True)
+                        for c in self._outputs_with_ids
+                    ],
+                    Input("_mcp_poll", "n_intervals"),
+                    prevent_initial_call=True,
+                )
+                def drain_outputs(_n):
+                    pending = state.pop_pending_outputs()
+                    if not pending:
+                        return [no_update] * len(self._outputs_with_ids)
+                    return [
+                        pending.get(c.id, no_update)
+                        for c in self._outputs_with_ids
+                    ]
+
         # ----- (iii) Run → invoke callback_fn --------------------------------
         if self._outputs_with_ids:
             outputs = [
@@ -460,5 +502,20 @@ class DynamicDash:
                 return result[:n_out]
 
     def run(self, debug: bool = False, port: int = 8050, **kwargs):
-        """Convenience wrapper around the Dash dev server."""
+        """Convenience wrapper around the Dash dev server.
+
+        When ``mcp_server=True`` was passed to the constructor, the MCP
+        server is started in a daemon thread first — same one-call contract
+        as :class:`FastDash`. ``serve_mcp_in_thread`` remains available for
+        advanced setups (e.g. attaching MCP to a bare callable).
+        """
+        if self.mcp_server_enabled:
+            from fast_dash.mcp import serve_mcp_in_thread
+
+            self._mcp_thread = serve_mcp_in_thread(
+                self,
+                host=self.mcp_host,
+                port=self.mcp_port,
+                title=self.title,
+            )
         self.app.run(debug=debug, port=port, **kwargs)

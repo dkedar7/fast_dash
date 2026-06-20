@@ -14,6 +14,12 @@ Usage::
         '''Search the user database.'''
         ...
 
+``mcp_server=True`` is the one obvious way to expose an app: it works the
+same on ``FastDash``, ``@fastdash``, and ``DynamicDash``, and their
+``run()`` starts the MCP server for you. The lower-level
+``serve_mcp_in_thread`` is only needed to attach MCP to a *bare callable*
+(no app instance) or to manage the server thread yourself.
+
 The web app runs on the usual port (8080 by default). The MCP server
 runs on a separate port (8001 by default) at the path ``/mcp``. Agents
 connect via streamable-HTTP::
@@ -84,6 +90,8 @@ from __future__ import annotations
 import base64
 import collections
 import datetime
+import functools
+import inspect
 import io
 import json
 import threading
@@ -123,6 +131,10 @@ class MCPState:
         self.pending_inputs: dict[str, Any] = {}
         # set_form writes here; DynamicDash drain re-renders the form.
         self.pending_specs: list[dict] | None = None
+        # invoke() writes here; FastDash drain fans out to each output
+        # component so the browser reflects the agent-triggered callback
+        # without anyone touching the UI.
+        self.pending_outputs: dict[str, Any] = {}
 
     def append_history(self, entry_summary: dict, entry_full: dict) -> int:
         self.history.append(entry_summary)
@@ -151,6 +163,11 @@ class MCPState:
     def pop_pending_specs(self) -> list[dict] | None:
         """Atomically swap and return the pending-specs list."""
         out, self.pending_specs = self.pending_specs, None
+        return out
+
+    def pop_pending_outputs(self) -> dict[str, Any]:
+        """Atomically swap and return the pending-outputs dict."""
+        out, self.pending_outputs = self.pending_outputs, {}
         return out
 
 
@@ -243,6 +260,85 @@ def _param_name_from_id(component_id: str) -> str:
     return component_id
 
 
+def _json_safe(obj):
+    """Coerce a value into a JSON-serializable structure.
+
+    Defends the MCP transport. A tool that returns numpy arrays, a Plotly
+    figure, or any other exotic object would otherwise raise *during the
+    SDK's response serialization* — after the tool body has returned, so
+    an in-body ``try/except`` can't catch it — and that unhandled error
+    tears down the whole client session. Round-tripping through ``json``
+    with ``default=str`` degrades unknown objects to strings instead.
+    """
+    return json.loads(json.dumps(obj, default=str))
+
+
+def _safe_tool(fn):
+    """Wrap an MCP tool so it can never 500 the session.
+
+    Catches exceptions in the tool body *and* sanitizes the return value
+    so a non-serializable payload degrades gracefully instead of killing
+    the transport. ``functools.wraps`` preserves the signature/annotations
+    FastMCP introspects to build the tool schema.
+    """
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            result = fn(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001 — report, never propagate
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+        try:
+            return _json_safe(result)
+        except Exception as e:  # noqa: BLE001
+            return {
+                "ok": False,
+                "error": f"unserializable tool result: {type(e).__name__}: {e}",
+            }
+
+    return wrapper
+
+
+def _seed_input_mirror(fd) -> None:
+    """Pre-populate the input mirror from component / signature defaults.
+
+    The browser mirror callback only fires once a client renders the page.
+    An agent that connects headless (the whole point of MCP) would
+    otherwise see ``null`` input values via ``fastdash://app/inputs`` and
+    ``invoke()`` would silently fall back to the callback's defaults with
+    no visible record of what it ran. Seeding makes the mirror reflect the
+    true starting values immediately.
+
+    DynamicDash has no static inputs (the form is created at runtime by
+    ``set_form``), so this is a no-op there.
+    """
+    state: MCPState = fd._mcp_state
+    components = getattr(fd, "inputs_with_ids", None) or []
+
+    # 1) Each input component's current prop value (covers UI defaults).
+    for c in components:
+        cid = _stringify_id(c.id)
+        if cid in state.inputs:
+            continue
+        prop = getattr(c, "component_property", "value")
+        val = getattr(c, prop, None)
+        if val is not None:
+            state.inputs[cid] = val
+
+    # 2) Fall back to the callback signature defaults for anything still
+    #    unseeded (FastDash uses the parameter name as the component id).
+    try:
+        ids = {_stringify_id(c.id) for c in components}
+        sig = inspect.signature(fd.callback_fn)
+        for name, p in sig.parameters.items():
+            if p.default is inspect.Parameter.empty:
+                continue
+            if name in ids and name not in state.inputs:
+                state.inputs[name] = p.default
+    except (TypeError, ValueError):
+        pass
+
+
 def build_mcp_server(app_or_callable, *, title: str | None = None):
     """Build a FastMCP server for either a FastDash instance or a callable.
 
@@ -282,6 +378,7 @@ def build_mcp_server(app_or_callable, *, title: str | None = None):
     if not hasattr(fd, "_mcp_state") or fd._mcp_state is None:
         fd._mcp_state = MCPState()
 
+    _seed_input_mirror(fd)
     _register_resources(server, fd)
     _register_tools(server, fd)
     return server
@@ -347,6 +444,7 @@ def _register_tools(server, fd):
     state: MCPState = fd._mcp_state
 
     @server.tool()
+    @_safe_tool
     def set_input(component_id: str, value: Any) -> dict:
         """Update one input's value, server-side AND live in the browser.
 
@@ -367,6 +465,7 @@ def _register_tools(server, fd):
         return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
 
     @server.tool()
+    @_safe_tool
     def set_inputs(values: dict) -> dict:
         """Bulk-update multiple input values. Same browser-push contract as set_input."""
         ids = {d["id"] for d in _enumerate_inputs(fd)}
@@ -381,11 +480,16 @@ def _register_tools(server, fd):
         return {"ok": not errors, "applied": applied, "errors": errors}
 
     @server.tool()
-    def invoke() -> dict:
-        """Run the app's callback with current input mirror values.
+    @_safe_tool
+    def invoke(inputs: dict | None = None) -> dict:
+        """Run the app's callback with the current input mirror.
 
-        Returns a summary of outputs and writes them into the server-side
-        outputs mirror (visible via `fastdash://app/outputs`).
+        Pass ``inputs`` to set values and run in a single call — equivalent
+        to ``set_inputs(inputs)`` immediately followed by ``invoke()``, but
+        one round-trip (and the browser reflects the values too). Omit it to
+        run with whatever the mirror already holds. Returns a summary of the
+        outputs and writes them into the server-side outputs mirror (visible
+        via `fastdash://app/outputs`).
         """
         if getattr(fd, "is_multi", False) or getattr(fd, "is_steps", False):
             return {
@@ -393,16 +497,40 @@ def _register_tools(server, fd):
                 "error": "invoke not supported in multi-function/steps mode",
             }
 
+        # Optional one-shot input application — same validate-and-push
+        # contract as set_inputs, so the mirror AND the live browser update.
+        # Validate ALL keys before applying ANY, so a bad key can't leave the
+        # mirror partially mutated (which would taint a later invoke()).
+        if inputs:
+            ids = {d["id"] for d in _enumerate_inputs(fd)}
+            if ids:
+                unknown = sorted(k for k in inputs if k not in ids)
+                if unknown:
+                    return {
+                        "ok": False,
+                        "error": f"unknown input id(s): {unknown}",
+                        "known_ids": sorted(ids),
+                    }
+            for k, v in inputs.items():
+                state.inputs[k] = v
+                state.pending_inputs[k] = v
+
         # Build kwargs: map component id (e.g. "input_x") → parameter name "x"
         kwargs = {}
         snapshot = dict(state.inputs)
-        for d in _enumerate_inputs(fd):
-            cid = d["id"]
-            param = _param_name_from_id(cid)
-            if cid in snapshot:
-                kwargs[param] = snapshot[cid]
-            elif param in snapshot:
-                kwargs[param] = snapshot[param]
+        descriptors = _enumerate_inputs(fd)
+        if descriptors:
+            for d in descriptors:
+                cid = d["id"]
+                param = _param_name_from_id(cid)
+                if cid in snapshot:
+                    kwargs[param] = snapshot[cid]
+                elif param in snapshot:
+                    kwargs[param] = snapshot[param]
+        else:
+            # No static input descriptors (e.g. DynamicDash) — the mirror
+            # already keys by parameter name, so use it directly.
+            kwargs = dict(snapshot)
 
         t0 = time.time()
         try:
@@ -425,6 +553,7 @@ def _register_tools(server, fd):
         outs = _enumerate_outputs(fd)
         for d, val in zip(outs, result_list):
             state.outputs[d["id"]] = val
+            state.pending_outputs[d["id"]] = val
             out_summary[d["id"]] = _summarize_for_history(val)
 
         entry_summary = {
@@ -447,6 +576,7 @@ def _register_tools(server, fd):
         }
 
     @server.tool()
+    @_safe_tool
     def set_form(specs: list) -> dict:
         """Replace the form on a DynamicDash app with a new spec list.
 
@@ -472,6 +602,7 @@ def _register_tools(server, fd):
         return {"ok": True, "count": len(specs)}
 
     @server.tool()
+    @_safe_tool
     def get_invocation(index: int) -> dict:
         """Look up a past invocation by history index (returned by invoke)."""
         if index not in state.full_history:
@@ -490,6 +621,7 @@ def _register_tools(server, fd):
         }
 
     @server.tool()
+    @_safe_tool
     def list_component_types() -> dict:
         """List the legal `type` values for a UI spec.
 
@@ -499,6 +631,7 @@ def _register_tools(server, fd):
         return {"types": _component_types()}
 
     @server.tool()
+    @_safe_tool
     def screenshot() -> dict:
         """Render current outputs to images/text server-side.
 
@@ -533,13 +666,18 @@ def _render_one_output(val) -> dict:
                     "content_b64": base64.b64encode(png).decode("ascii"),
                 }
             except Exception as e:
+                # kaleido is an ~80MB optional and is the common missing
+                # piece. Fall back to the figure spec — but route it through
+                # Plotly's own JSON encoder (``to_json`` handles numpy
+                # arrays), since the raw ``to_plotly_json()`` dict is NOT
+                # JSON-serializable and would otherwise crash the response.
                 return {
                     "mime": None,
                     "error": (
-                        f"Plotly→PNG failed (kaleido may be missing): "
-                        f"{type(e).__name__}: {e}"
+                        f"Plotly-to-PNG failed; install 'kaleido' for "
+                        f"server-side image render: {type(e).__name__}: {e}"
                     ),
-                    "fallback": val.to_plotly_json(),
+                    "figure": json.loads(val.to_json()),
                 }
     except ImportError:
         pass
@@ -600,8 +738,15 @@ def serve_mcp_in_thread(
 ) -> threading.Thread:
     """Start the MCP server on a background daemon thread.
 
-    Accepts a FastDash instance (full surface) or a plain callable
-    (legacy: callback registered as the only tool). Returns the thread.
+    **Most apps don't call this directly.** Passing ``mcp_server=True`` to
+    ``FastDash`` / ``@fastdash`` / ``DynamicDash`` makes ``run()`` start the
+    server for you — that's the one obvious path. Reach for this helper only
+    to attach MCP to a *bare callable* (no app instance) or to manage the
+    server thread yourself.
+
+    Accepts a FastDash/DynamicDash instance (full surface: resources +
+    tools) or a plain callable (just the callback registered as one tool).
+    Returns the thread.
     """
     server = build_mcp_server(app_or_callable, title=title)
     _, uvicorn = _ensure_mcp_deps()

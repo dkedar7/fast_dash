@@ -23,6 +23,7 @@ import socket
 import time
 import warnings
 
+import plotly.graph_objects as go  # module-level so FastMCP can eval `-> go.Figure`
 import pytest
 
 from fast_dash import FastDash, fastdash  # noqa: F401
@@ -323,6 +324,15 @@ class TestMCPState:
         assert out == [{"name": "x", "type": "Text"}]
         assert s.pending_specs is None
 
+    def test_pop_pending_outputs_returns_and_clears(self):
+        from fast_dash.mcp import MCPState
+
+        s = MCPState()
+        s.pending_outputs["o1"] = "result"
+        out = s.pop_pending_outputs()
+        assert out == {"o1": "result"}
+        assert s.pending_outputs == {}
+
 
 # --- Resource reads -------------------------------------------------------
 
@@ -361,8 +371,12 @@ class TestResources:
         assert ids == {"name", "count"}
         for d in data:
             assert d["property"] == "value"
-            # No interactions yet, mirror is empty.
-            assert d["value"] is None
+        # build_mcp_server seeds the mirror from the callback's signature
+        # defaults, so a headless agent sees real values (not nulls) before
+        # any browser renders the page.
+        by_id = {d["id"]: d["value"] for d in data}
+        assert by_id["name"] == "world"
+        assert by_id["count"] == 3
 
     def test_app_inputs_reflects_state_writes(self):
         app, server = self._build()
@@ -455,6 +469,43 @@ class TestTools:
         ))
         assert app._mcp_state.pending_inputs == {"name": "X", "count": 7}
 
+    def test_invoke_with_inputs_applies_and_runs_one_shot(self):
+        """invoke(inputs=...) == set_inputs then invoke, in one round-trip."""
+        app, server = self._build_plain()  # my_fn -> ", ".join([name] * count)
+        res = _text(_run_async(server.call_tool(
+            "invoke", {"inputs": {"name": "Z", "count": 2}}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is True
+        # Mirror updated AND queued for the browser drain (same as set_inputs).
+        assert app._mcp_state.inputs["name"] == "Z"
+        assert app._mcp_state.pending_inputs == {"name": "Z", "count": 2}
+        # The callback actually ran with the applied values.
+        assert "Z, Z" in json.dumps(data["outputs"])
+
+    def test_invoke_with_unknown_input_is_rejected(self):
+        app, server = self._build_plain()
+        res = _text(_run_async(server.call_tool(
+            "invoke", {"inputs": {"name": "ok", "nope": 1}}
+        )))
+        data = json.loads(res)
+        assert data["ok"] is False
+        assert "known_ids" in data
+        # Atomic: a rejected batch must NOT partially mutate the mirror,
+        # even for the valid keys that preceded the bad one.
+        assert "nope" not in app._mcp_state.inputs
+        assert app._mcp_state.inputs.get("name") == "world"  # seeded default
+        assert app._mcp_state.pending_inputs == {}
+
+    def test_invoke_without_inputs_uses_current_mirror(self):
+        app, server = self._build_plain()
+        app._mcp_state.inputs["name"] = "Q"
+        app._mcp_state.inputs["count"] = 3
+        res = _text(_run_async(server.call_tool("invoke", {})))
+        data = json.loads(res)
+        assert data["ok"] is True
+        assert "Q, Q, Q" in json.dumps(data["outputs"])
+
     def test_set_form_queues_for_browser_drain(self):
         """v0.2 push: set_form on DynamicDash writes pending_specs for the Interval drain."""
         app, server = self._build_dynamic()
@@ -530,6 +581,8 @@ class TestTools:
         assert len(app._mcp_state.history) == 1
         entry = list(app._mcp_state.history)[0]
         assert entry["kwargs"] == {"name": "X", "count": 3}
+        # v0.2.1: invoke also queues outputs for browser push
+        assert app._mcp_state.pending_outputs  # at least one output queued
 
     def test_invoke_reports_callback_exception(self):
         from fast_dash.mcp import build_mcp_server
@@ -615,3 +668,91 @@ class TestTools:
         assert len(outs) >= 1
         # The text output should round-trip through screenshot as text/plain.
         assert any(d.get("mime") == "text/plain" for d in outs)
+
+
+class TestRobustness:
+    """Regression coverage for the dogfood findings.
+
+    A tool must never tear down the MCP session by returning a
+    non-serializable payload, and ``screenshot()`` must degrade gracefully
+    when kaleido is absent rather than emitting numpy arrays.
+    """
+
+    def test_safe_tool_catches_body_exception(self):
+        from fast_dash.mcp import _safe_tool
+
+        @_safe_tool
+        def boom() -> dict:
+            raise RuntimeError("kaboom")
+
+        out = boom()
+        assert out["ok"] is False
+        assert "RuntimeError: kaboom" in out["error"]
+
+    def test_safe_tool_sanitizes_unserializable_return(self):
+        import numpy as np
+
+        from fast_dash.mcp import _safe_tool
+
+        @_safe_tool
+        def gives_numpy() -> dict:
+            return {"arr": np.arange(3)}
+
+        out = gives_numpy()
+        # Must be JSON-serializable now (numpy degraded to a string).
+        json.dumps(out)
+
+    def test_safe_tool_preserves_signature_for_schema(self):
+        from fast_dash.mcp import _safe_tool
+        import inspect
+
+        @_safe_tool
+        def f(component_id: str, value: int) -> dict:
+            return {"ok": True}
+
+        # FastMCP builds the tool schema from the signature; the wrapper
+        # must expose the wrapped function's parameters, not (*args,**kwargs).
+        params = list(inspect.signature(f).parameters)
+        assert params == ["component_id", "value"]
+
+    def test_screenshot_figure_without_kaleido_is_serializable(self, monkeypatch):
+        import plotly.graph_objects as go
+
+        from fast_dash.mcp import _render_one_output
+
+        def _no_kaleido(*a, **k):
+            raise RuntimeError("kaleido not installed")
+
+        monkeypatch.setattr(go.Figure, "to_image", _no_kaleido)
+        fig = go.Figure(go.Bar(x=["a", "b"], y=[1, 2]))
+        out = _render_one_output(fig)
+        # The whole point: serializable, no numpy arrays leaking through.
+        json.dumps(out)
+        assert "kaleido" in out["error"]
+        assert "figure" in out  # plotly-encoded fallback present
+
+    def test_screenshot_with_figure_output_does_not_crash_session(self):
+        """The original reported bug: invoke()->Figure then screenshot()."""
+        from fast_dash.mcp import build_mcp_server
+
+        def make_fig(n: int = 3) -> go.Figure:
+            return go.Figure(go.Bar(x=list(range(n)), y=list(range(n))))
+
+        app = FastDash(callback_fn=make_fig, mcp_server=True)
+        server = build_mcp_server(app)
+        _run_async(server.call_tool("invoke", {}))
+        res = _text(_run_async(server.call_tool("screenshot", {})))
+        data = json.loads(res)  # would raise if the tool 500'd
+        assert isinstance(data["outputs"], list)
+
+    def test_input_mirror_seeded_from_defaults(self):
+        from fast_dash.mcp import build_mcp_server
+
+        def greet(name: str = "world", count: int = 3) -> str:
+            return name * count
+
+        app = FastDash(callback_fn=greet, mcp_server=True)
+        build_mcp_server(app)
+        # Seeded before any browser renders the page.
+        assert app._mcp_state.inputs["name"] == "world"
+        assert app._mcp_state.inputs["count"] == 3

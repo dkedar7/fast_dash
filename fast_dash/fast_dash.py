@@ -939,19 +939,23 @@ class FastDash:
         from .utils import _jsonify_for_mcp
 
         state = self._mcp_state
-        # Append hidden Store + Interval as layout siblings — Dash needs
-        # every callback Output/Input to exist in the layout.
-        self.app.layout = dash_html.Div(
-            [
-                self.app.layout,
-                dcc.Store(id="_mcp_mirror_store"),
-                dcc.Interval(
-                    id="_mcp_poll",
-                    interval=500,
-                    n_intervals=0,
-                ),
-            ]
-        )
+        # Inject the hidden Store + Interval into the existing root's
+        # children rather than wrapping. Wrapping the root in a Div
+        # broke Dash's boot sequence (no callbacks fired), most likely
+        # because the existing root (MantineProvider) needed to stay
+        # the top-level node.
+        root = self.app.layout
+        injected = [
+            dcc.Store(id="_mcp_mirror_store"),
+            dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0),
+        ]
+        existing = root.children
+        if existing is None:
+            root.children = injected
+        elif isinstance(existing, (list, tuple)):
+            root.children = list(existing) + injected
+        else:
+            root.children = [existing] + injected
 
         @self.app.callback(
             Output("_mcp_mirror_store", "data"),
@@ -986,6 +990,23 @@ class FastDash:
             if not pending:
                 return [no_update] * len(self.inputs_with_ids)
             return [pending.get(c.id, no_update) for c in self.inputs_with_ids]
+
+        # Output drain: invoke() → state.pending_outputs → browser output
+        # components. Lets agent-triggered callbacks render in the live UI.
+        if self.outputs_with_ids:
+            @self.app.callback(
+                [
+                    Output(c.id, c.component_property, allow_duplicate=True)
+                    for c in self.outputs_with_ids
+                ],
+                Input("_mcp_poll", "n_intervals"),
+                prevent_initial_call=True,
+            )
+            def _mcp_drain_outputs(_n):
+                pending = state.pop_pending_outputs()
+                if not pending:
+                    return [no_update] * len(self.outputs_with_ids)
+                return [pending.get(c.id, no_update) for c in self.outputs_with_ids]
 
     def run_server(self):
         self.app.run(

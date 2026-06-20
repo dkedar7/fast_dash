@@ -182,6 +182,102 @@ def test_dynamicdash_mcp_server_true_adds_poll_interval():
     assert app._mcp_state is not None
 
 
+def test_dynamicdash_mcp_attrs_and_defaults():
+    app = DynamicDash(
+        callback_fn=lambda x=1: x,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        mcp_server=True,
+    )
+    assert app.mcp_port == 8001
+    assert app.mcp_host == "127.0.0.1"
+    assert app._mcp_thread is None
+
+
+def test_dynamicdash_run_autostarts_mcp(monkeypatch):
+    """mcp_server=True -> run() starts the MCP server, same as FastDash."""
+    import fast_dash.mcp as mcpmod
+
+    seen = {}
+
+    def fake_serve(app, *, host, port, title):
+        seen["serve"] = {"host": host, "port": port, "title": title}
+        return "fake-thread"
+
+    monkeypatch.setattr(mcpmod, "serve_mcp_in_thread", fake_serve)
+
+    app = DynamicDash(
+        callback_fn=lambda x=1: x,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        mcp_server=True,
+        mcp_port=8123,
+    )
+    # Don't actually boot the Dash dev server.
+    monkeypatch.setattr(app.app, "run", lambda **kw: seen.setdefault("run", kw))
+    app.run(port=8051)
+
+    assert seen["serve"] == {"host": "127.0.0.1", "port": 8123, "title": app.title}
+    assert app._mcp_thread == "fake-thread"
+    assert seen["run"]["port"] == 8051
+
+
+def test_dynamicdash_run_skips_mcp_when_disabled(monkeypatch):
+    import fast_dash.mcp as mcpmod
+
+    called = {"serve": False}
+    monkeypatch.setattr(
+        mcpmod,
+        "serve_mcp_in_thread",
+        lambda *a, **k: called.__setitem__("serve", True),
+    )
+    app = DynamicDash(
+        callback_fn=lambda x=1: x,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+    )
+    monkeypatch.setattr(app.app, "run", lambda **kw: None)
+    app.run()
+    assert called["serve"] is False
+
+
+def test_dynamicdash_warns_on_non_loopback_mcp_host():
+    with pytest.warns(UserWarning, match="non-loopback"):
+        DynamicDash(
+            callback_fn=lambda x=1: x,
+            initial_specs=[{"name": "x", "type": "Text"}],
+            output_components=[Markdown],
+            mcp_server=True,
+            mcp_host="0.0.0.0",
+        )
+
+
+def test_dynamicdash_placeholder_builds_hint_spec():
+    app = DynamicDash(
+        callback_fn=lambda **k: k,
+        output_components=[Markdown],
+        placeholder="Ask the agent to call set_form().",
+    )
+    assert app.initial_specs == [
+        {
+            "name": "_hint",
+            "type": "Markdown",
+            "value": "Ask the agent to call set_form().",
+            "label": "",
+        }
+    ]
+
+
+def test_dynamicdash_explicit_specs_win_over_placeholder():
+    app = DynamicDash(
+        callback_fn=lambda **k: k,
+        output_components=[Markdown],
+        initial_specs=[{"name": "x", "type": "Text"}],
+        placeholder="ignored",
+    )
+    assert app.initial_specs == [{"name": "x", "type": "Text"}]
+
+
 def test_dynamicdash_rejects_parent_without_resolver():
     with pytest.raises(ValueError, match="parent_control was given"):
         DynamicDash(

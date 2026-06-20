@@ -12,8 +12,11 @@ Then point any MCP-capable agent (Claude Code, Cursor, Cline, ...) at::
 What the agent gets:
 
 * Tool ``plot_bars(n_categories, color)`` — call the function directly
-* Tool ``set_input(component_id, value)`` — mirror an input value
-* Tool ``set_inputs({...})`` — bulk
+* Tool ``set_input(component_id, value)`` — mirror one input value.
+  ``component_id`` is the *parameter name* itself (e.g. ``"n_categories"``,
+  ``"color"``) — not an ``input_``-prefixed id. Read ``fastdash://app/inputs``
+  to list the exact ids and their current values.
+* Tool ``set_inputs({...})`` — bulk, e.g. ``{"n_categories": 8, "color": "#2f9e44"}``
 * Tool ``invoke()`` — run callback with current mirror, returns output summary
 * Tool ``screenshot()`` — server-side PNG of the current Plotly figure (needs kaleido)
 * Tool ``get_invocation(index)`` — full kwargs+result from history
