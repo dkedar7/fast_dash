@@ -892,7 +892,7 @@ class FastDash:
         )
 
     def _start_mcp_server(self):
-        """Launch an MCP server in a daemon thread alongside the Dash app.
+        """Mount Dash's native MCP server on this app (shared port, ``/mcp``).
 
         Skipped silently in multi-function and steps modes — the MCP
         single-tool model assumes a single callback. We log a warning
@@ -906,18 +906,12 @@ class FastDash:
                 stacklevel=2,
             )
             return
-        from .mcp import serve_mcp_in_thread
+        from .mcp import enable_mcp
 
-        # Pass the FastDash instance (not just callback_fn) so the MCP
-        # server can register the full app surface — resources for
-        # state introspection plus mutation tools — closing over
-        # ``self._mcp_state``.
-        self._mcp_thread = serve_mcp_in_thread(
-            self,
-            host=self.mcp_host,
-            port=self.mcp_port,
-            title=self.title,
-        )
+        # Native Dash MCP shares the web app's host/port; agents connect at
+        # http://<host>:<port>/mcp. The legacy mcp_port/mcp_host kwargs are
+        # retained for compatibility but no longer open a second port.
+        enable_mcp(self)
 
     def _register_mcp_mirror(self):
         """Wire the two MCP integration callbacks.

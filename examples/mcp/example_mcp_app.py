@@ -1,34 +1,30 @@
-"""fast_dash app with the full MCP surface enabled.
+"""fast_dash app with the MCP surface enabled (Dash >= 4.3 native MCP).
 
 Run::
 
-    pip install -e '.[mcp]'
+    pip install fast-dash 'dash>=4.3'
     python examples/mcp/example_mcp_app.py
 
-Then point any MCP-capable agent (Claude Code, Cursor, Cline, ...) at::
+The MCP server shares the web app's port. Point any MCP-capable agent
+(Claude Code, Cursor, Cline, ...) at::
 
-    {"servers": {"chart-builder": {"url": "http://localhost:8001/mcp"}}}
+    {"servers": {"chart-builder": {"url": "http://localhost:8080/mcp"}}}
 
 What the agent gets:
 
-* Tool ``plot_bars(n_categories, color)`` — call the function directly
-* Tool ``set_input(component_id, value)`` — mirror one input value.
-  ``component_id`` is the *parameter name* itself (e.g. ``"n_categories"``,
-  ``"color"``) — not an ``input_``-prefixed id. Read ``fastdash://app/inputs``
-  to list the exact ids and their current values.
-* Tool ``set_inputs({...})`` — bulk, e.g. ``{"n_categories": 8, "color": "#2f9e44"}``
-* Tool ``invoke()`` — run callback with current mirror, returns output summary
-* Tool ``screenshot()`` — server-side PNG of the current Plotly figure (needs kaleido)
-* Tool ``get_invocation(index)`` — full kwargs+result from history
-* Tool ``list_component_types()``
-* Tool ``set_form(specs)`` — rejected (this is a plain FastDash, not DynamicDash)
-* Resource ``fastdash://app`` — title, signature, mode
-* Resource ``fastdash://app/inputs`` — input panel mirror
-* Resource ``fastdash://app/outputs`` — last computed outputs
-* Resource ``fastdash://app/layout`` — full component tree
-* Resource ``fastdash://app/history`` — last 20 invocations (summaries)
+* fast_dash tools (drive the live app):
+    - ``set_input(component_id, value)`` — ``component_id`` is the parameter
+      name itself (e.g. ``"n_categories"``, ``"color"``).
+    - ``set_inputs({...})`` — bulk, e.g. ``{"n_categories": 8, "color": "#2f9e44"}``
+    - ``invoke(inputs=None)`` — set values and run the callback in one call.
+    - ``get_invocation(index)`` — full kwargs+result from history.
+    - ``list_component_types()``
+    - ``set_form(specs)`` — rejected (plain FastDash, not DynamicDash).
+* Native Dash resources/tools (introspect the live app):
+    - ``dash://layout`` / ``dash://components`` — the component tree.
+    - ``get_dash_component`` — read a component's current props.
 
-Web UI runs on http://127.0.0.1:8080 as usual.
+Web UI runs on http://127.0.0.1:8080.
 """
 
 import numpy as np
@@ -39,7 +35,7 @@ import plotly.graph_objects as go
 from fast_dash import fastdash
 
 
-@fastdash(mcp_server=True, port=8080, mcp_port=8001)
+@fastdash(mcp_server=True, port=8080)
 def plot_bars(n_categories: int = 6, color: str = "#1c7ed6") -> go.Figure:
     """Plot a bar chart with N random-height bars in the chosen color.
 
