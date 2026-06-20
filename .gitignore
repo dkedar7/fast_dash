@@ -114,3 +114,6 @@ site/
 *.zip
 examples/Simple text to text/.dockerignore
 .pypirc
+
+# Personal Claude Code settings (do not commit)
+.claude/settings.local.json

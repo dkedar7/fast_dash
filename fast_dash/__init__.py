@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.2.16"
+__version__ = "0.3.0"
 
 from fast_dash.Components import (
     Graph,
@@ -34,6 +34,7 @@ import dash
 from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
+from fast_dash.dynamic import DynamicDash, render_spec, COMPONENT_REGISTRY
 
 __all__ = [
     "FastDash",
@@ -65,5 +66,8 @@ __all__ = [
     "Switch",
     "PasswordInput",
     "Markdown",
-    "Table"
+    "Table",
+    "DynamicDash",
+    "render_spec",
+    "COMPONENT_REGISTRY",
 ]

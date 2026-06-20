@@ -127,6 +127,9 @@ class FastDash:
         run_kwargs=dict(),
         tab_titles=None,
         steps=None,
+        mcp_server=False,
+        mcp_port=8001,
+        mcp_host="127.0.0.1",
         **kwargs
     ):
         """
@@ -210,6 +213,22 @@ class FastDash:
         # Detect pipeline (steps) mode
         self.is_steps = steps is not None
         self.steps = steps
+        self.mcp_server_enabled = bool(mcp_server)
+        self.mcp_port = mcp_port
+        self.mcp_host = mcp_host
+        self._mcp_thread = None
+        self._mcp_state = None
+        if self.mcp_server_enabled:
+            from .mcp import MCPState
+            self._mcp_state = MCPState()
+            if mcp_host not in ("127.0.0.1", "localhost"):
+                warnings.warn(
+                    f"mcp_host={mcp_host!r} binds the MCP port to a non-loopback "
+                    "address. The MCP port has no authentication; anyone who "
+                    "can reach it can invoke your callback. Use 127.0.0.1 unless "
+                    "you have a deliberate reason to expose it.",
+                    stacklevel=2,
+                )
 
         # callback_fn is required unless steps= is provided
         if callback_fn is None and not self.is_steps:
@@ -361,6 +380,8 @@ class FastDash:
         # Register callbacks
         self.register_callback_fn()
         self.add_streaming()
+        if self.mcp_server_enabled:
+            self._register_mcp_mirror()
 
         # Keep track of the number of clicks
         self.submit_clicks = 0
@@ -864,9 +885,159 @@ class FastDash:
             return styles + [back_disabled, next_disabled]
 
     def run(self):
+        if self.mcp_server_enabled:
+            self._start_mcp_server()
         self.app.run(**self.run_kwargs) if self.mode is None else self.app.run(
             jupyter_mode=self.mode, **self.run_kwargs
         )
+
+    def _start_mcp_server(self):
+        """Launch an MCP server in a daemon thread alongside the Dash app.
+
+        Skipped silently in multi-function and steps modes — the MCP
+        single-tool model assumes a single callback. We log a warning
+        instead of failing so existing apps keep working.
+        """
+        if self.is_multi or self.is_steps:
+            warnings.warn(
+                "mcp_server=True is currently supported only for "
+                "single-function apps; ignoring for multi-function / "
+                "steps mode.",
+                stacklevel=2,
+            )
+            return
+        from .mcp import serve_mcp_in_thread
+
+        # Pass the FastDash instance (not just callback_fn) so the MCP
+        # server can register the full app surface — resources for
+        # state introspection plus mutation tools — closing over
+        # ``self._mcp_state``.
+        self._mcp_thread = serve_mcp_in_thread(
+            self,
+            host=self.mcp_host,
+            port=self.mcp_port,
+            title=self.title,
+        )
+
+    def _register_mcp_mirror(self):
+        """Wire the two MCP integration callbacks.
+
+        **Mirror** (browser → server): fan-in callback that copies every
+        input's value into ``self._mcp_state.inputs`` so the MCP
+        ``fastdash://app/inputs`` resource (and ``invoke`` tool) reflect
+        live browser state.
+
+        **Drain** (server → browser, v0.2): a ``dcc.Interval``-driven
+        callback that pops ``state.pending_inputs`` every 500ms and
+        fans the values back out to the corresponding input components.
+        Agent calls to ``set_input`` / ``set_inputs`` become visible in
+        the live UI within that window.
+
+        Single-function mode only — multi-function and steps modes skip
+        MCP entirely.
+        """
+        from .utils import _jsonify_for_mcp
+
+        state = self._mcp_state
+        # Inject the hidden Store + Interval into the existing root's
+        # children rather than wrapping. Wrapping the root in a Div
+        # broke Dash's boot sequence (no callbacks fired), most likely
+        # because the existing root (MantineProvider) needed to stay
+        # the top-level node.
+        root = self.app.layout
+        injected = [
+            dcc.Store(id="_mcp_mirror_store"),
+            dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0),
+        ]
+        existing = root.children
+        if existing is None:
+            root.children = injected
+        elif isinstance(existing, (list, tuple)):
+            root.children = list(existing) + injected
+        else:
+            root.children = [existing] + injected
+
+        @self.app.callback(
+            Output("_mcp_mirror_store", "data"),
+            [
+                Input(c.id, c.component_property)
+                for c in self.inputs_with_ids
+            ],
+            prevent_initial_call=False,
+        )
+        def _mcp_mirror(*values):
+            for c, v in zip(self.inputs_with_ids, values):
+                state.inputs[c.id] = _jsonify_for_mcp(v)
+            return None
+
+        # No-op early-return when inputs_with_ids is empty: nothing to
+        # drain to, no callback to register.
+        if not self.inputs_with_ids:
+            return
+
+        from dash import no_update
+
+        @self.app.callback(
+            [
+                Output(c.id, c.component_property, allow_duplicate=True)
+                for c in self.inputs_with_ids
+            ],
+            Input("_mcp_poll", "n_intervals"),
+            prevent_initial_call=True,
+        )
+        def _mcp_drain(_n):
+            pending = state.pop_pending_inputs()
+            if not pending:
+                return [no_update] * len(self.inputs_with_ids)
+            return [pending.get(c.id, no_update) for c in self.inputs_with_ids]
+
+        # Output drain: invoke() → state.pending_outputs → browser output
+        # components. Lets agent-triggered callbacks render in the live UI.
+        # Raw results are run through the SAME per-output transform the submit
+        # callback applies, so an agent invoke() renders identically to a Run
+        # click for every output type (matplotlib/PIL/DataFrame need the
+        # transform; a Plotly figure is the identity case).
+        if self.outputs_with_ids:
+            @self.app.callback(
+                [
+                    Output(c.id, c.component_property, allow_duplicate=True)
+                    for c in self.outputs_with_ids
+                ],
+                Input("_mcp_poll", "n_intervals"),
+                prevent_initial_call=True,
+            )
+            def _mcp_drain_outputs(_n):
+                pending = state.pop_pending_outputs()
+                if not pending:
+                    return [no_update] * len(self.outputs_with_ids)
+                return self._mcp_apply_output_transforms(pending)
+
+    def _mcp_apply_output_transforms(self, pending):
+        """Transform raw agent-`invoke()` outputs exactly like a UI submit.
+
+        The submit callback runs every raw callback return through
+        ``_get_transform_function`` (matplotlib Figure → base64, DataFrame →
+        records, PIL → base64, …) before assigning it to the output
+        component. The agent output-drain must do the same or non-Plotly
+        outputs render blank. Returns a list aligned to ``outputs_with_ids``;
+        any id absent from ``pending`` maps to ``dash.no_update`` so it stays
+        untouched.
+        """
+        from dash import no_update
+
+        from .utils import _get_transform_function
+
+        results = []
+        for c, tag in zip(self.outputs_with_ids, self.output_tags):
+            if c.id not in pending:
+                results.append(no_update)
+                continue
+            raw = pending[c.id]
+            transform = _get_transform_function(
+                raw, tag, c.id, self.state_counter, False, c.stream
+            )
+            results.append(transform(raw))
+        return results
 
     def run_server(self):
         self.app.run(
@@ -1658,6 +1829,9 @@ def fastdash(
     disable_logs=False,
     scale_height=1,
     run_kwargs=dict(),
+    mcp_server=False,
+    mcp_port=8001,
+    mcp_host="127.0.0.1",
     **kwargs
 ):
     """
@@ -1770,6 +1944,9 @@ def fastdash(
             disable_logs=disable_logs,
             scale_height=scale_height,
             run_kwargs=run_kwargs,
+            mcp_server=mcp_server,
+            mcp_port=mcp_port,
+            mcp_host=mcp_host,
             **kwargs
         )
 
