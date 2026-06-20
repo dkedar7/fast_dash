@@ -251,6 +251,53 @@ FastDash(steps=[load_data, double, summarise], title="Pipeline Demo").run()
 
 Each step is shown one at a time with a stepper progress indicator. Click **Run** to execute the active step, then **Next** to advance. Use `from_step(prev_fn)` as a parameter default to wire an upstream output into a downstream input. Steps without `from_step` parameters can mix in regular UI inputs (like `prefix` above).
 
+## Drive your app from an AI agent (MCP)
+
+Pass `mcp_server=True` and your app serves a web UI **and** an [MCP](https://modelcontextprotocol.io) server, so any MCP-capable agent (Claude Code, Cursor, Cline, …) can inspect and drive it. The same type hints that build the UI also build the agent-facing schemas.
+
+```bash
+pip install 'fast-dash[mcp]'
+```
+
+```python
+from fast_dash import fastdash
+import plotly.graph_objects as go
+
+@fastdash(mcp_server=True)            # web UI on :8080, MCP on :8001/mcp
+def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
+    ...
+```
+
+Point an agent at `http://localhost:8001/mcp`:
+
+```json
+{"servers": {"my-app": {"url": "http://localhost:8001/mcp"}}}
+```
+
+The agent gets **resources** (read-only state) — `fastdash://app`, `.../inputs`, `.../outputs`, `.../layout`, `.../history` — and **tools**: your callback directly, plus `set_input` / `set_inputs` / `invoke` / `get_invocation` / `list_component_types` / `screenshot`. Agent mutations apply to the live browser within ~500 ms; no reload.
+
+```python
+# From the agent's side, in one call:
+invoke({"n": 12, "color": "#2f9e44"})   # set inputs and run, one round-trip
+```
+
+**Agent-generated UI** with `DynamicDash` — the form materializes when an agent calls the `set_form` tool:
+
+```python
+from fast_dash import DynamicDash, Graph, Markdown
+
+app = DynamicDash(
+    callback_fn=score,
+    placeholder="Ask the agent to call set_form() to build the form.",
+    output_components=[Graph, Markdown],
+    mcp_server=True,
+    mcp_port=8002,
+)
+app.run(port=8052)                    # run() auto-starts the MCP server too
+```
+
+Notes: the MCP port has no authentication — it binds `127.0.0.1` by default and warns on a non-loopback `mcp_host`. Multi-function and steps modes skip the MCP surface. `serve_mcp_in_thread(...)` is the escape hatch for attaching MCP to a bare callable.
+
 ## Decorator options
 
 Most apps need none of these — defaults are sensible. Pass any of them as kwargs to `@fastdash(...)` or `FastDash(...)`.
@@ -268,6 +315,9 @@ Most apps need none of these — defaults are sensible. Pass any of them as kwar
 | `minimal` | `False` | Hide chrome (header, footer, nav) for embedding |
 | `branding` | `False` | Show the Fast Dash rocket footer |
 | `stream` | `False` | Enable streaming outputs (see docs) |
+| `mcp_server` | `False` | Also serve an MCP server so AI agents can drive the app (see [above](#drive-your-app-from-an-ai-agent-mcp)) |
+| `mcp_port` | `8001` | Port for the MCP server (`/mcp` path) |
+| `mcp_host` | `"127.0.0.1"` | Bind address for the MCP port (no auth — keep it loopback) |
 
 The full list lives in the [docs](https://docs.fastdash.app).
 

@@ -375,6 +375,144 @@ def _get_input_names_from_callback_fn(callback_fn):
     return parameter_list
 
 
+# --- MCP serialization helpers --------------------------------------------
+# Used by fast_dash.mcp for resource reads and history writes. Live here
+# (not in mcp.py) so they're available without the optional `mcp` dep.
+
+
+def _jsonify_for_mcp(value):
+    """Convert a Dash component value into a JSON-serializable form.
+
+    Lossy for binary payloads — file-Upload contents (data URLs) are
+    summarized as ``{type, mime, size}`` rather than passed through.
+    Plotly figures are returned as their plotly_json dict. DataFrames
+    are returned as ``records`` orient. Anything we don't recognize
+    falls back to ``str(value)``.
+    """
+    import hashlib
+
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    # File-upload data URL: "data:<mime>;base64,<...>" — summarize before
+    # the generic-str pass-through so we don't leak megabytes of base64.
+    if isinstance(value, str):
+        if value.startswith("data:") and ";base64," in value:
+            header, b64 = value.split(",", 1)
+            mime = header.split(":", 1)[1].split(";", 1)[0]
+            return {"type": "data_url", "mime": mime, "size_b64": len(b64)}
+        return value
+    if isinstance(value, (list, tuple)):
+        return [_jsonify_for_mcp(v) for v in value]
+    if isinstance(value, dict):
+        return {str(k): _jsonify_for_mcp(v) for k, v in value.items()}
+
+    # Plotly Figure
+    try:
+        import plotly.graph_objects as go
+        if isinstance(value, go.Figure):
+            return value.to_plotly_json()
+    except Exception:
+        pass
+
+    # Pandas DataFrame
+    try:
+        import pandas as pd
+        if isinstance(value, pd.DataFrame):
+            return {
+                "type": "dataframe",
+                "shape": list(value.shape),
+                "columns": list(map(str, value.columns)),
+                "records": value.head(100).to_dict(orient="records"),
+            }
+    except Exception:
+        pass
+
+    # PIL Image
+    try:
+        import PIL.Image
+        if isinstance(value, PIL.Image.Image):
+            return {
+                "type": "image",
+                "mode": value.mode,
+                "size": list(value.size),
+            }
+    except Exception:
+        pass
+
+    # bytes / bytearray
+    if isinstance(value, (bytes, bytearray)):
+        digest = hashlib.sha1(bytes(value)).hexdigest()[:8]
+        return {"type": "bytes", "size": len(value), "sha1": digest}
+
+    return str(value)
+
+
+def _summarize_for_history(value):
+    """Compact summary of a value, suitable for the `state.history` deque.
+
+    Drops large payloads (DataFrames, data URLs, bytes) down to their
+    shape/size/hash. Scalars and short collections pass through.
+    """
+    import hashlib
+
+    if value is None or isinstance(value, (bool, int, float)):
+        return value
+    if isinstance(value, str):
+        if value.startswith("data:") and ";base64," in value:
+            header, b64 = value.split(",", 1)
+            mime = header.split(":", 1)[1].split(";", 1)[0]
+            digest = hashlib.sha1(b64.encode("ascii")).hexdigest()[:8]
+            return {"type": "data_url", "mime": mime, "size_b64": len(b64), "sha1": digest}
+        if len(value) > 200:
+            return {"type": "str", "len": len(value), "preview": value[:80] + "..."}
+        return value
+    if isinstance(value, (bytes, bytearray)):
+        return {
+            "type": "bytes",
+            "size": len(value),
+            "sha1": hashlib.sha1(bytes(value)).hexdigest()[:8],
+        }
+    if isinstance(value, (list, tuple)):
+        return {"type": "list", "len": len(value)}
+    if isinstance(value, dict):
+        return {"type": "dict", "len": len(value)}
+
+    try:
+        import plotly.graph_objects as go
+        if isinstance(value, go.Figure):
+            return {
+                "type": "Figure",
+                "n_traces": len(value.data) if value.data else 0,
+                "layout_title": (
+                    value.layout.title.text
+                    if value.layout and value.layout.title
+                    else None
+                ),
+            }
+    except Exception:
+        pass
+
+    try:
+        import pandas as pd
+        if isinstance(value, pd.DataFrame):
+            return {
+                "type": "DataFrame",
+                "shape": list(value.shape),
+                "columns": list(map(str, value.columns[:10])),
+            }
+    except Exception:
+        pass
+
+    try:
+        import PIL.Image
+        if isinstance(value, PIL.Image.Image):
+            return {"type": "Image", "mode": value.mode, "size": list(value.size)}
+    except Exception:
+        pass
+
+    return {"type": type(value).__name__, "repr": repr(value)[:120]}
+
+
 # Fast Dash app utilities
 def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
     """
