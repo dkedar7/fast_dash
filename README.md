@@ -253,28 +253,24 @@ Each step is shown one at a time with a stepper progress indicator. Click **Run*
 
 ## Drive your app from an AI agent (MCP)
 
-Pass `mcp_server=True` and your app serves a web UI **and** an [MCP](https://modelcontextprotocol.io) server, so any MCP-capable agent (Claude Code, Cursor, Cline, …) can inspect and drive it. The same type hints that build the UI also build the agent-facing schemas.
-
-```bash
-pip install 'fast-dash[mcp]'
-```
+Pass `mcp_server=True` and your app serves a web UI **and** an [MCP](https://modelcontextprotocol.io) server — built on [Dash's native MCP](https://dash.plotly.com) (Dash ≥ 4.3) and mounted on the **same port** — so any MCP-capable agent (Claude Code, Cursor, Cline, …) can inspect and drive it.
 
 ```python
 from fast_dash import fastdash
 import plotly.graph_objects as go
 
-@fastdash(mcp_server=True)            # web UI on :8080, MCP on :8001/mcp
+@fastdash(mcp_server=True)            # web UI AND MCP on :8080/mcp
 def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
     ...
 ```
 
-Point an agent at `http://localhost:8001/mcp`:
+Point an agent at `http://localhost:8080/mcp`:
 
 ```json
-{"servers": {"my-app": {"url": "http://localhost:8001/mcp"}}}
+{"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}
 ```
 
-The agent gets **resources** (read-only state) — `fastdash://app`, `.../inputs`, `.../outputs`, `.../layout`, `.../history` — and **tools**: your callback directly, plus `set_input` / `set_inputs` / `invoke` / `get_invocation` / `list_component_types` / `screenshot`. Agent mutations apply to the live browser within ~500 ms; no reload.
+The agent gets **native Dash resources** to introspect the live app — `dash://layout`, `dash://components`, and the `get_dash_component` tool — plus fast_dash **tools** that *drive* it: `set_input` / `set_inputs` / `invoke` / `set_form` / `get_invocation` / `list_component_types`. Agent mutations apply to the live browser within ~500 ms (no reload).
 
 ```python
 # From the agent's side, in one call:
@@ -291,12 +287,19 @@ app = DynamicDash(
     placeholder="Ask the agent to call set_form() to build the form.",
     output_components=[Graph, Markdown],
     mcp_server=True,
-    mcp_port=8002,
 )
-app.run(port=8052)                    # run() auto-starts the MCP server too
+app.run(port=8052)                    # run() mounts the MCP server on :8052/mcp
 ```
 
-Notes: the MCP port has no authentication — it binds `127.0.0.1` by default and warns on a non-loopback `mcp_host`. Multi-function and steps modes skip the MCP surface. `serve_mcp_in_thread(...)` is the escape hatch for attaching MCP to a bare callable.
+**Real-time push (opt-in).** On the default Flask backend, agent mutations reach the browser via a ~500 ms polling drain. Install `fast-dash[fastapi]` and pass `backend="fastapi"` to switch to Dash's ASGI backend, where updates stream over a WebSocket via `set_props` (sub-100 ms, no polling):
+
+```python
+@fastdash(mcp_server=True, backend="fastapi")   # real-time WebSocket push
+def plot_bars(n: int = 6) -> go.Figure:
+    ...
+```
+
+Notes: the MCP route shares the web app's host/port and has no authentication — keep it loopback in development. Multi-function and steps modes skip the MCP surface.
 
 ## Decorator options
 
@@ -315,9 +318,8 @@ Most apps need none of these — defaults are sensible. Pass any of them as kwar
 | `minimal` | `False` | Hide chrome (header, footer, nav) for embedding |
 | `branding` | `False` | Show the Fast Dash rocket footer |
 | `stream` | `False` | Enable streaming outputs (see docs) |
-| `mcp_server` | `False` | Also serve an MCP server so AI agents can drive the app (see [above](#drive-your-app-from-an-ai-agent-mcp)) |
-| `mcp_port` | `8001` | Port for the MCP server (`/mcp` path) |
-| `mcp_host` | `"127.0.0.1"` | Bind address for the MCP port (no auth — keep it loopback) |
+| `mcp_server` | `False` | Also serve an MCP server (Dash-native, on the web app's port at `/mcp`) so AI agents can drive the app (see [above](#drive-your-app-from-an-ai-agent-mcp)) |
+| `backend` | `None` | `"fastapi"` (needs `fast-dash[fastapi]`) for the ASGI backend + real-time WebSocket push; default is Flask |
 
 The full list lives in the [docs](https://docs.fastdash.app).
 
