@@ -1,7 +1,7 @@
 [tool]
 [project]
 name = "fast_dash"
-version = "0.3.0"
+version = "0.4.0"
 homepage = "https://github.com/dkedar7/fast_dash"
 documentation = "https://docs.fastdash.app"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
@@ -32,7 +32,7 @@ packages = [
 ]
 
 dependencies = [
-    "dash>=2.11.0",
+    "dash (>=4.3.0)",
     "pandas>=2.3.3",
     "dash-bootstrap-components>=2.0.0",
     "dash-mantine-components>=1.0.0",
@@ -57,9 +57,8 @@ test = [
     "selenium"
     ]
 
-mcp = [
-    "mcp>=1.0",
-    "uvicorn>=0.27"
+fastapi = [
+    "dash[fastapi]>=4.3.0"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
@@ -99,7 +98,7 @@ docutils = ">0.21"
 
 [tool.poetry.group.test.dependencies]
 urllib3 = "*"
-dash = {version = ">2.11.0", extras = ["testing"]}
+dash = {version = ">=4.3.0", extras = ["testing"]}
 selenium = ">=3.141.0,<=4.2.0"
 
 [build-system]

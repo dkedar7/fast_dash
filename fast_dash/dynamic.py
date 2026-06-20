@@ -504,18 +504,13 @@ class DynamicDash:
     def run(self, debug: bool = False, port: int = 8050, **kwargs):
         """Convenience wrapper around the Dash dev server.
 
-        When ``mcp_server=True`` was passed to the constructor, the MCP
-        server is started in a daemon thread first — same one-call contract
-        as :class:`FastDash`. ``serve_mcp_in_thread`` remains available for
-        advanced setups (e.g. attaching MCP to a bare callable).
+        When ``mcp_server=True`` was passed to the constructor, Dash's native
+        MCP server is mounted on this app first (shared port, ``/mcp``) — same
+        one-call contract as :class:`FastDash`.
         """
         if self.mcp_server_enabled:
-            from fast_dash.mcp import serve_mcp_in_thread
+            from fast_dash.mcp import enable_mcp
 
-            self._mcp_thread = serve_mcp_in_thread(
-                self,
-                host=self.mcp_host,
-                port=self.mcp_port,
-                title=self.title,
-            )
+            # Native Dash MCP mounts on this app at /mcp (shared port).
+            enable_mcp(self)
         self.app.run(debug=debug, port=port, **kwargs)

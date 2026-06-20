@@ -195,41 +195,34 @@ def test_dynamicdash_mcp_attrs_and_defaults():
 
 
 def test_dynamicdash_run_autostarts_mcp(monkeypatch):
-    """mcp_server=True -> run() starts the MCP server, same as FastDash."""
+    """mcp_server=True -> run() mounts the native MCP server, same as FastDash."""
     import fast_dash.mcp as mcpmod
 
     seen = {}
-
-    def fake_serve(app, *, host, port, title):
-        seen["serve"] = {"host": host, "port": port, "title": title}
-        return "fake-thread"
-
-    monkeypatch.setattr(mcpmod, "serve_mcp_in_thread", fake_serve)
+    monkeypatch.setattr(mcpmod, "enable_mcp",
+                        lambda app: seen.setdefault("enabled", app))
 
     app = DynamicDash(
         callback_fn=lambda x=1: x,
         initial_specs=[{"name": "x", "type": "Text"}],
         output_components=[Markdown],
         mcp_server=True,
-        mcp_port=8123,
     )
     # Don't actually boot the Dash dev server.
     monkeypatch.setattr(app.app, "run", lambda **kw: seen.setdefault("run", kw))
     app.run(port=8051)
 
-    assert seen["serve"] == {"host": "127.0.0.1", "port": 8123, "title": app.title}
-    assert app._mcp_thread == "fake-thread"
+    assert seen["enabled"] is app
     assert seen["run"]["port"] == 8051
 
 
 def test_dynamicdash_run_skips_mcp_when_disabled(monkeypatch):
     import fast_dash.mcp as mcpmod
 
-    called = {"serve": False}
+    called = {"enabled": False}
     monkeypatch.setattr(
-        mcpmod,
-        "serve_mcp_in_thread",
-        lambda *a, **k: called.__setitem__("serve", True),
+        mcpmod, "enable_mcp",
+        lambda *a, **k: called.__setitem__("enabled", True),
     )
     app = DynamicDash(
         callback_fn=lambda x=1: x,
@@ -238,7 +231,7 @@ def test_dynamicdash_run_skips_mcp_when_disabled(monkeypatch):
     )
     monkeypatch.setattr(app.app, "run", lambda **kw: None)
     app.run()
-    assert called["serve"] is False
+    assert called["enabled"] is False
 
 
 def test_dynamicdash_warns_on_non_loopback_mcp_host():

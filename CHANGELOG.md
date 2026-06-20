@@ -1,4 +1,39 @@
-# Release 0.3.0
+# Release 0.4.0
+
+## 0.4.0 (2026-06-20)
+
+### Changed
+- **MCP now runs on Dash's native MCP server (requires Dash >= 4.3).** Instead
+  of a standalone FastMCP server on a separate port, `mcp_server=True` mounts
+  Dash's native MCP on the **same app/port** at `/mcp`. Agents connect at
+  `http://<host>:<port>/mcp`.
+  - The read-only surface is delegated to Dash: `dash://layout`,
+    `dash://components`, and the `get_dash_component` tool.
+  - fast_dash keeps the stateful "drive the app" tools (`set_input`,
+    `set_inputs`, `invoke`, `set_form`, `get_invocation`,
+    `list_component_types`), now registered via `dash.mcp.mcp_enabled`.
+  - Removed: the separate MCP port, the `serve_mcp_in_thread`/`build_mcp_server`
+    FastMCP plumbing, the bespoke result serialization, and the `screenshot`
+    tool (Dash formats figures/DataFrames natively). The `[mcp]` extra is gone
+    (Dash core already requires `mcp`).
+  - The `mcp_port`/`mcp_host` kwargs are retained for compatibility but no
+    longer open a second port.
+
+### Added
+- **Opt-in ASGI backend with real-time push.** `backend="fastapi"` (install
+  `fast-dash[fastapi]`) runs the app on Dash's FastAPI backend with WebSocket
+  callbacks; agent mutations stream to the browser via `set_props` (sub-100 ms)
+  instead of the ~500 ms polling drain. Flask remains the default.
+- **`stream=True` on the ASGI backend** is rebuilt on native WebSocket
+  `set_props` (no flask-socketio / `DashSocketIO`). On the default Flask backend
+  streaming continues to use flask-socketio, unchanged. (Chat append semantics
+  on the native path are not yet ported and currently replace rather than
+  append.)
+
+### Notes
+- The MCP route shares the web app's host/port and has no authentication; keep
+  it loopback in development.
+- Single MCP-enabled app per process (Dash's `mcp_enabled` registry is global).
 
 ## 0.3.0 (2026-06-20)
 
