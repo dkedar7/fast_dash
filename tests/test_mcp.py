@@ -26,6 +26,23 @@ _HAS_DASH_MCP = importlib.util.find_spec("dash.mcp") is not None
 requires_dash_mcp = pytest.mark.skipif(
     not _HAS_DASH_MCP, reason="Dash native MCP (dash>=4.3) not installed"
 )
+_HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
+requires_fastapi = pytest.mark.skipif(
+    not _HAS_FASTAPI, reason="fastapi backend extra not installed"
+)
+
+
+def _layout_ids(comp, out=None):
+    out = set() if out is None else out
+    cid = getattr(comp, "id", None)
+    if isinstance(cid, str):
+        out.add(cid)
+    ch = getattr(comp, "children", None)
+    if ch is not None:
+        for c in (ch if isinstance(ch, (list, tuple)) else [ch]):
+            if c is not None:
+                _layout_ids(c, out)
+    return out
 
 
 @pytest.fixture(autouse=True)
@@ -93,6 +110,36 @@ def _dynamic_app():
 
 
 # --- MCPState -------------------------------------------------------------- #
+
+class TestBackendOptIn:
+    """Opt-in ASGI backend: real-time WebSocket push instead of the Interval."""
+
+    def _fig_app(self, **kw):
+        def fig(n: int = 3) -> go.Figure:
+            return go.Figure(go.Bar(x=list(range(n)), y=list(range(n))))
+        return FastDash(callback_fn=fig, mcp_server=True, **kw)
+
+    def test_flask_default_uses_polling_interval(self):
+        app = self._fig_app()
+        assert app._backend is None
+        assert type(app.server).__name__ == "Flask"
+        assert "_mcp_poll" in _layout_ids(app.app.layout)
+
+    @requires_fastapi
+    def test_fastapi_backend_drops_interval_for_websocket(self):
+        app = self._fig_app(backend="fastapi")
+        assert app._backend == "fastapi"
+        assert type(app.server).__name__ == "FastAPI"
+        # No client-side Interval: push is via the persistent WebSocket drain.
+        assert "_mcp_poll" not in _layout_ids(app.app.layout)
+        assert "_mcp_mirror_store" in _layout_ids(app.app.layout)
+
+    def test_stream_with_backend_is_rejected(self):
+        def fig(n: int = 3) -> go.Figure:
+            return go.Figure()
+        with pytest.raises(ValueError, match="flask-socketio"):
+            FastDash(callback_fn=fig, stream=True, backend="fastapi")
+
 
 class TestMCPState:
     def test_history_roundtrip_and_index(self):

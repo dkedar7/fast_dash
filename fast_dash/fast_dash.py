@@ -293,20 +293,42 @@ class FastDash:
         self.theme = theme or "JOURNAL"
         self.minimal = minimal
 
-        # Define Flask server
-        server = flask.Flask(__name__)
         external_stylesheets = [
             theme_mapper(self.theme),
             "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
         ]
 
+        # Backend selection. Default = Flask, with an explicit server so the
+        # legacy flask-socketio streaming path keeps working unchanged. Opting
+        # into an ASGI backend (backend="fastapi" or "quart", needs
+        # `fast-dash[fastapi]`) lets fast_dash use Dash's native WebSocket
+        # callbacks for real-time server -> browser push (set_props) instead of
+        # the ~500ms polling Interval drain used on Flask.
+        self._backend = self.kwargs.pop("backend", None)
         source = dash.Dash
-        self.app = source(
-            __name__,
-            external_stylesheets=external_stylesheets,
-            server=server,
-            **self.kwargs,
-        )
+        if self._backend:
+            if stream:
+                raise ValueError(
+                    "stream=True uses flask-socketio and requires the default "
+                    f"Flask backend; it is not supported with "
+                    f"backend={self._backend!r} yet (native-WebSocket streaming "
+                    "is planned)."
+                )
+            self.kwargs.setdefault("websocket_callbacks", True)
+            self.app = source(
+                __name__,
+                external_stylesheets=external_stylesheets,
+                backend=self._backend,
+                **self.kwargs,
+            )
+        else:
+            server = flask.Flask(__name__)
+            self.app = source(
+                __name__,
+                external_stylesheets=external_stylesheets,
+                server=server,
+                **self.kwargs,
+            )
 
         # Allow easier access to Dash server
         self.server = self.app.server
@@ -939,10 +961,14 @@ class FastDash:
         # because the existing root (MantineProvider) needed to stay
         # the top-level node.
         root = self.app.layout
-        injected = [
-            dcc.Store(id="_mcp_mirror_store"),
-            dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0),
-        ]
+        injected = [dcc.Store(id="_mcp_mirror_store")]
+        if not self._backend:
+            # Flask: a polling Interval drives the server -> browser drain.
+            # On an ASGI backend we push in real time via a persistent
+            # WebSocket callback (set_props) instead, so no Interval is needed.
+            injected.append(
+                dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0)
+            )
         existing = root.children
         if existing is None:
             root.children = injected
@@ -967,6 +993,12 @@ class FastDash:
         # No-op early-return when inputs_with_ids is empty: nothing to
         # drain to, no callback to register.
         if not self.inputs_with_ids:
+            return
+
+        # ASGI backend: push in real time over a persistent WebSocket callback
+        # instead of polling an Interval.
+        if self._backend:
+            self._register_mcp_ws_drain()
             return
 
         from dash import no_update
@@ -1005,6 +1037,39 @@ class FastDash:
                 if not pending:
                     return [no_update] * len(self.outputs_with_ids)
                 return self._mcp_apply_output_transforms(pending)
+
+    def _register_mcp_ws_drain(self):
+        """Real-time server -> browser push over a persistent WebSocket.
+
+        ASGI-backend counterpart of the polling Interval drain. A single
+        persistent WebSocket callback loops, pops the pending input/output
+        queues an agent's MCP tools wrote to, and streams them to the live
+        browser via ``set_props`` — sub-100ms instead of the ~500ms Interval
+        window, with no client-side polling.
+        """
+        import asyncio
+
+        from dash import ctx, no_update, set_props
+
+        state = self._mcp_state
+        input_props = {c.id: c.component_property for c in self.inputs_with_ids}
+
+        @self.app.callback(websocket=True, persistent=True)
+        async def _mcp_ws_drain():
+            ws = ctx.websocket
+            while not ws.is_shutdown:
+                pend_in = state.pop_pending_inputs()
+                for cid, value in pend_in.items():
+                    set_props(cid, {input_props.get(cid, "value"): value})
+
+                pend_out = state.pop_pending_outputs()
+                if pend_out:
+                    transformed = self._mcp_apply_output_transforms(pend_out)
+                    for c, val in zip(self.outputs_with_ids, transformed):
+                        if val is not no_update:
+                            set_props(c.id, {c.component_property: val})
+
+                await asyncio.sleep(0.05)
 
     def _mcp_apply_output_transforms(self, pending):
         """Transform raw agent-`invoke()` outputs exactly like a UI submit.
