@@ -313,6 +313,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-extras" class="md-nav__link">
+    Optional extras
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#from-source" class="md-nav__link">
     From source
   </a>
@@ -419,8 +426,22 @@
   
   
     <li class="md-nav__item">
+      <a href="../User%20guide/ai_agents/" class="md-nav__link">
+        4. AI agents (MCP)
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../User%20guide/deployment/" class="md-nav__link">
-        4. Deployment
+        5. Deployment
       </a>
     </li>
   
@@ -660,6 +681,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#optional-extras" class="md-nav__link">
+    Optional extras
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#from-source" class="md-nav__link">
     From source
   </a>
@@ -698,6 +726,19 @@ terminal:</p>
 <p>This is the preferred method to install Fast Dash, as it will always install the most recent stable release.</p>
 <p>If you don't have <a href="https://pip.pypa.io">pip</a> installed, this <a href="http://docs.python-guide.org/en/latest/starting/installation/">Python installation guide</a>
 can guide you through the process.</p>
+<h2 id="optional-extras">Optional extras</h2>
+<p>The <a href="../User%20guide/ai_agents/">MCP server</a> (<code>mcp_server=True</code>) works out of the
+box — it is built on Dash's native MCP support, which Fast Dash installs for you.</p>
+<p>For the <strong>real-time WebSocket backend</strong> (<code>backend="fastapi"</code>, which streams agent
+updates to the browser via <code>set_props</code> instead of polling), install the
+<code>fastapi</code> extra:</p>
+<div class="termy">
+
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;fast-dash[fastapi]&#39;</span>
+</code></pre></div>
+
+</div>
+
 <h2 id="from-source">From source</h2>
 <p>The source for Fast Dash can be downloaded from
 the <a href="https://github.com/dkedar7/fast_dash">Github repo</a>.</p>
