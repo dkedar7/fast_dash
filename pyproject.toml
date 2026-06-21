@@ -1,7 +1,7 @@
 [tool]
 [project]
 name = "fast_dash"
-version = "0.4.0"
+version = "0.3.0"
 homepage = "https://github.com/dkedar7/fast_dash"
 documentation = "https://docs.fastdash.app"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
