@@ -2,10 +2,11 @@
 
 Run::
 
-    pip install -e '.[mcp]'
+    pip install fast-dash 'dash>=4.3'
     python examples/mcp/example_dynamic_mcp.py
 
-Then any MCP client (http://localhost:8002/mcp) can call::
+The MCP server shares the web app's port (8052). Any MCP client
+(http://localhost:8052/mcp) can call::
 
     set_form(specs=[
         {"name": "communication", "type": "Slider", "props": {"min":0, "max":10}},
@@ -63,11 +64,10 @@ app = DynamicDash(
     output_components=[Graph, Markdown],
     title="Dynamic MCP — candidate scorer",
     mcp_server=True,
-    mcp_port=8002,
 )
 
 
 if __name__ == "__main__":
-    # mcp_server=True means run() starts the MCP server automatically —
-    # same one-call contract as FastDash. No manual serve_mcp_in_thread.
+    # mcp_server=True means run() mounts the native MCP server on this app
+    # automatically (shared port, /mcp). MCP is at http://localhost:8052/mcp.
     app.run(debug=False, port=8052)
