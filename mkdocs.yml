@@ -47,7 +47,8 @@ nav:
     - 1. 10 minutes to Fast Dash: User guide/build.md
     - 2. Usage patterns: User guide/patterns.md
     - 3. Fast Components: User guide/components.md
-    - 4. Deployment: User guide/deployment.md
+    - 4. AI agents (MCP): User guide/ai_agents.md
+    - 5. Deployment: User guide/deployment.md
   - Examples:
     - 1. Simple text to text: Examples/01_simple_text_to_text.ipynb
     - 2. Translate to multiple languages: Examples/02_translate_to_multiple_languages.ipynb

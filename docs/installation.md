@@ -18,6 +18,23 @@ This is the preferred method to install Fast Dash, as it will always install the
 If you don't have [pip][] installed, this [Python installation guide][]
 can guide you through the process.
 
+## Optional extras
+
+The [MCP server](User%20guide/ai_agents.md) (`mcp_server=True`) works out of the
+box — it is built on Dash's native MCP support, which Fast Dash installs for you.
+
+For the **real-time WebSocket backend** (`backend="fastapi"`, which streams agent
+updates to the browser via `set_props` instead of polling), install the
+`fastapi` extra:
+
+<div class="termy">
+
+``` console
+$ pip install 'fast-dash[fastapi]'
+```
+
+</div>
+
 ## From source
 
 The source for Fast Dash can be downloaded from
