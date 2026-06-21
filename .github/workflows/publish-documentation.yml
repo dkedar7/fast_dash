@@ -47,3 +47,6 @@ jobs:
         with:
           personal_token: ${{ secrets.PERSONAL_TOKEN }}
           publish_dir: ./site
+          # Write the CNAME on every deploy so GitHub Pages keeps the custom
+          # domain instead of resetting it each publish.
+          cname: docs.fastdash.app
