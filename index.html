@@ -333,6 +333,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#drive-your-app-from-an-ai-agent-mcp" class="md-nav__link">
+    Drive your app from an AI agent (MCP)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#decorator-options" class="md-nav__link">
     Decorator options
   </a>
@@ -762,6 +769,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#drive-your-app-from-an-ai-agent-mcp" class="md-nav__link">
+    Drive your app from an AI agent (MCP)
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#decorator-options" class="md-nav__link">
     Decorator options
   </a>
@@ -1151,6 +1165,39 @@
 <span class="n">FastDash</span><span class="p">(</span><span class="n">steps</span><span class="o">=</span><span class="p">[</span><span class="n">load_data</span><span class="p">,</span> <span class="n">double</span><span class="p">,</span> <span class="n">summarise</span><span class="p">],</span> <span class="n">title</span><span class="o">=</span><span class="s2">&quot;Pipeline Demo&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
 <p>Each step is shown one at a time with a stepper progress indicator. Click <strong>Run</strong> to execute the active step, then <strong>Next</strong> to advance. Use <code>from_step(prev_fn)</code> as a parameter default to wire an upstream output into a downstream input. Steps without <code>from_step</code> parameters can mix in regular UI inputs (like <code>prefix</code> above).</p>
+<h2 id="drive-your-app-from-an-ai-agent-mcp">Drive your app from an AI agent (MCP)</h2>
+<p>Pass <code>mcp_server=True</code> and your app serves a web UI <strong>and</strong> an <a href="https://modelcontextprotocol.io/..">MCP</a> server — built on <a href="https://dash.plotly.com/..">Dash's native MCP</a> (Dash ≥ 4.3) and mounted on the <strong>same port</strong> — so any MCP-capable agent (Claude Code, Cursor, Cline, …) can inspect and drive it.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>            <span class="c1"># web UI AND MCP on :8080/mcp</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_bars</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;#1c7ed6&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Point an agent at <code>http://localhost:8080/mcp</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;my-app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:8080/mcp&quot;</span><span class="p">}}}</span>
+</code></pre></div>
+<p>The agent gets <strong>native Dash resources</strong> to introspect the live app — <code>dash://layout</code>, <code>dash://components</code>, and the <code>get_dash_component</code> tool — plus fast_dash <strong>tools</strong> that <em>drive</em> it: <code>set_input</code> / <code>set_inputs</code> / <code>invoke</code> / <code>set_form</code> / <code>get_invocation</code> / <code>list_component_types</code>. Agent mutations apply to the live browser within ~500 ms (no reload).</p>
+<div class="highlight"><pre><span></span><code><span class="c1"># From the agent&#39;s side, in one call:</span>
+<span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">})</span>   <span class="c1"># set inputs and run, one round-trip</span>
+</code></pre></div>
+<p><strong>Agent-generated UI</strong> with <code>DynamicDash</code> — the form materializes when an agent calls the <code>set_form</code> tool:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">DynamicDash</span><span class="p">,</span> <span class="n">Graph</span><span class="p">,</span> <span class="n">Markdown</span>
+
+<span class="n">app</span> <span class="o">=</span> <span class="n">DynamicDash</span><span class="p">(</span>
+    <span class="n">callback_fn</span><span class="o">=</span><span class="n">score</span><span class="p">,</span>
+    <span class="n">placeholder</span><span class="o">=</span><span class="s2">&quot;Ask the agent to call set_form() to build the form.&quot;</span><span class="p">,</span>
+    <span class="n">output_components</span><span class="o">=</span><span class="p">[</span><span class="n">Graph</span><span class="p">,</span> <span class="n">Markdown</span><span class="p">],</span>
+    <span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="mi">8052</span><span class="p">)</span>                    <span class="c1"># run() mounts the MCP server on :8052/mcp</span>
+</code></pre></div>
+<p><strong>Real-time push (opt-in).</strong> On the default Flask backend, agent mutations reach the browser via a ~500 ms polling drain. Install <code>fast-dash[fastapi]</code> and pass <code>backend="fastapi"</code> to switch to Dash's ASGI backend, where updates stream over a WebSocket via <code>set_props</code> (sub-100 ms, no polling):</p>
+<div class="highlight"><pre><span></span><code><span class="nd">@fastdash</span><span class="p">(</span><span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;fastapi&quot;</span><span class="p">)</span>   <span class="c1"># real-time WebSocket push</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_bars</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
+    <span class="o">...</span>
+</code></pre></div>
+<p>Notes: the MCP route shares the web app's host/port and has no authentication — keep it loopback in development. Multi-function and steps modes skip the MCP surface.</p>
 <h2 id="decorator-options">Decorator options</h2>
 <p>Most apps need none of these — defaults are sensible. Pass any of them as kwargs to <code>@fastdash(...)</code> or <code>FastDash(...)</code>.</p>
 <table>
@@ -1216,6 +1263,16 @@
 <td><code>stream</code></td>
 <td><code>False</code></td>
 <td>Enable streaming outputs (see docs)</td>
+</tr>
+<tr>
+<td><code>mcp_server</code></td>
+<td><code>False</code></td>
+<td>Also serve an MCP server (Dash-native, on the web app's port at <code>/mcp</code>) so AI agents can drive the app (see <a href="..#drive-your-app-from-an-ai-agent-mcp">above</a>)</td>
+</tr>
+<tr>
+<td><code>backend</code></td>
+<td><code>None</code></td>
+<td><code>"fastapi"</code> (needs <code>fast-dash[fastapi]</code>) for the ASGI backend + real-time WebSocket push; default is Flask</td>
 </tr>
 </tbody>
 </table>
