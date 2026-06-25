@@ -245,6 +245,11 @@ class DynamicDash:
             _prepare_output(c, i) for i, c in enumerate(self.output_components)
         ]
 
+        # `port` is a run() option, not a Dash() constructor kwarg. Accept it
+        # here (mirroring FastDash) and use it as run()'s default, instead of
+        # leaking it to dash.Dash() where it raises an opaque TypeError.
+        self._port = dash_kwargs.pop("port", None)
+
         self.app = dash.Dash(
             __name__,
             external_stylesheets=dash_kwargs.pop("external_stylesheets", []),
@@ -501,13 +506,16 @@ class DynamicDash:
                     result.append(no_update)
                 return result[:n_out]
 
-    def run(self, debug: bool = False, port: int = 8050, **kwargs):
+    def run(self, debug: bool = False, port: int = None, **kwargs):
         """Convenience wrapper around the Dash dev server.
 
         When ``mcp_server=True`` was passed to the constructor, Dash's native
         MCP server is mounted on this app first (shared port, ``/mcp``) — same
-        one-call contract as :class:`FastDash`.
+        one-call contract as :class:`FastDash`. An explicit ``run(port=...)``
+        wins over a ``DynamicDash(..., port=...)`` constructor value.
         """
+        if port is None:
+            port = self._port if self._port is not None else 8050
         if self.mcp_server_enabled:
             from fast_dash.mcp import enable_mcp
 

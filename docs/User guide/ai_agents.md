@@ -5,7 +5,9 @@
 Pass `mcp_server=True` and your Fast Dash app serves a web UI **and** a
 [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server, so any
 MCP-capable agent — Claude Code, Cursor, Cline, … — can inspect and drive it.
-The same type hints that build the UI also build the agent-facing schemas.
+The same type hints that build the UI describe the inputs an agent sees via the
+[`describe_app`](#discover-the-input-contract) tool (id, type, default, allowed
+options, and current value).
 
 The MCP server is built on [Dash's native MCP support](https://dash.plotly.com)
 (Dash ≥ 4.3, installed automatically) and is mounted on the **same port** as the
@@ -33,18 +35,42 @@ Point any MCP client at the app's `/mcp` endpoint (streamable HTTP):
 
 | Surface | Provided by | Use |
 |---|---|---|
-| `dash://layout`, `dash://components` | Dash (native) | Read the live component tree |
-| `get_dash_component` | Dash (native) | Read a single component's current props |
+| `describe_app()` | Fast Dash | **Start here.** The input contract + current state: each input's id, type, default, options, and current value |
 | `set_input(component_id, value)` | Fast Dash | Set one input |
-| `set_inputs({...})` | Fast Dash | Set several inputs at once |
+| `set_inputs(inputs)` | Fast Dash | Set several inputs at once (`inputs` is a `{id: value}` dict) |
 | `invoke(inputs=None)` | Fast Dash | Run the callback (optionally setting inputs first), in one call |
 | `set_form(specs)` | Fast Dash | Generate a form at runtime (`DynamicDash` only) |
 | `get_invocation(index)` | Fast Dash | Fetch a past run's full kwargs + result |
 | `list_component_types()` | Fast Dash | List the legal component types for `set_form` |
+| `dash://layout`, `dash://components`, `get_dash_component` | Dash (native) | Read the static component tree (ids + Dash widget types) |
 
-`component_id` is the **parameter name** itself (e.g. `"n"`, `"color"`). Read
-`dash://components` (or call `get_dash_component`) to discover the exact ids and
-their current values.
+`component_id` is the **parameter name** itself (e.g. `"n"`, `"color"`).
+
+### Discover the input contract
+
+Call **`describe_app()`** to learn the exact input ids, their Python types,
+defaults, allowed options, and **current values** — and use that to build a valid
+`invoke` call:
+
+```json
+{
+  "title": "Plot Bars",
+  "doc": "Plot a bar chart with n bars in the chosen color.",
+  "inputs": [
+    {"id": "n",     "type": "integer", "default": 6,         "options": null, "current_value": 6},
+    {"id": "color", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6"}
+  ]
+}
+```
+
+!!! note
+    The drive tools' (`invoke` / `set_inputs` / `set_input`) raw MCP *input
+    schemas* are generic objects — the per-parameter contract lives in
+    `describe_app()`, not in those tool schemas. The native `dash://components`
+    resource lists ids and Dash *widget* types only, and `get_dash_component`
+    reflects the **browser**, so for a headless agent neither shows values an
+    agent set via `set_input`/`set_inputs` — use `describe_app()` for current
+    values.
 
 ## Drive it from the agent
 
