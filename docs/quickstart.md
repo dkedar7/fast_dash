@@ -2,57 +2,52 @@
 
 ## Install Fast Dash
 
-Let's start by installing Fast Dash:
-```
+```bash
 pip install fast-dash
 ```
 
-## Simple Example
+## Simple text-to-text app
 
-Here's the simple text to text function from the [home page](index.md) again.
+The smallest possible Fast Dash app — a function with a single string parameter and a string return type. The decorator inspects the type hints, picks UI components automatically, and starts the server.
 
 ```py linenums="1"
 from fast_dash import fastdash
 
 @fastdash
-def text_to_text_function(input_text):
+def text_to_text_function(input_text: str = "This is some input!") -> str:
     return input_text
 ```
 
-This should spin up your first Fast Dash app!
+Open the URL printed in the terminal (default `http://127.0.0.1:8080`) and click **Run**.
 
 <figure markdown>
-  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20text%20to%20text.png)
-  <figcaption>Simple example app</figcaption>
+  ![Simple text to text app](assets/quickstart/simple_text_to_text.png)
+  <figcaption>Single-input, single-output app inferred from type hints</figcaption>
 </figure>
 
 ## Chatbot example
 
-Fast Dash also offers many in-built components to make development easier. 
-These can be used as data type hints.
-Here's a dummy chatbot example.
+Use the built-in `Chat` output component for a conversational UI. The function takes a query string, returns a `dict(query=..., response=...)`, and Fast Dash renders it as chat bubbles.
 
 ```py linenums="1"
 from fast_dash import fastdash, Chat
 
-@fastdash(theme="sketchy")
-def virtual_assistant(query: str) -> Chat:
+@fastdash(update_live=True)
+def virtual_assistant(query: str = "What color is the sky?") -> Chat:
     response = "I am Groot."
-    chat = dict(query=query, response=response)
-    return chat
+    return dict(query=query, response=response)
 ```
 
+`update_live=True` re-runs the function on every input change, so the chat updates without clicking Run.
+
 <figure markdown>
-  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20chatbot%20example.png)
-  <figcaption>Simple chatbot app</figcaption>
+  ![Chatbot example](assets/quickstart/chatbot_example.png)
+  <figcaption>Chat output with rendered query/response bubbles</figcaption>
 </figure>
 
+## Image-to-image example
 
-## Image to image example
-
-Fast Dash makes it very easy to work with different types of data types and components. 
-For example, here's how to build an app that receives an uploaded image and returns the same image.
-We can, of course, write any image analysis transformation we want.
+Type-hint a parameter as `PIL.Image.Image` and Fast Dash gives you an image upload component for free. Return a `PIL.Image.Image` and it renders the result.
 
 ```py linenums="1"
 from fast_dash import fastdash
@@ -60,31 +55,27 @@ from PIL import Image
 
 @fastdash
 def image_to_image(image: Image.Image) -> Image.Image:
-    "Example of an image to image app with Fast Dash"
+    """Example of an image-to-image app with Fast Dash."""
     return image
 ```
 
-This is how the deployed app looks:
-
 <figure markdown>
-  ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/image_to_image_example.png)
-  <figcaption>Simple image to image example app</figcaption>
+  ![Image to image example](assets/quickstart/image_to_image_example.png)
+  <figcaption>Image upload component inferred from <code>PIL.Image.Image</code></figcaption>
 </figure>
 
 ## What else is possible
 
-There are many customizations that you can make with your app. These include:
+- **Cascading inputs** — wire one dropdown's options to another's value with `depends_on`
+- **Multi-function tabs** — pass `FastDash([fn_a, fn_b], tab_titles=[...])`
+- **Multi-step pipelines** — `FastDash(steps=[fn_a, fn_b])` with `from_step` defaults
+- **Streaming output** — call `update("output_id", chunk)` from inside the function
+- **Authentication** — `@fastdash(auth={"alice": "secret"})` adds a password gate
+- **MCP server output** — `@fastdash(mcp_server=True)` exposes the function as an AI-agent tool
+- **Custom themes**, JupyterLab embedding, custom Dash components via `Fastify`, and more
 
-* Choose from different themes
-* Use any Dash component in your app
-* Add custom branding and social media icons
-* Customize pre-built components
-* Live reload
-* Minimal view
-* JupyterLab inline and embedded views
-
-By tweaking these configurations, you can easily build web applications for a variety of use cases!
+By tweaking these configurations you can build web apps for a wide variety of use cases.
 
 ## Examples
 
-See the [examples](/Examples/01_simple_text_to_text) page for more executable examples.
+See the [examples](Examples/01_simple_text_to_text.ipynb) page for more runnable notebooks.

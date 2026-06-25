@@ -40,7 +40,117 @@ Fast Dash inspects your Python function's signature, picks UI components from th
 
 It exists for one job: collapse the gap between a working Python function and a shareable interactive web app.
 
-![Fast Dash demo](https://storage.googleapis.com/fast_dash/0.2.6/FastDashDemo.png)
+## What you can build
+
+Each app below is a single Python function decorated with `@fastdash`. Click any image to see the code.
+
+<table>
+<tr>
+<td width="50%">
+<a href="#mosaic-dashboard"><img src="docs/assets/gallery/mosaic_dashboard.png" alt="Mosaic dashboard with three linked Plotly charts"></a>
+<p align="center"><sub><b>Multi-output dashboard</b> — return a tuple of charts, lay them out with <code>mosaic="AB\nAC"</code></sub></p>
+</td>
+<td width="50%">
+<a href="#choropleth-map"><img src="docs/assets/gallery/choropleth_map.png" alt="World population choropleth map"></a>
+<p align="center"><sub><b>Choropleth map</b> — Plotly's geographic charts work out of the box</sub></p>
+</td>
+</tr>
+<tr>
+<td width="50%">
+<a href="#multi-tab-app"><img src="docs/assets/gallery/multi_tab.png" alt="Multi-function tabbed app"></a>
+<p align="center"><sub><b>Multi-function tabs</b> — pass a list of functions, get a tab per function</sub></p>
+</td>
+<td width="50%">
+<a href="#gapminder-explorer"><img src="docs/assets/gallery/slider_chart.png" alt="Gapminder bubble chart"></a>
+<p align="center"><sub><b>Interactive chart</b> — type-hint defaults become inputs, the function re-runs on demand</sub></p>
+</td>
+</tr>
+</table>
+
+<details>
+<summary><b>Code for each example</b></summary>
+
+<a name="mosaic-dashboard"></a>
+**Mosaic dashboard**
+
+```python
+from fast_dash import fastdash, Graph
+import plotly.express as px
+
+@fastdash(
+    mosaic="AB\nAC",
+    output_labels=["Sepal", "Petal width", "Petal length"],
+)
+def iris_dashboard(rows: int = 150) -> (Graph, Graph, Graph):
+    """Explore the Iris dataset with linked plots."""
+    df = px.data.iris().head(rows)
+    sepal = px.scatter(df, x="sepal_width", y="sepal_length", color="species")
+    petal_width = px.histogram(df, x="petal_width", color="species")
+    petal_length = px.box(df, y="petal_length", color="species")
+    return sepal, petal_width, petal_length
+```
+
+<a name="choropleth-map"></a>
+**Choropleth map**
+
+```python
+from fast_dash import fastdash, Graph
+import plotly.express as px
+
+@fastdash
+def world_population(year: int = 2007) -> Graph:
+    """World population by country."""
+    df = px.data.gapminder().query(f"year == {year}")
+    return px.choropleth(
+        df, locations="iso_alpha", color="pop", hover_name="country",
+        color_continuous_scale=px.colors.sequential.Plasma,
+        title=f"World population in {year}",
+    )
+```
+
+<a name="multi-tab-app"></a>
+**Multi-function tabs**
+
+```python
+from fast_dash import FastDash, Graph
+import plotly.express as px
+
+def population_chart(year: int = 2007) -> Graph:
+    df = px.data.gapminder().query(f"year == {year}")
+    return px.bar(df.nlargest(10, "pop"), x="country", y="pop", color="continent")
+
+def life_expectancy(year: int = 2007) -> Graph:
+    df = px.data.gapminder().query(f"year == {year}")
+    return px.box(df, x="continent", y="lifeExp", color="continent")
+
+def greet(name: str = "world") -> str:
+    return f"Hello, {name}!"
+
+FastDash(
+    callback_fn=[population_chart, life_expectancy, greet],
+    tab_titles=["Population", "Life expectancy", "Greeter"],
+).run()
+```
+
+<a name="gapminder-explorer"></a>
+**Interactive Gapminder chart**
+
+```python
+from fast_dash import fastdash, Graph
+import plotly.express as px
+
+@fastdash
+def gapminder_explorer(year: int = 2007) -> Graph:
+    """Life expectancy vs GDP per capita."""
+    df = px.data.gapminder().query(f"year == {year}")
+    return px.scatter(
+        df, x="gdpPercap", y="lifeExp", size="pop", color="continent",
+        log_x=True, hover_name="country", size_max=60,
+        title=f"Life expectancy vs GDP per capita ({year})",
+    )
+```
+
+</details>
 
 ## 30-second example
 
