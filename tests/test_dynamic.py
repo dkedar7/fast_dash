@@ -271,6 +271,32 @@ def test_dynamicdash_explicit_specs_win_over_placeholder():
     assert app.initial_specs == [{"name": "x", "type": "Text"}]
 
 
+def test_dynamicdash_accepts_port_kwarg():
+    # #100 nit: DynamicDash(..., port=...) used to leak to dash.Dash() and crash.
+    app = DynamicDash(
+        callback_fn=lambda **k: k,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        port=8123,
+    )
+    assert app._port == 8123
+
+
+def test_dynamicdash_run_port_precedence(monkeypatch):
+    app = DynamicDash(
+        callback_fn=lambda **k: k,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        port=8123,
+    )
+    seen = {}
+    monkeypatch.setattr(app.app, "run", lambda **kw: seen.update(kw))
+    app.run()
+    assert seen["port"] == 8123          # constructor port used by default
+    app.run(port=9000)
+    assert seen["port"] == 9000          # explicit run(port=) wins
+
+
 def test_dynamicdash_rejects_parent_without_resolver():
     with pytest.raises(ValueError, match="parent_control was given"):
         DynamicDash(
