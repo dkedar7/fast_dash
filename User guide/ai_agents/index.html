@@ -418,6 +418,19 @@
     What the agent gets
   </a>
   
+    <nav class="md-nav" aria-label="What the agent gets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#discover-the-input-contract" class="md-nav__link">
+    Discover the input contract
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -708,6 +721,19 @@
     What the agent gets
   </a>
   
+    <nav class="md-nav" aria-label="What the agent gets">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#discover-the-input-contract" class="md-nav__link">
+    Discover the input contract
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -761,7 +787,9 @@
 <p>Pass <code>mcp_server=True</code> and your Fast Dash app serves a web UI <strong>and</strong> a
 <a href="https://modelcontextprotocol.io">Model Context Protocol</a> (MCP) server, so any
 MCP-capable agent — Claude Code, Cursor, Cline, … — can inspect and drive it.
-The same type hints that build the UI also build the agent-facing schemas.</p>
+The same type hints that build the UI describe the inputs an agent sees via the
+<a href="#discover-the-input-contract"><code>describe_app</code></a> tool (id, type, default, allowed
+options, and current value).</p>
 <p>The MCP server is built on <a href="https://dash.plotly.com">Dash's native MCP support</a>
 (Dash ≥ 4.3, installed automatically) and is mounted on the <strong>same port</strong> as the
 web app, at <code>/mcp</code>.</p>
@@ -788,14 +816,9 @@ web app, at <code>/mcp</code>.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>dash://layout</code>, <code>dash://components</code></td>
-<td>Dash (native)</td>
-<td>Read the live component tree</td>
-</tr>
-<tr>
-<td><code>get_dash_component</code></td>
-<td>Dash (native)</td>
-<td>Read a single component's current props</td>
+<td><code>describe_app()</code></td>
+<td>Fast Dash</td>
+<td><strong>Start here.</strong> The input contract + current state: each input's id, type, default, options, and current value</td>
 </tr>
 <tr>
 <td><code>set_input(component_id, value)</code></td>
@@ -803,9 +826,9 @@ web app, at <code>/mcp</code>.</p>
 <td>Set one input</td>
 </tr>
 <tr>
-<td><code>set_inputs({...})</code></td>
+<td><code>set_inputs(inputs)</code></td>
 <td>Fast Dash</td>
-<td>Set several inputs at once</td>
+<td>Set several inputs at once (<code>inputs</code> is a <code>{id: value}</code> dict)</td>
 </tr>
 <tr>
 <td><code>invoke(inputs=None)</code></td>
@@ -827,11 +850,37 @@ web app, at <code>/mcp</code>.</p>
 <td>Fast Dash</td>
 <td>List the legal component types for <code>set_form</code></td>
 </tr>
+<tr>
+<td><code>dash://layout</code>, <code>dash://components</code>, <code>get_dash_component</code></td>
+<td>Dash (native)</td>
+<td>Read the static component tree (ids + Dash widget types)</td>
+</tr>
 </tbody>
 </table>
-<p><code>component_id</code> is the <strong>parameter name</strong> itself (e.g. <code>"n"</code>, <code>"color"</code>). Read
-<code>dash://components</code> (or call <code>get_dash_component</code>) to discover the exact ids and
-their current values.</p>
+<p><code>component_id</code> is the <strong>parameter name</strong> itself (e.g. <code>"n"</code>, <code>"color"</code>).</p>
+<h3 id="discover-the-input-contract">Discover the input contract</h3>
+<p>Call <strong><code>describe_app()</code></strong> to learn the exact input ids, their Python types,
+defaults, allowed options, and <strong>current values</strong> — and use that to build a valid
+<code>invoke</code> call:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span>
+<span class="w">  </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Plot Bars&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;doc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Plot a bar chart with n bars in the chosen color.&quot;</span><span class="p">,</span>
+<span class="w">  </span><span class="nt">&quot;inputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span><span class="w">     </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;integer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w">         </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;color&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;string&quot;</span><span class="p">,</span><span class="w">  </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">}</span>
+<span class="w">  </span><span class="p">]</span>
+<span class="p">}</span>
+</code></pre></div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The drive tools' (<code>invoke</code> / <code>set_inputs</code> / <code>set_input</code>) raw MCP <em>input
+schemas</em> are generic objects — the per-parameter contract lives in
+<code>describe_app()</code>, not in those tool schemas. The native <code>dash://components</code>
+resource lists ids and Dash <em>widget</em> types only, and <code>get_dash_component</code>
+reflects the <strong>browser</strong>, so for a headless agent neither shows values an
+agent set via <code>set_input</code>/<code>set_inputs</code> — use <code>describe_app()</code> for current
+values.</p>
+</div>
 <h2 id="drive-it-from-the-agent">Drive it from the agent</h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># From the agent&#39;s side — set inputs and run in a single round-trip:</span>
 <span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">})</span>
