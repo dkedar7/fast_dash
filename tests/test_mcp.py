@@ -135,6 +135,32 @@ class TestBackendOptIn:
         assert "_mcp_mirror_store" in _layout_ids(app.app.layout)
 
     @requires_fastapi
+    @requires_dash_mcp
+    def test_fastapi_mcp_installs_request_context_middleware(self):
+        # #99: the native /mcp route needs the request context set on the ASGI
+        # backend (DashMiddleware skips non-/_dash- routes). enable_mcp installs
+        # a middleware to do that, or /mcp 500s.
+        from fast_dash.mcp import enable_mcp
+
+        app = self._fig_app(backend="fastapi")
+        enable_mcp(app)
+        names = [getattr(m.cls, "__name__", "") for m in app.app.server.user_middleware]
+        assert any("MCPRequestContext" in n for n in names)
+
+    def test_run_routes_to_asgi_on_backend(self, monkeypatch):
+        # #99: run() must serve the ASGI app via uvicorn, not Dash's
+        # frame-walking main-thread path.
+        app = self._fig_app(backend="fastapi") if _HAS_FASTAPI else None
+        if app is None:
+            import pytest as _pytest
+            _pytest.skip("fastapi not installed")
+        called = {}
+        monkeypatch.setattr(app, "_run_asgi", lambda: called.setdefault("asgi", True))
+        monkeypatch.setattr(app, "_start_mcp_server", lambda: None)
+        app.run()
+        assert called.get("asgi") is True
+
+    @requires_fastapi
     def test_stream_with_backend_uses_native_websocket(self):
         def fig(n: int = 3) -> go.Figure:
             return go.Figure()
@@ -243,7 +269,7 @@ class TestTools:
     def test_set_inputs_bulk(self):
         app = _plain_app()
         c = _client_for(app)
-        out = _call(c, "set_inputs", {"values": {"n": 4, "color": "#fff"}})
+        out = _call(c, "set_inputs", {"inputs": {"n": 4, "color": "#fff"}})
         assert out["ok"] is True
         assert app._mcp_state.pending_inputs == {"n": 4, "color": "#fff"}
 
@@ -254,6 +280,21 @@ class TestTools:
         assert out["ok"] is True
         assert out["outputs"]  # produced an output summary
         assert app._mcp_state.inputs["n"] == 4
+
+    def test_describe_app_typed_contract_and_readback(self):
+        # #102: typed contract from the callback signature; #100: read back the
+        # value an agent set (headless), which dash://components can't show.
+        app = _plain_app()  # plot_bars(n: int = 6, color: str = "#1c7ed6")
+        c = _client_for(app)
+        _call(c, "set_input", {"component_id": "n", "value": 9})
+        out = _call(c, "describe_app")
+        by_id = {i["id"]: i for i in out["inputs"]}
+        assert set(by_id) == {"n", "color"}            # contract names the params
+        assert by_id["n"]["type"] == "integer"
+        assert by_id["n"]["default"] == 6
+        assert by_id["n"]["current_value"] == 9        # reflects set_input
+        assert by_id["color"]["type"] == "string"
+        assert by_id["color"]["current_value"] == "#1c7ed6"  # seeded default
 
     def test_invoke_atomic_rejection(self):
         app = _plain_app()

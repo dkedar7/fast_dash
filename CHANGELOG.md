@@ -1,4 +1,27 @@
-# Release 0.3.0
+# Release 0.3.1
+
+## 0.3.1 (2026-06-25)
+
+### Bug fixes
+- **`backend="fastapi"` now works when run as a script.** Previously the ASGI
+  backend never bound (Dash 4.3 infers the uvicorn import string by frame-walking,
+  which fast_dash's extra `run()` frame broke), and Dash's native `/mcp` route
+  500'd on the ASGI backend. fast_dash now serves the ASGI app object directly via
+  uvicorn and installs a small middleware that sets the request context for `/mcp`.
+- **`DynamicDash(..., port=...)`** no longer raises a `TypeError` from `dash.Dash()`;
+  the port is used as `run()`'s default (an explicit `run(port=...)` still wins).
+
+### Added
+- **`describe_app()` MCP tool** — returns the input contract *and* current state
+  for a headless agent: each input's id, type, default, allowed options, and
+  `current_value` (including values set via `set_input` / `set_inputs`, which the
+  native `dash://components` / `get_dash_component` don't surface without a browser).
+
+### Changed
+- The `set_inputs` MCP tool argument is renamed `values` → `inputs` to match
+  `invoke(inputs=...)`.
+- Docs: the per-parameter agent contract lives in `describe_app()`, not the drive
+  tools' raw input schemas.
 
 ## 0.3.0 (2026-06-20)
 

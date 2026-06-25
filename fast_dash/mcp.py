@@ -219,6 +219,28 @@ def _seed_input_mirror(fd) -> None:
         pass
 
 
+def _json_type_name(annotation) -> str:
+    """Best-effort JSON-schema type name for a Python annotation."""
+    return {
+        int: "integer", float: "number", str: "string",
+        bool: "boolean", list: "array", dict: "object",
+    }.get(annotation, "string")
+
+
+def _annotation_options(annotation):
+    """Allowed values for a Literal[...] or Enum annotation, else None."""
+    try:
+        import enum
+        import typing
+        if typing.get_origin(annotation) is typing.Literal:
+            return list(typing.get_args(annotation))
+        if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
+            return [e.value for e in annotation]
+    except Exception:
+        pass
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Native MCP mount + fast_dash tool registration
 # --------------------------------------------------------------------------- #
@@ -289,11 +311,14 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
 
     @mcp_enabled(name="set_inputs", expose_docstring=True)
-    def set_inputs(values: dict) -> dict:
-        """Bulk-update multiple input values."""
+    def set_inputs(inputs: dict) -> dict:
+        """Bulk-update multiple input values (keyed by parameter name).
+
+        The argument is named ``inputs`` to match ``invoke(inputs=...)``.
+        """
         ids = {d["id"] for d in _enumerate_inputs(fd)}
         applied, errors = {}, {}
-        for k, v in (values or {}).items():
+        for k, v in (inputs or {}).items():
             if ids and k not in ids:
                 errors[k] = "unknown id"
                 continue
@@ -422,5 +447,129 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         """List the legal ``type`` values for a DynamicDash UI spec."""
         return {"types": _component_types()}
 
-    # Mount the MCP routes on the Dash app (Flask url rules; same port).
+    @mcp_enabled(name="describe_app", expose_docstring=True)
+    def describe_app() -> dict:
+        """Describe the app's inputs: id, type, default, options, and CURRENT value.
+
+        This is the reliable way for a headless agent (no browser) to read the
+        app's input contract *and* its live state before calling ``invoke``:
+        each input reports its parameter ``id``, JSON ``type``, ``default``,
+        any allowed ``options`` (for dropdowns / ``Literal`` / ``Enum``), and
+        its ``current_value`` — including values you set via ``set_input`` /
+        ``set_inputs``. (The native ``dash://components`` resource lists ids and
+        Dash *widget* types only, and ``get_dash_component`` reflects the
+        browser, not the agent's mirror, so neither shows agent-set values
+        headlessly.)
+        """
+        snapshot = dict(state.inputs)
+        descriptors = _enumerate_inputs(fd)
+        try:
+            sig_params = dict(inspect.signature(fd.callback_fn).parameters)
+        except (TypeError, ValueError):
+            sig_params = {}
+        # Resolve string annotations (modules using ``from __future__ import
+        # annotations``) to real types; fall back to the raw annotation.
+        try:
+            import typing
+            hints = typing.get_type_hints(fd.callback_fn)
+        except Exception:
+            hints = {}
+
+        inputs = []
+        if descriptors:
+            for d in descriptors:
+                cid = d["id"]
+                param = _param_name_from_id(cid)
+                p = sig_params.get(param) or sig_params.get(cid)
+                jtype, default, options = "string", None, None
+                if p is not None:
+                    ann = hints.get(param, hints.get(cid, p.annotation))
+                    jtype = _json_type_name(ann)
+                    options = _annotation_options(ann)
+                    if p.default is not inspect.Parameter.empty:
+                        if isinstance(p.default, list) and options is None:
+                            options = list(p.default)
+                        else:
+                            default = p.default
+                cur = snapshot.get(cid, snapshot.get(param))
+                inputs.append({
+                    "id": cid,
+                    "tag": d["tag"],
+                    "type": jtype,
+                    "default": _jsonify_for_mcp(default),
+                    "options": _jsonify_for_mcp(options),
+                    "current_value": _jsonify_for_mcp(cur),
+                })
+        else:
+            # DynamicDash / **kwargs callback: no static inputs — reflect the
+            # current mirror (whatever set_form/set_inputs populated).
+            for k, v in snapshot.items():
+                inputs.append({"id": k, "current_value": _jsonify_for_mcp(v)})
+
+        return {
+            "title": getattr(fd, "title", None) or "",
+            "doc": (getattr(fd.callback_fn, "__doc__", "") or "").strip(),
+            "inputs": inputs,
+        }
+
+    # Mount the MCP routes on the Dash app (same port).
     enable_mcp_server(fd.app, mcp_path)
+
+    # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
+    # /mcp route (see _install_asgi_mcp_request_context).
+    if getattr(fd, "_backend", None):
+        _install_asgi_mcp_request_context(fd.app.server, mcp_path)
+
+
+def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
+    """Make Dash's native ``/mcp`` route work on the FastAPI/Quart backend.
+
+    Dash 4.3's ``DashMiddleware`` only sets the per-request context (and the
+    pre-parsed ``request.state.json_body``) for ``/_dash-*`` routes — it passes
+    every other path straight through "to avoid consuming the body stream". But
+    Dash's own native ``/mcp`` route (added via ``add_url_rule``) is *not* a
+    ``/_dash-`` route, so its sync POST handler raises
+    ``RuntimeError: No active request in context`` (and then ``json_body``
+    missing) on the ASGI backend. Until that's fixed upstream, we add a tiny
+    ASGI middleware that sets the request context + parsed body for the ``/mcp``
+    path so the handler works. No-op if Starlette / the FastAPI backend isn't
+    present (e.g. the default Flask backend).
+    """
+    try:
+        from dash.backends._fastapi import (  # type: ignore[import-not-found]
+            reset_current_request,
+            set_current_request,
+        )
+        from starlette.requests import Request  # type: ignore[import-not-found]
+    except Exception:
+        return
+
+    suffix = "/" + mcp_path.strip("/")
+
+    class _MCPRequestContext:
+        def __init__(self, app):
+            self.app = app
+
+        async def __call__(self, scope, receive, send):
+            if scope.get("type") == "http" and scope.get(
+                "path", ""
+            ).rstrip("/").endswith(suffix):
+                request = Request(scope, receive=receive)
+                try:
+                    ct = request.headers.get("content-type", "")
+                    request.state.json_body = (
+                        await request.json()
+                        if ct.startswith("application/json")
+                        else None
+                    )
+                except Exception:
+                    request.state.json_body = None
+                token = set_current_request(request)
+                try:
+                    await self.app(scope, receive, send)
+                finally:
+                    reset_current_request(token)
+            else:
+                await self.app(scope, receive, send)
+
+    server.add_middleware(_MCPRequestContext)

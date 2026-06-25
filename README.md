@@ -270,7 +270,7 @@ Point an agent at `http://localhost:8080/mcp`:
 {"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}
 ```
 
-The agent gets **native Dash resources** to introspect the live app — `dash://layout`, `dash://components`, and the `get_dash_component` tool — plus fast_dash **tools** that *drive* it: `set_input` / `set_inputs` / `invoke` / `set_form` / `get_invocation` / `list_component_types`. Agent mutations apply to the live browser within ~500 ms (no reload).
+The agent calls **`describe_app()`** to discover the input contract (each input's id, type, default, options, and current value), then **drives** the app with `set_input` / `set_inputs` / `invoke` / `set_form` / `get_invocation` / `list_component_types`. Dash's native `dash://layout` / `dash://components` / `get_dash_component` expose the static component tree. Agent mutations apply to the live browser within ~500 ms (no reload).
 
 ```python
 # From the agent's side, in one call:

@@ -907,9 +907,33 @@ class FastDash:
     def run(self):
         if self.mcp_server_enabled:
             self._start_mcp_server()
+
+        if self._backend:
+            self._run_asgi()
+            return
+
         self.app.run(**self.run_kwargs) if self.mode is None else self.app.run(
             jupyter_mode=self.mode, **self.run_kwargs
         )
+
+    def _run_asgi(self):
+        """Serve the ASGI (FastAPI/Quart) app object directly via uvicorn.
+
+        Dash 4.3's ASGI ``run()`` infers a uvicorn import string by walking the
+        call stack (``inspect.stack()[2]``), assuming the user called
+        ``app.run()`` directly. fast_dash adds an extra ``run()`` frame, so that
+        heuristic resolves to ``fast_dash/fast_dash.py`` instead of the user's
+        script and uvicorn fails to import the app (issue #99). Serving the app
+        object directly — exactly what Dash's own threaded branch does — sidesteps
+        the import-string heuristic entirely and blocks like a normal dev server.
+        """
+        import uvicorn
+
+        host = self.run_kwargs.get("host", "127.0.0.1")
+        port = self.run_kwargs.get("port", self.port)
+        uvicorn.Server(
+            uvicorn.Config(self.app.server, host=host, port=port, log_level="warning")
+        ).run()
 
     def _start_mcp_server(self):
         """Mount Dash's native MCP server on this app (shared port, ``/mcp``).
