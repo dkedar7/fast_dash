@@ -1,4 +1,15 @@
-# Release 0.3.1
+# Release 0.3.2
+
+## 0.3.2 (2026-06-26)
+
+### Bug fixes
+- **`describe_app()` now reports an agent-built DynamicDash form.** After an
+  agent calls `set_form`, `describe_app()` previously returned `inputs: []`
+  (the form was drivable but undiscoverable through the documented "start here"
+  tool). It now derives each field's `id`, `type`, `label`, `default`,
+  `options`, and `props` (e.g. a Slider's `min`/`max`/`step`) plus its current
+  value from the materialized form — so agent-generated UIs are discoverable
+  headlessly and across reconnecting sessions.
 
 ## 0.3.1 (2026-06-25)
 
