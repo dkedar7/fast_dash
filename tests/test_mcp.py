@@ -296,6 +296,25 @@ class TestTools:
         assert by_id["color"]["type"] == "string"
         assert by_id["color"]["current_value"] == "#1c7ed6"  # seeded default
 
+    def test_describe_app_reflects_dynamic_form(self):
+        # #106: after set_form, describe_app must report the agent-built form's
+        # contract (id/type/props), not just the value mirror.
+        app = _dynamic_app()
+        c = _client_for(app)
+        _call(c, "set_form", {"specs": [
+            {"name": "communication", "type": "Slider", "props": {"min": 0, "max": 10}},
+            {"name": "technical", "type": "Slider", "props": {"min": 0, "max": 10}},
+        ]})
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert set(by_id) == {"communication", "technical"}   # both discoverable
+        assert by_id["communication"]["type"] == "Slider"
+        assert by_id["communication"]["props"]["max"] == 10   # bounds exposed
+        # set one field — both still listed; current_value updated for the set one.
+        _call(c, "set_inputs", {"inputs": {"communication": 5}})
+        by_id2 = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert set(by_id2) == {"communication", "technical"}
+        assert by_id2["communication"]["current_value"] == 5
+
     def test_invoke_atomic_rejection(self):
         app = _plain_app()
         c = _client_for(app)

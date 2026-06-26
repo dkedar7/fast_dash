@@ -88,6 +88,11 @@ class MCPState:
         self.pending_inputs: dict[str, Any] = {}
         self.pending_specs: list[dict] | None = None
         self.pending_outputs: dict[str, Any] = {}
+        # The last form a set_form built. Unlike pending_specs (popped by the
+        # browser drain), this persists so describe_app can report the
+        # agent-generated form's contract — even after a browser renders it or
+        # a different agent reconnects.
+        self.current_specs: list[dict] | None = None
 
     def append_history(self, entry_summary: dict, entry_full: dict) -> int:
         self.history.append(entry_summary)
@@ -422,6 +427,9 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             except (TypeError, ValueError) as e:
                 return {"ok": False, "error": f"invalid spec: {e}", "spec": spec}
         state.pending_specs = specs
+        # Keep a persistent copy so describe_app can report the form contract
+        # (pending_specs is popped by the browser drain).
+        state.current_specs = specs
         return {"ok": True, "count": len(specs)}
 
     @mcp_enabled(name="get_invocation", expose_docstring=True)
@@ -500,9 +508,37 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                     "options": _jsonify_for_mcp(options),
                     "current_value": _jsonify_for_mcp(cur),
                 })
+        elif state.current_specs:
+            # DynamicDash: report the agent-built form's contract from the specs
+            # set_form materialized, merged with any current values.
+            seen = set()
+            for spec in state.current_specs:
+                name = spec.get("name")
+                if not name:
+                    continue
+                seen.add(name)
+                props = spec.get("props") or {}
+                # Slider/number bounds, Select/MultiSelect options, etc. live in
+                # props; expose them so the contract is fully discoverable.
+                options = props.get("data")
+                default = spec.get("value", props.get("value"))
+                cur = snapshot.get(name, default)
+                inputs.append({
+                    "id": name,
+                    "tag": spec.get("type"),
+                    "type": spec.get("type"),
+                    "label": spec.get("label"),
+                    "default": _jsonify_for_mcp(default),
+                    "options": _jsonify_for_mcp(options),
+                    "props": _jsonify_for_mcp(props),
+                    "current_value": _jsonify_for_mcp(cur),
+                })
+            # Any extra mirror keys not in the form (defensive).
+            for k, v in snapshot.items():
+                if k not in seen:
+                    inputs.append({"id": k, "current_value": _jsonify_for_mcp(v)})
         else:
-            # DynamicDash / **kwargs callback: no static inputs — reflect the
-            # current mirror (whatever set_form/set_inputs populated).
+            # No form built yet — reflect whatever the mirror holds.
             for k, v in snapshot.items():
                 inputs.append({"id": k, "current_value": _jsonify_for_mcp(v)})
 
