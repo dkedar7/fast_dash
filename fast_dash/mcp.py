@@ -219,7 +219,16 @@ def _seed_input_mirror(fd) -> None:
             if p.default is inspect.Parameter.empty:
                 continue
             if name in ids and name not in state.inputs:
-                state.inputs[name] = p.default
+                # A scalar default IS the value. A list/dict/range default is the
+                # component's *options* (dropdown / multi-select / slider
+                # bounds), not its value — the browser renders None there, so
+                # seed None (not the options) so describe_app's current_value is
+                # type-consistent and invoke() matches a UI Run (issue #110).
+                state.inputs[name] = (
+                    p.default
+                    if isinstance(p.default, (str, bool, int, float))
+                    else None
+                )
     except (TypeError, ValueError):
         pass
 
