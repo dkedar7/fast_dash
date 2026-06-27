@@ -497,6 +497,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                     if p.default is not inspect.Parameter.empty:
                         if isinstance(p.default, list) and options is None:
                             options = list(p.default)
+                            default = p.default[0] if p.default else None
                         else:
                             default = p.default
                 cur = snapshot.get(cid, snapshot.get(param))
