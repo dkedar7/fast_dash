@@ -222,6 +222,19 @@ class TestSeed:
         assert app._mcp_state.inputs.get("name") == "world"
         assert app._mcp_state.inputs.get("count") == 3
 
+    def test_dropdown_default_seeds_none_not_options(self):
+        # #110: a str dropdown (list default) is options-as-default; its browser
+        # value is None, so the mirror must seed None, not the options list.
+        from fast_dash.mcp import _seed_input_mirror
+
+        def pick(fruit: str = ["a", "b", "c"], tags: list = ["x"], n: int = 6) -> str:
+            return str(fruit)
+        app = FastDash(callback_fn=pick, mcp_server=True)
+        _seed_input_mirror(app)
+        assert app._mcp_state.inputs["fruit"] is None    # not ["a","b","c"]
+        assert app._mcp_state.inputs["tags"] is None      # multiselect too
+        assert app._mcp_state.inputs["n"] == 6            # scalar still seeded
+
 
 # --- native mount + delegation --------------------------------------------- #
 
@@ -295,6 +308,22 @@ class TestTools:
         assert by_id["n"]["current_value"] == 9        # reflects set_input
         assert by_id["color"]["type"] == "string"
         assert by_id["color"]["current_value"] == "#1c7ed6"  # seeded default
+
+    def test_dropdown_contract_consistent_and_invoke_parity(self):
+        # #110: describe_app current_value is type-consistent (None, not a list),
+        # and invoke() with defaults passes None (the browser's value), not the
+        # options list — so a str param never silently receives a list.
+        def pick(fruit: str = ["a", "b", "c"]) -> str:
+            """Echo the type."""
+            return type(fruit).__name__
+        app = FastDash(callback_fn=pick, mcp_server=True)
+        c = _client_for(app)
+        fruit = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["fruit"]
+        assert fruit["type"] == "string"
+        assert fruit["current_value"] is None           # not the options list
+        assert fruit["options"] == ["a", "b", "c"]
+        out = _call(c, "invoke")
+        assert "NoneType" in json.dumps(out["outputs"])  # callback got None
 
     def test_describe_app_reflects_dynamic_form(self):
         # #106: after set_form, describe_app must report the agent-built form's
