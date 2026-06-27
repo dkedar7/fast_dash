@@ -1,4 +1,16 @@
-# Release 0.3.2
+# Release 0.3.3
+
+## 0.3.3 (2026-06-27)
+
+### Bug fixes
+- **A single-select dropdown (`str` with a list default) no longer seeds its
+  *options* as its value over MCP.** Previously the input mirror seeded the
+  whole options list, so `describe_app()` reported a `list` `current_value`
+  under `type: "string"`, and `invoke()` with defaults passed a `list` to a
+  `str` parameter while the browser held `None`. The mirror now seeds `None`
+  for list/dict/range defaults (those are the component's options, not its
+  value), so `describe_app`'s `current_value` is type-consistent and `invoke()`
+  matches a UI Run. Thanks to @muhamedfazalps for the report. (#110)
 
 ## 0.3.2 (2026-06-26)
 
