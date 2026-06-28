@@ -911,6 +911,11 @@ materializes in the browser within ~500 ms of the call.</p>
     <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;technical&quot;</span><span class="p">,</span>     <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Slider&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}},</span>
 <span class="p">])</span>
 </code></pre></div>
+<p>After <code>set_form</code>, <strong><code>describe_app()</code> reflects the materialized form</strong> — each field's
+<code>id</code>, <code>type</code>, <code>default</code>, <code>options</code>, and <code>props</code> (e.g. a slider's <code>min</code>/<code>max</code>) plus
+its current value — so a reconnecting (or second) agent can discover and drive the
+form without remembering the spec it sent. From there, <code>set_inputs(...)</code> + <code>invoke()</code>
+run it.</p>
 <h2 id="real-time-push-opt-in">Real-time push (opt-in)</h2>
 <p>On the default Flask backend, agent mutations reach the browser via a ~500 ms
 polling drain. Install the <code>fastapi</code> extra and pass <code>backend="fastapi"</code> to run
