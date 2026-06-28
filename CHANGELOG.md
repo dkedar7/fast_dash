@@ -1,4 +1,30 @@
-# Release 0.3.3
+# Release 0.3.4
+
+## 0.3.4 (2026-06-28)
+
+### Bug fixes
+- **`describe_app()` no longer leaks a `depends_on` object repr, and resolves a
+  cascading input's options.** For the documented `depends_on(...)` cascading-
+  inputs pattern, the dependent input's `default` was reported as a stringified
+  internal object (`"<fast_dash.utils.depends_on object at 0x...>"`) and its
+  `options` as `null`. The contract now reports `default: null` and resolves the
+  dependent dropdown's `options` from the current parent value using the same
+  helper the live cascade uses — so an agent reading only the contract can drive
+  a cascading input correctly. More generally, a non-JSON default (e.g. a
+  `range`) is never surfaced as an object repr. (#116)
+- **A `dict` default now surfaces its keys as `options`.** A `dict`-defaulted
+  parameter renders a multi-select of the dict's keys, but `describe_app()`
+  reported `options: null` (unlike a `list` default). The keys are now
+  discoverable through the contract. (#116)
+
+### Changed
+- **`set_input` / `set_inputs` / `invoke` validate values against advertised
+  `options`.** A value the UI `Select`/`MultiSelect` could never produce (e.g.
+  `set_input("flavor", "strawberry")` against a `["vanilla", "choco"]` dropdown)
+  is now rejected with an `allowed options` error, mirroring the existing
+  unknown-id guard — closing a human<->agent parity gap. Inputs with no
+  advertised options stay permissive, and `invoke` remains atomic (a bad value
+  rejects without mutating the mirror). (#116)
 
 ## 0.3.3 (2026-06-27)
 

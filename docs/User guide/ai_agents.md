@@ -113,6 +113,12 @@ set_form([
 ])
 ```
 
+After `set_form`, **`describe_app()` reflects the materialized form** — each field's
+`id`, `type`, `default`, `options`, and `props` (e.g. a slider's `min`/`max`) plus
+its current value — so a reconnecting (or second) agent can discover and drive the
+form without remembering the spec it sent. From there, `set_inputs(...)` + `invoke()`
+run it.
+
 ## Real-time push (opt-in)
 
 On the default Flask backend, agent mutations reach the browser via a ~500 ms
