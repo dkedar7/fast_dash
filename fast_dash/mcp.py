@@ -255,6 +255,118 @@ def _annotation_options(annotation):
     return None
 
 
+def _resolve_depends_on_options(fd, dep, snapshot):
+    """Options for a ``depends_on`` dependent dropdown given the current parent.
+
+    Mirrors the browser cascade exactly: runs the resolver against the parent
+    input's current value via ``FastDash._apply_dependency_resolver`` and
+    returns the resulting ``data`` (the dropdown options) as a list, or ``None``
+    when the parent is unset or the resolver yields no options. Reusing the same
+    helper the live callback uses keeps the agent contract and the UI in sync.
+    """
+    try:
+        from fast_dash.fast_dash import FastDash
+    except Exception:
+        return None
+    parent_val = snapshot.get(dep.parent)
+    try:
+        data, _value = FastDash._apply_dependency_resolver(dep.resolver, parent_val)
+    except Exception:
+        return None
+    return list(data) if isinstance(data, list) else None
+
+
+def _describe_static_inputs(fd, snapshot):
+    """Per-input contract for a static FastDash app.
+
+    Single source of truth for ``describe_app`` and the option validators, so a
+    headless agent's contract matches what ``set_input`` / ``invoke`` enforce
+    (human<->agent parity). Each entry is ``{id, tag, type, default, options,
+    current_value}``. Resolves ``depends_on`` / list / dict / ``Literal`` /
+    ``Enum`` defaults into clean JSON and **never** leaks an object ``repr`` into
+    a contract field (issue #116).
+    """
+    from fast_dash.utils import _jsonify_for_mcp, depends_on
+
+    descriptors = _enumerate_inputs(fd)
+    try:
+        sig_params = dict(inspect.signature(fd.callback_fn).parameters)
+    except (TypeError, ValueError):
+        sig_params = {}
+    # Resolve string annotations (``from __future__ import annotations``) to real
+    # types; fall back to the raw annotation.
+    try:
+        import typing
+        hints = typing.get_type_hints(fd.callback_fn)
+    except Exception:
+        hints = {}
+
+    contract = []
+    for d in descriptors:
+        cid = d["id"]
+        param = _param_name_from_id(cid)
+        p = sig_params.get(param) or sig_params.get(cid)
+        jtype, default, options = "string", None, None
+        if p is not None:
+            ann = hints.get(param, hints.get(cid, p.annotation))
+            jtype = _json_type_name(ann)
+            options = _annotation_options(ann)
+            if p.default is not inspect.Parameter.empty:
+                dflt = p.default
+                if isinstance(dflt, depends_on):
+                    # Dependent dropdown: starts empty (the browser renders an
+                    # unselected Select); its options come from the current
+                    # parent value, resolved exactly as the live cascade does.
+                    if options is None:
+                        options = _resolve_depends_on_options(fd, dflt, snapshot)
+                elif isinstance(dflt, list):
+                    if options is None:
+                        options = list(dflt)          # list default = dropdown options
+                elif isinstance(dflt, dict):
+                    if options is None:
+                        options = list(dflt.keys())   # dict default = MultiSelect keys
+                elif isinstance(dflt, (str, bool, int, float)):
+                    default = dflt                    # a scalar default IS the value
+                # else (range / arbitrary objects): leave default None so the
+                # contract never carries a non-JSON repr (issue #116).
+        cur = snapshot.get(cid, snapshot.get(param))
+        contract.append({
+            "id": cid,
+            "tag": d["tag"],
+            "type": jtype,
+            "default": _jsonify_for_mcp(default),
+            "options": _jsonify_for_mcp(options),
+            "current_value": _jsonify_for_mcp(cur),
+        })
+    return contract
+
+
+def _option_error(fd, component_id, value, snapshot):
+    """Reject a value that violates an input's advertised ``options``, else None.
+
+    Validates against the very contract ``describe_app`` reports (parity), so an
+    agent can never set a value the UI ``Select`` could not produce (issue
+    #116). Permissive by design: an input with no advertised options accepts any
+    value, and ``None`` always clears a selection. For a MultiSelect (list
+    value) every element must be a legal key.
+    """
+    for entry in _describe_static_inputs(fd, snapshot):
+        if entry["id"] != component_id:
+            continue
+        options = entry.get("options")
+        if not options or value is None:
+            return None
+        if isinstance(value, (list, tuple)):
+            bad = [v for v in value if v not in options]
+            if bad:
+                return f"value(s) {bad} not in allowed options {options}"
+            return None
+        if value not in options:
+            return f"value {value!r} not in allowed options {options}"
+        return None
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # Native MCP mount + fast_dash tool registration
 # --------------------------------------------------------------------------- #
@@ -320,6 +432,9 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                 "error": f"Unknown input id {component_id!r}",
                 "known_ids": sorted(ids),
             }
+        bad = _option_error(fd, component_id, value, dict(state.inputs))
+        if bad:
+            return {"ok": False, "error": bad, "id": component_id}
         state.inputs[component_id] = value
         state.pending_inputs[component_id] = value
         return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
@@ -331,13 +446,19 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         The argument is named ``inputs`` to match ``invoke(inputs=...)``.
         """
         ids = {d["id"] for d in _enumerate_inputs(fd)}
+        snapshot = dict(state.inputs)
         applied, errors = {}, {}
         for k, v in (inputs or {}).items():
             if ids and k not in ids:
                 errors[k] = "unknown id"
                 continue
+            bad = _option_error(fd, k, v, snapshot)
+            if bad:
+                errors[k] = bad
+                continue
             state.inputs[k] = v
             state.pending_inputs[k] = v
+            snapshot[k] = v
             applied[k] = _jsonify_for_mcp(v)
         return {"ok": not errors, "applied": applied, "errors": errors}
 
@@ -364,6 +485,18 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                         "error": f"unknown input id(s): {unknown}",
                         "known_ids": sorted(ids),
                     }
+            # Validate against advertised options before mutating (atomic: a
+            # bad value rejects the whole call without touching the mirror).
+            snapshot = dict(state.inputs)
+            option_errors = {}
+            for k, v in inputs.items():
+                bad = _option_error(fd, k, v, snapshot)
+                if bad:
+                    option_errors[k] = bad
+                else:
+                    snapshot[k] = v
+            if option_errors:
+                return {"ok": False, "error": "invalid value(s)", "errors": option_errors}
             for k, v in inputs.items():
                 state.inputs[k] = v
                 state.pending_inputs[k] = v
@@ -480,43 +613,10 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         """
         snapshot = dict(state.inputs)
         descriptors = _enumerate_inputs(fd)
-        try:
-            sig_params = dict(inspect.signature(fd.callback_fn).parameters)
-        except (TypeError, ValueError):
-            sig_params = {}
-        # Resolve string annotations (modules using ``from __future__ import
-        # annotations``) to real types; fall back to the raw annotation.
-        try:
-            import typing
-            hints = typing.get_type_hints(fd.callback_fn)
-        except Exception:
-            hints = {}
 
         inputs = []
         if descriptors:
-            for d in descriptors:
-                cid = d["id"]
-                param = _param_name_from_id(cid)
-                p = sig_params.get(param) or sig_params.get(cid)
-                jtype, default, options = "string", None, None
-                if p is not None:
-                    ann = hints.get(param, hints.get(cid, p.annotation))
-                    jtype = _json_type_name(ann)
-                    options = _annotation_options(ann)
-                    if p.default is not inspect.Parameter.empty:
-                        if isinstance(p.default, list) and options is None:
-                            options = list(p.default)
-                        else:
-                            default = p.default
-                cur = snapshot.get(cid, snapshot.get(param))
-                inputs.append({
-                    "id": cid,
-                    "tag": d["tag"],
-                    "type": jtype,
-                    "default": _jsonify_for_mcp(default),
-                    "options": _jsonify_for_mcp(options),
-                    "current_value": _jsonify_for_mcp(cur),
-                })
+            inputs = _describe_static_inputs(fd, snapshot)
         elif state.current_specs:
             # DynamicDash: report the agent-built form's contract from the specs
             # set_form materialized, merged with any current values.

@@ -325,6 +325,71 @@ class TestTools:
         out = _call(c, "invoke")
         assert "NoneType" in json.dumps(out["outputs"])  # callback got None
 
+    def test_depends_on_contract_no_repr_leak_and_resolved_options(self):
+        # #116: a depends_on (cascading) input must report a clean contract — no
+        # leaked "<...object at 0x...>" default — and the dependent dropdown's
+        # options must resolve from the current parent value.
+        from fast_dash import depends_on
+        countries = {"USA": ["California", "Texas"], "India": ["Delhi", "Goa"]}
+
+        def pick_state(
+            country: str = list(countries),
+            state: str = depends_on("country", lambda c: countries[c]),
+        ) -> str:
+            """Pick a state in a country."""
+            return f"{state}, {country}"
+
+        app = FastDash(callback_fn=pick_state, mcp_server=True)
+        c = _client_for(app)
+
+        st = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["state"]
+        # default is clean JSON (None), never an object repr string.
+        assert st["default"] is None
+        assert "object at 0x" not in json.dumps(st)
+        assert st["options"] is None          # parent unset -> not yet discoverable
+
+        # set the parent; the dependent dropdown's options now resolve.
+        _call(c, "set_input", {"component_id": "country", "value": "India"})
+        st = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["state"]
+        assert st["options"] == ["Delhi", "Goa"]
+
+    def test_dict_default_surfaces_multiselect_keys(self):
+        # #116 (note): a dict default renders a MultiSelect of keys; describe_app
+        # must surface those keys as options (previously reported null). Options
+        # derive from the signature default, so this holds regardless of how the
+        # annotation is spelled.
+        def shop(items: dict = {"apples": 1, "pears": 2, "figs": 3}) -> str:
+            """Echo selection."""
+            return str(items)
+        app = FastDash(callback_fn=shop, mcp_server=True)
+        c = _client_for(app)
+        items = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["items"]
+        assert items["options"] == ["apples", "pears", "figs"]
+        # and no raw object repr leaks into the default contract field.
+        assert items["default"] is None
+
+    def test_set_input_and_invoke_validate_against_options(self):
+        # #116 (note): a value the UI Select can never produce must be rejected,
+        # mirroring the unknown-id guard (human<->agent parity). Valid values and
+        # inputs with no advertised options stay permissive.
+        def order(flavor: str = ["vanilla", "choco"], note: str = "") -> str:
+            """Place an order."""
+            return f"{flavor}:{note}"
+        app = FastDash(callback_fn=order, mcp_server=True)
+        c = _client_for(app)
+
+        bad = _call(c, "set_input", {"component_id": "flavor", "value": "strawberry"})
+        assert bad["ok"] is False and "allowed options" in bad["error"]
+        ok = _call(c, "set_input", {"component_id": "flavor", "value": "choco"})
+        assert ok["ok"] is True
+        # free-text input (no options) still accepts anything.
+        assert _call(c, "set_input", {"component_id": "note", "value": "rush"})["ok"]
+
+        # invoke is atomic: a bad value rejects without mutating the mirror.
+        out = _call(c, "invoke", {"inputs": {"flavor": "mango"}})
+        assert out["ok"] is False and out["errors"]["flavor"]
+        assert app._mcp_state.inputs["flavor"] == "choco"   # unchanged
+
     def test_describe_app_reflects_dynamic_form(self):
         # #106: after set_form, describe_app must report the agent-built form's
         # contract (id/type/props), not just the value mirror.
