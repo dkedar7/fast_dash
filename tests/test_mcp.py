@@ -368,6 +368,36 @@ class TestTools:
         # and no raw object repr leaks into the default contract field.
         assert items["default"] is None
 
+    def test_slider_bounds_in_contract_and_range_validation(self):
+        # #120: a static Slider must expose its min/max/step in the contract (so
+        # an agent can discover the range), and set_input/invoke must reject
+        # out-of-range values the UI slider can never produce (parity). The
+        # callback lives in a plain module (see tests/_slider_app.py) so the
+        # documented slider hints aren't stringified by this module's future
+        # annotations (that degradation is the separate issue #119).
+        from tests._slider_app import slider_demo
+        app = FastDash(callback_fn=slider_demo, mcp_server=True)
+        c = _client_for(app)
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+
+        # bounded sliders expose props; the plain number box does not.
+        assert by_id["via_annot"]["props"] == {"min": 0, "max": 100, "step": 1}
+        assert by_id["via_range"]["props"] == {"min": 0, "max": 100, "step": 1}
+        assert "props" not in by_id["plain_num"]          # genuinely unbounded
+
+        # out-of-range rejected; in-range accepted; unbounded input stays free.
+        hi = _call(c, "set_input", {"component_id": "via_annot", "value": 99999})
+        assert hi["ok"] is False and "maximum" in hi["error"]
+        lo = _call(c, "set_input", {"component_id": "via_annot", "value": -50})
+        assert lo["ok"] is False and "minimum" in lo["error"]
+        assert _call(c, "set_input", {"component_id": "via_annot", "value": 42})["ok"]
+        assert _call(c, "set_input", {"component_id": "plain_num", "value": 99999})["ok"]
+
+        # invoke stays atomic: an out-of-range value rejects without mutating.
+        out = _call(c, "invoke", {"inputs": {"via_annot": 99999}})
+        assert out["ok"] is False and out["errors"]["via_annot"]
+        assert app._mcp_state.inputs["via_annot"] == 42   # unchanged from set_input
+
     def test_set_input_and_invoke_validate_against_options(self):
         # #116 (note): a value the UI Select can never produce must be rejected,
         # mirroring the unknown-id guard (human<->agent parity). Valid values and
