@@ -8,7 +8,7 @@ import warnings
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
 from functools import reduce
-from typing import Any, Union, Literal, Annotated, get_origin, get_args
+from typing import Any, Union, Literal, Annotated, get_origin, get_args, get_type_hints
 
 import dash
 from dash import Input, Output, State, dcc, html, ctx, Patch
@@ -1243,9 +1243,33 @@ def _infer_input_components(func):
     signature = inspect.signature(func)
     components = []
 
+    # Resolve string annotations to real types before dispatching on them.
+    # Under ``from __future__ import annotations`` (PEP 563) every annotation is
+    # a string, so ``parameter.annotation`` is e.g. ``"dict"`` instead of
+    # ``dict`` and component inference falls through to a Text box (issue #119).
+    # Prefer ``get_type_hints`` (handles forward refs; ``include_extras=True``
+    # keeps ``Annotated[int, range(...)]`` metadata so Slider inference works).
+    # If it raises on *any* one annotation (commonly an unresolvable return type
+    # like ``-> "Figure"``), fall back to resolving each *parameter* annotation
+    # independently so one bad hint doesn't degrade every input; keep the raw
+    # annotation when even that fails.
+    func_globals = getattr(func, "__globals__", {})
+    try:
+        resolved_hints = get_type_hints(func, include_extras=True)
+    except Exception:
+        resolved_hints = {}
+        for pname, pobj in signature.parameters.items():
+            ann = pobj.annotation
+            if isinstance(ann, str):
+                try:
+                    ann = eval(ann, func_globals)  # noqa: S307 - user's own annotation, user's own module
+                except Exception:
+                    ann = pobj.annotation
+            resolved_hints[pname] = ann
+
     parameters = signature.parameters.items()
-    for _, value in parameters:
-        hint = value.annotation
+    for name, value in parameters:
+        hint = resolved_hints.get(name, value.annotation)
         default = None if value.default == inspect._empty else value.default
 
         # Handle depends_on defaults — reactive input wired to a parent input

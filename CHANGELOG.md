@@ -3,6 +3,16 @@
 ## 0.3.5 (2026-06-29)
 
 ### Bug fixes
+- **Type-hint inference no longer degrades under `from __future__ import
+  annotations`.** With PEP 563 enabled, every annotation reaches inference as a
+  string (`"dict"`, `"list"`, `"Annotated[int, range(...)]"`), so a `dict` input
+  silently rendered as a Text box instead of a multi-select, a `list`-defaulted
+  `str` as a Text box instead of a dropdown, and `Annotated[int, range(...)]` /
+  `int = range(...)` as a Text box instead of a Slider. fast_dash now resolves
+  annotations (via `get_type_hints`, preserving `Annotated` metadata) before
+  building components, with a per-parameter fallback so one unresolvable
+  annotation (e.g. a forward-ref return type) doesn't degrade the other inputs.
+  (#119)
 - **`describe_app()` now exposes a static Slider's `min`/`max`/`step`.** A
   `Slider` input (`Annotated[int, range(...)]` or an `int = range(...)` default)
   is hard-bounded in the UI, but for a static `FastDash` app the contract
