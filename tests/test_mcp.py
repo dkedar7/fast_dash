@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import importlib.util
 import json
+from typing import Annotated  # module-level so get_type_hints can resolve it (#119)
 
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
@@ -367,14 +368,47 @@ class TestTools:
         assert items["options"] == ["apples", "pears", "figs"]
         # and no raw object repr leaks into the default contract field.
         assert items["default"] is None
+        # #119: now that future annotations no longer degrade inference, the dict
+        # builds a real MultiSelect (no value), so current_value is a clean None.
+        assert items["current_value"] is None
+
+    def test_future_annotations_do_not_degrade_inference(self):
+        # #119: this module uses `from __future__ import annotations`, so every
+        # annotation below reaches component inference as a *string* ("dict",
+        # "list", "Annotated[...]"). Inference must resolve them (get_type_hints)
+        # rather than fall through to a Text box — so a dict stays a MultiSelect,
+        # a list a Select, and Annotated[int, range] a bounded Slider. (This also
+        # restores the #120 slider contract under future annotations.)
+        def cfg(
+            items: dict = {"a": 1, "b": 2},
+            fruit: str = ["x", "y", "z"],
+            level: Annotated[int, range(0, 10)] = 3,
+            free: str = "hi",
+        ) -> str:
+            """Echo."""
+            return "ok"
+
+        app = FastDash(callback_fn=cfg, mcp_server=True)
+        c = _client_for(app)
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+
+        assert by_id["items"]["options"] == ["a", "b"]        # dict -> MultiSelect keys
+        assert by_id["items"]["current_value"] is None        # real widget, not a text box
+        assert by_id["fruit"]["options"] == ["x", "y", "z"]   # list -> Select dropdown
+        assert by_id["level"]["props"] == {"min": 0, "max": 10, "step": 1}  # Slider bounds
+        assert "props" not in by_id["free"]                   # plain str stays free text
+        assert by_id["free"]["options"] is None
+        # the resolved Slider's bounds are enforced too.
+        assert _call(c, "set_input", {"component_id": "level", "value": 99})["ok"] is False
 
     def test_slider_bounds_in_contract_and_range_validation(self):
         # #120: a static Slider must expose its min/max/step in the contract (so
         # an agent can discover the range), and set_input/invoke must reject
         # out-of-range values the UI slider can never produce (parity). The
-        # callback lives in a plain module (see tests/_slider_app.py) so the
-        # documented slider hints aren't stringified by this module's future
-        # annotations (that degradation is the separate issue #119).
+        # callback lives in a plain module (tests/_slider_app.py) — a faithful
+        # copy of the issue's plain-script repro. (Sliders defined inline here
+        # also work now that #119 resolves future annotations; the inline test
+        # above covers that path.)
         from tests._slider_app import slider_demo
         app = FastDash(callback_fn=slider_demo, mcp_server=True)
         c = _client_for(app)
