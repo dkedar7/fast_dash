@@ -307,10 +307,21 @@ def _describe_static_inputs(fd, snapshot):
         param = _param_name_from_id(cid)
         p = sig_params.get(param) or sig_params.get(cid)
         jtype, default, options = "string", None, None
+        props = None  # Slider/number bounds, when present
         if p is not None:
             ann = hints.get(param, hints.get(cid, p.annotation))
             jtype = _json_type_name(ann)
             options = _annotation_options(ann)
+
+            # Extract range metadata for Slider bounds from the raw annotation
+            # (Annotated[int, range(0, 100)]), which get_type_hints strips.
+            import typing
+            raw = p.annotation
+            if typing.get_origin(raw) is typing.Annotated:
+                for meta in typing.get_args(raw)[1:]:
+                    if isinstance(meta, range):
+                        props = {"min": meta.start, "max": meta.stop, "step": meta.step}
+
             if p.default is not inspect.Parameter.empty:
                 dflt = p.default
                 if isinstance(dflt, depends_on):
@@ -327,7 +338,10 @@ def _describe_static_inputs(fd, snapshot):
                         options = list(dflt.keys())   # dict default = MultiSelect keys
                 elif isinstance(dflt, (str, bool, int, float)):
                     default = dflt                    # a scalar default IS the value
-                # else (range / arbitrary objects): leave default None so the
+                elif isinstance(dflt, range) and props is None:
+                    # `int = range(0, 100)` form: default is the range itself.
+                    props = {"min": dflt.start, "max": dflt.stop, "step": dflt.step}
+                # else (range / other objects): leave default None so the
                 # contract never carries a non-JSON repr (issue #116).
         cur = snapshot.get(cid, snapshot.get(param))
         contract.append({
@@ -336,6 +350,7 @@ def _describe_static_inputs(fd, snapshot):
             "type": jtype,
             "default": _jsonify_for_mcp(default),
             "options": _jsonify_for_mcp(options),
+            "props": _jsonify_for_mcp(props),
             "current_value": _jsonify_for_mcp(cur),
         })
     return contract
