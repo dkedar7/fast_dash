@@ -1243,9 +1243,18 @@ def _infer_input_components(func):
     signature = inspect.signature(func)
     components = []
 
+    # Resolve string annotations (from __future__ import annotations) to
+    # real types before dispatching on them.  Falls back to the raw
+    # annotation when get_type_hints fails (forward refs, etc.).
+    try:
+        import typing
+        _hints = typing.get_type_hints(func)
+    except Exception:
+        _hints = {}
+
     parameters = signature.parameters.items()
     for _, value in parameters:
-        hint = value.annotation
+        hint = _hints.get(value.name, value.annotation)
         default = None if value.default == inspect._empty else value.default
 
         # Handle depends_on defaults — reactive input wired to a parent input
