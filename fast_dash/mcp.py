@@ -276,19 +276,43 @@ def _resolve_depends_on_options(fd, dep, snapshot):
     return list(data) if isinstance(data, list) else None
 
 
+def _component_bounds(comp):
+    """Numeric ``{min, max, step}`` carried by a Slider/number component, else {}.
+
+    A Slider built from ``Annotated[int, range(...)]`` / an ``int = range(...)``
+    default stores hard ``min`` / ``max`` / ``step`` props; a plain number box
+    sets none. Surfacing them lets a headless agent discover (and stay within) a
+    slider's range, the same way DynamicDash forms already expose their props
+    (issue #120).
+    """
+    if comp is None:
+        return {}
+    props = {}
+    for k in ("min", "max", "step"):
+        v = getattr(comp, k, None)
+        if isinstance(v, (int, float)) and not isinstance(v, bool):
+            props[k] = v
+    return props
+
+
 def _describe_static_inputs(fd, snapshot):
     """Per-input contract for a static FastDash app.
 
-    Single source of truth for ``describe_app`` and the option validators, so a
+    Single source of truth for ``describe_app`` and the value validators, so a
     headless agent's contract matches what ``set_input`` / ``invoke`` enforce
     (human<->agent parity). Each entry is ``{id, tag, type, default, options,
-    current_value}``. Resolves ``depends_on`` / list / dict / ``Literal`` /
-    ``Enum`` defaults into clean JSON and **never** leaks an object ``repr`` into
-    a contract field (issue #116).
+    current_value}`` plus a ``props`` block when the widget carries numeric
+    bounds. Resolves ``depends_on`` / list / dict / ``Literal`` / ``Enum``
+    defaults into clean JSON and **never** leaks an object ``repr`` into a
+    contract field (issue #116).
     """
     from fast_dash.utils import _jsonify_for_mcp, depends_on
 
     descriptors = _enumerate_inputs(fd)
+    components = {
+        _stringify_id(c.id): c
+        for c in (getattr(fd, "inputs_with_ids", None) or [])
+    }
     try:
         sig_params = dict(inspect.signature(fd.callback_fn).parameters)
     except (TypeError, ValueError):
@@ -330,39 +354,54 @@ def _describe_static_inputs(fd, snapshot):
                 # else (range / arbitrary objects): leave default None so the
                 # contract never carries a non-JSON repr (issue #116).
         cur = snapshot.get(cid, snapshot.get(param))
-        contract.append({
+        entry = {
             "id": cid,
             "tag": d["tag"],
             "type": jtype,
             "default": _jsonify_for_mcp(default),
             "options": _jsonify_for_mcp(options),
             "current_value": _jsonify_for_mcp(cur),
-        })
+        }
+        bounds = _component_bounds(components.get(cid))
+        if bounds:
+            entry["props"] = bounds                   # Slider min/max/step (issue #120)
+        contract.append(entry)
     return contract
 
 
 def _option_error(fd, component_id, value, snapshot):
-    """Reject a value that violates an input's advertised ``options``, else None.
+    """Reject a value the UI could never produce, else None.
 
     Validates against the very contract ``describe_app`` reports (parity), so an
-    agent can never set a value the UI ``Select`` could not produce (issue
-    #116). Permissive by design: an input with no advertised options accepts any
-    value, and ``None`` always clears a selection. For a MultiSelect (list
-    value) every element must be a legal key.
+    agent can never set a value the UI widget couldn't: a value outside a
+    dropdown's ``options`` (issue #116) or outside a Slider's ``min``/``max``
+    bounds (issue #120). Permissive by design: an input with neither advertised
+    options nor bounds accepts any value, and ``None`` always clears a
+    selection. For a MultiSelect (list value) every element must be a legal key.
     """
     for entry in _describe_static_inputs(fd, snapshot):
         if entry["id"] != component_id:
             continue
+        if value is None:
+            return None
         options = entry.get("options")
-        if not options or value is None:
+        if options:
+            if isinstance(value, (list, tuple)):
+                bad = [v for v in value if v not in options]
+                if bad:
+                    return f"value(s) {bad} not in allowed options {options}"
+                return None
+            if value not in options:
+                return f"value {value!r} not in allowed options {options}"
             return None
-        if isinstance(value, (list, tuple)):
-            bad = [v for v in value if v not in options]
-            if bad:
-                return f"value(s) {bad} not in allowed options {options}"
-            return None
-        if value not in options:
-            return f"value {value!r} not in allowed options {options}"
+        # Numeric Slider bounds (no options): reject out-of-range, like the UI.
+        props = entry.get("props") or {}
+        lo, hi = props.get("min"), props.get("max")
+        if isinstance(value, (int, float)) and not isinstance(value, bool):
+            if lo is not None and value < lo:
+                return f"value {value} is below the minimum {lo}"
+            if hi is not None and value > hi:
+                return f"value {value} is above the maximum {hi}"
         return None
     return None
 

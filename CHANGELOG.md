@@ -1,6 +1,34 @@
-# Release 0.3.4
+# Release 0.3.5
 
-## 0.3.4 (2026-06-28)
+## 0.3.5 (2026-06-29)
+
+### Bug fixes
+- **Type-hint inference no longer degrades under `from __future__ import
+  annotations`.** With PEP 563 enabled, every annotation reaches inference as a
+  string (`"dict"`, `"list"`, `"Annotated[int, range(...)]"`), so a `dict` input
+  silently rendered as a Text box instead of a multi-select, a `list`-defaulted
+  `str` as a Text box instead of a dropdown, and `Annotated[int, range(...)]` /
+  `int = range(...)` as a Text box instead of a Slider. fast_dash now resolves
+  annotations (via `get_type_hints`, preserving `Annotated` metadata) before
+  building components, with a per-parameter fallback so one unresolvable
+  annotation (e.g. a forward-ref return type) doesn't degrade the other inputs.
+  (#119)
+- **`describe_app()` now exposes a static Slider's `min`/`max`/`step`.** A
+  `Slider` input (`Annotated[int, range(...)]` or an `int = range(...)` default)
+  is hard-bounded in the UI, but for a static `FastDash` app the contract
+  reported it as a generic unbounded number (no `props`), so a headless agent
+  couldn't discover or stay within the range. The contract now carries a
+  `props: {min, max, step}` block for bounded widgets (mirroring what DynamicDash
+  forms already expose); a genuinely unbounded number box still reports no
+  bounds. (#120)
+
+### Changed
+- **`set_input` / `set_inputs` / `invoke` reject out-of-range Slider values.**
+  Extending the 0.3.4 options validation: a numeric value outside a Slider's
+  `min`/`max` (e.g. `99999` on a `range(0, 100)` slider) is now rejected with a
+  clear error, the way a UI slider physically can't emit it — completing the
+  human<->agent parity for numeric inputs. Unbounded inputs stay permissive and
+  `invoke` remains atomic. (#120)
 
 ### Bug fixes
 - **`describe_app()` no longer leaks a `depends_on` object repr, and resolves a
