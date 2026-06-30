@@ -493,29 +493,38 @@ class AppLayout:
             )
         )
 
-        # Pin the Run button to the bottom of the sidebar with position:sticky so
-        # it stays visible on a tall form, while keeping the original
-        # ScrollArea(height:100%) height model (robust across browsers).
+        # Mantine's scrollable-navbar pattern: a `grow` section that *is* the
+        # scroll area holds the inputs, and the Run button lives in a fixed
+        # footer section so it stays pinned no matter how many inputs there are.
+        # (A position:sticky button inside dmc.ScrollArea does NOT stick — Radix
+        # wraps the content in a way that breaks sticky — so it scrolled away
+        # once the form was taller than the viewport.)
+        sections = [
+            dmc.AppShellSection(
+                dmc.ScrollArea(
+                    dmc.Stack(sidebar_children, gap="md"),
+                    type="auto",
+                    style={"height": "100%"},
+                    id="input-group-wrapper",
+                ),
+                grow=True,
+                style={"minHeight": 0, "overflow": "hidden"},
+            )
+        ]
         if submit_row is not None:
-            sidebar_children.append(
-                html.Div(
-                    submit_row,
-                    style={
-                        "position": "sticky",
-                        "bottom": 0,
-                        "paddingTop": "12px",
-                        "paddingBottom": "4px",
-                        "background": "var(--mantine-color-body)",
-                        "borderTop": "1px solid var(--mantine-color-default-border)",
-                    },
+            sections.append(
+                dmc.AppShellSection(
+                    html.Div(
+                        submit_row,
+                        style={
+                            "paddingTop": "12px",
+                            "borderTop": "1px solid var(--mantine-color-default-border)",
+                        },
+                    )
                 )
             )
 
-        return dmc.ScrollArea(
-            dmc.Stack(sidebar_children, gap="md"),
-            style={"height": "100%"},
-            id="input-group-wrapper",
-        )
+        return sections
 
     def generate_output_component(self):
         """Build the main content area with mosaic output grid."""
@@ -604,7 +613,13 @@ class AppLayout:
                     navbar_content,
                     p="md",
                     id="navbar3260780",
-                    style={"overflowY": "auto"},
+                    # Column so the grow inputs-section scrolls and the Run
+                    # footer section stays pinned; the section owns scrolling.
+                    style={
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "overflow": "hidden",
+                    },
                 ),
                 dmc.AppShellMain(
                     html.Div(
