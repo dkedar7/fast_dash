@@ -1275,6 +1275,17 @@ def _get_output_components(_hint_type):
         elif issubclass(_hint_type, pd.DataFrame):
             component = Table
 
+        elif issubclass(_hint_type, go.Figure):
+            # A real ``go.Figure`` *type* annotation (no ``from __future__ import
+            # annotations``) must map to a Graph whose ``figure`` prop receives
+            # the figure — otherwise the figure dict is rendered as a child and
+            # React throws (#31). The string path above handles the PEP-563 case.
+            component = Fastify(
+                dcc.Graph(style=dict(height="100%", width="100%")),
+                "figure",
+                tag="Graph",
+            )
+
         elif _hint_type == mpl.figure.Figure:
             component = Image
 

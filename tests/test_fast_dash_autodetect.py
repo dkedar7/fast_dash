@@ -747,6 +747,25 @@ def test_fdco016_output_is_dash_component(dash_duo):
     ), "Dash component failed"
 
 
+def test_figure_output_type_maps_to_graph(dash_duo):
+    "A real go.Figure return *type* must map to a Graph(figure=...), not H1 children."
+    import plotly.graph_objects as go
+
+    # This module has no `from __future__ import annotations`, so the annotation
+    # is the actual go.Figure type (the case that previously fell through to an
+    # html.H1 whose children received the figure dict -> React #31, blank chart).
+    def make_fig(n: int = 3) -> go.Figure:
+        return go.Figure(go.Scatter(y=list(range(n))))
+
+    app = FastDash(callback_fn=make_fig)
+    output_component = app.outputs[0]
+    assert (
+        output_component.__doc__ == dcc.Graph().__doc__
+        and hasattr(output_component, "component_property")
+        and output_component.component_property == "figure"
+    ), "go.Figure output type should map to a Graph with the figure property"
+
+
 def test_fdco017_output_is_chat(dash_duo):
     "When the output hint type is a Chat Fast component"
 
