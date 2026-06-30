@@ -30,7 +30,8 @@ Here are some examples:
 | Input is | Type hint | Default value | Example   |
 |-----------|-----------|---------------|-----------|
 <b>Text<b>
-| Text | `str` | Any | `def my_func(arg1: str)`|
+| Text | `str` | Any (a multi-line / long default becomes a text area) | `def my_func(arg1: str)`|
+| Color | `str` | A hex color, e.g. `"#1c7ed6"` (renders a color picker) | `def style(color: str = "#1c7ed6")` |
 | Single item from a list of fixed items | `str` | List of allowed text items | `def get_gdp(country: str = ["USA", "Canada", "Mexico"])` |
 | List of items and users can add their own items | `list` | Blank | `def enter_web_urls(urls: list)` |
 | List of items and users must choose from a fixed set of items | `list` | List of fixed set of items | `def enter_web_urls(urls: list = ["google.com", "youtube.com", "facebook.com", "bing.com"])` |

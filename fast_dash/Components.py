@@ -477,19 +477,54 @@ class AppLayout:
                 )
             )
 
+        # Separate the trailing "Run" button row (appended by _make_input_groups)
+        # so it can be pinned to the bottom of the sidebar instead of scrolling
+        # off the bottom of a tall form.
+        inputs = list(self.inputs or [])
+        submit_row = None
+        if inputs and isinstance(inputs[-1], html.Div):
+            submit_row = inputs.pop()
+
         sidebar_children.append(
             dmc.Stack(
-                children=self.inputs,
+                children=inputs,
                 gap="lg",
                 id="input-group",
             )
         )
 
-        return dmc.ScrollArea(
-            dmc.Stack(sidebar_children, gap="md"),
-            style={"height": "100%"},
-            id="input-group-wrapper",
-        )
+        # Mantine's scrollable-navbar pattern: a `grow` section that *is* the
+        # scroll area holds the inputs, and the Run button lives in a fixed
+        # footer section so it stays pinned no matter how many inputs there are.
+        # (A position:sticky button inside dmc.ScrollArea does NOT stick — Radix
+        # wraps the content in a way that breaks sticky — so it scrolled away
+        # once the form was taller than the viewport.)
+        sections = [
+            dmc.AppShellSection(
+                dmc.ScrollArea(
+                    dmc.Stack(sidebar_children, gap="md"),
+                    type="auto",
+                    style={"height": "100%"},
+                    id="input-group-wrapper",
+                ),
+                grow=True,
+                style={"minHeight": 0, "overflow": "hidden"},
+            )
+        ]
+        if submit_row is not None:
+            sections.append(
+                dmc.AppShellSection(
+                    html.Div(
+                        submit_row,
+                        style={
+                            "paddingTop": "12px",
+                            "borderTop": "1px solid var(--mantine-color-default-border)",
+                        },
+                    )
+                )
+            )
+
+        return sections
 
     def generate_output_component(self):
         """Build the main content area with mosaic output grid."""
@@ -578,7 +613,13 @@ class AppLayout:
                     navbar_content,
                     p="md",
                     id="navbar3260780",
-                    style={"overflowY": "auto"},
+                    # Column so the grow inputs-section scrolls and the Run
+                    # footer section stays pinned; the section owns scrolling.
+                    style={
+                        "display": "flex",
+                        "flexDirection": "column",
+                        "overflow": "hidden",
+                    },
                 ),
                 dmc.AppShellMain(
                     html.Div(
@@ -799,6 +840,17 @@ def _get_readable_names_from_parent_classes(type_hint):
     return None
 
 
+def _is_hex_color(s):
+    """True for a ``#rgb`` / ``#rrggbb`` hex-color string (case-insensitive)."""
+    if not isinstance(s, str):
+        return False
+    s = s.strip()
+    if not s.startswith("#"):
+        return False
+    body = s[1:]
+    return len(body) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in body)
+
+
 def _get_component_from_input(hint, default_value=None):
     """
     Get FastComponent to represent the given input.
@@ -853,19 +905,27 @@ def _get_component_from_input(hint, default_value=None):
 
     if _hint_type == "Text":
         if _default_value_type == "Text":
-            component = Fastify(
-                dmc.Textarea(
-                    value=default_value,
-                    autosize=True,
-                    minRows=4,
-                ),
-                "value",
-                tag=_hint_type,
-            )
+            # A short single-line string is a single-line TextInput; a hex color
+            # is a swatch picker; only genuinely long / multi-line text gets a
+            # Textarea. (Previously every str became a tall Textarea.)
+            if _is_hex_color(default_value):
+                component = Fastify(
+                    dmc.ColorInput(value=default_value), "value", tag=_hint_type
+                )
+            elif "\n" in default_value or len(default_value) > 120:
+                component = Fastify(
+                    dmc.Textarea(value=default_value, autosize=True, minRows=3),
+                    "value",
+                    tag=_hint_type,
+                )
+            else:
+                component = Fastify(
+                    dmc.TextInput(value=default_value), "value", tag=_hint_type
+                )
 
         elif _default_value_type == "Numeric":
             component = Fastify(
-                dbc.Input(value=default_value, type="number"), "value", tag=_hint_type
+                dmc.NumberInput(value=default_value), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Sequence":
@@ -875,22 +935,22 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Dictionary":
             component = Fastify(
-                dbc.Input(value=str(default_value)), "value", tag=_hint_type
+                dmc.TextInput(value=str(default_value)), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Boolean":
             component = Fastify(
-                dbc.Input(value=str(default_value)), "value", tag=_hint_type
+                dmc.TextInput(value=str(default_value)), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Date":
             component = Fastify(
-                dbc.Input(value=str(default_value)), "value", tag=_hint_type
+                dmc.TextInput(value=str(default_value)), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Timestamp":
             component = Fastify(
-                dbc.Input(value=str(default_value)), "value", tag=_hint_type
+                dmc.TextInput(value=str(default_value)), "value", tag=_hint_type
             )
 
         else:
@@ -900,14 +960,14 @@ def _get_component_from_input(hint, default_value=None):
     elif _hint_type == "Numeric":
         if _default_value_type == "Text":
             component = Fastify(
-                dbc.Input(value=hint(default_value), type="number"),
+                dmc.NumberInput(value=hint(default_value)),
                 "value",
                 tag=_hint_type,
             )
 
         elif _default_value_type == "Numeric":
             component = Fastify(
-                dbc.Input(value=default_value, type="number"), "value", tag=_hint_type
+                dmc.NumberInput(value=default_value), "value", tag=_hint_type
             )
 
         elif _default_value_type == "Sequence":
@@ -940,7 +1000,7 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         else:
-            component = Fastify(dbc.Input(type="number"), "value", tag=_hint_type)
+            component = Fastify(dmc.NumberInput(), "value", tag=_hint_type)
 
     elif _hint_type == "Sequence":
         if _default_value_type == "Text":
@@ -989,13 +1049,15 @@ def _get_component_from_input(hint, default_value=None):
         )
 
     elif _hint_type == "Boolean":
+        # Mantine Checkbox follows the app's primary color and dark theme; the
+        # old dbc.Checkbox rendered with the Bootswatch accent (off-theme).
         if _default_value_type == "Boolean":
             component = Fastify(
-                dbc.Checkbox(value=default_value), "value", tag=_hint_type
+                dmc.Checkbox(checked=default_value), "checked", tag=_hint_type
             )
 
         else:
-            component = Fastify(dbc.Checkbox(), "value", tag=_hint_type)
+            component = Fastify(dmc.Checkbox(), "checked", tag=_hint_type)
 
     elif _hint_type == "Image":
         if _default_value_type == "Image":
@@ -1069,12 +1131,12 @@ def _get_component_from_input(hint, default_value=None):
         if _default_value_type is not None:
             if _default_value_type == "Text":
                 component = Fastify(
-                    dbc.Input(value=default_value), "value", tag=_default_value_type
+                    dmc.TextInput(value=default_value), "value", tag=_default_value_type
                 )
 
             elif _default_value_type == "Numeric":
                 component = Fastify(
-                    dbc.Input(value=default_value, type="number"),
+                    dmc.NumberInput(value=default_value),
                     "value",
                     tag=_default_value_type,
                 )
@@ -1114,7 +1176,7 @@ def _get_component_from_input(hint, default_value=None):
 
             elif _default_value_type == "Boolean":
                 component = Fastify(
-                    dbc.Checkbox(value=default_value), "value", tag=_default_value_type
+                    dmc.Checkbox(checked=default_value), "checked", tag=_default_value_type
                 )
 
             elif _default_value_type == "Date":
@@ -1227,6 +1289,17 @@ def _get_output_components(_hint_type):
 
         elif issubclass(_hint_type, pd.DataFrame):
             component = Table
+
+        elif issubclass(_hint_type, go.Figure):
+            # A real ``go.Figure`` *type* annotation (no ``from __future__ import
+            # annotations``) must map to a Graph whose ``figure`` prop receives
+            # the figure — otherwise the figure dict is rendered as a child and
+            # React throws (#31). The string path above handles the PEP-563 case.
+            component = Fastify(
+                dcc.Graph(style=dict(height="100%", width="100%")),
+                "figure",
+                tag="Graph",
+            )
 
         elif _hint_type == mpl.figure.Figure:
             component = Image

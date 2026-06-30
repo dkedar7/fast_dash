@@ -98,9 +98,9 @@ def test_multi_function_with_modern_hints():
     assert a_inputs[0].__doc__ == dmc.Select().__doc__, "Literal should be Select"
     assert a_inputs[1].__doc__ == dmc.Slider().__doc__, "Annotated range should be Slider"
 
-    # func_b should have Text input
+    # func_b should have a single-line text input
     b_inputs = app.func_data[1]["inputs_with_ids"]
-    assert b_inputs[0].__doc__ == Text.__doc__, "str should be Text"
+    assert b_inputs[0].__doc__ == dmc.TextInput().__doc__, "str should be a TextInput"
 
 
 def test_single_function_unchanged():
@@ -112,7 +112,7 @@ def test_single_function_unchanged():
     app = FastDash(func)
     assert app.is_multi is False
     assert not hasattr(app, "func_data") or not app.func_data if hasattr(app, "func_data") else True
-    assert app.inputs_with_ids[0].__doc__ == Text.__doc__
+    assert app.inputs_with_ids[0].__doc__ == dmc.TextInput().__doc__
     assert app.inputs_with_ids[0].id == "text"
 
 

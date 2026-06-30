@@ -1,0 +1,109 @@
+/* Fast Dash output cards — modern card treatment, overflow containment, and
+   empty state. Uses Mantine CSS variables so it adapts to light/dark. */
+
+.fd-output-card {
+  /* min-* 0 lets the card sit inside its grid cell without being forced wider
+     (or taller) by a big child — wide tables / long text scroll inside the
+     card instead of pushing it out of the allocated space. */
+  min-width: 0;
+  min-height: 0;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04), 0 1px 3px rgba(0, 0, 0, 0.06);
+  transition: box-shadow 160ms ease, transform 160ms ease, border-color 160ms ease;
+}
+
+.fd-output-card:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06), 0 6px 16px rgba(0, 0, 0, 0.08);
+  transform: translateY(-1px);
+}
+
+/* Header strip: title + a hairline divider separating it from the body. */
+.fd-output-header {
+  flex: 0 0 auto;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+/* Body is the scroll container: content larger than the cell scrolls here
+   (both axes) instead of growing the card. min-height/min-width 0 are required
+   so the flex child can shrink below its content size and actually scroll. */
+.fd-output-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  overflow: auto;
+  padding: 16px;
+}
+
+.fd-output-content {
+  position: relative;
+  z-index: 1;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+}
+
+/* Centered hint shown before any output exists. It sits behind the content
+   (z-index 0); pointer-events:none keeps it from intercepting clicks. It is
+   hidden as soon as a real output renders (rules below) so it never shows
+   through transparent text/markdown. */
+.fd-output-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--mantine-color-dimmed);
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+}
+
+.fd-output-placeholder-icon {
+  opacity: 0.35;
+}
+
+/* Hide the empty-state hint once any real output content has rendered, across
+   the Fast Dash output types (plot, table, image, markdown/text). */
+.fd-output-body:has(.fd-output-content .js-plotly-plot) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content .dash-table-container) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content table) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content img) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content p) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content li) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content pre) .fd-output-placeholder,
+.fd-output-body:has(.fd-output-content h1, .fd-output-content h2, .fd-output-content h3) .fd-output-placeholder {
+  display: none;
+}
+
+/* --- Input sidebar overflow containment -------------------------------------
+   Keep every control within the navbar width: the sidebar never scrolls
+   horizontally; a wide value / label / widget wraps or clips inside its own
+   box instead of pushing the sidebar (or the page) wider. Mirrors the output
+   card's min-width:0 containment. */
+#input-group-wrapper {
+  overflow-x: hidden;
+}
+
+.fd-input-group {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Direct children (label, the input widget, the acknowledge slot) must not
+   exceed the column; min-width:0 lets a flex/grid widget shrink and scroll
+   internally rather than forcing the sidebar wider. */
+.fd-input-group > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A long, unbreakable label (e.g. a custom label_ with no spaces) wraps
+   instead of overflowing. Param-name labels already wrap on spaces. */
+.fd-input-label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
