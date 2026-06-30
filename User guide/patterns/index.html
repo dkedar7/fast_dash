@@ -876,8 +876,14 @@ you, the innovator, write as less UI development code as possible. </p>
 <tr>
 <td>Text</td>
 <td><code>str</code></td>
-<td>Any</td>
+<td>Any (a multi-line / long default becomes a text area)</td>
 <td><code>def my_func(arg1: str)</code></td>
+</tr>
+<tr>
+<td>Color</td>
+<td><code>str</code></td>
+<td>A hex color, e.g. <code>"#1c7ed6"</code> (renders a color picker)</td>
+<td><code>def style(color: str = "#1c7ed6")</code></td>
 </tr>
 <tr>
 <td>Single item from a list of fixed items</td>
