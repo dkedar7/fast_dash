@@ -69,8 +69,7 @@ def test_fdco002_hint_is_not_of_type_type(dash_duo):
     app = FastDash(callback_fn=simple_integer)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
-        and input_component.type == "number"
+        input_component.__doc__ == dmc.NumberInput().__doc__
     ), "Hint is integer failed"
 
 
@@ -118,7 +117,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == Text.__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and hasattr(input_component, "value")
         and input_component.value == "Default text"
     ), "Default text failed"
@@ -130,9 +129,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
-        and hasattr(input_component, "type")
-        and input_component.type == "number"
+        input_component.__doc__ == dmc.NumberInput().__doc__
         and hasattr(input_component, "value")
         and input_component.value == 2.2
     ), "Default number failed"
@@ -158,7 +155,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
         and input_component.value
@@ -172,7 +169,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
         and input_component.value == str(True)
@@ -185,7 +182,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
         and input_component.value == str(datetime.date(2022, 8, 11))
@@ -198,7 +195,7 @@ def test_fdco004_input_hint_is_text(dash_duo):
     app = FastDash(callback_fn=simple_text)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
         and input_component.value == str(datetime.datetime(2022, 8, 11, 12, 44, 56))
@@ -215,9 +212,7 @@ def test_fdco005_input_hint_is_numeric(dash_duo):
     app = FastDash(callback_fn=simple_num)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
-        and hasattr(input_component, "type")
-        and input_component.type == "number"
+        input_component.__doc__ == dmc.NumberInput().__doc__
         and hasattr(input_component, "value")
         and input_component.value == 2.2
     ), "Default text failed"
@@ -229,9 +224,7 @@ def test_fdco005_input_hint_is_numeric(dash_duo):
     app = FastDash(callback_fn=simple_num)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
-        and hasattr(input_component, "type")
-        and input_component.type == "number"
+        input_component.__doc__ == dmc.NumberInput().__doc__
         and hasattr(input_component, "value")
         and input_component.value == 2.2
     ), "Default number failed"
@@ -361,11 +354,11 @@ def test_fdco008_input_hint_is_boolean(dash_duo):
     app = FastDash(callback_fn=simple_bool)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Checkbox().__doc__
-        and hasattr(input_component, "value")
-        and input_component.value is True
+        input_component.__doc__ == dmc.Checkbox().__doc__
+        and hasattr(input_component, "checked")
+        and input_component.checked is True
         and hasattr(input_component, "component_property")
-        and input_component.component_property == "value"
+        and input_component.component_property == "checked"
     ), "Default = True failed"
 
     # No default value (False by default)
@@ -375,10 +368,10 @@ def test_fdco008_input_hint_is_boolean(dash_duo):
     app = FastDash(callback_fn=simple_bool)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dbc.Checkbox().__doc__
-        and not hasattr(input_component, "value")
+        input_component.__doc__ == dmc.Checkbox().__doc__
+        and not hasattr(input_component, "checked")
         and hasattr(input_component, "component_property")
-        and input_component.component_property == "value"
+        and input_component.component_property == "checked"
     ), "Default = False failed"
 
 
@@ -484,7 +477,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
+        input_component.__doc__ == dmc.TextInput().__doc__
         and not hasattr(input_component, "type")
         and hasattr(input_component, "value")
         and input_component.value == "Some text"
@@ -498,9 +491,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dbc.Input().__doc__
-        and hasattr(input_component, "type")
-        and input_component.type == "number"
+        input_component.__doc__ == dmc.NumberInput().__doc__
         and hasattr(input_component, "value")
         and input_component.value == 137.2736
     ), "Default number failed"
@@ -557,11 +548,11 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dbc.Checkbox().__doc__
+        input_component.__doc__ == dmc.Checkbox().__doc__
         and hasattr(input_component, "component_property")
-        and input_component.component_property == "value"
-        and hasattr(input_component, "value")
-        and input_component.value is True
+        and input_component.component_property == "checked"
+        and hasattr(input_component, "checked")
+        and input_component.checked is True
     ), "Default boolean failed"
 
     # 6. Default value is date
@@ -754,6 +745,25 @@ def test_fdco016_output_is_dash_component(dash_duo):
         and hasattr(output_component, "component_property")
         and output_component.component_property == "children"
     ), "Dash component failed"
+
+
+def test_figure_output_type_maps_to_graph(dash_duo):
+    "A real go.Figure return *type* must map to a Graph(figure=...), not H1 children."
+    import plotly.graph_objects as go
+
+    # This module has no `from __future__ import annotations`, so the annotation
+    # is the actual go.Figure type (the case that previously fell through to an
+    # html.H1 whose children received the figure dict -> React #31, blank chart).
+    def make_fig(n: int = 3) -> go.Figure:
+        return go.Figure(go.Scatter(y=list(range(n))))
+
+    app = FastDash(callback_fn=make_fig)
+    output_component = app.outputs[0]
+    assert (
+        output_component.__doc__ == dcc.Graph().__doc__
+        and hasattr(output_component, "component_property")
+        and output_component.component_property == "figure"
+    ), "go.Figure output type should map to a Graph with the figure property"
 
 
 def test_fdco017_output_is_chat(dash_duo):

@@ -108,7 +108,7 @@ def test_optional_str_input():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == Text.__doc__, "Optional[str] should resolve to Text"
+    assert comp.__doc__ == dmc.TextInput().__doc__, "Optional[str] should resolve to a TextInput"
     assert comp.value == "hello", "Optional[str] default value should be preserved"
 
 
@@ -120,8 +120,8 @@ def test_optional_int_input():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == dbc.Input().__doc__, "Optional[int] should resolve to numeric input"
-    assert comp.type == "number", "Optional[int] should be number type"
+    assert comp.__doc__ == dmc.NumberInput().__doc__, "Optional[int] should resolve to a NumberInput"
+    assert comp.value == 5, "Optional[int] default should be preserved"
 
 
 def test_optional_output():
@@ -229,7 +229,7 @@ def test_plain_str_still_works():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == Text.__doc__, "Plain str should still produce Text"
+    assert comp.__doc__ == dmc.TextInput().__doc__, "Plain str should produce a TextInput"
     assert comp.value == "hello", "Plain str default should be preserved"
 
 
@@ -241,8 +241,7 @@ def test_plain_int_still_works():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == dbc.Input().__doc__, "Plain int should still produce numeric input"
-    assert comp.type == "number", "Plain int should be number type"
+    assert comp.__doc__ == dmc.NumberInput().__doc__, "Plain int should produce a NumberInput"
     assert comp.value == 5, "Plain int default should be preserved"
 
 
@@ -254,8 +253,8 @@ def test_plain_bool_still_works():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == dbc.Checkbox().__doc__, "Plain bool should still produce Checkbox"
-    assert comp.value is True, "Plain bool default should be preserved"
+    assert comp.__doc__ == dmc.Checkbox().__doc__, "Plain bool should produce a Checkbox"
+    assert comp.checked is True, "Plain bool default should be preserved"
 
 
 def test_no_type_hint_still_works():
@@ -267,8 +266,8 @@ def test_no_type_hint_still_works():
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
     # No hint with str default falls through to default-value inference,
-    # which produces a dbc.Input (not Text/Textarea)
-    assert comp.__doc__ == dbc.Input().__doc__, "No hint with str default should produce Input"
+    # which produces a single-line TextInput.
+    assert comp.__doc__ == dmc.TextInput().__doc__, "No hint with str default should produce a TextInput"
 
 
 ########### Combined / complex scenarios ###########
@@ -291,5 +290,5 @@ def test_mixed_modern_hints():
 
     assert app.inputs_with_ids[1].__doc__ == dmc.Slider().__doc__, "Second input should be Slider"
 
-    assert app.inputs_with_ids[2].__doc__ == Text.__doc__, "Third input should be Text"
+    assert app.inputs_with_ids[2].__doc__ == dmc.TextInput().__doc__, "Third input should be a TextInput"
     assert app.inputs_with_ids[2].value == "Hello", "Optional[str] default should be preserved"

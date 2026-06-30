@@ -559,11 +559,13 @@ def _make_input_groups(inputs_with_ids, update_live, prefix="", show_submit=True
         input_groups.append(
             dmc.Stack(
                 [
-                    dmc.Text(display_label, size="sm", fw=500),
+                    dmc.Text(display_label, size="sm", fw=500,
+                             className="fd-input-label"),
                     input_,
                     ack_component,
                 ],
                 gap=4,
+                className="fd-input-group",
             )
         )
 
@@ -620,16 +622,45 @@ def _make_output_groups(outputs, update_live, prefix=""):
         output_groups.append(
             dmc.Paper(
                 [
-                    dmc.Text(label, size="xs", fw=500, c="dimmed", mb=8),
+                    # Header strip with the output's title.
                     html.Div(
-                        output_,
-                        style={"width": "100%", "overflow": "hidden", "flex": "1"},
+                        dmc.Text(label, size="sm", fw=600),
+                        className="fd-output-header",
+                    ),
+                    # Body: the output, with an empty-state hint layered behind.
+                    html.Div(
+                        [
+                            html.Div(
+                                dmc.Stack(
+                                    [
+                                        DashIconify(
+                                            icon="ph:chart-line-duotone",
+                                            width=32,
+                                            className="fd-output-placeholder-icon",
+                                        ),
+                                        dmc.Text("Run to see results", size="sm"),
+                                    ],
+                                    align="center",
+                                    gap=6,
+                                ),
+                                className="fd-output-placeholder",
+                            ),
+                            html.Div(output_, className="fd-output-content"),
+                        ],
+                        className="fd-output-body",
                     ),
                 ],
-                p="md",
-                radius="sm",
+                p=0,
+                radius="md",
                 withBorder=True,
-                style={"width": "100%", "display": "flex", "flexDirection": "column", "flex": "1"},
+                className="fd-output-card",
+                style={
+                    "width": "100%",
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "flex": "1",
+                    "overflow": "hidden",
+                },
             )
         )
 
