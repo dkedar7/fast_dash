@@ -78,3 +78,32 @@
 .fd-output-body:has(.fd-output-content h1, .fd-output-content h2, .fd-output-content h3) .fd-output-placeholder {
   display: none;
 }
+
+/* --- Input sidebar overflow containment -------------------------------------
+   Keep every control within the navbar width: the sidebar never scrolls
+   horizontally; a wide value / label / widget wraps or clips inside its own
+   box instead of pushing the sidebar (or the page) wider. Mirrors the output
+   card's min-width:0 containment. */
+#input-group-wrapper {
+  overflow-x: hidden;
+}
+
+.fd-input-group {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* Direct children (label, the input widget, the acknowledge slot) must not
+   exceed the column; min-width:0 lets a flex/grid widget shrink and scroll
+   internally rather than forcing the sidebar wider. */
+.fd-input-group > * {
+  min-width: 0;
+  max-width: 100%;
+}
+
+/* A long, unbreakable label (e.g. a custom label_ with no spaces) wraps
+   instead of overflowing. Param-name labels already wrap on spaces. */
+.fd-input-label {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}

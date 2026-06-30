@@ -559,11 +559,13 @@ def _make_input_groups(inputs_with_ids, update_live, prefix="", show_submit=True
         input_groups.append(
             dmc.Stack(
                 [
-                    dmc.Text(display_label, size="sm", fw=500),
+                    dmc.Text(display_label, size="sm", fw=500,
+                             className="fd-input-label"),
                     input_,
                     ack_component,
                 ],
                 gap=4,
+                className="fd-input-group",
             )
         )
 
