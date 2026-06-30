@@ -76,7 +76,9 @@ Inputs (parameter type → UI component):
 
 | Type hint | Component |
 | --- | --- |
-| `str` | Textarea |
+| `str` | Single-line text input |
+| `str` with a multi-line / long default | Text area |
+| `str` with a hex-color default (e.g. `"#1c7ed6"`) | Color picker |
 | `str` with `default=[...]` | Single-select dropdown |
 | `int`, `float` | Number input |
 | `int`/`float` with `range(...)` default | Slider |

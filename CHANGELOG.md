@@ -1,4 +1,39 @@
-# Release 0.3.5
+# Release 0.4.0
+
+## 0.4.0 (2026-06-30)
+
+A UI/UX modernization pass on the default app surface, plus a real
+figure-rendering fix.
+
+### Bug fixes
+- **A `plotly.graph_objects.Figure` return *type* now renders.** Output
+  inference mapped the string annotation `"go.Figure"` to a Graph but the actual
+  `go.Figure` *type* (any module without `from __future__ import annotations`)
+  fell through to an `html.H1`, so the figure dict was rendered as a React child
+  and crashed (React error #31), leaving the chart blank. Plotly figures — the
+  most common Fast Dash output — now render either way.
+
+### Changed
+- **Inputs are now rendered entirely with Mantine components.** Numeric inputs
+  use `dmc.NumberInput` and booleans use `dmc.Checkbox` (instead of the previous
+  `dbc` controls), so every control follows the app's theme and dark mode. This
+  fixes a number field staying white in dark mode and a checkbox rendering in an
+  off-theme accent color. (The boolean input's `component_property` is now
+  `checked` rather than `value`.)
+- **A `str` input is a single-line text field by default.** Only a multi-line or
+  long (>120 char) default becomes a text area, and a hex-color default
+  (e.g. `"#1c7ed6"`) becomes a color picker. Previously every `str` became a
+  tall text area, so forms scrolled before reaching the Run button.
+
+### Added
+- **Modern output cards.** Each output has a header strip (title + divider), a
+  soft shadow with a hover lift, and a "Run to see results" empty state.
+- **The Run button is pinned to the bottom of the input sidebar**, so it stays
+  visible regardless of how many inputs there are; the inputs scroll
+  independently above it.
+- **Overflow containment.** A large output (wide table, long text) scrolls
+  *inside* its card on both axes instead of growing out of its grid cell or
+  pushing a neighbor off-screen; input controls stay within the sidebar width.
 
 ## 0.3.5 (2026-06-29)
 
