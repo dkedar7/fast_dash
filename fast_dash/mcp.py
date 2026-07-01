@@ -249,7 +249,9 @@ def _annotation_options(annotation):
         if typing.get_origin(annotation) is typing.Literal:
             return list(typing.get_args(annotation))
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
-            return [e.value for e in annotation]
+            # Match the UI Select, which is built with str(e.value) options — so
+            # an IntEnum's options are ["1", "2"], not [1, 2] (issue #126).
+            return [str(e.value) for e in annotation]
     except Exception:
         pass
     return None
@@ -306,6 +308,8 @@ def _describe_static_inputs(fd, snapshot):
     defaults into clean JSON and **never** leaks an object ``repr`` into a
     contract field (issue #116).
     """
+    import enum
+
     from fast_dash.utils import _jsonify_for_mcp, depends_on
 
     descriptors = _enumerate_inputs(fd)
@@ -343,6 +347,14 @@ def _describe_static_inputs(fd, snapshot):
                     # parent value, resolved exactly as the live cascade does.
                     if options is None:
                         options = _resolve_depends_on_options(fd, dflt, snapshot)
+                elif isinstance(dflt, enum.Enum):
+                    # An Enum member's contract value is str(member.value) — the
+                    # exact value the UI Select emits (Components builds it with
+                    # value=str(e.value)). Handle it before the scalar branch
+                    # below, since str-mixin / IntEnum members ARE str/int (which
+                    # would otherwise surface the raw int for an IntEnum, out of
+                    # sync with options and current_value). (issue #126)
+                    default = str(dflt.value)
                 elif isinstance(dflt, list):
                     if options is None:
                         options = list(dflt)          # list default = dropdown options

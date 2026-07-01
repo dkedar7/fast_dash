@@ -1,4 +1,17 @@
-# Release 0.4.0
+# Release 0.4.1
+
+## 0.4.1 (2026-07-01)
+
+### Bug fixes
+- **`describe_app()` reports Enum input defaults consistently.** A plain
+  `enum.Enum` default was reported as `default: null` (even though a default
+  exists), and an `IntEnum`'s `default`/`options` were ints while its
+  `current_value` was a string — so the contract self-contradicted and an agent
+  building `invoke(...)` from the advertised default passed a different type than
+  a UI Run. The contract now reports `str(member.value)` for an Enum's `default`
+  and `options`, matching the value the UI `Select` emits (which fast_dash builds
+  with `str(e.value)`), so `default` / `options` / `current_value` are all
+  type-consistent. Same contract-correctness class as #110 / #116 / #120. (#126)
 
 ## 0.4.0 (2026-06-30)
 
