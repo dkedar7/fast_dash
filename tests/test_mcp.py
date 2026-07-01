@@ -12,6 +12,7 @@ fixture enforces that here by resetting the registry before each test.
 
 from __future__ import annotations
 
+import enum
 import importlib.util
 import json
 from typing import Annotated  # module-level so get_type_hints can resolve it (#119)
@@ -22,6 +23,18 @@ import pytest
 
 from fast_dash import DynamicDash, FastDash, Graph, Markdown
 from fast_dash.mcp import MCPState, enable_mcp
+
+
+# Module-level so get_type_hints resolves them under this file's future
+# annotations (used by the #126 Enum-contract test).
+class Flavor(enum.Enum):
+    VANILLA = "vanilla"
+    CHOCO = "choco"
+
+
+class Qty(enum.IntEnum):
+    ONE = 1
+    TWO = 2
 
 _HAS_DASH_MCP = importlib.util.find_spec("dash.mcp") is not None
 requires_dash_mcp = pytest.mark.skipif(
@@ -453,6 +466,29 @@ class TestTools:
         out = _call(c, "invoke", {"inputs": {"flavor": "mango"}})
         assert out["ok"] is False and out["errors"]["flavor"]
         assert app._mcp_state.inputs["flavor"] == "choco"   # unchanged
+
+    def test_enum_defaults_are_type_consistent(self):
+        # #126: a plain Enum default was reported as null, and an IntEnum's
+        # default/options were ints while current_value was a string. Every field
+        # should be str(member.value) — the value the UI Select actually emits.
+        def order(flavor: Flavor = Flavor.CHOCO, qty: Qty = Qty.TWO) -> str:
+            """Place an order."""
+            return f"{qty} {flavor}"
+        app = FastDash(callback_fn=order, mcp_server=True)
+        c = _client_for(app)
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+
+        # plain Enum: default is the member's value (was null).
+        assert by_id["flavor"]["default"] == "choco"
+        assert by_id["flavor"]["options"] == ["vanilla", "choco"]
+        assert by_id["flavor"]["current_value"] == "choco"
+
+        # IntEnum: default / options / current_value are type-consistent strings,
+        # matching the Select (was default 2 / options [1, 2] vs current "2").
+        q = by_id["qty"]
+        assert q["default"] == "2"
+        assert q["options"] == ["1", "2"]
+        assert q["current_value"] == "2"
 
     def test_describe_app_reflects_dynamic_form(self):
         # #106: after set_form, describe_app must report the agent-built form's
