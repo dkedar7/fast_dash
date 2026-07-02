@@ -221,3 +221,143 @@ class TestRunTurn:
         run_turn(bot, "q", emit=emit)
         # exactly one complete, emitted by the runner at the end
         assert [f["type"] for f in emitted].count("complete") == 1
+
+
+# --- integration: the chat app wiring (no browser) ------------------------- #
+
+from unittest import mock  # noqa: E402
+
+from fast_dash import FastDash  # noqa: E402
+
+
+class TestChatConstruction:
+    """The D1 interaction matrix (RFC #133), enforced at construction time."""
+
+    def test_basic_chat_builds_and_forces_stream(self):
+        def bot(query):
+            yield "hi"
+        app = FastDash(callback_fn=bot, chat=True)
+        assert app.is_chat is True
+        assert app.stream is True                 # chat is inherently streaming
+        assert app.outputs_with_ids == []
+        assert app.app.layout is not None
+
+    def test_settings_params_become_sidebar_inputs(self):
+        def bot(query, temperature: float = 0.7, mode: str = ["a", "b"]):
+            yield "hi"
+        app = FastDash(callback_fn=bot, chat=True)
+        assert app._chat_setting_names == ["temperature", "mode"]
+        assert len(app.inputs_with_ids) == 2
+
+    def test_history_param_is_not_a_setting(self):
+        def bot(query, history, temperature: float = 0.7):
+            yield "hi"
+        app = FastDash(callback_fn=bot, chat=True)
+        assert app._chat_setting_names == ["temperature"]
+
+    def test_missing_query_param_errors_ascii(self):
+        def bot(prompt):
+            yield "hi"
+        with pytest.raises(TypeError) as ei:
+            FastDash(callback_fn=bot, chat=True)
+        assert "query" in str(ei.value) and str(ei.value).isascii()
+
+    def test_update_live_incompatible(self):
+        def bot(query):
+            yield "hi"
+        with pytest.raises(TypeError):
+            FastDash(callback_fn=bot, chat=True, update_live=True)
+
+    def test_multi_and_steps_rejected(self):
+        def bot(query):
+            yield "hi"
+        with pytest.raises(TypeError):
+            FastDash(callback_fn=[bot, bot], chat=True)
+        with pytest.raises(TypeError):
+            FastDash(callback_fn=None, steps=[bot], chat=True)
+
+    def test_outputs_ignored_with_warning(self):
+        from fast_dash import Text
+        def bot(query):
+            yield "hi"
+        with pytest.warns(UserWarning, match="outputs= is ignored"):
+            app = FastDash(callback_fn=bot, chat=True, outputs=Text)
+        assert app.outputs_with_ids == []
+
+    def test_mcp_skipped_with_warning(self):
+        def bot(query):
+            yield "hi"
+        with pytest.warns(UserWarning, match="not yet supported in chat mode"):
+            app = FastDash(callback_fn=bot, chat=True, mcp_server=True)
+        assert app.mcp_server_enabled is False
+
+
+class TestChatTurnWiring:
+    """Drive _run_chat_turn end-to-end with a captured socket emit."""
+
+    def _run(self, app, query, sid="s1", socket="sock", settings=()):
+        captured = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: captured.append((ev, payload))):
+            app._run_chat_turn(query, sid, socket, settings)
+        return [p for (ev, p) in captured if ev == "chat_frames"]
+
+    def test_turn_emits_start_then_replace0_and_appends_history(self):
+        def bot(query):
+            yield "Hello "
+            yield "world"
+        app = FastDash(callback_fn=bot, chat=True)
+        payloads = self._run(app, "hi")
+        ops = [p["op"] for p in payloads]
+        assert ops[0] == "start"                       # user + assistant atomically
+        assert "user" in payloads[0] and "assistant" in payloads[0]
+        assert ops[-1] == "replace0"                   # final render
+        assert set(ops[1:]) == {"replace0"}            # everything after start
+        assert app.chat_history.get("s1") == [
+            {"role": "user", "content": "hi"},
+            {"role": "assistant", "content": "Hello world"},
+        ]
+
+    def test_history_injected_on_second_turn(self):
+        seen = {}
+        def bot(query, history):
+            seen["h"] = list(history)
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "first")
+        self._run(app, "second")
+        assert seen["h"] == [
+            {"role": "user", "content": "first"},
+            {"role": "assistant", "content": "ok"},
+        ]
+
+    def test_settings_values_reach_callback(self):
+        seen = {}
+        def bot(query, temperature: float = 0.0):
+            seen["t"] = temperature
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "hi", settings=(0.9,))
+        assert seen["t"] == 0.9
+
+    def test_error_in_callback_is_surfaced_and_session_survives(self):
+        def bot(query):
+            yield "partial "
+            raise RuntimeError("boom")
+        app = FastDash(callback_fn=bot, chat=True)
+        payloads = self._run(app, "hi")
+        # history records the partial + error text; app stays usable.
+        content = app.chat_history.get("s1")[-1]["content"]
+        assert "partial" in content and "Error" in content
+        # a subsequent turn still runs
+        payloads2 = self._run(app, "again")
+        assert payloads2[0]["op"] == "start"
+
+    def test_sessions_isolated(self):
+        def bot(query):
+            yield "r"
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "a", sid="s1")
+        self._run(app, "b", sid="s2")
+        assert app.chat_history.get("s1")[0]["content"] == "a"
+        assert app.chat_history.get("s2")[0]["content"] == "b"

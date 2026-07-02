@@ -107,3 +107,57 @@
   overflow-wrap: anywhere;
   word-break: break-word;
 }
+
+/* --- Native chat mode (RFC #133) -------------------------------------------- */
+
+.fd-chat-main { max-width: 900px; margin: 0 auto; width: 100%; }
+
+.fd-chat-list { scrollbar-gutter: stable; }
+
+/* A message row; the bubble sizes to its content and caps its width. */
+.fd-chat-msg { display: flex; width: 100%; }
+.fd-chat-user { justify-content: flex-end; }
+.fd-chat-assistant { justify-content: flex-start; }
+
+.fd-chat-bubble {
+  max-width: 85%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;      /* long tokens/urls wrap, never widen the row */
+}
+
+/* User bubble: filled with the primary color. */
+.fd-chat-user .fd-chat-bubble {
+  background: var(--mantine-primary-color-filled);
+  color: var(--mantine-color-white);
+  border-bottom-right-radius: 4px;
+}
+
+/* Assistant bubble: subtle surface that adapts to light/dark. */
+.fd-chat-assistant .fd-chat-bubble {
+  background: var(--mantine-color-default-hover);
+  color: var(--mantine-color-text);
+  border-bottom-left-radius: 4px;
+}
+
+/* Raw streaming text keeps newlines while a turn is in flight. */
+.fd-chat-stream { white-space: pre-wrap; }
+
+/* Markdown inside a bubble should not add outer margins that break the padding. */
+.fd-chat-bubble p:first-child { margin-top: 0; }
+.fd-chat-bubble p:last-child { margin-bottom: 0; }
+.fd-chat-bubble pre {
+  overflow-x: auto;             /* wide code scrolls inside the bubble */
+  max-width: 100%;
+}
+.fd-chat-bubble table { display: block; overflow-x: auto; }
+
+/* Composer pinned at the bottom of the chat area. */
+.fd-chat-composer-wrap {
+  flex: 0 0 auto;
+  padding: 12px 8px 16px;
+  border-top: 1px solid var(--mantine-color-default-border);
+  background: var(--mantine-color-body);
+}
+.fd-chat-composer { max-width: 900px; margin: 0 auto; width: 100%; }

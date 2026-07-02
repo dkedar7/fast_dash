@@ -662,6 +662,134 @@ class AppLayout:
 
         return layout
 
+    def generate_chat_layout(self, has_settings=False, stream_event_names=None):
+        """Build the native chat-mode layout (RFC #133).
+
+        Reuses the shared chrome (header, theme toggle, About, notifications,
+        MantineProvider, socket.io) and lays out a streaming transcript with a
+        composer pinned at the bottom of the main area. Settings inputs (any
+        callback parameter besides ``query``/``history``) render in the sidebar,
+        which is hidden entirely when there are none.
+        """
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
+        header_children = self.generate_navbar_container() or []
+
+        # Transcript: newest message at the visual bottom (column-reverse sticks
+        # the scroll to the bottom, as the Chat output component does).
+        message_list = html.Div(
+            [],
+            id="chat-messages",
+            className="fd-chat-list",
+            style={
+                "flex": "1 1 auto",
+                "minHeight": 0,
+                "overflowY": "auto",
+                "overflowX": "hidden",
+                "display": "flex",
+                "flexDirection": "column-reverse",
+                "gap": "14px",
+                "padding": "18px 8px",
+            },
+        )
+
+        composer = html.Div(
+            dmc.Group(
+                [
+                    dmc.Textarea(
+                        id="chat-input",
+                        placeholder="Send a message...  (Enter to send, Shift+Enter for a new line)",
+                        autosize=True,
+                        minRows=1,
+                        maxRows=6,
+                        style={"flex": "1 1 auto"},
+                        styles={"input": {"borderRadius": "10px"}},
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:send", width=20),
+                        id="chat-send",
+                        size="lg",
+                        radius="md",
+                        variant="filled",
+                        n_clicks=0,
+                    ),
+                ],
+                gap="sm",
+                align="flex-end",
+                wrap="nowrap",
+                className="fd-chat-composer",
+            ),
+            className="fd-chat-composer-wrap",
+        )
+
+        main = html.Div(
+            [message_list, composer],
+            className="fd-chat-main",
+            style={"height": "100%", "display": "flex", "flexDirection": "column"},
+        )
+
+        appshell_children = [
+            dmc.AppShellHeader(
+                dmc.Group(
+                    header_children[0] if header_children else [],
+                    style={"height": "100%", "padding": "0 20px"},
+                ),
+                id="header1162572",
+            ),
+            dmc.AppShellMain(
+                html.Div(
+                    main,
+                    className="fd-chat-shell",
+                    # Fill the viewport below the 56px header so the message list
+                    # (flex:1) grows and the composer pins to the bottom.
+                    style={"height": "calc(100vh - 56px)"},
+                    id="output-group-col",
+                ),
+            ),
+        ]
+        navbar_conf = None
+        if has_settings:
+            appshell_children.insert(
+                1,
+                dmc.AppShellNavbar(
+                    self.generate_input_component(),
+                    p="md",
+                    id="navbar3260780",
+                    style={"display": "flex", "flexDirection": "column",
+                           "overflow": "hidden"},
+                ),
+            )
+            navbar_conf = {"width": 300, "breakpoint": "sm",
+                           "collapsed": {"mobile": False}}
+
+        appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
+        if navbar_conf:
+            appshell_kwargs["navbar"] = navbar_conf
+        appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
+
+        extra = [
+            dmc.NotificationContainer(id="notification-container"),
+            html.Div(id="dummy-div", style={"display": "none"}),
+            # Chat-mode state stores.
+            dcc.Store(id="chat-session", storage_type="session"),
+            dcc.Store(id="chat-submit-store"),
+            dcc.Store(id="chat-streaming", data=False),
+            dcc.Store(id="chat-enter-init"),
+        ]
+        if self.about and header_children and len(header_children) > 1:
+            extra.append(header_children[1])
+        if self.branding:
+            extra.append(self.generate_footer_container())
+        extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
+
+        return dmc.MantineProvider(
+            [appshell] + extra,
+            id="mantine-provider",
+            theme=self._mantine_theme,
+            forceColorScheme=self._color_scheme,
+        )
+
     def callbacks(self, app):
         # Dark mode toggle — clientside for instant response
         app.app.clientside_callback(

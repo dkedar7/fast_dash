@@ -1,4 +1,5 @@
 import functools
+import inspect
 import logging
 import re
 import traceback
@@ -127,6 +128,8 @@ class FastDash:
         run_kwargs=dict(),
         tab_titles=None,
         steps=None,
+        chat=False,
+        chat_history_size=50,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -252,6 +255,52 @@ class FastDash:
             self.callback_fns = [callback_fn]
             self.tab_titles = None
 
+        # --- Chat mode (RFC #133) --------------------------------------------
+        # Validate the D1 interaction matrix and normalize flags. Chat mode is
+        # a distinct interaction (a composer + a streaming transcript), so it
+        # forbids combinations that would only half-work and forces streaming
+        # on. All messages here are friendly and ASCII (Windows consoles).
+        self.is_chat = bool(chat)
+        self.chat_history_size = chat_history_size
+        if self.is_chat:
+            if self.is_multi or self.is_steps:
+                raise TypeError(
+                    "chat=True is not supported with multi-function or steps "
+                    "apps. Use a single callback function."
+                )
+            if update_live:
+                raise TypeError(
+                    "chat=True and update_live=True are incompatible interaction "
+                    "models. Chat streams on submit; drop update_live."
+                )
+            _params = list(inspect.signature(callback_fn).parameters)
+            if not _params or _params[0] != "query":
+                raise TypeError(
+                    "A chat callback's first parameter must be named 'query' "
+                    "(it receives the composer text). Got signature "
+                    "(%s)." % ", ".join(_params)
+                )
+            if outputs is not None:
+                warnings.warn(
+                    "outputs= is ignored in chat mode; the transcript is the "
+                    "output.", stacklevel=2,
+                )
+                outputs = None
+            if not stream:
+                # Chat is inherently streaming; stream is implied.
+                stream = True
+            if mcp_server:
+                # Phase 1: a correct MCP contract for chat apps lands in a later
+                # phase; until then, skip mounting rather than expose a
+                # half-right contract.
+                warnings.warn(
+                    "mcp_server=True is not yet supported in chat mode; the MCP "
+                    "server will not be mounted for this app.", stacklevel=2,
+                )
+                mcp_server = False
+                self.mcp_server_enabled = False
+                self._mcp_state = None
+
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -345,6 +394,8 @@ class FastDash:
             self._init_steps()
         elif self.is_multi:
             self._init_multi_function()
+        elif self.is_chat:
+            self._init_chat(callback_fn, inputs)
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
 
@@ -407,6 +458,328 @@ class FastDash:
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+
+    def _init_chat(self, callback_fn, inputs):
+        """Initialize a native chat-mode app (RFC #133 Phase 1).
+
+        The composer binds to the ``query`` parameter, ``history`` is injected
+        when declared, and every *other* parameter renders in the sidebar as a
+        setting via the normal type-hint inference path. There are no output
+        components — the transcript is the main area.
+        """
+        from .chat import ChatHistory
+
+        self.state_counter = 0
+        self.chat_history = ChatHistory(size=self.chat_history_size)
+        # Server-side guard: one in-flight turn per session (D4). Maps session
+        # id -> True while a turn streams.
+        self._chat_active = {}
+        self._chat_active_lock = __import__("threading").Lock()
+
+        sig = inspect.signature(callback_fn)
+        setting_params = [
+            p for name, p in sig.parameters.items()
+            if name not in ("query", "history")
+            and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
+        ]
+        self._chat_setting_names = [p.name for p in setting_params]
+
+        if inputs is not None:
+            self.inputs = inputs if isinstance(inputs, list) else [inputs]
+            self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, callback_fn)
+        elif setting_params:
+            settings_fn = self._make_user_params_fn(
+                [(p.name, p) for p in setting_params]
+            )
+            self.inputs = _infer_input_components(settings_fn)
+            self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, settings_fn)
+        else:
+            self.inputs = []
+            self.inputs_with_ids = []
+
+        self.input_tags = [inp.tag for inp in self.inputs]
+        self.ack_mask = [
+            False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
+            for input_ in self.inputs_with_ids
+        ]
+
+        # No output components in chat mode; keep the attributes the shared
+        # machinery expects present-but-empty.
+        self.outputs = []
+        self.outputs_with_ids = []
+        self.output_tags = []
+        self.output_state_default = []
+        self.output_state = []
+        self.output_state_blank = []
+        self.latest_output_state = []
+        self.update_live = False
+
+        self.app.title = self.title or ""
+        self._set_chat_layout()
+        self._register_chat_callbacks()
+
+        self.submit_clicks = 0
+        self.reset_clicks = 0
+        self.app_initialized = False
+
+    # ----- chat mode: layout + callbacks (RFC #133) ---------------------- #
+
+    @staticmethod
+    def _chat_user_bubble(text):
+        from dash import html
+        return html.Div(
+            html.Div(text, className="fd-chat-bubble"),
+            className="fd-chat-msg fd-chat-user",
+        )
+
+    @staticmethod
+    def _chat_assistant_bubble(text, streaming=False):
+        from dash import dcc, html
+        if streaming:
+            body = html.Div(text, className="fd-chat-bubble fd-chat-stream")
+        else:
+            body = dcc.Markdown(text or "", className="fd-chat-bubble",
+                                link_target="_blank")
+        cls = "fd-chat-msg fd-chat-assistant"
+        return html.Div(body, className=cls)
+
+    def _chat_bubble_json(self, component):
+        """Serialize a Dash component to the plotly-json the reducer inserts."""
+        return json.loads(to_json_plotly(component))
+
+    def _set_chat_layout(self):
+        from .Components import AppLayout
+
+        input_groups = (
+            _make_input_groups(self.inputs_with_ids, False, show_submit=False)
+            if self.inputs_with_ids else []
+        )
+        layout_args = {
+            "mosaic": None,
+            "inputs": input_groups,
+            "outputs": [],
+            "title": self.title,
+            "title_image_path": self.title_image_path,
+            "subtitle": self.subtitle,
+            "github_url": self.github_url,
+            "linkedin_url": self.linkedin_url,
+            "twitter_url": self.twitter_url,
+            "navbar": self.navbar,
+            "footer": self.footer,
+            "loader": self.loader,
+            "branding": self.branding,
+            "about": self.about,
+            "minimal": self.minimal,
+            "scale_height": self.scale_height,
+            "theme": self.theme,
+            "app": self,
+        }
+        app_layout = AppLayout(**layout_args)
+        self.layout_object = app_layout
+        self.app.layout = app_layout.generate_chat_layout(
+            has_settings=bool(self.inputs_with_ids),
+            stream_event_names=["chat_frames", "notification-container"],
+        )
+
+    def _register_chat_callbacks(self):
+        from dash import Input, Output, State
+        from dash.exceptions import PreventUpdate
+
+        app = self.app
+
+        # Shared chrome callbacks (dark-mode toggle, burger, About).
+        if not self.minimal:
+            self.layout_object.callbacks(self)
+
+        # (1) Per-browser session id — generated once on load, kept stable.
+        app.clientside_callback(
+            """
+            function(_id, current) {
+                if (current) { return current; }
+                if (window.crypto && crypto.randomUUID) { return crypto.randomUUID(); }
+                return 'sid-' + Date.now() + '-' + Math.random().toString(16).slice(2);
+            }
+            """,
+            Output("chat-session", "data"),
+            Input("chat-messages", "id"),
+            State("chat-session", "data"),
+        )
+
+        # (2) The transcript reducer: apply push / replace0 ops from the server
+        # to the message list. Ordered delivery over one socket connection; a
+        # stale turn/seq is ignored (defensive).
+        app.clientside_callback(
+            """
+            function(payload, children) {
+                if (!payload || !payload.op) { return dash_clientside.no_update; }
+                children = Array.isArray(children) ? [...children] : (children ? [children] : []);
+                if (payload.op === 'start') {
+                    // Atomic: add the user bubble AND the empty assistant bubble
+                    // together (index 0 = assistant, the replace0 target). Doing
+                    // this in one op avoids a stale-State race between two adds.
+                    if (payload.user) { children.unshift(payload.user); }
+                    if (payload.assistant) { children.unshift(payload.assistant); }
+                } else if (payload.op === 'replace0') {
+                    // Idempotent: carries the full accumulated render, so a
+                    // dropped/stale frame self-heals on the next one.
+                    var comp = payload.value || null;
+                    if (children.length) { children[0] = comp; }
+                    else if (comp !== null) { children.unshift(comp); }
+                }
+                return children;
+            }
+            """,
+            Output("chat-messages", "children", allow_duplicate=True),
+            Input("socketio", "data-chat_frames"),
+            State("chat-messages", "children"),
+            prevent_initial_call=True,
+        )
+
+        # (3) Send handler (button click). Guards empty / in-flight, clears the
+        # composer, sets the submit trigger, flags streaming.
+        app.clientside_callback(
+            """
+            function(n_clicks, value, streaming) {
+                var no = dash_clientside.no_update;
+                if (!n_clicks) { return [no, no, no]; }
+                var text = (value || '').trim();
+                if (!text || streaming) { return [no, no, no]; }
+                return [{q: text, ts: Date.now()}, '', true];
+            }
+            """,
+            [Output("chat-submit-store", "data"),
+             Output("chat-input", "value"),
+             Output("chat-streaming", "data", allow_duplicate=True)],
+            Input("chat-send", "n_clicks"),
+            [State("chat-input", "value"), State("chat-streaming", "data")],
+            prevent_initial_call=True,
+        )
+
+        # (4) Enter-to-send / Shift+Enter=newline — attach a keydown listener to
+        # the composer once. The listener lives on the actual <textarea> (the id
+        # may sit on a wrapper), and clicks the send button on Enter.
+        app.clientside_callback(
+            """
+            function(_id) {
+                var root = document.getElementById('chat-input');
+                if (!root) { return window.dash_clientside.no_update; }
+                var ta = (root.tagName === 'TEXTAREA') ? root : root.querySelector('textarea');
+                if (ta && !ta.dataset.fdEnterBound) {
+                    ta.dataset.fdEnterBound = '1';
+                    ta.addEventListener('keydown', function(e) {
+                        if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            var btn = document.getElementById('chat-send');
+                            if (btn && !btn.disabled) { btn.click(); }
+                        }
+                    });
+                }
+                return window.dash_clientside.no_update;
+            }
+            """,
+            Output("chat-enter-init", "data"),
+            Input("chat-input", "id"),
+        )
+
+        # (5) Disable the send button while a turn streams.
+        app.clientside_callback(
+            "function(streaming) { return !!streaming; }",
+            Output("chat-send", "disabled"),
+            Input("chat-streaming", "data"),
+        )
+
+        # (6) The server turn callback: drive the generator, stream frames over
+        # socket.io, append to history, re-enable the composer.
+        setting_states = [
+            State(inp.id, inp.component_property) for inp in self.inputs_with_ids
+        ]
+
+        @app.callback(
+            [Output("chat-streaming", "data", allow_duplicate=True),
+             Output("notification-container", "sendNotifications", allow_duplicate=True)],
+            Input("chat-submit-store", "data"),
+            [State("chat-session", "data"), State("socketio", "socketId")] + setting_states,
+            prevent_initial_call=True,
+        )
+        def _chat_turn(submit, session_id, socket_id, *setting_values):
+            if not submit or not (submit.get("q") or "").strip():
+                raise PreventUpdate
+            query = submit["q"].strip()
+            sid = session_id or "default"
+
+            # One in-flight turn per session (server-side guard, D4).
+            with self._chat_active_lock:
+                if self._chat_active.get(sid):
+                    return False, _get_error_notification_component(
+                        "A response is still streaming; please wait.")
+                self._chat_active[sid] = True
+
+            try:
+                self._run_chat_turn(query, sid, socket_id, setting_values)
+                return False, []
+            finally:
+                with self._chat_active_lock:
+                    self._chat_active.pop(sid, None)
+
+    def _run_chat_turn(self, query, sid, socket_id, setting_values):
+        """Drive one chat turn and stream it to the browser over socket.io."""
+        import time as _time
+
+        from flask_socketio import emit as _sio_emit
+
+        from .chat import run_turn
+
+        settings = dict(zip(self._chat_setting_names, setting_values))
+        history = self.chat_history.get(sid)
+
+        def _emit(payload):
+            _sio_emit("chat_frames", payload, namespace="/", to=socket_id)
+
+        def _emit_replace0(value):
+            _emit({"op": "replace0", "value": value})
+
+        # Show the user's message and an empty assistant bubble atomically.
+        _emit({
+            "op": "start",
+            "user": self._chat_bubble_json(self._chat_user_bubble(query)),
+            "assistant": self._chat_bubble_json(
+                self._chat_assistant_bubble("", streaming=True)),
+        })
+
+        acc = {"text": "", "last": 0.0, "n": 0}
+
+        def _flush(force=False):
+            now = _time.monotonic()
+            if force or acc["n"] >= 20 or (now - acc["last"]) >= 0.05:
+                _emit_replace0(self._chat_bubble_json(
+                    self._chat_assistant_bubble(acc["text"], streaming=True)))
+                acc["last"] = now
+                acc["n"] = 0
+
+        def _on_frame(frame):
+            if frame["type"] == "content":
+                acc["text"] += frame["content"]
+                acc["n"] += 1
+                _flush()
+            elif frame["type"] == "error":
+                acc["text"] += ("\n\n" if acc["text"] else "") + "**Error:** " + frame["message"]
+                _flush(force=True)
+
+        run_turn(
+            self.callback_fn, query,
+            history=history, settings=settings, emit=_on_frame,
+            friendly_error=lambda m: m,
+        )
+
+        # `acc["text"]` is the single source of truth for what was shown
+        # (content plus any surfaced error), so the final render and the stored
+        # history stay consistent with the live stream.
+        final_text = acc["text"]
+
+        # Final render: replace the live bubble with the markdown version.
+        _emit_replace0(self._chat_bubble_json(
+            self._chat_assistant_bubble(final_text, streaming=False)))
+        self.chat_history.append_turn(sid, query, final_text)
 
     def _init_multi_function(self):
         """Initialize a multi-function tabbed Fast Dash app."""
@@ -1974,6 +2347,8 @@ def fastdash(
     disable_logs=False,
     scale_height=1,
     run_kwargs=dict(),
+    chat=False,
+    chat_history_size=50,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2089,6 +2464,8 @@ def fastdash(
             disable_logs=disable_logs,
             scale_height=scale_height,
             run_kwargs=run_kwargs,
+            chat=chat,
+            chat_history_size=chat_history_size,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,
