@@ -234,6 +234,10 @@ _HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
 requires_fastapi = pytest.mark.skipif(
     not _HAS_FASTAPI, reason="fastapi backend extra not installed"
 )
+_HAS_LANGSTAGE = importlib.util.find_spec("langstage_core") is not None
+requires_langstage = pytest.mark.skipif(
+    not _HAS_LANGSTAGE, reason="langstage extra not installed"
+)
 
 
 def _layout_ids(comp, out=None):
@@ -304,12 +308,17 @@ class TestChatConstruction:
             app = FastDash(callback_fn=bot, chat=True, outputs=Text)
         assert app.outputs_with_ids == []
 
-    def test_mcp_skipped_with_warning(self):
+    def test_mcp_supported_in_chat_mode(self):
+        # Phase 3: mcp_server=True is now supported in chat mode (no skip
+        # warning); the chat MCP contract is exposed instead.
         def bot(query):
             yield "hi"
-        with pytest.warns(UserWarning, match="not yet supported in chat mode"):
+        with warnings.catch_warnings(record=True) as caught:
+            warnings.simplefilter("always")
             app = FastDash(callback_fn=bot, chat=True, mcp_server=True)
-        assert app.mcp_server_enabled is False
+        assert not any("supported in chat mode" in str(w.message) for w in caught)
+        assert app.mcp_server_enabled is True
+        assert app._mcp_state is not None
 
 
 class TestChatTurnWiring:
@@ -510,3 +519,76 @@ class TestChatAsgiTransport:
         # the composer/message list are as expected.
         assert "socketio" not in ids
         assert "chat-messages" in ids and "chat-input" in ids
+
+
+class TestThreadIdInjection:
+    """thread_id is injected when declared, like history (RFC #133 Phase 3)."""
+
+    def _run(self, app, query, sid="s1"):
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn(query, sid, "sock", ())
+
+    def test_thread_id_injected_when_declared(self):
+        seen = {}
+
+        def bot(query, thread_id):
+            seen["thread_id"] = thread_id
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True)
+        assert app._chat_setting_names == []          # thread_id is not a setting
+        self._run(app, "hi", sid="sessionABC")
+        assert seen["thread_id"] == "sessionABC"
+
+    def test_thread_id_not_passed_when_undeclared(self):
+        # A callback without thread_id must never receive it (back-compat).
+        def bot(query):
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "hi")                          # would TypeError if injected
+        assert app.chat_history.get("s1")[-1]["content"] == "ok"
+
+
+class TestLangstageAdapter:
+    """The LangGraph adapter for chat mode (RFC #133 Phase 3)."""
+
+    def test_detection_is_import_free(self):
+        from fast_dash.adapters.langstage import is_langstage_target
+        assert is_langstage_target("pkg.mod:graph") is True     # spec string
+        assert is_langstage_target(lambda query: "x") is False  # plain callable
+        assert is_langstage_target(object()) is False
+
+    def test_missing_extra_raises_clear_ascii_error(self):
+        import sys
+        from fast_dash.adapters.langstage import build_chat_callback
+        # Force the langstage import to fail even if it happens to be installed.
+        with mock.patch.dict(sys.modules, {"langstage_core": None,
+                                           "langstage_core.agui": None}):
+            with pytest.raises(ImportError) as ei:
+                build_chat_callback("pkg.mod:graph")
+        msg = str(ei.value)
+        assert 'fast-dash[langstage]' in msg
+        assert msg.isascii()                          # Windows cp1252 consoles
+
+    @requires_langstage
+    def test_stub_graph_spec_streams_a_turn(self):
+        app = FastDash(callback_fn="langstage_core.demo.stub:graph", chat=True)
+        assert app.is_langstage is True
+        assert app._chat_setting_names == []          # no sidebar settings
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("hello there", "s1", "sock", ())
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "hello there" in reply                 # stub echoes the query
+
+    @requires_langstage
+    def test_sequential_turns_share_thread_id(self):
+        app = FastDash(callback_fn="langstage_core.demo.stub:graph", chat=True)
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("first", "s1", "sock", ())
+            app._run_chat_turn("second", "s1", "sock", ())
+        assert len(app.chat_history.get("s1")) == 4   # two user+assistant pairs
+
+    @requires_langstage
+    def test_accepts_compiled_graph_object(self):
+        from langstage_core.demo import stub
+        app = FastDash(callback_fn=stub.graph, chat=True)
+        assert app.is_langstage is True

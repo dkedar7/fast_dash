@@ -208,8 +208,21 @@ class ChatHistory:
 
 def wants_history(callback_fn):
     """True if the callback declares a ``history`` parameter (case-sensitive)."""
+    return _declares(callback_fn, "history")
+
+
+def wants_thread_id(callback_fn):
+    """True if the callback declares a ``thread_id`` parameter (case-sensitive).
+
+    A ``thread_id`` param receives the chat session id (the langstage adapter
+    uses it as the checkpointer thread; any callback may opt in the same way).
+    """
+    return _declares(callback_fn, "thread_id")
+
+
+def _declares(callback_fn, name):
     try:
-        return "history" in inspect.signature(callback_fn).parameters
+        return name in inspect.signature(callback_fn).parameters
     except (TypeError, ValueError):
         return False
 
@@ -249,7 +262,7 @@ def has_text(blocks):
 
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None, cancelled=None):
+             friendly_error=None, cancelled=None, thread_id=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -273,6 +286,8 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
     kwargs = dict(settings)
     if wants_history(callback_fn):
         kwargs["history"] = list(history or [])
+    if wants_thread_id(callback_fn):
+        kwargs["thread_id"] = thread_id
 
     parts = []       # accumulated assistant text (content frames)
     frames = []      # all normalized frames (content/tool/artifact/...)

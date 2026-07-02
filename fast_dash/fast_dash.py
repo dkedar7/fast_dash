@@ -262,7 +262,16 @@ class FastDash:
         # on. All messages here are friendly and ASCII (Windows consoles).
         self.is_chat = bool(chat)
         self.chat_history_size = chat_history_size
+        self.is_langstage = False
         if self.is_chat:
+            # A LangGraph graph or "module:attr" spec is bridged to the frame
+            # grammar by the langstage adapter; replace it with the generated
+            # (query, thread_id) callback before the signature checks below.
+            from .adapters.langstage import build_chat_callback, is_langstage_target
+            if is_langstage_target(callback_fn):
+                callback_fn = build_chat_callback(callback_fn)
+                self.callback_fns = [callback_fn]
+                self.is_langstage = True
             if self.is_multi or self.is_steps:
                 raise TypeError(
                     "chat=True is not supported with multi-function or steps "
@@ -289,17 +298,9 @@ class FastDash:
             if not stream:
                 # Chat is inherently streaming; stream is implied.
                 stream = True
-            if mcp_server:
-                # Phase 1: a correct MCP contract for chat apps lands in a later
-                # phase; until then, skip mounting rather than expose a
-                # half-right contract.
-                warnings.warn(
-                    "mcp_server=True is not yet supported in chat mode; the MCP "
-                    "server will not be mounted for this app.", stacklevel=2,
-                )
-                mcp_server = False
-                self.mcp_server_enabled = False
-                self._mcp_state = None
+            # mcp_server=True is supported in chat mode: the MCP surface exposes
+            # the composer contract (describe_app) and a headless invoke(query=)
+            # that drives one turn and returns its frames (see fast_dash.mcp).
 
         self.mode = mode
         self.disable_logs = disable_logs
@@ -483,7 +484,7 @@ class FastDash:
         sig = inspect.signature(callback_fn)
         setting_params = [
             p for name, p in sig.parameters.items()
-            if name not in ("query", "history")
+            if name not in ("query", "history", "thread_id")
             and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
         ]
         self._chat_setting_names = [p.name for p in setting_params]
@@ -1018,6 +1019,7 @@ class FastDash:
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
+            thread_id=sid,
         )
 
         if self._chat_cancelled(sid):

@@ -61,6 +61,10 @@ fastapi = [
     "dash[fastapi]>=4.3.0"
     ]
 
+langstage = [
+    "langstage-core[agui]>=1.0.0"
+    ]
+
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
 
 doc = [

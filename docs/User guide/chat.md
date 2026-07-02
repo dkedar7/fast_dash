@@ -113,6 +113,23 @@ FastDash(callback_fn=analyst, title="Analyst", chat=True).run()
 While a turn streams, the **Send** button becomes a **Stop** button; pressing it
 cancels the turn and the partial reply is kept with a `(stopped)` marker.
 
+## LangGraph agents
+
+Instead of a callback, `chat=True` accepts a compiled LangGraph graph or a
+`"module:attr"` spec string (needs `fast-dash[langstage]`). The graph is bridged
+to the frame grammar by [langstage-core](https://pypi.org/project/langstage-core/),
+and multi-turn memory rides the graph's checkpointer keyed by the chat session:
+
+```python
+from fast_dash import FastDash
+
+# a compiled LangGraph graph, or "my_pkg.agents:graph"
+FastDash(callback_fn="my_pkg.agents:graph", chat=True).run()
+```
+
+Any callback may also declare a `thread_id` parameter to receive the session id
+(the same value the adapter threads into the checkpointer).
+
 ## Backends
 
 Streaming rides whatever transport the backend already uses, with no change to
@@ -122,6 +139,15 @@ your callback:
 - **ASGI** (`backend="fastapi"`, needs `fast-dash[fastapi]`): frames are pushed
   with Dash's native `set_props` over a WebSocket — no socket.io.
 
+## Driving a chat app over MCP
+
+`mcp_server=True` exposes the chat app to agents at `/mcp`:
+
+- `describe_app()` reports the composer contract (the `query` string) and any
+  sidebar `settings`.
+- `invoke(query=..., settings=...)` runs one turn headlessly and returns its
+  frames (JSON-safe); history and thread state advance across calls.
+
 ## What chat mode does and doesn't allow
 
 `chat=True` is a distinct interaction mode, so a few combinations are rejected at
@@ -130,9 +156,7 @@ startup with a clear message:
 - the first parameter **must** be `query`;
 - `update_live=True`, multi-function apps, and steps apps are **not** supported;
 - `outputs=` and `stream=` are ignored (the transcript is the output; streaming
-  is always on);
-- `mcp_server=True` is skipped for now (a correct chat MCP contract lands in a
-  later release).
+  is always on).
 
 The existing [`Chat` output component](components.md) (`-> Chat`) is unchanged
 and still available for embedding a chat transcript as one output among several.
