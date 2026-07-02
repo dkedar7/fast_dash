@@ -130,6 +130,7 @@ class FastDash:
         steps=None,
         chat=False,
         chat_history_size=50,
+        serve_agui=False,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -262,6 +263,7 @@ class FastDash:
         # on. All messages here are friendly and ASCII (Windows consoles).
         self.is_chat = bool(chat)
         self.chat_history_size = chat_history_size
+        self.serve_agui = bool(serve_agui)
         self.is_langstage = False
         if self.is_chat:
             # A LangGraph graph or "module:attr" spec is bridged to the frame
@@ -479,12 +481,14 @@ class FastDash:
         self._chat_cancel = {}
         # ASGI full-state transport: per-session, newest-first rendered messages.
         self._chat_msgs = {}
+        # HITL (Phase 4): per-session paused turn awaiting an interrupt decision.
+        self._chat_pending = {}
         self._chat_active_lock = __import__("threading").Lock()
 
         sig = inspect.signature(callback_fn)
         setting_params = [
             p for name, p in sig.parameters.items()
-            if name not in ("query", "history", "thread_id")
+            if name not in ("query", "history", "thread_id", "resume")
             and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
         ]
         self._chat_setting_names = [p.name for p in setting_params]
@@ -522,10 +526,38 @@ class FastDash:
         self.app.title = self.title or ""
         self._set_chat_layout()
         self._register_chat_callbacks()
+        if self.serve_agui:
+            self._mount_agui()
 
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+
+    def _mount_agui(self):
+        """Serve the chat's LangGraph over AG-UI SSE at ``/agui`` (Phase 4).
+
+        Mirrors the MCP story: an external AG-UI frontend can drive the same
+        graph the chat UI does. Requires a langstage agent on an ASGI backend
+        (AG-UI is an SSE transport); anything else is a friendly no-op warning.
+        """
+        if not self.is_langstage:
+            warnings.warn(
+                "serve_agui=True needs a LangGraph agent (chat=True with a graph "
+                "or 'module:attr' spec); no AG-UI endpoint was mounted.",
+                stacklevel=2,
+            )
+            return
+        if not self._backend:
+            warnings.warn(
+                "serve_agui=True needs an ASGI backend (backend='fastapi'); "
+                "AG-UI is served over SSE. No AG-UI endpoint was mounted.",
+                stacklevel=2,
+            )
+            return
+        from .adapters.langstage import serve_agui_endpoint
+        graph = getattr(self.callback_fn, "__fast_dash_graph__", None)
+        serve_agui_endpoint(self.app.server, graph, path="/agui",
+                            name=self.title or "Fast Dash chat")
 
     # ----- chat mode: layout + callbacks (RFC #133) ---------------------- #
 
@@ -563,10 +595,66 @@ class FastDash:
                 parts.append(self._chat_artifact_block(b["content"], streaming))
             elif kind == "extraction":
                 parts.append(self._chat_extraction_card(b.get("content")))
+            elif kind == "interrupt":
+                parts.append(self._chat_interrupt_card(b, pending=not b.get("resolved")))
         return html.Div(
             html.Div(parts, className="fd-chat-bubble fd-chat-blocks"),
             className="fd-chat-msg fd-chat-assistant",
         )
+
+    def _chat_interrupt_card(self, block, pending=True):
+        """Approve/deny/edit card for a human-in-the-loop interrupt (Phase 4).
+
+        Renders the agent's ``action_requests`` and a decision button per
+        ``allowed_decisions``. While ``pending`` the buttons are live (a
+        pattern-matching callback resumes the paused turn); once a decision is
+        made the card is frozen and shows the chosen decision.
+        """
+        from dash import html
+
+        import dash_mantine_components as dmc
+        from dash_iconify import DashIconify
+
+        requests = block.get("action_requests") or []
+        decisions = block.get("allowed_decisions") or ["approve", "reject"]
+        chosen = block.get("decision")
+
+        body = [
+            dmc.Group(
+                [
+                    DashIconify(icon="tabler:hand-stop", width=16),
+                    html.Span("Action needed", className="fd-chat-interrupt-title"),
+                ],
+                gap="xs", wrap="nowrap",
+            )
+        ]
+        for req in requests:
+            name = req.get("action") or req.get("name") or "action"
+            args = req.get("args")
+            body.append(html.Div(str(name), className="fd-chat-interrupt-action"))
+            if args:
+                body.append(html.Pre(self._chat_short_json(args),
+                                     className="fd-chat-tool-args"))
+
+        if pending:
+            _color = {"approve": "green", "accept": "green",
+                      "reject": "red", "deny": "red"}
+            buttons = [
+                dmc.Button(
+                    str(d).capitalize(),
+                    id={"type": "chat-decision", "decision": str(d)},
+                    color=_color.get(str(d), "blue"),
+                    variant="light", size="xs", n_clicks=0,
+                )
+                for d in decisions
+            ]
+            body.append(dmc.Group(buttons, gap="xs", className="fd-chat-interrupt-actions"))
+        elif chosen is not None:
+            body.append(html.Span("Decision: " + str(chosen),
+                                   className="fd-chat-interrupt-decided"))
+
+        return dmc.Paper(body, withBorder=True, radius="sm", p="xs",
+                         className="fd-chat-interrupt")
 
     @staticmethod
     def _chat_reasoning_block(text):
@@ -861,6 +949,12 @@ class FastDash:
             query = submit["q"].strip()
             sid = session_id or "default"
 
+            # A pending interrupt must be answered (via the decision buttons)
+            # before a new turn can start (HITL, Phase 4).
+            if self._chat_pending.get(sid):
+                return False, _get_error_notification_component(
+                    "Please respond to the pending action first.")
+
             # One in-flight turn per session (server-side guard, D4).
             with self._chat_active_lock:
                 if self._chat_active.get(sid):
@@ -904,7 +998,55 @@ class FastDash:
             Input("chat-streaming", "data"),
         )
 
-    def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None):
+        # (7) HITL decision buttons (langstage only): a pattern-matching callback
+        # resumes the paused turn with the chosen decision. Rendered inside the
+        # interrupt card, so it uses ALL + ctx.triggered_id to find the click.
+        if self.is_langstage:
+            from dash import ALL, ctx
+
+            dec_states = [State("chat-session", "data")]
+            if not self._native_stream:
+                dec_states.append(State("socketio", "socketId"))
+            _dec_cb_kwargs = dict(prevent_initial_call=True)
+            if self._native_stream:
+                _dec_cb_kwargs["websocket"] = True
+
+            @app.callback(
+                [Output("chat-streaming", "data", allow_duplicate=True),
+                 Output("notification-container", "sendNotifications",
+                        allow_duplicate=True)],
+                Input({"type": "chat-decision", "decision": ALL}, "n_clicks"),
+                dec_states,
+                **_dec_cb_kwargs,
+            )
+            def _chat_decision(n_clicks_list, session_id, *rest):
+                if not n_clicks_list or not any(n_clicks_list):
+                    raise PreventUpdate
+                triggered = ctx.triggered_id
+                if not triggered or triggered.get("type") != "chat-decision":
+                    raise PreventUpdate
+                decision = triggered.get("decision")
+                socket_id = None if self._native_stream else (rest[0] if rest else None)
+                sid = session_id or "default"
+
+                with self._chat_active_lock:
+                    if self._chat_active.get(sid):
+                        return False, _get_error_notification_component(
+                            "A response is still streaming; please wait.")
+                    if not self._chat_pending.get(sid):
+                        raise PreventUpdate
+                    self._chat_active[sid] = True
+                    self._chat_cancel.pop(sid, None)
+                try:
+                    self._resume_chat_turn(sid, socket_id, decision)
+                    return False, []
+                finally:
+                    with self._chat_active_lock:
+                        self._chat_active.pop(sid, None)
+                        self._chat_cancel.pop(sid, None)
+
+    def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
+                       resume=None, resume_decision=None, resume_blocks=None):
         """Drive one chat turn, streaming its blocks to the browser.
 
         Two transports, one turn-driver:
@@ -920,6 +1062,11 @@ class FastDash:
         Either way the callback's content/reasoning/tool/artifact/extraction
         frames are accumulated into ordered blocks, the live bubble re-renders on
         a batched cadence, and the finished turn is rendered once at completion.
+
+        When ``resume`` is given (HITL, Phase 4) the turn *continues* the paused
+        assistant bubble: no new user/assistant bubbles are added, the blocks are
+        seeded from ``resume_blocks`` (the paused turn's state), and the callback
+        is driven with ``resume`` to answer the pending interrupt.
         """
         import time as _time
 
@@ -930,7 +1077,7 @@ class FastDash:
         settings = dict(zip(self._chat_setting_names, setting_values))
         history = self.chat_history.get(sid)
 
-        blocks = []
+        blocks = list(resume_blocks) if resume is not None and resume_blocks else []
         state = {"last": 0.0, "n": 0}
         user_json = self._chat_bubble_json(self._chat_user_bubble(query))
 
@@ -939,8 +1086,10 @@ class FastDash:
             # rendered messages per session and push the whole list each flush.
             from dash import set_props
             msgs = self._chat_msgs.setdefault(sid, [])
-            msgs.insert(0, user_json)     # index 1 once the assistant is prepended
-            msgs.insert(0, None)          # index 0 = the live assistant bubble
+            if resume is None:
+                msgs.insert(0, user_json)  # index 1 once the assistant is prepended
+                msgs.insert(0, None)       # index 0 = the live assistant bubble
+            # On resume, msgs[0] is already the paused assistant bubble.
 
             def _emit_start():
                 _emit_replace0(streaming=True)
@@ -1006,32 +1155,85 @@ class FastDash:
                 blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
             elif t == "extraction":
                 blocks.append({"kind": "extraction", "content": frame.get("content")}); _flush(True)
+            elif t == "interrupt":
+                blocks.append({
+                    "kind": "interrupt",
+                    "action_requests": frame.get("action_requests", []),
+                    "allowed_decisions": frame.get("allowed_decisions", []),
+                    "resolved": False,
+                })
+                _flush(True)
             elif t == "error":
                 _append_text(("\n\n" if _has_text(blocks) else "")
                              + "**Error:** " + frame["message"])
                 _flush(True)
 
-        # Show the user's message and an empty assistant bubble.
-        _emit_start()
+        if resume is None:
+            # Fresh turn: show the user's message and an empty assistant bubble.
+            _emit_start()
+        else:
+            # Resume: the paused assistant bubble already exists; mark its
+            # interrupt block decided and re-render in place (no new bubbles).
+            for b in blocks:
+                if b.get("kind") == "interrupt" and not b.get("resolved"):
+                    b["resolved"] = True
+                    b["decision"] = resume_decision
+            _emit_replace0(streaming=True)
 
-        run_turn(
+        result = run_turn(
             self.callback_fn, query,
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid,
+            thread_id=sid, resume=resume,
         )
 
         if self._chat_cancelled(sid):
             _append_text(("\n\n" if _has_text(blocks) else "") + "_(stopped)_")
 
-        # Final render + history (text content is what a follow-up turn sees).
+        # A turn that paused on an interrupt stays open awaiting a decision
+        # (HITL). Only langstage agents can resume; for others the card is
+        # frozen (informational) and the turn is treated as complete.
+        pending = (result.get("interrupt") is not None
+                   and self.is_langstage
+                   and not self._chat_cancelled(sid))
+        if pending:
+            self._chat_pending[sid] = {"query": query, "blocks": blocks}
+            _emit_replace0(streaming=False)          # card with live buttons
+            return
+
+        # Complete: freeze any interrupt card and record the turn.
+        for b in blocks:
+            if b.get("kind") == "interrupt":
+                b["resolved"] = True
+        self._chat_pending.pop(sid, None)
         _emit_replace0(streaming=False)
         self.chat_history.append_turn(sid, query, _blocks_text(blocks))
 
     def _chat_cancelled(self, sid):
         with self._chat_active_lock:
             return bool(self._chat_cancel.get(sid))
+
+    def _resume_chat_turn(self, sid, socket_id, decision, value=None):
+        """Answer a pending interrupt and continue the paused turn (HITL).
+
+        Builds the langstage ``resume`` payload from ``decision`` and re-drives
+        the callback, continuing the same assistant bubble from the paused
+        turn's blocks. No-op (returns False) if nothing is pending.
+        """
+        pending = self._chat_pending.get(sid)
+        if not pending:
+            return False
+        from .adapters.langstage import make_resume_input
+
+        resume = make_resume_input([{"type": decision}], value=value)
+        # Hand the continuation to the shared turn driver (no new bubbles).
+        self._run_chat_turn(
+            pending["query"], sid, socket_id, (),
+            resume=resume, resume_decision=decision,
+            resume_blocks=pending["blocks"],
+        )
+        return True
 
     def _init_multi_function(self):
         """Initialize a multi-function tabbed Fast Dash app."""
@@ -2601,6 +2803,7 @@ def fastdash(
     run_kwargs=dict(),
     chat=False,
     chat_history_size=50,
+    serve_agui=False,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2718,6 +2921,7 @@ def fastdash(
             run_kwargs=run_kwargs,
             chat=chat,
             chat_history_size=chat_history_size,
+            serve_agui=serve_agui,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,

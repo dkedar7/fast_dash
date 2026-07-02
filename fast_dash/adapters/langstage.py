@@ -50,11 +50,51 @@ def build_chat_callback(target):
     graph = load_agent_spec(target) if isinstance(target, str) else target
     agent = build_agent(graph)
 
-    def _langstage_chat(query, thread_id):
-        """Stream a LangGraph agent turn as chat frames (via langstage-core)."""
+    def _langstage_chat(query, thread_id, resume=None):
+        """Stream a LangGraph agent turn as chat frames (via langstage-core).
+
+        ``resume`` (a decision answering a prior ``interrupt``) continues the
+        paused turn on the same ``thread_id`` checkpoint (HITL, Phase 4).
+        """
         # iter_event_frames yields an async generator; the chat turn runner
         # drives sync and async generators uniformly.
-        return iter_event_frames(agent, query, thread_id=thread_id or "default")
+        return iter_event_frames(agent, query, thread_id=thread_id or "default",
+                                 resume=resume)
 
     _langstage_chat.__fast_dash_langstage__ = True
+    _langstage_chat.__fast_dash_agent__ = agent
+    _langstage_chat.__fast_dash_graph__ = graph      # raw graph, for AG-UI serving
     return _langstage_chat
+
+
+def serve_agui_endpoint(fastapi_app, graph, *, path="/agui", name="Fast Dash chat"):
+    """Mount an AG-UI SSE endpoint for ``graph`` on an existing FastAPI app.
+
+    Lets external AG-UI frontends (e.g. CopilotKit) drive the same graph the
+    chat UI does — the mirror of the MCP story. Requires the langstage extra.
+    """
+    try:
+        from langstage_core.agui import add_agui_endpoint
+    except ImportError as e:                          # extra not installed
+        raise ImportError(_MISSING_EXTRA_MSG) from e
+    return add_agui_endpoint(fastapi_app, graph, path=path, name=name)
+
+
+def make_resume_input(decisions, value=None):
+    """Build the ``resume`` payload answering an interrupt (langstage-core).
+
+    ``decisions`` is a list of decision dicts (e.g. ``[{"type": "approve"}]``);
+    the langstage adapter passes the result to ``iter_event_frames(resume=...)``.
+    Kept here so ``fast_dash`` never imports ``langstage-core`` directly.
+    """
+    from langstage_core import create_resume_input
+    return create_resume_input(decisions=list(decisions or []), value=value)
+
+
+def wants_resume(callback_fn) -> bool:
+    """True if ``callback_fn`` accepts a ``resume`` parameter (HITL-capable)."""
+    import inspect
+    try:
+        return "resume" in inspect.signature(callback_fn).parameters
+    except (TypeError, ValueError):
+        return False

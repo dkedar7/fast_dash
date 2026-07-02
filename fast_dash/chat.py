@@ -127,6 +127,7 @@ def _normalize_frame(frame):
         frame = {
             "type": INTERRUPT,
             "action_requests": frame.get("action_requests", []),
+            "review_configs": frame.get("review_configs", []),
             "allowed_decisions": frame.get("allowed_decisions", []),
         }
     elif ftype == EXTRACTION:
@@ -262,7 +263,7 @@ def has_text(blocks):
 
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None, cancelled=None, thread_id=None):
+             friendly_error=None, cancelled=None, thread_id=None, resume=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -288,6 +289,8 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
         kwargs["history"] = list(history or [])
     if wants_thread_id(callback_fn):
         kwargs["thread_id"] = thread_id
+    if _declares(callback_fn, "resume"):
+        kwargs["resume"] = resume
 
     parts = []       # accumulated assistant text (content frames)
     frames = []      # all normalized frames (content/tool/artifact/...)
@@ -335,4 +338,7 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
                 pass
 
     emit({"type": COMPLETE})
-    return {"content": "".join(parts), "frames": frames}
+    # A turn that ends on an interrupt frame is *paused*, awaiting a decision
+    # (HITL, Phase 4); surface it so the caller can hold the turn open.
+    interrupt = frames[-1] if frames and frames[-1].get("type") == INTERRUPT else None
+    return {"content": "".join(parts), "frames": frames, "interrupt": interrupt}

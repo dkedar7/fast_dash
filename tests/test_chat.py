@@ -592,3 +592,117 @@ class TestLangstageAdapter:
         from langstage_core.demo import stub
         app = FastDash(callback_fn=stub.graph, chat=True)
         assert app.is_langstage is True
+
+
+def _interrupt_graph():
+    """A keyless LangGraph that interrupts once, then echoes the decision."""
+    from langchain_core.messages import AIMessage
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.graph import END, START, MessagesState, StateGraph
+    from langgraph.types import interrupt
+
+    def gate(state):
+        decision = interrupt({
+            "action_requests": [{"action": "write_file", "args": {"path": "notes.txt"}}],
+            "allowed_decisions": ["approve", "reject"],
+        })
+        return {"messages": [AIMessage(content=f"Proceeding: {decision}")]}
+
+    g = StateGraph(MessagesState)
+    g.add_node("gate", gate)
+    g.add_edge(START, "gate")
+    g.add_edge("gate", END)
+    return g.compile(checkpointer=InMemorySaver())
+
+
+class TestChatInterruptFrame:
+    """interrupt frame validation + card rendering (RFC #133 Phase 4)."""
+
+    def test_interrupt_frame_normalizes_with_review_configs(self):
+        from fast_dash.chat import _normalize_frame
+        f = _normalize_frame({
+            "type": "interrupt",
+            "action_requests": [{"action": "x"}],
+            "allowed_decisions": ["approve", "reject"],
+        })
+        assert f["type"] == "interrupt"
+        assert f["action_requests"] == [{"action": "x"}]
+        assert f["allowed_decisions"] == ["approve", "reject"]
+        assert f["review_configs"] == []              # carried for later phases
+
+    def test_run_turn_reports_pausing_interrupt(self):
+        from fast_dash.chat import run_turn
+
+        def bot(query):
+            yield {"type": "interrupt", "action_requests": [],
+                   "allowed_decisions": ["approve"]}
+        result = run_turn(bot, "hi")
+        assert result["interrupt"] is not None        # turn paused on interrupt
+
+    def test_interrupt_card_renders_decision_buttons(self):
+        app = FastDash(callback_fn=lambda query: "x", chat=True)
+        block = {"kind": "interrupt",
+                 "action_requests": [{"action": "write_file", "args": {"p": 1}}],
+                 "allowed_decisions": ["approve", "reject"], "resolved": False}
+        comp = app._chat_interrupt_card(block, pending=True)
+        assert app._chat_bubble_json(comp)            # JSON-safe, no exception
+
+
+class TestChatHitl:
+    """End-to-end human-in-the-loop pause + resume (RFC #133 Phase 4)."""
+
+    def _run(self, app, query, sid="s1"):
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn(query, sid, "sock", ())
+
+    @requires_langstage
+    def test_pause_then_resume_completes_turn(self):
+        app = FastDash(callback_fn=_interrupt_graph(), chat=True)
+        assert app.is_langstage is True
+
+        # First pass pauses on the interrupt: pending is set, no history yet.
+        self._run(app, "please write")
+        assert app._chat_pending.get("s1") is not None
+        assert app.chat_history.get("s1") == []       # turn not finished
+
+        pending_blocks = app._chat_pending["s1"]["blocks"]
+        assert any(b.get("kind") == "interrupt" for b in pending_blocks)
+
+        # Approving resumes and completes the same turn.
+        with mock.patch("flask_socketio.emit"):
+            app._resume_chat_turn("s1", "sock", "approve")
+        assert app._chat_pending.get("s1") is None    # cleared
+        hist = app.chat_history.get("s1")
+        assert len(hist) == 2                          # one user+assistant pair
+        assert "approve" in hist[-1]["content"].lower()
+
+    @requires_langstage
+    def test_resume_without_pending_is_noop(self):
+        app = FastDash(callback_fn=_interrupt_graph(), chat=True)
+        with mock.patch("flask_socketio.emit"):
+            assert app._resume_chat_turn("nosuch", "sock", "approve") is False
+
+
+class TestAguiServing:
+    """AG-UI SSE endpoint serving (RFC #133 Phase 4)."""
+
+    @requires_langstage
+    def test_non_asgi_warns_and_skips(self):
+        with pytest.warns(UserWarning, match="ASGI backend"):
+            app = FastDash(callback_fn="langstage_core.demo.stub:graph",
+                           chat=True, serve_agui=True)
+        assert app.serve_agui is True                 # requested, but not mounted
+
+    @requires_langstage
+    def test_non_langstage_warns_and_skips(self):
+        with pytest.warns(UserWarning, match="LangGraph agent"):
+            FastDash(callback_fn=lambda query: "hi", chat=True,
+                     backend="fastapi", serve_agui=True)
+
+    @requires_fastapi
+    @requires_langstage
+    def test_agui_endpoint_mounted_on_asgi(self):
+        app = FastDash(callback_fn="langstage_core.demo.stub:graph", chat=True,
+                       backend="fastapi", serve_agui=True)
+        paths = {getattr(r, "path", None) for r in app.app.server.routes}
+        assert "/agui" in paths

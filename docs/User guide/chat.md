@@ -81,6 +81,7 @@ dicts — every type below renders natively:
 | `tool_end` | `{"type": "tool_end", "name": str, "result": Any, "id": str}` | resolves the matching card |
 | `artifact` | `{"type": "artifact", "content": Figure \| DataFrame \| Image \| str}` | an inline artifact |
 | `extraction` | `{"type": "extraction", "content": Any}` | a JSON card |
+| `interrupt` | `{"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}` | an approve/reject card |
 | `error` | `{"type": "error", "message": str}` | an error notice |
 
 `tool_start` and `tool_end` are paired by their `id` (defaulting to `name`), so a
@@ -138,6 +139,27 @@ your callback:
 - **Flask** (default): frames stream as socket.io events.
 - **ASGI** (`backend="fastapi"`, needs `fast-dash[fastapi]`): frames are pushed
   with Dash's native `set_props` over a WebSocket — no socket.io.
+
+## Human-in-the-loop (interrupts)
+
+A LangGraph agent that calls `interrupt(...)` pauses the turn and Fast Dash
+renders an **approve / reject** card (from the interrupt's `allowed_decisions`)
+showing the requested action. The composer is held until you choose a decision;
+clicking one resumes the same turn on its checkpoint — the agent continues from
+where it paused. Multi-step approvals just pause again. (Resume is a LangGraph
+capability, so the live decision buttons appear for langstage agents; a plain
+generator that yields an `interrupt` frame renders the card as informational.)
+
+## Serving the agent over AG-UI
+
+`serve_agui=True` (LangGraph agent on `backend="fastapi"`) mounts an AG-UI SSE
+endpoint at `/agui`, so external AG-UI frontends (e.g. CopilotKit) can drive the
+same graph the chat UI does — the mirror of the MCP story:
+
+```python
+FastDash(callback_fn="my_pkg.agents:graph", chat=True,
+         backend="fastapi", serve_agui=True).run()
+```
 
 ## Driving a chat app over MCP
 
