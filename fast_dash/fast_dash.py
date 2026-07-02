@@ -472,8 +472,12 @@ class FastDash:
         self.state_counter = 0
         self.chat_history = ChatHistory(size=self.chat_history_size)
         # Server-side guard: one in-flight turn per session (D4). Maps session
-        # id -> True while a turn streams.
+        # id -> True while a turn streams; _chat_cancel -> True when the user
+        # hits Stop mid-turn (read across threads under the same lock).
         self._chat_active = {}
+        self._chat_cancel = {}
+        # ASGI full-state transport: per-session, newest-first rendered messages.
+        self._chat_msgs = {}
         self._chat_active_lock = __import__("threading").Lock()
 
         sig = inspect.signature(callback_fn)
@@ -532,16 +536,143 @@ class FastDash:
             className="fd-chat-msg fd-chat-user",
         )
 
+    def _chat_assistant_bubble(self, blocks, streaming=False):
+        """Render an assistant turn from its ordered blocks (RFC #133 Phase 2).
+
+        ``blocks`` is a list of ``{"kind": ...}`` dicts accumulated from the
+        frame stream: ``text`` / ``reasoning`` / ``tool`` / ``artifact`` /
+        ``extraction``. During streaming, text stays raw and artifacts show a
+        placeholder; the final render materializes markdown + artifacts.
+        """
+        from dash import dcc, html
+        parts = []
+        for b in (blocks or []):
+            kind = b.get("kind")
+            if kind == "text":
+                if streaming:
+                    parts.append(html.Div(b["text"], className="fd-chat-text fd-chat-stream"))
+                else:
+                    parts.append(dcc.Markdown(b["text"] or "", className="fd-chat-text",
+                                              link_target="_blank"))
+            elif kind == "reasoning":
+                parts.append(self._chat_reasoning_block(b["text"]))
+            elif kind == "tool":
+                parts.append(self._chat_tool_card(b))
+            elif kind == "artifact":
+                parts.append(self._chat_artifact_block(b["content"], streaming))
+            elif kind == "extraction":
+                parts.append(self._chat_extraction_card(b.get("content")))
+        return html.Div(
+            html.Div(parts, className="fd-chat-bubble fd-chat-blocks"),
+            className="fd-chat-msg fd-chat-assistant",
+        )
+
     @staticmethod
-    def _chat_assistant_bubble(text, streaming=False):
+    def _chat_reasoning_block(text):
+        """A collapsible 'thinking' block (native details/summary, no callback)."""
+        from dash import dcc, html
+        return html.Details(
+            [
+                html.Summary("Thinking", className="fd-chat-reasoning-summary"),
+                dcc.Markdown(text or "", className="fd-chat-reasoning-body"),
+            ],
+            className="fd-chat-reasoning",
+        )
+
+    def _chat_tool_card(self, block):
+        """A tool-call card: name, optional args, status, and (on completion) result."""
+        from dash import dcc, html
+
+        import dash_mantine_components as dmc
+        from dash_iconify import DashIconify
+
+        done = block.get("status") == "done"
+        icon = "tabler:circle-check" if done else "tabler:loader-2"
+        header = dmc.Group(
+            [
+                DashIconify(icon=icon, width=16,
+                            className="" if done else "fd-chat-tool-spin"),
+                html.Span(str(block.get("name", "tool")), className="fd-chat-tool-name"),
+                html.Span("done" if done else "running", className="fd-chat-tool-status"),
+            ],
+            gap="xs", wrap="nowrap",
+        )
+        body = []
+        args = block.get("args")
+        if args:
+            body.append(html.Pre(self._chat_short_json(args), className="fd-chat-tool-args"))
+        if done and block.get("result") is not None:
+            body.append(html.Pre(self._chat_short_json(block["result"]),
+                                  className="fd-chat-tool-result"))
+        return dmc.Paper([header] + body, withBorder=True, radius="sm",
+                         p="xs", className="fd-chat-tool")
+
+    def _chat_extraction_card(self, content):
+        from dash import html
+        return html.Pre(self._chat_short_json(content), className="fd-chat-extraction")
+
+    @staticmethod
+    def _chat_short_json(value, limit=800):
+        """Compact, JSON-safe, length-capped string for tool args/results."""
+        if isinstance(value, str):
+            text = value
+        else:
+            try:
+                text = json.dumps(value, default=str, indent=2)
+            except Exception:
+                text = str(value)
+        return text if len(text) <= limit else text[:limit] + " ..."
+
+    def _chat_artifact_block(self, content, streaming=False):
+        """Render an inline artifact (Plotly / DataFrame / image / text).
+
+        During streaming a lightweight placeholder is shown; the real component
+        materializes at turn completion (RFC D2).
+        """
         from dash import dcc, html
         if streaming:
-            body = html.Div(text, className="fd-chat-bubble fd-chat-stream")
-        else:
-            body = dcc.Markdown(text or "", className="fd-chat-bubble",
-                                link_target="_blank")
-        cls = "fd-chat-msg fd-chat-assistant"
-        return html.Div(body, className=cls)
+            return html.Div("Rendering artifact...", className="fd-chat-artifact-pending")
+
+        import dash_mantine_components as dmc
+
+        try:
+            import plotly.graph_objects as go
+            if isinstance(content, go.Figure):
+                return dcc.Graph(figure=content, className="fd-chat-artifact",
+                                 style={"width": "100%"})
+        except Exception:
+            pass
+        try:
+            import pandas as pd
+            if isinstance(content, pd.DataFrame):
+                from dash import dash_table
+                return dash_table.DataTable(
+                    data=content.to_dict("records"),
+                    columns=[{"name": str(c), "id": str(c)} for c in content.columns],
+                    page_size=10, sort_action="native",
+                    style_table={"overflowX": "auto"},
+                    className="fd-chat-artifact",
+                )
+        except Exception:
+            pass
+        try:
+            import PIL.Image
+            from .utils import _pil_to_b64
+            if isinstance(content, PIL.Image.Image):
+                return html.Img(src=_pil_to_b64(content), className="fd-chat-artifact",
+                                style={"maxWidth": "100%"})
+        except Exception:
+            pass
+        try:
+            import matplotlib as mpl
+            from .utils import _mpl_to_b64
+            if isinstance(content, mpl.figure.Figure):
+                return html.Img(src=_mpl_to_b64(content), className="fd-chat-artifact",
+                                style={"maxWidth": "100%"})
+        except Exception:
+            pass
+        # Fallback: render as markdown text.
+        return dcc.Markdown(str(content), className="fd-chat-text")
 
     def _chat_bubble_json(self, component):
         """Serialize a Dash component to the plotly-json the reducer inserts."""
@@ -579,6 +710,7 @@ class FastDash:
         self.app.layout = app_layout.generate_chat_layout(
             has_settings=bool(self.inputs_with_ids),
             stream_event_names=["chat_frames", "notification-container"],
+            native_stream=self._native_stream,
         )
 
     def _register_chat_callbacks(self):
@@ -605,35 +737,38 @@ class FastDash:
             State("chat-session", "data"),
         )
 
-        # (2) The transcript reducer: apply push / replace0 ops from the server
-        # to the message list. Ordered delivery over one socket connection; a
-        # stale turn/seq is ignored (defensive).
-        app.clientside_callback(
-            """
-            function(payload, children) {
-                if (!payload || !payload.op) { return dash_clientside.no_update; }
-                children = Array.isArray(children) ? [...children] : (children ? [children] : []);
-                if (payload.op === 'start') {
-                    // Atomic: add the user bubble AND the empty assistant bubble
-                    // together (index 0 = assistant, the replace0 target). Doing
-                    // this in one op avoids a stale-State race between two adds.
-                    if (payload.user) { children.unshift(payload.user); }
-                    if (payload.assistant) { children.unshift(payload.assistant); }
-                } else if (payload.op === 'replace0') {
-                    // Idempotent: carries the full accumulated render, so a
-                    // dropped/stale frame self-heals on the next one.
-                    var comp = payload.value || null;
-                    if (children.length) { children[0] = comp; }
-                    else if (comp !== null) { children.unshift(comp); }
+        # (2) The transcript reducer (Flask only): apply start / replace0 ops
+        # delivered as ordered socket.io events to the message list. On ASGI
+        # there is no socket component; the server pushes the full rendered list
+        # straight to chat-messages.children via set_props (see _run_chat_turn),
+        # so no clientside reducer is registered.
+        if not self._native_stream:
+            app.clientside_callback(
+                """
+                function(payload, children) {
+                    if (!payload || !payload.op) { return dash_clientside.no_update; }
+                    children = Array.isArray(children) ? [...children] : (children ? [children] : []);
+                    if (payload.op === 'start') {
+                        // Atomic: add the user bubble AND the empty assistant bubble
+                        // together (index 0 = assistant, the replace0 target). Doing
+                        // this in one op avoids a stale-State race between two adds.
+                        if (payload.user) { children.unshift(payload.user); }
+                        if (payload.assistant) { children.unshift(payload.assistant); }
+                    } else if (payload.op === 'replace0') {
+                        // Idempotent: carries the full accumulated render, so a
+                        // dropped/stale frame self-heals on the next one.
+                        var comp = payload.value || null;
+                        if (children.length) { children[0] = comp; }
+                        else if (comp !== null) { children.unshift(comp); }
+                    }
+                    return children;
                 }
-                return children;
-            }
-            """,
-            Output("chat-messages", "children", allow_duplicate=True),
-            Input("socketio", "data-chat_frames"),
-            State("chat-messages", "children"),
-            prevent_initial_call=True,
-        )
+                """,
+                Output("chat-messages", "children", allow_duplicate=True),
+                Input("socketio", "data-chat_frames"),
+                State("chat-messages", "children"),
+                prevent_initial_call=True,
+            )
 
         # (3) Send handler (button click). Guards empty / in-flight, clears the
         # composer, sets the submit trigger, flags streaming.
@@ -688,20 +823,38 @@ class FastDash:
             Input("chat-streaming", "data"),
         )
 
-        # (6) The server turn callback: drive the generator, stream frames over
-        # socket.io, append to history, re-enable the composer.
+        # (6) The server turn callback: drive the generator, stream frames to the
+        # browser (socket.io on Flask, set_props on ASGI), append to history,
+        # re-enable the composer. On ASGI it becomes a WebSocket callback so
+        # set_props can push mid-execution; there is no socket id there.
         setting_states = [
             State(inp.id, inp.component_property) for inp in self.inputs_with_ids
         ]
+        turn_states = [State("chat-session", "data")]
+        if not self._native_stream:
+            turn_states.append(State("socketio", "socketId"))
+        turn_states += setting_states
+
+        _turn_cb_kwargs = dict(prevent_initial_call=True)
+        if self._native_stream:
+            _turn_cb_kwargs["websocket"] = True
 
         @app.callback(
             [Output("chat-streaming", "data", allow_duplicate=True),
              Output("notification-container", "sendNotifications", allow_duplicate=True)],
             Input("chat-submit-store", "data"),
-            [State("chat-session", "data"), State("socketio", "socketId")] + setting_states,
-            prevent_initial_call=True,
+            turn_states,
+            **_turn_cb_kwargs,
         )
-        def _chat_turn(submit, session_id, socket_id, *setting_values):
+        def _chat_turn(submit, session_id, *rest):
+            # Flask: rest = (socket_id, *setting_values); ASGI: rest = setting_values.
+            if self._native_stream:
+                socket_id = None
+                setting_values = rest
+            else:
+                socket_id = rest[0] if rest else None
+                setting_values = rest[1:]
+
             if not submit or not (submit.get("q") or "").strip():
                 raise PreventUpdate
             query = submit["q"].strip()
@@ -713,6 +866,7 @@ class FastDash:
                     return False, _get_error_notification_component(
                         "A response is still streaming; please wait.")
                 self._chat_active[sid] = True
+                self._chat_cancel.pop(sid, None)     # fresh turn, clear Stop flag
 
             try:
                 self._run_chat_turn(query, sid, socket_id, setting_values)
@@ -720,66 +874,162 @@ class FastDash:
             finally:
                 with self._chat_active_lock:
                     self._chat_active.pop(sid, None)
+                    self._chat_cancel.pop(sid, None)
 
-    def _run_chat_turn(self, query, sid, socket_id, setting_values):
-        """Drive one chat turn and stream it to the browser over socket.io."""
+        # Stop button: set the per-session cancel flag; the running turn thread
+        # observes it via run_turn's cancelled() check and stops gracefully.
+        @app.callback(
+            Output("chat-stop", "n_clicks"),
+            Input("chat-stop", "n_clicks"),
+            State("chat-session", "data"),
+            prevent_initial_call=True,
+        )
+        def _chat_stop(n_clicks, session_id):
+            if n_clicks:
+                with self._chat_active_lock:
+                    self._chat_cancel[session_id or "default"] = True
+            return 0
+
+        # Show the Stop button (and hide Send) only while a turn streams.
+        app.clientside_callback(
+            """
+            function(streaming) {
+                var show = {display: 'inline-flex'};
+                var hide = {display: 'none'};
+                return streaming ? [hide, show] : [show, hide];
+            }
+            """,
+            [Output("chat-send", "style"), Output("chat-stop", "style")],
+            Input("chat-streaming", "data"),
+        )
+
+    def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None):
+        """Drive one chat turn, streaming its blocks to the browser.
+
+        Two transports, one turn-driver:
+
+        * **Flask** (default): incremental ops (``start`` / ``replace0``) are
+          pushed as discrete socket.io events; a clientside reducer applies them
+          to the message list. ``emit`` may be supplied to capture these ops.
+        * **ASGI** (``_native_stream``): ``set_props`` is a latest-value-wins
+          transport, so incremental ops would be lost to coalescing. Instead the
+          server owns the per-session transcript and pushes the *full* rendered
+          message list straight to ``chat-messages.children`` on each flush.
+
+        Either way the callback's content/reasoning/tool/artifact/extraction
+        frames are accumulated into ordered blocks, the live bubble re-renders on
+        a batched cadence, and the finished turn is rendered once at completion.
+        """
         import time as _time
 
-        from flask_socketio import emit as _sio_emit
-
+        from .chat import blocks_text as _blocks_text
+        from .chat import has_text as _has_text
         from .chat import run_turn
 
         settings = dict(zip(self._chat_setting_names, setting_values))
         history = self.chat_history.get(sid)
 
-        def _emit(payload):
-            _sio_emit("chat_frames", payload, namespace="/", to=socket_id)
+        blocks = []
+        state = {"last": 0.0, "n": 0}
+        user_json = self._chat_bubble_json(self._chat_user_bubble(query))
 
-        def _emit_replace0(value):
-            _emit({"op": "replace0", "value": value})
+        if emit is None and self._native_stream:
+            # ASGI full-state transport: keep a bounded, newest-first list of
+            # rendered messages per session and push the whole list each flush.
+            from dash import set_props
+            msgs = self._chat_msgs.setdefault(sid, [])
+            msgs.insert(0, user_json)     # index 1 once the assistant is prepended
+            msgs.insert(0, None)          # index 0 = the live assistant bubble
 
-        # Show the user's message and an empty assistant bubble atomically.
-        _emit({
-            "op": "start",
-            "user": self._chat_bubble_json(self._chat_user_bubble(query)),
-            "assistant": self._chat_bubble_json(
-                self._chat_assistant_bubble("", streaming=True)),
-        })
+            def _emit_start():
+                _emit_replace0(streaming=True)
 
-        acc = {"text": "", "last": 0.0, "n": 0}
+            def _emit_replace0(streaming):
+                msgs[0] = self._chat_bubble_json(
+                    self._chat_assistant_bubble(blocks, streaming=streaming))
+                set_props("chat-messages", {"children": list(msgs)})
+                if not streaming:
+                    # Bound the transcript to the same window as history.
+                    del msgs[2 * self.chat_history_size:]
+        else:
+            # Flask op protocol (or a caller-supplied capture emit).
+            if emit is None:
+                from flask_socketio import emit as _sio_emit
+
+                def emit(payload):
+                    _sio_emit("chat_frames", payload, namespace="/", to=socket_id)
+
+            def _emit_start():
+                # Atomic user + empty assistant (index 0 = assistant).
+                emit({"op": "start", "user": user_json,
+                      "assistant": self._chat_bubble_json(
+                          self._chat_assistant_bubble([], streaming=True))})
+
+            def _emit_replace0(streaming):
+                emit({"op": "replace0",
+                      "value": self._chat_bubble_json(
+                          self._chat_assistant_bubble(blocks, streaming=streaming))})
+
+        def _append_text(text):
+            if blocks and blocks[-1].get("kind") == "text":
+                blocks[-1]["text"] += text
+            else:
+                blocks.append({"kind": "text", "text": text})
 
         def _flush(force=False):
             now = _time.monotonic()
-            if force or acc["n"] >= 20 or (now - acc["last"]) >= 0.05:
-                _emit_replace0(self._chat_bubble_json(
-                    self._chat_assistant_bubble(acc["text"], streaming=True)))
-                acc["last"] = now
-                acc["n"] = 0
+            if force or state["n"] >= 20 or (now - state["last"]) >= 0.05:
+                _emit_replace0(streaming=True)
+                state["last"] = now
+                state["n"] = 0
 
         def _on_frame(frame):
-            if frame["type"] == "content":
-                acc["text"] += frame["content"]
-                acc["n"] += 1
-                _flush()
-            elif frame["type"] == "error":
-                acc["text"] += ("\n\n" if acc["text"] else "") + "**Error:** " + frame["message"]
-                _flush(force=True)
+            t = frame["type"]
+            if t == "content":
+                _append_text(frame["content"]); state["n"] += 1; _flush()
+            elif t == "reasoning":
+                blocks.append({"kind": "reasoning", "text": frame["content"]}); _flush(True)
+            elif t == "tool_start":
+                blocks.append({"kind": "tool", "id": frame["id"], "name": frame["name"],
+                               "args": frame.get("args"), "result": None, "status": "running"})
+                _flush(True)
+            elif t == "tool_end":
+                for b in blocks:
+                    if b.get("kind") == "tool" and b.get("id") == frame["id"]:
+                        b["result"] = frame.get("result"); b["status"] = "done"; break
+                else:
+                    blocks.append({"kind": "tool", "id": frame["id"], "name": frame["name"],
+                                   "args": None, "result": frame.get("result"), "status": "done"})
+                _flush(True)
+            elif t == "artifact":
+                blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
+            elif t == "extraction":
+                blocks.append({"kind": "extraction", "content": frame.get("content")}); _flush(True)
+            elif t == "error":
+                _append_text(("\n\n" if _has_text(blocks) else "")
+                             + "**Error:** " + frame["message"])
+                _flush(True)
+
+        # Show the user's message and an empty assistant bubble.
+        _emit_start()
 
         run_turn(
             self.callback_fn, query,
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
+            cancelled=lambda: self._chat_cancelled(sid),
         )
 
-        # `acc["text"]` is the single source of truth for what was shown
-        # (content plus any surfaced error), so the final render and the stored
-        # history stay consistent with the live stream.
-        final_text = acc["text"]
+        if self._chat_cancelled(sid):
+            _append_text(("\n\n" if _has_text(blocks) else "") + "_(stopped)_")
 
-        # Final render: replace the live bubble with the markdown version.
-        _emit_replace0(self._chat_bubble_json(
-            self._chat_assistant_bubble(final_text, streaming=False)))
-        self.chat_history.append_turn(sid, query, final_text)
+        # Final render + history (text content is what a follow-up turn sees).
+        _emit_replace0(streaming=False)
+        self.chat_history.append_turn(sid, query, _blocks_text(blocks))
+
+    def _chat_cancelled(self, sid):
+        with self._chat_active_lock:
+            return bool(self._chat_cancel.get(sid))
 
     def _init_multi_function(self):
         """Initialize a multi-function tabbed Fast Dash app."""

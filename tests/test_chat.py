@@ -225,9 +225,29 @@ class TestRunTurn:
 
 # --- integration: the chat app wiring (no browser) ------------------------- #
 
+import importlib.util  # noqa: E402
 from unittest import mock  # noqa: E402
 
 from fast_dash import FastDash  # noqa: E402
+
+_HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
+requires_fastapi = pytest.mark.skipif(
+    not _HAS_FASTAPI, reason="fastapi backend extra not installed"
+)
+
+
+def _layout_ids(comp, out=None):
+    """Collect all string component ids in a Dash layout tree."""
+    out = set() if out is None else out
+    cid = getattr(comp, "id", None)
+    if isinstance(cid, str):
+        out.add(cid)
+    ch = getattr(comp, "children", None)
+    if ch is not None:
+        for c in (ch if isinstance(ch, (list, tuple)) else [ch]):
+            if c is not None:
+                _layout_ids(c, out)
+    return out
 
 
 class TestChatConstruction:
@@ -361,3 +381,132 @@ class TestChatTurnWiring:
         self._run(app, "b", sid="s2")
         assert app.chat_history.get("s1")[0]["content"] == "a"
         assert app.chat_history.get("s2")[0]["content"] == "b"
+
+
+class TestChatRichFrames:
+    """Phase 2: tool/reasoning/artifact frames and cancellation."""
+
+    def _run(self, app, query, sid="s1", **kw):
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn(query, sid, "sock", (), **kw)
+
+    def test_tool_frames_render_and_history_is_text_only(self):
+        import plotly.graph_objects as go
+        def bot(query):
+            yield {"type": "tool_start", "name": "search", "id": "1", "args": {"q": "x"}}
+            yield {"type": "tool_end", "name": "search", "id": "1", "result": "hit"}
+            yield "Here is the answer."
+            yield {"type": "artifact", "content": go.Figure()}
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "hi")
+        # History stores only the text content (not tool/artifact noise).
+        assert app.chat_history.get("s1")[-1]["content"] == "Here is the answer."
+
+    def test_bubble_renders_all_block_kinds_without_error(self):
+        import pandas as pd
+        import plotly.graph_objects as go
+        app = FastDash(callback_fn=lambda query: iter(["x"]), chat=True)
+        blocks = [
+            {"kind": "text", "text": "**hi**"},
+            {"kind": "reasoning", "text": "thinking..."},
+            {"kind": "tool", "id": "1", "name": "t", "args": {"a": 1}, "result": "ok", "status": "done"},
+            {"kind": "tool", "id": "2", "name": "u", "args": None, "result": None, "status": "running"},
+            {"kind": "artifact", "content": go.Figure()},
+            {"kind": "artifact", "content": pd.DataFrame({"a": [1, 2]})},
+            {"kind": "extraction", "content": {"k": "v"}},
+        ]
+        # Both streaming and final renders must serialize cleanly to plotly-json.
+        for streaming in (True, False):
+            comp = app._chat_assistant_bubble(blocks, streaming=streaming)
+            assert app._chat_bubble_json(comp)          # no exception, JSON-safe
+
+    def test_cancellation_stops_and_marks_partial(self):
+        def bot(query):
+            yield "partial "
+            yield "more"          # should not be reached once cancelled
+        app = FastDash(callback_fn=bot, chat=True)
+        app._chat_cancel["s1"] = True                   # Stop pressed before frames
+        self._run(app, "hi")
+        content = app.chat_history.get("s1")[-1]["content"]
+        assert "(stopped)" in content
+
+    def test_cancellation_midstream_keeps_partial_and_drops_rest(self):
+        # Mirror a real Stop click: the flag flips *after* the first token, so
+        # the partial text is kept and the later token is never appended.
+        app = None
+
+        def bot(query):
+            yield "kept "
+            app._chat_cancel["s1"] = True               # user hits Stop here
+            yield "dropped"                              # must not survive
+        app = FastDash(callback_fn=bot, chat=True)
+        self._run(app, "hi")
+        content = app.chat_history.get("s1")[-1]["content"]
+        assert content.startswith("kept ")
+        assert "dropped" not in content
+        assert "(stopped)" in content
+
+    def test_blocks_text_and_has_text_helpers(self):
+        from fast_dash.chat import blocks_text, has_text
+        blocks = [
+            {"kind": "text", "text": "hello "},
+            {"kind": "reasoning", "text": "ignore me"},
+            {"kind": "text", "text": "world"},
+            {"kind": "tool", "id": "1", "name": "t"},
+        ]
+        assert blocks_text(blocks) == "hello world"     # text blocks only
+        assert has_text(blocks) is True
+        assert has_text([{"kind": "tool"}]) is False
+
+
+class TestChatAsgiTransport:
+    """Phase 2: ASGI/set_props streaming parity (RFC #133 D6)."""
+
+    def test_native_stream_pushes_full_children_via_set_props(self):
+        # On the ASGI backend, the server pushes the *full* rendered message
+        # list straight to chat-messages.children via set_props (set_props is
+        # latest-value-wins, so incremental ops would be lost to coalescing).
+        # Verify deterministically without a running uvicorn.
+        import dash
+
+        def bot(query):
+            yield {"type": "tool_start", "name": "s", "id": "1", "args": {}}
+            yield "hello"
+        app = FastDash(callback_fn=bot, chat=True)
+        app._native_stream = True                        # simulate ASGI transport
+
+        calls = []
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("hi", "s1", None, ())
+
+        assert calls, "native stream pushed nothing"
+        assert all(cid == "chat-messages" for cid, _ in calls)
+        # Every push carries a children list; the final one has both the user
+        # bubble AND the assistant bubble (the bug that coalescing would drop).
+        final_children = calls[-1][1]["children"]
+        assert isinstance(final_children, list) and len(final_children) == 2
+        assert app.chat_history.get("s1")[-1]["content"] == "hello"
+
+    def test_native_stream_transcript_accumulates_across_turns(self):
+        # The server-owned transcript grows by one user+assistant pair per turn
+        # and is pushed newest-first (index 0 = latest assistant).
+        import dash
+
+        app = FastDash(callback_fn=lambda query: "ok", chat=True)
+        app._native_stream = True
+        with mock.patch.object(dash, "set_props", lambda cid, props: None):
+            app._run_chat_turn("first", "s1", None, ())
+            app._run_chat_turn("second", "s1", None, ())
+        # Two turns -> four messages retained server-side for the session.
+        assert len(app._chat_msgs["s1"]) == 4
+
+    @requires_fastapi
+    def test_asgi_chat_layout_omits_socketio(self):
+        app = FastDash(callback_fn=lambda query: "hi", chat=True, backend="fastapi")
+        assert app._native_stream is True
+        ids = _layout_ids(app.app.layout)
+        # ASGI pushes children via set_props; the WSGI-only socket component and
+        # the composer/message list are as expected.
+        assert "socketio" not in ids
+        assert "chat-messages" in ids and "chat-input" in ids

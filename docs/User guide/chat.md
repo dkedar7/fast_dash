@@ -71,22 +71,56 @@ chat fills the width.
 ## The frame grammar
 
 Yielding a `str` is sugar for a text frame. For richer replies, `yield` frame
-dicts. Phase 1 renders `content` (and surfaces `error`); the remaining types are
-part of the contract and render in later phases:
+dicts — every type below renders natively:
 
 | Frame | Shape | Renders as |
 |---|---|---|
 | `content` | `{"type": "content", "content": str}` | streamed markdown text |
-| `reasoning` | `{"type": "reasoning", "content": str}` | a "thinking" block |
-| `tool_start` | `{"type": "tool_start", "name": str, "args": dict}` | a tool-call card |
-| `tool_end` | `{"type": "tool_end", "name": str, "result": Any}` | completes the card |
+| `reasoning` | `{"type": "reasoning", "content": str}` | a collapsible "thinking" block |
+| `tool_start` | `{"type": "tool_start", "name": str, "args": dict, "id": str}` | a tool-call card (spinner) |
+| `tool_end` | `{"type": "tool_end", "name": str, "result": Any, "id": str}` | resolves the matching card |
 | `artifact` | `{"type": "artifact", "content": Figure \| DataFrame \| Image \| str}` | an inline artifact |
+| `extraction` | `{"type": "extraction", "content": Any}` | a JSON card |
 | `error` | `{"type": "error", "message": str}` | an error notice |
 
-A bare `str` yield, a plain `str` return, and this frame grammar can be mixed
-freely. Unknown frame types are ignored (with a warning), never fatal; an
-exception raised inside the callback is caught, shown as an error in the reply,
-and the session stays usable.
+`tool_start` and `tool_end` are paired by their `id` (defaulting to `name`), so a
+card opens with a spinner and resolves in place when the result arrives. Artifacts
+materialize at turn completion. A bare `str` yield, a plain `str` return, and this
+frame grammar can be mixed freely. Unknown frame types are ignored (with a
+warning), never fatal; an exception raised inside the callback is caught, shown as
+an error in the reply, and the session stays usable.
+
+## A richer example
+
+```python
+import numpy as np
+import plotly.graph_objects as go
+from fast_dash import FastDash
+
+def analyst(query: str, history: list):
+    yield {"type": "reasoning", "content": "Fetch the series, then plot it."}
+    yield {"type": "tool_start", "name": "fetch_series", "id": "t1",
+           "args": {"query": query}}
+    yield {"type": "tool_end", "name": "fetch_series", "id": "t1",
+           "result": {"rows": 50, "status": "ok"}}
+    yield "Here is the series you asked about: "
+    x = np.linspace(0, 12, 50)
+    yield {"type": "artifact", "content": go.Figure(go.Scatter(x=x, y=np.sin(x)))}
+
+FastDash(callback_fn=analyst, title="Analyst", chat=True).run()
+```
+
+While a turn streams, the **Send** button becomes a **Stop** button; pressing it
+cancels the turn and the partial reply is kept with a `(stopped)` marker.
+
+## Backends
+
+Streaming rides whatever transport the backend already uses, with no change to
+your callback:
+
+- **Flask** (default): frames stream as socket.io events.
+- **ASGI** (`backend="fastapi"`, needs `fast-dash[fastapi]`): frames are pushed
+  with Dash's native `set_props` over a WebSocket — no socket.io.
 
 ## What chat mode does and doesn't allow
 

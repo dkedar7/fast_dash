@@ -662,14 +662,20 @@ class AppLayout:
 
         return layout
 
-    def generate_chat_layout(self, has_settings=False, stream_event_names=None):
+    def generate_chat_layout(self, has_settings=False, stream_event_names=None,
+                             native_stream=False):
         """Build the native chat-mode layout (RFC #133).
 
         Reuses the shared chrome (header, theme toggle, About, notifications,
-        MantineProvider, socket.io) and lays out a streaming transcript with a
-        composer pinned at the bottom of the main area. Settings inputs (any
-        callback parameter besides ``query``/``history``) render in the sidebar,
-        which is hidden entirely when there are none.
+        MantineProvider) and lays out a streaming transcript with a composer
+        pinned at the bottom of the main area. Settings inputs (any callback
+        parameter besides ``query``/``history``) render in the sidebar, which is
+        hidden entirely when there are none.
+
+        Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
+        an ASGI backend (``native_stream``) they are pushed with ``set_props``
+        into the ``chat-frames-store`` and the reducer listens on that store
+        instead of a socket event (no flask-socketio, which is WSGI-only).
         """
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -713,6 +719,16 @@ class AppLayout:
                         radius="md",
                         variant="filled",
                         n_clicks=0,
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:player-stop-filled", width=20),
+                        id="chat-stop",
+                        size="lg",
+                        radius="md",
+                        variant="filled",
+                        color="red",
+                        n_clicks=0,
+                        style={"display": "none"},   # shown only while streaming
                     ),
                 ],
                 gap="sm",
@@ -781,7 +797,11 @@ class AppLayout:
             extra.append(header_children[1])
         if self.branding:
             extra.append(self.generate_footer_container())
-        extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
+        # Flask streams frames as socket.io events applied by a clientside
+        # reducer; ASGI pushes the full rendered message list straight to
+        # chat-messages.children via set_props, so no socket component is added.
+        if not native_stream:
+            extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
 
         return dmc.MantineProvider(
             [appshell] + extra,

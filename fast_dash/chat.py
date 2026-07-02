@@ -238,8 +238,18 @@ def _drive(gen):
         yield from gen
 
 
+def blocks_text(blocks):
+    """Concatenated text content of a turn's blocks (what history stores)."""
+    return "".join(b["text"] for b in (blocks or []) if b.get("kind") == "text")
+
+
+def has_text(blocks):
+    """True if any text block carries content (used for spacing)."""
+    return any(b.get("kind") == "text" and b.get("text") for b in (blocks or []))
+
+
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None):
+             friendly_error=None, cancelled=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -289,6 +299,8 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
         elif hasattr(result, "__iter__") or hasattr(result, "__aiter__"):
             gen = result
             for raw in _drive(gen):
+                if cancelled is not None and cancelled():
+                    break                                # user hit Stop (D4)
                 _handle(raw)
         else:
             # A non-str, non-iterable return: coerce to text (best-effort).

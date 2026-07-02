@@ -161,3 +161,45 @@
   background: var(--mantine-color-body);
 }
 .fd-chat-composer { max-width: 900px; margin: 0 auto; width: 100%; }
+
+/* --- Chat rich frames (RFC #133 Phase 2) ----------------------------------- */
+
+.fd-chat-blocks { display: flex; flex-direction: column; gap: 10px; }
+.fd-chat-text { }
+
+/* Reasoning: a collapsible "thinking" block. */
+.fd-chat-reasoning {
+  border-left: 2px solid var(--mantine-color-default-border);
+  padding-left: 10px;
+}
+.fd-chat-reasoning-summary {
+  cursor: pointer;
+  color: var(--mantine-color-dimmed);
+  font-size: 13px;
+  user-select: none;
+}
+.fd-chat-reasoning-body { color: var(--mantine-color-dimmed); font-size: 13px; }
+
+/* Tool-call card. */
+.fd-chat-tool { background: var(--mantine-color-body); }
+.fd-chat-tool-name { font-weight: 600; font-size: 13px; }
+.fd-chat-tool-status {
+  font-size: 11px; color: var(--mantine-color-dimmed);
+  margin-left: auto; text-transform: uppercase; letter-spacing: 0.04em;
+}
+.fd-chat-tool-args, .fd-chat-tool-result, .fd-chat-extraction {
+  margin: 6px 0 0; padding: 8px; border-radius: 6px;
+  background: var(--mantine-color-default-hover);
+  font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-width: 100%;
+}
+.fd-chat-tool-result { color: var(--mantine-color-text); }
+
+/* Spinner for a running tool. */
+.fd-chat-tool-spin { animation: fd-chat-spin 1s linear infinite; }
+@keyframes fd-chat-spin { to { transform: rotate(360deg); } }
+
+/* Inline artifacts sized to the bubble. */
+.fd-chat-artifact { max-width: 100%; margin-top: 4px; }
+.fd-chat-artifact-pending {
+  color: var(--mantine-color-dimmed); font-size: 13px; font-style: italic;
+}
