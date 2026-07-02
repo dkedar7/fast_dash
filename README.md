@@ -60,6 +60,24 @@ def greet(name: str = "world") -> str:
 
 That's the entire app. Open the URL, type a name, click Run, see the response.
 
+## Chat apps
+
+Pass `chat=True` and your callback becomes a streaming chat app — a composer, a
+scrolling transcript, and per-session history — with no LLM provider baked in:
+
+```python
+from fast_dash import fastdash
+
+@fastdash(chat=True)
+def assistant(query: str):
+    for token in my_llm.stream(query):     # any provider — you choose
+        yield token
+```
+
+`yield` strings to stream the reply as markdown; add a `history` parameter for
+multi-turn memory, and any other parameter becomes a sidebar setting. See the
+[chat guide](https://docs.fastdash.app/User%20guide/chat/).
+
 ## How it works
 
 The `@fastdash` decorator does three things at import time:

@@ -28,19 +28,23 @@ This should spin up your first Fast Dash app!
 
 ## Chatbot example
 
-Fast Dash also offers many in-built components to make development easier. 
-These can be used as data type hints.
-Here's a dummy chatbot example.
+Pass `chat=True` and your callback becomes a streaming chat app — a composer
+pinned at the bottom, a scrolling transcript, and per-session history — with no
+LLM provider baked in. The first parameter must be named `query`; `yield`
+strings to stream the reply.
 
 ```py linenums="1"
-from fast_dash import fastdash, Chat
+from fast_dash import fastdash
 
-@fastdash(theme="sketchy")
-def virtual_assistant(query: str) -> Chat:
-    response = "I am Groot."
-    chat = dict(query=query, response=response)
-    return chat
+@fastdash(chat=True)
+def virtual_assistant(query: str):
+    """A helpful assistant."""
+    for token in ["I ", "am ", "Groot."]:   # replace with your LLM's stream
+        yield token
 ```
+
+See the [chat guide](User guide/chat.md) for history, sidebar settings, and the
+frame grammar (tool calls, reasoning, inline artifacts).
 
 <figure markdown>
   ![Simple example](https://storage.googleapis.com/fast_dash/0.2.7/Simple%20chatbot%20example.png)
