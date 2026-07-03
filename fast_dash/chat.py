@@ -33,9 +33,31 @@ cp1252 consoles).
 
 import asyncio
 import collections
+import dataclasses
 import inspect
 import threading
 import warnings
+from typing import Any
+
+
+@dataclasses.dataclass(frozen=True)
+class ChatContext:
+    """Per-turn context injected when a chat callback declares a ``ctx`` param.
+
+    The 5-line chatbot never sees this: ``query`` (and ``history``) stay bare.
+    Power features fold into one object instead of a growing list of magic
+    parameter names:
+
+    * ``thread_id`` -- the chat session id (a LangGraph checkpointer thread).
+    * ``canvas`` -- the canvas's live values ``{name: value}`` (empty when
+      ``canvas=False``); see the assistant-driven canvas.
+    * ``resume`` -- a decision answering a pending ``interrupt`` (HITL), else
+      ``None``.
+    """
+
+    thread_id: str = "default"
+    canvas: dict = dataclasses.field(default_factory=dict)
+    resume: Any = None
 
 # Frame type constants -------------------------------------------------------
 CONTENT = "content"
@@ -227,15 +249,6 @@ def wants_history(callback_fn):
     return _declares(callback_fn, "history")
 
 
-def wants_thread_id(callback_fn):
-    """True if the callback declares a ``thread_id`` parameter (case-sensitive).
-
-    A ``thread_id`` param receives the chat session id (the langstage adapter
-    uses it as the checkpointer thread; any callback may opt in the same way).
-    """
-    return _declares(callback_fn, "thread_id")
-
-
 def _declares(callback_fn, name):
     try:
         return name in inspect.signature(callback_fn).parameters
@@ -303,12 +316,14 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
     kwargs = dict(settings)
     if wants_history(callback_fn):
         kwargs["history"] = list(history or [])
-    if wants_thread_id(callback_fn):
-        kwargs["thread_id"] = thread_id
-    if _declares(callback_fn, "resume"):
-        kwargs["resume"] = resume
-    if _declares(callback_fn, "canvas"):
-        kwargs["canvas"] = dict(canvas or {})
+    if _declares(callback_fn, "ctx"):
+        # Power features fold into one context object instead of separate magic
+        # params (thread_id / resume / canvas).
+        kwargs["ctx"] = ChatContext(
+            thread_id=thread_id or "default",
+            canvas=dict(canvas or {}),
+            resume=resume,
+        )
 
     parts = []       # accumulated assistant text (content frames)
     frames = []      # all normalized frames (content/tool/artifact/...)

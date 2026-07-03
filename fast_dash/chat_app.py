@@ -53,7 +53,7 @@ class ChatAppMixin:
         sig = inspect.signature(callback_fn)
         setting_params = [
             p for name, p in sig.parameters.items()
-            if name not in ("query", "history", "thread_id", "resume", "canvas")
+            if name not in ("query", "history", "ctx")
             and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
         ]
         self._chat_setting_names = [p.name for p in setting_params]

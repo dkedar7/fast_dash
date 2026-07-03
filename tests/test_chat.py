@@ -522,31 +522,46 @@ class TestChatAsgiTransport:
         assert "chat-messages" in ids and "chat-input" in ids
 
 
-class TestThreadIdInjection:
-    """thread_id is injected when declared, like history (RFC #133 Phase 3)."""
+class TestChatContext:
+    """A single `ctx` object carries thread_id / canvas / resume (RFC #133)."""
 
     def _run(self, app, query, sid="s1"):
         with mock.patch("flask_socketio.emit"):
             app._run_chat_turn(query, sid, "sock", ())
 
-    def test_thread_id_injected_when_declared(self):
+    def test_ctx_injected_when_declared(self):
+        from fast_dash import ChatContext
         seen = {}
 
-        def bot(query, thread_id):
-            seen["thread_id"] = thread_id
+        def bot(query, ctx):
+            seen["ctx"] = ctx
             yield "ok"
         app = FastDash(callback_fn=bot, chat=True)
-        assert app._chat_setting_names == []          # thread_id is not a setting
+        assert app._chat_setting_names == []          # ctx is not a setting
         self._run(app, "hi", sid="sessionABC")
-        assert seen["thread_id"] == "sessionABC"
+        assert isinstance(seen["ctx"], ChatContext)
+        assert seen["ctx"].thread_id == "sessionABC"
+        assert seen["ctx"].canvas == {} and seen["ctx"].resume is None
 
-    def test_thread_id_not_passed_when_undeclared(self):
-        # A callback without thread_id must never receive it (back-compat).
+    def test_ctx_not_passed_when_undeclared(self):
+        # A callback without ctx must never receive it (the 5-line promise).
         def bot(query):
             yield "ok"
         app = FastDash(callback_fn=bot, chat=True)
         self._run(app, "hi")                          # would TypeError if injected
         assert app.chat_history.get("s1")[-1]["content"] == "ok"
+
+    def test_history_and_ctx_coexist(self):
+        seen = {}
+
+        def bot(query, history, ctx):
+            seen["h"] = history
+            seen["tid"] = ctx.thread_id
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True)
+        assert app._chat_setting_names == []
+        self._run(app, "hi", sid="s9")
+        assert seen["tid"] == "s9" and isinstance(seen["h"], list)
 
 
 class TestLangstageAdapter:
@@ -793,13 +808,13 @@ class TestChatCanvas:
                            and p.get("op") == "canvas"][-1]["value"])
         assert '"max": 100' in last or '"max":100' in last
 
-    def test_canvas_values_injected_when_declared(self):
+    def test_canvas_values_injected_via_ctx(self):
         seen = {}
-        def bot(query, canvas):
-            seen.update(canvas)
-            yield f"amount={canvas.get('amount')}"
+        def bot(query, ctx):
+            seen.update(ctx.canvas)
+            yield f"amount={ctx.canvas.get('amount')}"
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        assert app._chat_setting_names == []            # 'canvas' is not a setting
+        assert app._chat_setting_names == []            # ctx is not a setting
         self._ops(app, "read", canvas_values={"amount": 7})
         assert seen == {"amount": 7}
         assert app.chat_history.get("s1")[-1]["content"] == "amount=7"

@@ -34,12 +34,13 @@ def is_langstage_target(obj) -> bool:
 
 
 def build_chat_callback(target):
-    """Return a chat callback ``(query, thread_id)`` that streams ``target``.
+    """Return a chat callback ``(query, ctx)`` that streams ``target``.
 
     ``target`` is a compiled LangGraph graph or a spec string. The returned
-    callback yields Fast Dash chat frames for one turn; ``thread_id`` (the chat
-    session id, injected by the turn runner) selects the checkpointer thread so
-    sequential turns on one session share memory.
+    callback yields Fast Dash chat frames for one turn; ``ctx.thread_id`` (the
+    chat session id, injected by the turn runner) selects the checkpointer thread
+    so sequential turns on one session share memory, and ``ctx.resume`` continues
+    a turn paused on an interrupt (HITL).
     """
     try:
         from langstage_core import load_agent_spec
@@ -50,16 +51,12 @@ def build_chat_callback(target):
     graph = load_agent_spec(target) if isinstance(target, str) else target
     agent = build_agent(graph)
 
-    def _langstage_chat(query, thread_id, resume=None):
-        """Stream a LangGraph agent turn as chat frames (via langstage-core).
-
-        ``resume`` (a decision answering a prior ``interrupt``) continues the
-        paused turn on the same ``thread_id`` checkpoint (HITL, Phase 4).
-        """
+    def _langstage_chat(query, ctx):
+        """Stream a LangGraph agent turn as chat frames (via langstage-core)."""
         # iter_event_frames yields an async generator; the chat turn runner
         # drives sync and async generators uniformly.
-        return iter_event_frames(agent, query, thread_id=thread_id or "default",
-                                 resume=resume)
+        return iter_event_frames(agent, query, thread_id=ctx.thread_id or "default",
+                                 resume=ctx.resume)
 
     _langstage_chat.__fast_dash_langstage__ = True
     _langstage_chat.__fast_dash_agent__ = agent
@@ -89,12 +86,3 @@ def make_resume_input(decisions, value=None):
     """
     from langstage_core import create_resume_input
     return create_resume_input(decisions=list(decisions or []), value=value)
-
-
-def wants_resume(callback_fn) -> bool:
-    """True if ``callback_fn`` accepts a ``resume`` parameter (HITL-capable)."""
-    import inspect
-    try:
-        return "resume" in inspect.signature(callback_fn).parameters
-    except (TypeError, ValueError):
-        return False
