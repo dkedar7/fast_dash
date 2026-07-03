@@ -10,6 +10,8 @@ that :class:`fast_dash.FastDash` inherits. It is split out to keep
 
 import inspect
 import json
+import threading
+import time
 import warnings
 
 from plotly.io.json import to_json_plotly
@@ -20,6 +22,11 @@ from .utils import (
     _get_error_notification_component,
     _make_input_groups,
 )
+
+# Idle sessions are evicted after this long; sweeps are throttled to run at most
+# once per interval so eviction is O(sessions) amortized, not per-turn.
+_SESSION_TTL_SECONDS = 6 * 3600
+_SESSION_SWEEP_INTERVAL = 60
 
 
 class ChatAppMixin:
@@ -37,18 +44,13 @@ class ChatAppMixin:
 
         self.state_counter = 0
         self.chat_history = ChatHistory(size=self.chat_history_size)
-        # Server-side guard: one in-flight turn per session (D4). Maps session
-        # id -> True while a turn streams; _chat_cancel -> True when the user
-        # hits Stop mid-turn (read across threads under the same lock).
-        self._chat_active = {}
-        self._chat_cancel = {}
-        # ASGI full-state transport: per-session, newest-first rendered messages.
-        self._chat_msgs = {}
-        # HITL (Phase 4): per-session paused turn awaiting an interrupt decision.
-        self._chat_pending = {}
-        # Canvas: per-session UI-spec list the assistant rebuilds/patches.
-        self._chat_canvas = {}
-        self._chat_active_lock = __import__("threading").Lock()
+        # One ChatSession per browser session holds all per-session state (the
+        # in-flight/cancel guard, ASGI transcript, HITL pending turn, canvas
+        # specs), guarded by a single lock; idle sessions are evicted (see
+        # _session). Replaces five parallel per-sid dicts.
+        self._sessions = {}
+        self._sessions_lock = threading.Lock()
+        self._last_sweep = 0.0
 
         sig = inspect.signature(callback_fn)
         setting_params = [
@@ -340,7 +342,7 @@ class ChatAppMixin:
         DynamicDash sets ``dyn-form.children``).
         """
         from .dynamic import render_spec
-        div = render_spec(self._chat_canvas.get(sid, []),
+        div = render_spec(self._session(sid).canvas_specs,
                           container_id="_canvas_render")
         return self._chat_bubble_json(div).get("props", {}).get("children", [])
 
@@ -365,14 +367,14 @@ class ChatAppMixin:
     def _chat_canvas_apply(self, sid, frame):
         """Apply a ``canvas`` or ``set_props`` frame to the session's spec state."""
         from .dynamic import COMPONENT_REGISTRY
+        sess = self._session(sid)
         if frame["type"] == "canvas":
-            self._chat_canvas[sid] = list(frame["specs"])
+            sess.canvas_specs = list(frame["specs"])
             return
         # set_props: patch the target spec's props, routing a value-prop update
         # to the spec's 'value' so _spec_to_component applies it (props are
         # overridden by 'value' otherwise).
-        specs = self._chat_canvas.get(sid, [])
-        for spec in specs:
+        for spec in sess.canvas_specs:
             if spec.get("name") == frame["target"]:
                 props = dict(frame["props"])
                 factory = COMPONENT_REGISTRY.get(spec.get("type"))
@@ -605,28 +607,29 @@ class ChatAppMixin:
             query = submit["q"].strip()
             sid = session_id or "default"
 
+            sess = self._session(sid)
             # A pending interrupt must be answered (via the decision buttons)
             # before a new turn can start (HITL, Phase 4).
-            if self._chat_pending.get(sid):
+            if sess.pending:
                 return False, _get_error_notification_component(
                     "Please respond to the pending action first.")
 
             # One in-flight turn per session (server-side guard, D4).
-            with self._chat_active_lock:
-                if self._chat_active.get(sid):
+            with self._sessions_lock:
+                if sess.active:
                     return False, _get_error_notification_component(
                         "A response is still streaming; please wait.")
-                self._chat_active[sid] = True
-                self._chat_cancel.pop(sid, None)     # fresh turn, clear Stop flag
+                sess.active = True
+                sess.cancel = False              # fresh turn, clear Stop flag
 
             try:
                 self._run_chat_turn(query, sid, socket_id, setting_values,
                                     canvas_values=canvas_values)
                 return False, []
             finally:
-                with self._chat_active_lock:
-                    self._chat_active.pop(sid, None)
-                    self._chat_cancel.pop(sid, None)
+                with self._sessions_lock:
+                    sess.active = False
+                    sess.cancel = False
 
         # Stop button: set the per-session cancel flag; the running turn thread
         # observes it via run_turn's cancelled() check and stops gracefully.
@@ -638,8 +641,9 @@ class ChatAppMixin:
         )
         def _chat_stop(n_clicks, session_id):
             if n_clicks:
-                with self._chat_active_lock:
-                    self._chat_cancel[session_id or "default"] = True
+                sess = self._session(session_id or "default")
+                with self._sessions_lock:
+                    sess.cancel = True
             return 0
 
         # Show the Stop button (and hide Send) only while a turn streams.
@@ -685,22 +689,23 @@ class ChatAppMixin:
                 decision = triggered.get("decision")
                 socket_id = None if self._native_stream else (rest[0] if rest else None)
                 sid = session_id or "default"
+                sess = self._session(sid)
 
-                with self._chat_active_lock:
-                    if self._chat_active.get(sid):
+                with self._sessions_lock:
+                    if sess.active:
                         return False, _get_error_notification_component(
                             "A response is still streaming; please wait.")
-                    if not self._chat_pending.get(sid):
+                    if not sess.pending:
                         raise PreventUpdate
-                    self._chat_active[sid] = True
-                    self._chat_cancel.pop(sid, None)
+                    sess.active = True
+                    sess.cancel = False
                 try:
                     self._resume_chat_turn(sid, socket_id, decision)
                     return False, []
                 finally:
-                    with self._chat_active_lock:
-                        self._chat_active.pop(sid, None)
-                        self._chat_cancel.pop(sid, None)
+                    with self._sessions_lock:
+                        sess.active = False
+                        sess.cancel = False
 
     def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
                        resume=None, resume_decision=None, resume_blocks=None,
@@ -743,7 +748,7 @@ class ChatAppMixin:
             # ASGI full-state transport: keep a bounded, newest-first list of
             # rendered messages per session and push the whole list each flush.
             from dash import set_props
-            msgs = self._chat_msgs.setdefault(sid, [])
+            msgs = self._session(sid).msgs
             if resume is None:
                 msgs.insert(0, user_json)  # index 1 once the assistant is prepended
                 msgs.insert(0, None)       # index 0 = the live assistant bubble
@@ -874,7 +879,7 @@ class ChatAppMixin:
                    and self.is_langstage
                    and not self._chat_cancelled(sid))
         if pending:
-            self._chat_pending[sid] = {"query": query, "blocks": blocks}
+            self._session(sid).pending = {"query": query, "blocks": blocks}
             _emit_replace0(streaming=False)          # card with live buttons
             return
 
@@ -882,13 +887,39 @@ class ChatAppMixin:
         for b in blocks:
             if b.get("kind") == "interrupt":
                 b["resolved"] = True
-        self._chat_pending.pop(sid, None)
+        self._session(sid).pending = None
         _emit_replace0(streaming=False)
         self.chat_history.append_turn(sid, query, _blocks_text(blocks))
 
+    def _session(self, sid):
+        """Return the ChatSession for ``sid``, creating and touching it.
+
+        Opportunistically evicts sessions idle past the TTL (throttled to one
+        sweep per interval), clearing their history too, so a long-running
+        server never accumulates dead sessions.
+        """
+        from .chat import ChatSession
+        now = time.monotonic()
+        with self._sessions_lock:
+            sess = self._sessions.get(sid)
+            if sess is None:
+                sess = self._sessions[sid] = ChatSession()
+            sess.last_seen = now
+            if (now - self._last_sweep > _SESSION_SWEEP_INTERVAL
+                    and len(self._sessions) > 1):
+                self._last_sweep = now
+                stale = [k for k, s in self._sessions.items()
+                         if k != sid and now - s.last_seen > _SESSION_TTL_SECONDS]
+                for k in stale:
+                    del self._sessions[k]
+                    self.chat_history.clear(k)
+            return sess
+
     def _chat_cancelled(self, sid):
-        with self._chat_active_lock:
-            return bool(self._chat_cancel.get(sid))
+        # Lightweight read (no touch/sweep) — called once per streamed frame.
+        with self._sessions_lock:
+            s = self._sessions.get(sid)
+            return bool(s and s.cancel)
 
     def _resume_chat_turn(self, sid, socket_id, decision, value=None):
         """Answer a pending interrupt and continue the paused turn (HITL).
@@ -897,7 +928,7 @@ class ChatAppMixin:
         the callback, continuing the same assistant bubble from the paused
         turn's blocks. No-op (returns False) if nothing is pending.
         """
-        pending = self._chat_pending.get(sid)
+        pending = self._session(sid).pending
         if not pending:
             return False
         from .adapters.langstage import make_resume_input

@@ -240,6 +240,23 @@ class ChatHistory:
             self._store.pop(sid, None)
 
 
+@dataclasses.dataclass
+class ChatSession:
+    """Per-session chat state — one object per browser session.
+
+    Consolidates what were five parallel per-sid dicts. All access goes through
+    the app's single sessions lock; ``last_seen`` drives idle eviction so a
+    long-running server doesn't accumulate dead sessions.
+    """
+
+    active: bool = False              # a turn is streaming (one-in-flight guard)
+    cancel: bool = False              # Stop pressed (observed across threads)
+    pending: Any = None               # HITL: paused turn awaiting a decision
+    msgs: list = dataclasses.field(default_factory=list)          # ASGI transcript
+    canvas_specs: list = dataclasses.field(default_factory=list)  # canvas UI specs
+    last_seen: float = 0.0
+
+
 # --------------------------------------------------------------------------- #
 # Turn runner
 # --------------------------------------------------------------------------- #

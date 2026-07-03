@@ -435,7 +435,7 @@ class TestChatRichFrames:
             yield "partial "
             yield "more"          # should not be reached once cancelled
         app = FastDash(callback_fn=bot, chat=True)
-        app._chat_cancel["s1"] = True                   # Stop pressed before frames
+        app._session("s1").cancel = True                # Stop pressed before frames
         self._run(app, "hi")
         content = app.chat_history.get("s1")[-1]["content"]
         assert "(stopped)" in content
@@ -447,7 +447,7 @@ class TestChatRichFrames:
 
         def bot(query):
             yield "kept "
-            app._chat_cancel["s1"] = True               # user hits Stop here
+            app._session("s1").cancel = True            # user hits Stop here
             yield "dropped"                              # must not survive
         app = FastDash(callback_fn=bot, chat=True)
         self._run(app, "hi")
@@ -509,7 +509,7 @@ class TestChatAsgiTransport:
             app._run_chat_turn("first", "s1", None, ())
             app._run_chat_turn("second", "s1", None, ())
         # Two turns -> four messages retained server-side for the session.
-        assert len(app._chat_msgs["s1"]) == 4
+        assert len(app._session("s1").msgs) == 4
 
     @requires_fastapi
     def test_asgi_chat_layout_omits_socketio(self):
@@ -520,6 +520,28 @@ class TestChatAsgiTransport:
         # the composer/message list are as expected.
         assert "socketio" not in ids
         assert "chat-messages" in ids and "chat-input" in ids
+
+
+class TestSessionState:
+    """One ChatSession per session, with idle eviction (RFC #133 hardening)."""
+
+    def test_session_is_created_and_reused(self):
+        from fast_dash.chat import ChatSession
+        app = FastDash(callback_fn=lambda query: "ok", chat=True)
+        s = app._session("s1")
+        assert isinstance(s, ChatSession)
+        assert app._session("s1") is s                 # same object reused
+
+    def test_idle_sessions_are_evicted_with_history(self):
+        app = FastDash(callback_fn=lambda query: "ok", chat=True)
+        old = app._session("old")
+        app.chat_history.append_turn("old", "q", "a")
+        old.last_seen = 0.0                            # ancient
+        app._last_sweep = 0.0                          # force a sweep next call
+        app._session("new")                            # triggers eviction
+        assert "old" not in app._sessions              # evicted
+        assert app.chat_history.get("old") == []       # history cleared too
+        assert "new" in app._sessions                  # current session kept
 
 
 class TestChatContext:
@@ -678,16 +700,16 @@ class TestChatHitl:
 
         # First pass pauses on the interrupt: pending is set, no history yet.
         self._run(app, "please write")
-        assert app._chat_pending.get("s1") is not None
+        assert app._session("s1").pending is not None
         assert app.chat_history.get("s1") == []       # turn not finished
 
-        pending_blocks = app._chat_pending["s1"]["blocks"]
+        pending_blocks = app._session("s1").pending["blocks"]
         assert any(b.get("kind") == "interrupt" for b in pending_blocks)
 
         # Approving resumes and completes the same turn.
         with mock.patch("flask_socketio.emit"):
             app._resume_chat_turn("s1", "sock", "approve")
-        assert app._chat_pending.get("s1") is None    # cleared
+        assert app._session("s1").pending is None     # cleared
         hist = app.chat_history.get("s1")
         assert len(hist) == 2                          # one user+assistant pair
         assert "approve" in hist[-1]["content"].lower()
@@ -788,7 +810,7 @@ class TestChatCanvas:
         ops = self._ops(app, "build")
         canvas_ops = [p for p in ops if isinstance(p, dict) and p.get("op") == "canvas"]
         assert canvas_ops, "no canvas op emitted"
-        assert app._chat_canvas["s1"][0]["name"] == "amount"
+        assert app._session("s1").canvas_specs[0]["name"] == "amount"
         # The transcript is unaffected by canvas frames.
         assert app.chat_history.get("s1")[-1]["content"] == "done"
 
@@ -801,7 +823,7 @@ class TestChatCanvas:
                    "props": {"max": 100, "value": 42}}
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
         ops = self._ops(app, "patch")
-        spec = app._chat_canvas["s1"][0]
+        spec = app._session("s1").canvas_specs[0]
         assert spec["value"] == 42                      # value routed to spec['value']
         assert spec["props"]["max"] == 100              # other props merged
         last = json.dumps([p for p in ops if isinstance(p, dict)
