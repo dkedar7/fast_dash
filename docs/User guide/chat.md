@@ -46,27 +46,31 @@ def assistant(query: str, history: list):
 History is kept **per browser session**, server-side, and bounded (default 50
 turns; set `chat_history_size=...`).
 
-## Settings in the sidebar
+## Developer-declared settings
 
-Any parameter *other than* `query` and `history` renders in the sidebar as a
-setting, using the same type-hint inference as a regular Fast Dash app:
+Any parameter *other than* `query`, `history`, and `ctx` renders as a setting the
+**user** sets manually, using the same type-hint inference as a regular Fast Dash
+app — dropdowns, number inputs, switches, even a dataset upload:
 
 ```python
 from typing import Literal
+from fast_dash import fastdash, Upload
 
 @fastdash(chat=True)
 def assistant(
     query: str,
-    history: list,
     model: Literal["gpt-4", "claude", "gemini"] = "claude",
     temperature: float = 0.7,
+    dataset: Upload = None,
 ):
-    ...
+    ...   # model / temperature / dataset are passed to every turn
 ```
 
-`model` becomes a dropdown and `temperature` a number input; their live values
-are passed to every turn. With no such parameters, the sidebar is hidden and the
-chat fills the width.
+`model` becomes a dropdown, `temperature` a number input, `dataset` an upload
+box. Their live values are passed to the callback each turn. Without a canvas
+they render in a **sidebar**; with `canvas=True` they render in the **chat panel**
+above the composer (next to the assistant's dynamic controls). So one app can mix
+fixed, developer-declared inputs *and* assistant-built dynamic ones.
 
 ## The frame grammar
 

@@ -801,6 +801,23 @@ class TestChatCanvas:
         plain_ids = self._ids(plain.app.layout)
         assert "chat-canvas" not in plain_ids and "chat-inputs" not in plain_ids
 
+    def test_declared_settings_render_in_canvas_and_feed_callback(self):
+        # Developer-declared inputs (model/temperature) render on the chat side
+        # in canvas mode and reach the callback alongside ctx.canvas.
+        seen = {}
+        def bot(query, ctx, model: str = "sonnet", temperature: float = 0.7):
+            seen["model"], seen["temp"] = model, temperature
+            seen["canvas"] = dict(ctx.canvas)
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        assert app._chat_setting_names == ["model", "temperature"]
+        ids = self._ids(app.app.layout)
+        assert {"chat-settings", "model", "temperature"} <= ids   # rendered, not dropped
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("hi", "s1", "sock", ("opus", 0.9),
+                               canvas_values={"seed": 42})
+        assert seen == {"model": "opus", "temp": 0.9, "canvas": {"seed": 42}}
+
     def test_canvas_frame_renders_and_stores_state(self):
         def bot(query):
             yield {"type": "canvas", "specs": [

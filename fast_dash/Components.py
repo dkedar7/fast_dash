@@ -739,9 +739,15 @@ class AppLayout:
             className="fd-chat-composer-wrap",
         )
 
-        # In canvas mode, input controls the assistant builds render here (above
-        # the composer, on the chat side); the canvas holds only display output.
+        # In canvas mode, input controls live on the chat side, above the
+        # composer: developer-declared settings (model, temperature, an upload —
+        # always present, static) first, then the assistant-built dynamic inputs.
         panel_children = [message_list]
+        if canvas and has_settings:
+            panel_children.append(
+                html.Div(self.generate_input_component(), id="chat-settings",
+                         className="fd-chat-settings")
+            )
         if canvas:
             panel_children.append(
                 html.Div([], id="chat-inputs", className="fd-chat-inputs")
