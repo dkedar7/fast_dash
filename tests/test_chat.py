@@ -510,6 +510,21 @@ class TestChatAsgiTransport:
         # Two turns -> four messages retained server-side for the session.
         assert len(app._session("s1").msgs) == 4
 
+    def test_native_stream_transcript_is_bounded_by_history_size(self):
+        # The server-owned ASGI transcript is trimmed to the same window as
+        # history (2 * chat_history_size), so a long session can't grow it
+        # without bound.
+        import dash
+
+        app = FastDash(callback_fn=lambda query: "ok", chat=True,
+                       chat_history_size=2)
+        app._native_stream = True
+        with mock.patch.object(dash, "set_props", lambda cid, props: None):
+            for i in range(5):
+                app._run_chat_turn(f"q{i}", "s1", None, ())
+        # Five turns, but bounded to 2 pairs -> 4 messages retained.
+        assert len(app._session("s1").msgs) == 2 * 2
+
     @requires_fastapi
     def test_asgi_chat_layout_omits_socketio(self):
         app = FastDash(callback_fn=lambda query: "hi", chat=True, backend="fastapi")
@@ -854,6 +869,83 @@ class TestChatCanvas:
         assert val["type"] == "Grid"                     # laid out in a grid
         cols = val["props"]["children"]
         assert [c["props"]["span"] for c in cols] == [8, 4]   # side-by-side widths
+
+    def test_canvas_renders_image_component(self):
+        # Image is a display component too (src-based) — the last of the four.
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "logo", "type": "Image", "label": "Logo",
+                 "value": "data:image/png;base64,iVBORw0KGgo="}]}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "show image")
+        last = json.dumps([p for p in ops if isinstance(p, dict)
+                           and p.get("op") == "canvas"][-1]["value"])
+        assert "base64" in last                          # the src reached the canvas
+        assert app._session("s1").canvas_specs[0]["type"] == "Image"
+
+    def test_empty_specs_clears_the_canvas(self):
+        # Rebuilding from an empty spec list is how the assistant clears the
+        # canvas — both the stored state and the emitted output go empty.
+        def bot(query):
+            if "build" in query:
+                yield {"type": "canvas", "specs": [
+                    {"name": "n", "type": "Markdown", "value": "hi"}]}
+            else:
+                yield {"type": "canvas", "specs": []}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        self._ops(app, "build")
+        assert app._session("s1").canvas_specs             # built
+        ops = self._ops(app, "clear it")
+        assert app._session("s1").canvas_specs == []       # state cleared
+        last = [p for p in ops if isinstance(p, dict)
+                and p.get("op") == "canvas"][-1]["value"]
+        assert last == []                                  # emptied on the wire too
+
+    def test_set_props_patches_a_canvas_from_an_earlier_turn(self):
+        # The canvas is a surface the assistant maintains ACROSS turns: a later
+        # set_props patches specs built in an earlier turn (session-persisted).
+        def bot(query):
+            if "build" in query:
+                yield {"type": "canvas", "specs": [
+                    {"name": "chart", "type": "Graph", "value": {"data": []}}]}
+            else:
+                yield {"type": "set_props", "target": "chart",
+                       "props": {"figure": {"data": [{"type": "bar"}]}}}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        self._ops(app, "build")                            # turn 1 builds
+        ops = self._ops(app, "update it")                  # turn 2 patches turn 1's spec
+        assert app._session("s1").canvas_specs[0]["value"] == {"data": [{"type": "bar"}]}
+        last = json.dumps([p for p in ops if isinstance(p, dict)
+                           and p.get("op") == "canvas"][-1]["value"])
+        assert '"bar"' in last
+
+    def test_set_props_to_unknown_target_is_a_safe_noop(self):
+        # Patching a component that was never built must not crash the turn.
+        def bot(query):
+            yield {"type": "set_props", "target": "ghost", "props": {"figure": {}}}
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        self._ops(app, "patch ghost")                      # must not raise
+        assert app._session("s1").canvas_specs == []       # nothing created
+        assert app.chat_history.get("s1")[-1]["content"] == "ok"
+
+    def test_unknown_component_type_is_surfaced_not_fatal(self):
+        # The canvas is display-only, so a non-display type (e.g. an input
+        # widget) is caught at render and surfaced as an error — the session
+        # survives and a later well-formed turn still works.
+        def bot(query):
+            if "bad" in query:
+                yield {"type": "canvas", "specs": [
+                    {"name": "x", "type": "Slider", "value": 1}]}
+            else:
+                yield {"type": "canvas", "specs": [
+                    {"name": "n", "type": "Markdown", "value": "ok"}]}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        self._ops(app, "build bad")                        # must not raise
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "Error" in reply and "Slider" in reply      # surfaced to the user
+        self._ops(app, "build good")                       # session not poisoned
+        assert app._session("s1").canvas_specs[0]["type"] == "Markdown"
 
 
 class TestCanvasLLMOnramp:
