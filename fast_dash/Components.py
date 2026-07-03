@@ -739,21 +739,18 @@ class AppLayout:
             className="fd-chat-composer-wrap",
         )
 
-        # Input-control placement:
-        #  - drawer (app-first): developer settings + a Run button go in the left
-        #    navbar; the assistant's dynamic inputs stay with the chat, in the
-        #    collapsible drawer.
-        #  - panel (chat-first canvas): both the developer settings and the
-        #    dynamic inputs live in the chat panel, above the composer.
+        # Developer-declared settings placement:
+        #  - drawer (app-first): the settings + a Run button go in the left
+        #    navbar; the chat is a collapsible alternative view.
+        #  - panel (chat-first canvas): the settings live in the chat panel,
+        #    above the composer.
+        # (The canvas itself is display-only — the assistant builds output there,
+        #  not input widgets — so there is no chat-side dynamic-input region.)
         panel_children = [message_list]
         if canvas and has_settings and not drawer:
             panel_children.append(
                 html.Div(self.generate_input_component(), id="chat-settings",
                          className="fd-chat-settings")
-            )
-        if canvas:
-            panel_children.append(
-                html.Div([], id="chat-inputs", className="fd-chat-inputs")
             )
         panel_children.append(composer)
         main = html.Div(

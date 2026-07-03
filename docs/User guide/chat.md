@@ -69,8 +69,7 @@ def assistant(
 `model` becomes a dropdown, `temperature` a number input, `dataset` an upload
 box. Their live values are passed to the callback each turn. Without a canvas
 they render in a **sidebar**; with `canvas=True` they render in the **chat panel**
-above the composer (next to the assistant's dynamic controls). So one app can mix
-fixed, developer-declared inputs *and* assistant-built dynamic ones.
+above the composer.
 
 ## The frame grammar
 
@@ -84,7 +83,6 @@ dicts — every type below renders natively:
 | `tool_start` | `{"type": "tool_start", "name": str, "args": dict, "id": str}` | a tool-call card (spinner) |
 | `tool_end` | `{"type": "tool_end", "name": str, "result": Any, "id": str}` | resolves the matching card |
 | `artifact` | `{"type": "artifact", "content": Figure \| DataFrame \| Image \| str}` | an inline artifact |
-| `extraction` | `{"type": "extraction", "content": Any}` | a JSON card |
 | `interrupt` | `{"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}` | an approve/reject card |
 | `error` | `{"type": "error", "message": str}` | an error notice |
 
@@ -140,56 +138,56 @@ names — declare it to opt in:
 
 ```python
 def bot(query, history, ctx):
-    ...   # ctx.thread_id, ctx.canvas, ctx.resume
+    ...   # ctx.thread_id, ctx.resume
 ```
 
 - `ctx.thread_id` — the session id (the LangGraph checkpointer thread).
-- `ctx.canvas` — the canvas's live values `{name: value}` (empty without a canvas).
 - `ctx.resume` — a decision answering a pending interrupt (HITL), else `None`.
 
-## The canvas (assistant-built UI)
+## The canvas (assistant-built output)
 
-`canvas=True` adds a live output region beside the transcript that the assistant
-**builds and mutates** — a conversational [DynamicDash](dynamic.md). The chat
-becomes a left panel; the canvas is the main area. Two frames drive it, using the
-same UI-spec grammar as DynamicDash (`{name, type, props, value, label, span}`):
+`canvas=True` adds a live **output** region beside the transcript that the
+assistant **builds and mutates** — a conversational [DynamicDash](dynamic.md).
+The chat becomes a left panel; the canvas is the main area. It is a display
+surface — charts, tables, images, and text the assistant maintains across turns
+(a slider the user has to talk to would be inert, so the canvas holds output, not
+input widgets). Two frames drive it, using the same UI-spec grammar as
+DynamicDash (`{name, type, props, value, label, span}`):
 
-- `{"type": "canvas", "specs": [...]}` — (re)build the canvas from a spec list
-  (component types, properties, content).
+- `{"type": "canvas", "specs": [...]}` — (re)build the canvas from a spec list of
+  display components (`Graph`, `Table`, `Image`, `Markdown`).
 - `{"type": "set_props", "target": "<name>", "props": {...}}` — patch one
-  component in place (e.g. widen a slider's range).
+  component in place (e.g. swap a chart's `figure`).
 
 Each spec's optional **`span`** (out of 12, default 12 = full-width row) arranges
 components into a responsive grid — two `span: 6` panels sit side by side, so the
 assistant lays out real multi-column dashboards, not just a single column.
 
-`ctx.canvas` gives the assistant the canvas's **live values** each turn, so it can
-read what the user changed:
+The user drives the app by *talking*; the assistant reads the request and rebuilds
+or patches the canvas in response:
 
 ```python
+import numpy as np
+import plotly.graph_objects as go
 from fast_dash import FastDash
 
 def assistant(query, ctx):
-    if "build" in query.lower():
-        yield "Set the two numbers on the right, then say 'add them'."
-        yield {"type": "canvas", "specs": [
-            {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 20}},
-            {"name": "b", "type": "Slider", "value": 5, "props": {"min": 0, "max": 20}},
-        ]}
-    elif "add" in query.lower():
-        a, b = ctx.canvas["a"], ctx.canvas["b"]
-        yield f"{a} + {b} = {a + b}"
+    n = 200 if "more" in query.lower() else 50
+    x = np.linspace(0, 12, n)
+    fig = go.Figure(go.Scatter(x=x, y=np.sin(x)))
+    yield f"Plotted {n} points."
+    yield {"type": "canvas", "specs": [
+        {"name": "plot", "type": "Graph", "value": fig, "span": 12},
+    ]}
 
 FastDash(callback_fn=assistant, chat=True, canvas=True).run()
 ```
 
-Components split by kind automatically: **input** widgets (`Slider`, `Select`,
-`Switch`, `ColorInput`, …) render in an input area on the chat side (above the
-composer), while **display** components (`Graph`, `Table`, `Image`, `Markdown`)
-render in the output canvas. So the assistant builds a control panel on one side
-and a live dashboard on the other, from a single spec list. The canvas is a
-separate surface from the transcript: `content` frames still stream into the
-chat, while `canvas`/`set_props` frames target it.
+The canvas is a separate surface from the transcript: `content` frames still
+stream into the chat, while `canvas`/`set_props` frames target the canvas. For
+fixed, user-set controls (model, temperature, an upload), declare them as
+[settings](#developer-declared-settings) — they render on the chat side and their
+live values reach the callback each turn.
 
 ### Driving the canvas with an LLM
 
@@ -268,27 +266,16 @@ where it paused. Multi-step approvals just pause again. (Resume is a LangGraph
 capability, so the live decision buttons appear for langstage agents; a plain
 generator that yields an `interrupt` frame renders the card as informational.)
 
-## Serving the agent over AG-UI
-
-`serve_agui=True` (LangGraph agent on `backend="fastapi"`) mounts an AG-UI SSE
-endpoint at `/agui`, so external AG-UI frontends (e.g. CopilotKit) can drive the
-same graph the chat UI does — the mirror of the MCP story:
-
-```python
-FastDash(callback_fn="my_pkg.agents:graph", chat=True,
-         backend="fastapi", serve_agui=True).run()
-```
-
 ## Driving a chat app over MCP
 
 `mcp_server=True` exposes the chat app to agents at `/mcp`:
 
 - `describe_app()` reports the composer contract (the `query` string), any
   sidebar `settings`, and — with a canvas — its current specs and component types.
-- `invoke(query=..., settings=..., canvas_values=...)` runs one turn headlessly
-  and returns its frames (JSON-safe) plus the post-turn `canvas` specs; history
-  and thread state advance across calls. So a headless agent sees and drives the
-  canvas exactly as a browser user does.
+- `invoke(query=..., settings=...)` runs one turn headlessly and returns its
+  frames (JSON-safe) plus the post-turn `canvas` specs (the display output the
+  assistant built); history and thread state advance across calls. So a headless
+  agent sees the canvas exactly as a browser user does.
 
 ## What chat mode does and doesn't allow
 

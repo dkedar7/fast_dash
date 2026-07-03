@@ -187,7 +187,7 @@
   font-size: 11px; color: var(--mantine-color-dimmed);
   margin-left: auto; text-transform: uppercase; letter-spacing: 0.04em;
 }
-.fd-chat-tool-args, .fd-chat-tool-result, .fd-chat-extraction {
+.fd-chat-tool-args, .fd-chat-tool-result {
   margin: 6px 0 0; padding: 8px; border-radius: 6px;
   background: var(--mantine-color-default-hover);
   font-size: 12px; overflow-x: auto; white-space: pre-wrap; max-width: 100%;
@@ -226,19 +226,8 @@
   color: var(--mantine-color-dimmed); font-size: 14px; font-style: italic;
 }
 
-/* Canvas input area: the assistant's controls, above the composer (chat side). */
-.fd-chat-inputs {
-  flex: 0 0 auto;
-  max-height: 42vh;
-  overflow-y: auto;
-  overflow-x: hidden;
-  padding: 12px 8px;
-  border-top: 1px solid var(--mantine-color-default-border);
-}
-.fd-chat-inputs:empty { display: none; padding: 0; border: 0; }
-
 /* Developer-declared settings (model, temperature, upload) — static, on the
-   chat side, above the assistant's dynamic input area. */
+   chat side, above the composer. */
 .fd-chat-settings {
   flex: 0 0 auto;
   max-height: 40vh;

@@ -60,21 +60,7 @@ def build_chat_callback(target):
 
     _langstage_chat.__fast_dash_langstage__ = True
     _langstage_chat.__fast_dash_agent__ = agent
-    _langstage_chat.__fast_dash_graph__ = graph      # raw graph, for AG-UI serving
     return _langstage_chat
-
-
-def serve_agui_endpoint(fastapi_app, graph, *, path="/agui", name="Fast Dash chat"):
-    """Mount an AG-UI SSE endpoint for ``graph`` on an existing FastAPI app.
-
-    Lets external AG-UI frontends (e.g. CopilotKit) drive the same graph the
-    chat UI does — the mirror of the MCP story. Requires the langstage extra.
-    """
-    try:
-        from langstage_core.agui import add_agui_endpoint
-    except ImportError as e:                          # extra not installed
-        raise ImportError(_MISSING_EXTRA_MSG) from e
-    return add_agui_endpoint(fastapi_app, graph, path=path, name=name)
 
 
 def make_resume_input(decisions, value=None):

@@ -639,15 +639,15 @@ class TestChatMcp:
 
 
 def _canvas_chat_app(**kw):
-    def bot(query: str, ctx):
+    def bot(query: str):
         """A canvas-building assistant, over MCP."""
         if "build" in query.lower():
             yield {"type": "canvas", "specs": [
-                {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 10}},
+                {"name": "a", "type": "Markdown", "value": "## Report"},
             ]}
             yield "built"
         else:
-            yield f"a is {ctx.canvas.get('a')}"
+            yield "nothing to build yet"
     return FastDash(callback_fn=bot, chat=True, canvas=True, mcp_server=True, **kw)
 
 
@@ -668,9 +668,3 @@ class TestChatCanvasMcp:
         assert out["canvas"]["specs"][0]["name"] == "a"  # canvas reflected back
         # And a later describe_app sees the built canvas.
         assert _call(c, "describe_app")["canvas"]["specs"][0]["name"] == "a"
-
-    def test_invoke_reads_canvas_values(self):
-        c = _client_for(_canvas_chat_app())
-        _call(c, "invoke", {"query": "build it"})
-        out = _call(c, "invoke", {"query": "read", "canvas_values": {"a": 9}})
-        assert out["ok"] is True and "a is 9" in out["content"]

@@ -12,7 +12,6 @@ import inspect
 import json
 import threading
 import time
-import warnings
 
 from plotly.io.json import to_json_plotly
 
@@ -93,38 +92,10 @@ class ChatAppMixin:
         self.app.title = self.title or ""
         self._set_chat_layout()
         self._register_chat_callbacks()
-        if self.serve_agui:
-            self._mount_agui()
 
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
-
-    def _mount_agui(self):
-        """Serve the chat's LangGraph over AG-UI SSE at ``/agui`` (Phase 4).
-
-        Mirrors the MCP story: an external AG-UI frontend can drive the same
-        graph the chat UI does. Requires a langstage agent on an ASGI backend
-        (AG-UI is an SSE transport); anything else is a friendly no-op warning.
-        """
-        if not self.is_langstage:
-            warnings.warn(
-                "serve_agui=True needs a LangGraph agent (chat=True with a graph "
-                "or 'module:attr' spec); no AG-UI endpoint was mounted.",
-                stacklevel=2,
-            )
-            return
-        if not self._backend:
-            warnings.warn(
-                "serve_agui=True needs an ASGI backend (backend='fastapi'); "
-                "AG-UI is served over SSE. No AG-UI endpoint was mounted.",
-                stacklevel=2,
-            )
-            return
-        from .adapters.langstage import serve_agui_endpoint
-        graph = getattr(self.callback_fn, "__fast_dash_graph__", None)
-        serve_agui_endpoint(self.app.server, graph, path="/agui",
-                            name=self.title or "Fast Dash chat")
 
     # ----- chat mode: layout + callbacks (RFC #133) ---------------------- #
 
@@ -141,7 +112,7 @@ class ChatAppMixin:
 
         ``blocks`` is a list of ``{"kind": ...}`` dicts accumulated from the
         frame stream: ``text`` / ``reasoning`` / ``tool`` / ``artifact`` /
-        ``extraction``. During streaming, text stays raw and artifacts show a
+        ``interrupt``. During streaming, text stays raw and artifacts show a
         placeholder; the final render materializes markdown + artifacts.
         """
         from dash import dcc, html
@@ -160,8 +131,6 @@ class ChatAppMixin:
                 parts.append(self._chat_tool_card(b))
             elif kind == "artifact":
                 parts.append(self._chat_artifact_block(b["content"], streaming))
-            elif kind == "extraction":
-                parts.append(self._chat_extraction_card(b.get("content")))
             elif kind == "interrupt":
                 parts.append(self._chat_interrupt_card(b, pending=not b.get("resolved")))
         return html.Div(
@@ -263,10 +232,6 @@ class ChatAppMixin:
         return dmc.Paper([header] + body, withBorder=True, radius="sm",
                          p="xs", className="fd-chat-tool")
 
-    def _chat_extraction_card(self, content):
-        from dash import html
-        return html.Pre(self._chat_short_json(content), className="fd-chat-extraction")
-
     @staticmethod
     def _chat_short_json(value, limit=800):
         """Compact, JSON-safe, length-capped string for tool args/results."""
@@ -334,64 +299,21 @@ class ChatAppMixin:
         """Serialize a Dash component to the plotly-json the reducer inserts."""
         return json.loads(to_json_plotly(component))
 
-    # Component value-props that feed back through ctx.canvas — i.e. inputs.
-    # Everything else (figure / data / src / children) is display output.
-    _CANVAS_INPUT_PROPS = frozenset({"value", "checked", "contents"})
-
-    def _partition_canvas_specs(self, specs):
-        """Split specs into (input_specs, display_specs) by component value-prop.
-
-        Input widgets (Slider/Select/Switch/...) render in the chat-side input
-        area; display components (Graph/Table/Image/Markdown) render in the
-        output canvas. Read-back is unaffected — the dyn-input ids are the same
-        wherever they render.
-        """
-        from .dynamic import CANVAS_COMPONENT_REGISTRY
-        inputs, displays = [], []
-        for spec in specs:
-            factory = CANVAS_COMPONENT_REGISTRY.get(spec.get("type"))
-            prop = getattr(factory, "component_property", "value")
-            (inputs if prop in self._CANVAS_INPUT_PROPS else displays).append(spec)
-        return inputs, displays
-
     def _chat_canvas_render(self, sid):
-        """Render the session's canvas specs, split into input vs display children.
+        """Render the session's canvas specs into display children (RFC #133).
 
-        Returns ``{"inputs": [...], "canvas": [...]}`` — the input controls (for
-        the chat-side input area) and the display output (for the canvas). Reuses
-        DynamicDash's ``render_spec`` verbatim; ``grid=True`` honours each spec's
-        ``span`` for arrangement.
+        The canvas is a display surface the assistant builds and mutates
+        (charts, tables, images, text). Reuses DynamicDash's ``render_spec``
+        verbatim; ``grid=True`` honours each spec's ``span`` for arrangement.
+        Returns the list of rendered children for ``chat-canvas``.
         """
         from .dynamic import CANVAS_COMPONENT_REGISTRY, render_spec
-        input_specs, display_specs = self._partition_canvas_specs(
-            self._session(sid).canvas_specs)
-
-        def _children(specs):
-            if not specs:
-                return []                       # keep the region truly empty
-            div = render_spec(specs, container_id="_canvas_render",
-                              registry=CANVAS_COMPONENT_REGISTRY, grid=True)
-            return self._chat_bubble_json(div).get("props", {}).get("children", [])
-
-        return {"inputs": _children(input_specs), "canvas": _children(display_specs)}
-
-    @staticmethod
-    def _gather_canvas_values(states):
-        """Build ``{name: value}`` from the canvas pattern-matching ALL-states.
-
-        ``states`` is ``(vals_value, vals_checked, vals_contents, ids_value,
-        ids_checked, ids_contents)`` — the same homogeneous-property pool
-        DynamicDash reads its form values from.
-        """
-        (vals_value, vals_checked, vals_contents,
-         ids_value, ids_checked, ids_contents) = states
-        out = {}
-        for vals, ids in ((vals_value, ids_value), (vals_checked, ids_checked),
-                          (vals_contents, ids_contents)):
-            for v, idd in zip(vals or [], ids or []):
-                if isinstance(idd, dict) and "name" in idd:
-                    out[idd["name"]] = v
-        return out
+        specs = self._session(sid).canvas_specs
+        if not specs:
+            return []                           # keep the region truly empty
+        div = render_spec(specs, container_id="_canvas_render",
+                          registry=CANVAS_COMPONENT_REGISTRY, grid=True)
+        return self._chat_bubble_json(div).get("props", {}).get("children", [])
 
     def _chat_canvas_apply(self, sid, frame):
         """Apply a ``canvas`` or ``set_props`` frame to the session's spec state."""
@@ -454,7 +376,7 @@ class ChatAppMixin:
         )
 
     def _register_chat_callbacks(self):
-        from dash import ALL, Input, Output, State
+        from dash import Input, Output, State
         from dash.exceptions import PreventUpdate
 
         app = self.app
@@ -513,21 +435,19 @@ class ChatAppMixin:
             )
 
             # (2b) Canvas reducer (Flask + canvas mode): a 'canvas' op on the
-            # dedicated chat_canvas event carries the full rendered state, split
-            # into input controls (chat-side) and display output (the canvas);
-            # replace both wholesale (full-state, coalescing-safe).
+            # dedicated chat_canvas event carries the full rendered display
+            # output; replace the canvas wholesale (full-state, coalescing-safe).
             if self.is_canvas:
                 app.clientside_callback(
                     """
                     function(payload) {
-                        var no = dash_clientside.no_update;
-                        if (!payload || payload.op !== 'canvas') { return [no, no]; }
-                        var v = payload.value || {};
-                        return [v.inputs || [], v.canvas || []];
+                        if (!payload || payload.op !== 'canvas') {
+                            return dash_clientside.no_update;
+                        }
+                        return payload.value || [];
                     }
                     """,
-                    [Output("chat-inputs", "children", allow_duplicate=True),
-                     Output("chat-canvas", "children", allow_duplicate=True)],
+                    Output("chat-canvas", "children", allow_duplicate=True),
                     Input("socketio", "data-chat_canvas"),
                     prevent_initial_call=True,
                 )
@@ -596,17 +516,6 @@ class ChatAppMixin:
         if not self._native_stream:
             turn_states.append(State("socketio", "socketId"))
         turn_states += setting_states
-        # Canvas value read-back: the same homogeneous-property pool DynamicDash
-        # gathers its form values from (6 ALL-states, appended last).
-        if self.is_canvas:
-            turn_states += [
-                State({"role": "dyn-input", "name": ALL, "prop": "value"}, "value"),
-                State({"role": "dyn-input", "name": ALL, "prop": "checked"}, "checked"),
-                State({"role": "dyn-input", "name": ALL, "prop": "contents"}, "contents"),
-                State({"role": "dyn-input", "name": ALL, "prop": "value"}, "id"),
-                State({"role": "dyn-input", "name": ALL, "prop": "checked"}, "id"),
-                State({"role": "dyn-input", "name": ALL, "prop": "contents"}, "id"),
-            ]
 
         _turn_cb_kwargs = dict(prevent_initial_call=True)
         if self._native_stream:
@@ -621,11 +530,6 @@ class ChatAppMixin:
         )
         def _chat_turn(submit, session_id, *rest):
             rest = list(rest)
-            # Canvas ALL-states are appended last; peel them off to read values.
-            canvas_values = None
-            if self.is_canvas:
-                canvas_values = self._gather_canvas_values(rest[-6:])
-                rest = rest[:-6]
             # Flask: rest = (socket_id, *setting_values); ASGI: rest = setting_values.
             if self._native_stream:
                 socket_id = None
@@ -660,7 +564,6 @@ class ChatAppMixin:
 
             try:
                 self._run_chat_turn(query, sid, socket_id, setting_values,
-                                    canvas_values=canvas_values,
                                     to_transcript=not is_run)
                 return False, []
             finally:
@@ -796,7 +699,7 @@ class ChatAppMixin:
 
     def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
                        resume=None, resume_decision=None, resume_blocks=None,
-                       canvas_values=None, to_transcript=True):
+                       to_transcript=True):
         """Drive one chat turn, streaming its blocks to the browser.
 
         Two transports, one turn-driver:
@@ -809,9 +712,9 @@ class ChatAppMixin:
           server owns the per-session transcript and pushes the *full* rendered
           message list straight to ``chat-messages.children`` on each flush.
 
-        Either way the callback's content/reasoning/tool/artifact/extraction
-        frames are accumulated into ordered blocks, the live bubble re-renders on
-        a batched cadence, and the finished turn is rendered once at completion.
+        Either way the callback's content/reasoning/tool/artifact frames are
+        accumulated into ordered blocks, the live bubble re-renders on a batched
+        cadence, and the finished turn is rendered once at completion.
 
         When ``resume`` is given (HITL, Phase 4) the turn *continues* the paused
         assistant bubble: no new user/assistant bubbles are added, the blocks are
@@ -853,9 +756,7 @@ class ChatAppMixin:
                     del msgs[2 * self.chat_history_size:]
 
             def _emit_canvas():
-                rendered = self._chat_canvas_render(sid)
-                set_props("chat-inputs", {"children": rendered["inputs"]})
-                set_props("chat-canvas", {"children": rendered["canvas"]})
+                set_props("chat-canvas", {"children": self._chat_canvas_render(sid)})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
             _sio_emit = None
@@ -921,8 +822,6 @@ class ChatAppMixin:
                 _flush(True)
             elif t == "artifact":
                 blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
-            elif t == "extraction":
-                blocks.append({"kind": "extraction", "content": frame.get("content")}); _flush(True)
             elif t == "canvas" or t == "set_props":
                 # Canvas mutations target the side canvas, not the transcript.
                 self._chat_canvas_apply(sid, frame)
@@ -959,7 +858,7 @@ class ChatAppMixin:
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid, resume=resume, canvas=canvas_values,
+            thread_id=sid, resume=resume,
         )
 
         if self._chat_cancelled(sid):

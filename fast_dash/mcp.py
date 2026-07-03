@@ -500,15 +500,14 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
         }
 
     @mcp_enabled(name="invoke", expose_docstring=True)
-    def invoke(query: str, settings: dict = None, canvas_values: dict = None) -> dict:
+    def invoke(query: str, settings: dict = None) -> dict:
         """Run one chat turn headlessly and return its frames (JSON-safe).
 
         ``query`` is the composer text. ``settings`` optionally sets sidebar
         values (keyed by parameter ``name`` from ``describe_app``).
-        ``canvas_values`` supplies the canvas's live values the turn should see
-        (as a browser user's edits would), keyed by canvas component name.
         History and thread state advance across calls. When the app has a canvas,
-        the response includes the post-turn ``canvas`` specs.
+        the response includes the post-turn ``canvas`` specs (the display output
+        the assistant built).
         """
         if not isinstance(query, str) or not query.strip():
             return {"ok": False, "error": "query must be a non-empty string"}
@@ -539,7 +538,6 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
                 fd.callback_fn, query.strip(),
                 history=history, settings=settings, emit=_emit,
                 friendly_error=lambda m: m, thread_id=_MCP_CHAT_SID,
-                canvas=canvas_values,
             )
         except Exception as e:                     # defensive: never crash /mcp
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}

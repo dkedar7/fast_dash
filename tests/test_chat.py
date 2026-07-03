@@ -423,7 +423,6 @@ class TestChatRichFrames:
             {"kind": "tool", "id": "2", "name": "u", "args": None, "result": None, "status": "running"},
             {"kind": "artifact", "content": go.Figure()},
             {"kind": "artifact", "content": pd.DataFrame({"a": [1, 2]})},
-            {"kind": "extraction", "content": {"k": "v"}},
         ]
         # Both streaming and final renders must serialize cleanly to plotly-json.
         for streaming in (True, False):
@@ -545,7 +544,7 @@ class TestSessionState:
 
 
 class TestChatContext:
-    """A single `ctx` object carries thread_id / canvas / resume (RFC #133)."""
+    """A single `ctx` object carries thread_id / resume (RFC #133)."""
 
     def _run(self, app, query, sid="s1"):
         with mock.patch("flask_socketio.emit"):
@@ -563,7 +562,7 @@ class TestChatContext:
         self._run(app, "hi", sid="sessionABC")
         assert isinstance(seen["ctx"], ChatContext)
         assert seen["ctx"].thread_id == "sessionABC"
-        assert seen["ctx"].canvas == {} and seen["ctx"].resume is None
+        assert seen["ctx"].resume is None
 
     def test_ctx_not_passed_when_undeclared(self):
         # A callback without ctx must never receive it (the 5-line promise).
@@ -721,39 +720,14 @@ class TestChatHitl:
             assert app._resume_chat_turn("nosuch", "sock", "approve") is False
 
 
-class TestAguiServing:
-    """AG-UI SSE endpoint serving (RFC #133 Phase 4)."""
-
-    @requires_langstage
-    def test_non_asgi_warns_and_skips(self):
-        with pytest.warns(UserWarning, match="ASGI backend"):
-            app = FastDash(callback_fn="langstage_core.demo.stub:graph",
-                           chat=True, serve_agui=True)
-        assert app.serve_agui is True                 # requested, but not mounted
-
-    @requires_langstage
-    def test_non_langstage_warns_and_skips(self):
-        with pytest.warns(UserWarning, match="LangGraph agent"):
-            FastDash(callback_fn=lambda query: "hi", chat=True,
-                     backend="fastapi", serve_agui=True)
-
-    @requires_fastapi
-    @requires_langstage
-    def test_agui_endpoint_mounted_on_asgi(self):
-        app = FastDash(callback_fn="langstage_core.demo.stub:graph", chat=True,
-                       backend="fastapi", serve_agui=True)
-        paths = {getattr(r, "path", None) for r in app.app.server.routes}
-        assert "/agui" in paths
-
-
 class TestCanvasFrames:
     """Frame grammar for the canvas hybrid (chat ⇄ DynamicDash)."""
 
     def test_canvas_frame_normalizes(self):
         from fast_dash.chat import _normalize_frame
         f = _normalize_frame({"type": "canvas",
-                              "specs": [{"name": "a", "type": "Slider"}]})
-        assert f == {"type": "canvas", "specs": [{"name": "a", "type": "Slider"}]}
+                              "specs": [{"name": "a", "type": "Graph"}]})
+        assert f == {"type": "canvas", "specs": [{"name": "a", "type": "Graph"}]}
 
     def test_canvas_frame_requires_specs_list(self):
         from fast_dash.chat import ChatFrameError, _normalize_frame
@@ -794,81 +768,60 @@ class TestChatCanvas:
         app = FastDash(callback_fn=lambda query: "hi", chat=True, canvas=True)
         assert app.is_canvas is True
         ids = self._ids(app.app.layout)
-        # Output canvas (main) + input area (chat side) + transcript.
-        assert {"chat-canvas", "chat-inputs", "chat-messages"} <= ids
-        # A plain chat app has neither canvas region.
+        # Output canvas (main) + transcript.
+        assert {"chat-canvas", "chat-messages"} <= ids
+        # A plain chat app has no canvas region.
         plain = FastDash(callback_fn=lambda query: "hi", chat=True)
         plain_ids = self._ids(plain.app.layout)
-        assert "chat-canvas" not in plain_ids and "chat-inputs" not in plain_ids
+        assert "chat-canvas" not in plain_ids
 
     def test_declared_settings_render_in_canvas_and_feed_callback(self):
         # Developer-declared inputs (model/temperature) render on the chat side
-        # in canvas mode and reach the callback alongside ctx.canvas.
+        # in canvas mode and their live values reach the callback each turn.
         seen = {}
-        def bot(query, ctx, model: str = "sonnet", temperature: float = 0.7):
+        def bot(query, model: str = "sonnet", temperature: float = 0.7):
             seen["model"], seen["temp"] = model, temperature
-            seen["canvas"] = dict(ctx.canvas)
             yield "ok"
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
         assert app._chat_setting_names == ["model", "temperature"]
         ids = self._ids(app.app.layout)
         assert {"chat-settings", "model", "temperature"} <= ids   # rendered, not dropped
         with mock.patch("flask_socketio.emit"):
-            app._run_chat_turn("hi", "s1", "sock", ("opus", 0.9),
-                               canvas_values={"seed": 42})
-        assert seen == {"model": "opus", "temp": 0.9, "canvas": {"seed": 42}}
+            app._run_chat_turn("hi", "s1", "sock", ("opus", 0.9))
+        assert seen == {"model": "opus", "temp": 0.9}
 
     def test_canvas_frame_renders_and_stores_state(self):
         def bot(query):
             yield {"type": "canvas", "specs": [
-                {"name": "amount", "type": "Slider", "value": 3,
-                 "props": {"min": 0, "max": 10}},
+                {"name": "note", "type": "Markdown", "value": "## Report"},
             ]}
             yield "done"
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
         ops = self._ops(app, "build")
         canvas_ops = [p for p in ops if isinstance(p, dict) and p.get("op") == "canvas"]
         assert canvas_ops, "no canvas op emitted"
-        assert app._session("s1").canvas_specs[0]["name"] == "amount"
+        assert app._session("s1").canvas_specs[0]["name"] == "note"
         # The transcript is unaffected by canvas frames.
         assert app.chat_history.get("s1")[-1]["content"] == "done"
 
     def test_set_props_routes_value_and_props(self):
         def bot(query):
             yield {"type": "canvas", "specs": [
-                {"name": "amount", "type": "Slider", "value": 3,
-                 "props": {"min": 0, "max": 10}}]}
-            yield {"type": "set_props", "target": "amount",
-                   "props": {"max": 100, "value": 42}}
+                {"name": "chart", "type": "Graph", "value": {"data": []},
+                 "props": {"style": {"height": "300px"}}}]}
+            yield {"type": "set_props", "target": "chart",
+                   "props": {"figure": {"data": [{"type": "bar"}]},
+                             "config": {"staticPlot": True}}}
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
         ops = self._ops(app, "patch")
         spec = app._session("s1").canvas_specs[0]
-        assert spec["value"] == 42                      # value routed to spec['value']
-        assert spec["props"]["max"] == 100              # other props merged
+        # 'figure' is Graph's value-prop, so it routes to spec['value'];
+        # 'config' is an ordinary prop and merges into spec['props'].
+        assert spec["value"] == {"data": [{"type": "bar"}]}
+        assert spec["props"]["config"] == {"staticPlot": True}
         last = json.dumps([p for p in ops if isinstance(p, dict)
                            and p.get("op") == "canvas"][-1]["value"])
-        assert '"max": 100' in last or '"max":100' in last
-
-    def test_canvas_values_injected_via_ctx(self):
-        seen = {}
-        def bot(query, ctx):
-            seen.update(ctx.canvas)
-            yield f"amount={ctx.canvas.get('amount')}"
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        assert app._chat_setting_names == []            # ctx is not a setting
-        self._ops(app, "read", canvas_values={"amount": 7})
-        assert seen == {"amount": 7}
-        assert app.chat_history.get("s1")[-1]["content"] == "amount=7"
-
-    def test_gather_canvas_values_by_name(self):
-        app = FastDash(callback_fn=lambda query: "x", chat=True, canvas=True)
-        states = (
-            [7], [True], [],
-            [{"role": "dyn-input", "name": "amount", "prop": "value"}],
-            [{"role": "dyn-input", "name": "agree", "prop": "checked"}],
-            [],
-        )
-        assert app._gather_canvas_values(states) == {"amount": 7, "agree": True}
+        assert '"bar"' in last
 
     def test_canvas_renders_display_components(self):
         # E1: the assistant can build dashboards (charts/tables), not just forms.
@@ -898,30 +851,9 @@ class TestChatCanvas:
         ops = self._ops(app, "grid")
         val = [p for p in ops if isinstance(p, dict)
                and p.get("op") == "canvas"][-1]["value"]
-        grid = val["canvas"]                             # Markdown is display -> canvas
-        assert grid["type"] == "Grid"                    # laid out in a grid
-        cols = grid["props"]["children"]
+        assert val["type"] == "Grid"                     # laid out in a grid
+        cols = val["props"]["children"]
         assert [c["props"]["span"] for c in cols] == [8, 4]   # side-by-side widths
-
-    def test_inputs_and_displays_split_into_regions(self):
-        # Input controls render on the chat side; display components on the canvas.
-        import plotly.graph_objects as go
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "n", "type": "Slider", "value": 3, "props": {"min": 0, "max": 9}},
-                {"name": "on", "type": "Switch", "value": True},
-                {"name": "chart", "type": "Graph", "value": go.Figure(go.Bar(x=[1], y=[2]))},
-                {"name": "note", "type": "Markdown", "value": "hello"},
-            ]}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "build")
-        val = [p for p in ops if isinstance(p, dict)
-               and p.get("op") == "canvas"][-1]["value"]
-        inputs_blob = json.dumps(val["inputs"])
-        canvas_blob = json.dumps(val["canvas"])
-        assert '"Slider"' in inputs_blob and '"Switch"' in inputs_blob   # inputs side
-        assert '"bar"' in canvas_blob                                     # chart on canvas
-        assert '"Slider"' not in canvas_blob and '"bar"' not in inputs_blob
 
 
 class TestCanvasLLMOnramp:
@@ -934,14 +866,16 @@ class TestCanvasLLMOnramp:
         assert names == {"build_canvas", "set_canvas_props"}
         build = next(t for t in specs if t["name"] == "build_canvas")
         item = build["input_schema"]["properties"]["specs"]["items"]
-        assert "Graph" in item["properties"]["type"]["enum"]      # display types offered
+        # The canvas is display-only, so only display components are offered.
+        assert set(item["properties"]["type"]["enum"]) == {
+            "Graph", "Image", "Markdown", "Table"}
         assert item["required"] == ["name", "type"]
 
     def test_apply_build_canvas_tool_call(self):
         from fast_dash import apply_tool_call
         frame = apply_tool_call({"name": "build_canvas",
-                                 "input": {"specs": [{"name": "a", "type": "Slider"}]}})
-        assert frame == {"type": "canvas", "specs": [{"name": "a", "type": "Slider"}]}
+                                 "input": {"specs": [{"name": "a", "type": "Graph"}]}})
+        assert frame == {"type": "canvas", "specs": [{"name": "a", "type": "Graph"}]}
 
     def test_apply_set_props_tool_call(self):
         from fast_dash import apply_tool_call
@@ -970,8 +904,9 @@ class TestCanvasLLMOnramp:
         from fast_dash import apply_tool_call
         calls = [
             {"name": "build_canvas", "input": {"specs": [
-                {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 10}}]}},
-            {"name": "set_canvas_props", "input": {"target": "a", "props": {"max": 50}}},
+                {"name": "chart", "type": "Graph", "value": {"data": []}, "props": {}}]}},
+            {"name": "set_canvas_props",
+             "input": {"target": "chart", "props": {"config": {"staticPlot": True}}}},
         ]
         def bot(query):
             for tc in calls:
@@ -979,7 +914,7 @@ class TestCanvasLLMOnramp:
         app = FastDash(callback_fn=bot, chat=True, canvas=True)
         with mock.patch("flask_socketio.emit"):
             app._run_chat_turn("go", "s1", "sock", ())
-        assert app._session("s1").canvas_specs[0]["props"]["max"] == 50
+        assert app._session("s1").canvas_specs[0]["props"]["config"] == {"staticPlot": True}
 
 
 class TestChatDrawer:

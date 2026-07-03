@@ -81,14 +81,15 @@ COMPONENT_REGISTRY: dict[str, Any] = {
     "UploadImage": UploadImage,
 }
 
-# The chat canvas renders *display* components too (charts, tables, images), not
-# just the input widgets DynamicDash forms use. Kept separate so the input
-# registry stays input-only.
+# The chat canvas is a *display* surface the assistant builds and mutates
+# (charts, tables, images, text) — not an input form. Kept deliberately
+# display-only: assistant-built input widgets would be inert (nothing reads them
+# back), so the canvas advertises only components that render output.
 CANVAS_COMPONENT_REGISTRY: dict[str, Any] = {
-    **COMPONENT_REGISTRY,
     "Graph": Graph,
     "Table": Table,
     "Image": Image,
+    "Markdown": Markdown,
 }
 
 

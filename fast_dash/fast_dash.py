@@ -134,7 +134,6 @@ class FastDash(ChatAppMixin):
         chat_history_size=50,
         canvas=False,
         chat_drawer=False,
-        serve_agui=False,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -279,7 +278,6 @@ class FastDash(ChatAppMixin):
                 "canvas=True / chat_drawer=True have no effect without chat=True; "
                 "ignoring.", stacklevel=2,
             )
-        self.serve_agui = bool(serve_agui)
         self.is_langstage = False
         if self.is_chat:
             # A LangGraph graph or "module:attr" spec is bridged to the frame
@@ -2049,7 +2047,6 @@ def fastdash(
     chat_history_size=50,
     canvas=False,
     chat_drawer=False,
-    serve_agui=False,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2169,7 +2166,6 @@ def fastdash(
             chat_history_size=chat_history_size,
             canvas=canvas,
             chat_drawer=chat_drawer,
-            serve_agui=serve_agui,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,

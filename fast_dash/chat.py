@@ -22,7 +22,6 @@ carried for later phases):
     tool_end   {"type": "tool_end",  "name": str, "result": Any,   "id"?: str}
     artifact   {"type": "artifact",  "content": Figure|DataFrame|Image|str}
     interrupt  {"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}
-    extraction {"type": "extraction","content": Any}
     complete   {"type": "complete"}
     error      {"type": "error",     "message": str}
 
@@ -49,14 +48,11 @@ class ChatContext:
     parameter names:
 
     * ``thread_id`` -- the chat session id (a LangGraph checkpointer thread).
-    * ``canvas`` -- the canvas's live values ``{name: value}`` (empty when
-      ``canvas=False``); see the assistant-driven canvas.
     * ``resume`` -- a decision answering a pending ``interrupt`` (HITL), else
       ``None``.
     """
 
     thread_id: str = "default"
-    canvas: dict = dataclasses.field(default_factory=dict)
     resume: Any = None
 
 # Frame type constants -------------------------------------------------------
@@ -66,7 +62,6 @@ TOOL_START = "tool_start"
 TOOL_END = "tool_end"
 ARTIFACT = "artifact"
 INTERRUPT = "interrupt"
-EXTRACTION = "extraction"
 CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
 SET_PROPS = "set_props"    # patch one canvas component's props/value
 COMPLETE = "complete"
@@ -74,7 +69,7 @@ ERROR = "error"
 
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, EXTRACTION, CANVAS, SET_PROPS, COMPLETE, ERROR}
+     INTERRUPT, CANVAS, SET_PROPS, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -154,8 +149,6 @@ def _normalize_frame(frame):
             "review_configs": frame.get("review_configs", []),
             "allowed_decisions": frame.get("allowed_decisions", []),
         }
-    elif ftype == EXTRACTION:
-        frame = {"type": EXTRACTION, "content": frame.get("content")}
     elif ftype == CANVAS:
         specs = frame.get("specs")
         if not isinstance(specs, (list, tuple)):
@@ -405,8 +398,7 @@ def has_text(blocks):
 
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None, cancelled=None, thread_id=None, resume=None,
-             canvas=None):
+             friendly_error=None, cancelled=None, thread_id=None, resume=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -432,10 +424,9 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
         kwargs["history"] = list(history or [])
     if _declares(callback_fn, "ctx"):
         # Power features fold into one context object instead of separate magic
-        # params (thread_id / resume / canvas).
+        # params (thread_id / resume).
         kwargs["ctx"] = ChatContext(
             thread_id=thread_id or "default",
-            canvas=dict(canvas or {}),
             resume=resume,
         )
 
