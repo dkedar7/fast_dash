@@ -1319,3 +1319,37 @@ class TestChatSidecar:
         assert "No input named 'ghost'" in reply
         assert "Error running the app" not in reply       # no raw exception
         assert app.output_state == ["r=All"]              # ran with the valid value
+
+    def test_set_input_rejects_wrong_type(self):
+        # OI-A (from Stage-3 dogfood): a wrong-type value is refused (not silently
+        # coerced to garbage); run_app then runs on the valid current value.
+        def dashboard(n: int = 1) -> str:
+            return f"n={n}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "n", "value": "not-a-number"}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        self._ops(app, "go", app_inputs={"n": 1})
+        assert "isn't a valid integer for 'n'" in app.chat_history.get("s1")[-1]["content"]
+        assert app.output_state == ["n=1"]
+
+    def test_password_inputs_are_hidden_and_unsettable(self):
+        # Security: a PasswordInput's value is redacted from ctx.inputs and the
+        # contract, and set_input on it is refused — but run_app still runs the
+        # callback with the real value.
+        from fast_dash import PasswordInput
+        seen = {}
+        def app_fn(pwd: PasswordInput = "hunter2", n: int = 5) -> str:
+            return f"pwd={pwd} n={n}"
+        def agent(query, ctx):
+            seen["inputs"] = dict(ctx.inputs)
+            seen["spec_ids"] = [s.get("id") for s in ctx.input_specs]
+            yield {"type": "set_input", "name": "pwd", "value": "leaked"}
+            yield {"type": "set_input", "name": "n", "value": 9}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=app_fn, chat_agent=agent)
+        self._ops(app, "go", app_inputs={"pwd": "hunter2", "n": 5})
+        assert seen["inputs"] == {"pwd": "***", "n": 5}   # value never reaches the agent
+        assert "pwd" not in seen["spec_ids"]              # not advertised as a target
+        assert "can't set the 'pwd' field" in app.chat_history.get("s1")[-1]["content"]
+        assert app.output_state == ["pwd=hunter2 n=9"]    # run_app used the real value

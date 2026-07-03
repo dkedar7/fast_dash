@@ -316,6 +316,18 @@ inputs recompute on change, so an explicit `run_app` would run the callback
 twice). `chat_agent=` and `chat=True` are mutually exclusive — one adds a chat
 *to* an app, the other *is* the chat.
 
+Bad inputs are handled: `set_input` is validated against the app's contract, so
+an unknown input, a value outside an input's options, or a wrong-typed value is
+refused with a message (and fed back to the model) rather than reaching the
+callback. Pressing **Stop** mid-turn stops immediately — any input the agent had
+already set stays set (Stop means "stop now", not "undo").
+
+!!! warning "Password inputs are never exposed"
+    A `PasswordInput`'s value is **redacted** from `ctx.inputs`, omitted from
+    `ctx.input_specs` / `app_tool_specs`, and `set_input` on it is refused — so a
+    secret the user typed is never sent to the model and the agent can't set it.
+    `run_app` still runs the callback with the real value.
+
 !!! note "Large outputs"
     `run_app`'s outputs are streamed to the browser like any other update; a
     very large output (a big `DataFrame` or image) is a correspondingly large

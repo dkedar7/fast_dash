@@ -168,6 +168,12 @@ class ChatAppMixin:
             self._chat_input_names = [
                 _stringify_id(inp.id) for inp in self.inputs_with_ids
             ]
+            # Secret (password) inputs are never shown to the agent — ctx.inputs
+            # and the contract redact them — and never settable by it.
+            self._sidecar_secret_inputs = {
+                name for name, inp in zip(self._chat_input_names, self.inputs_with_ids)
+                if type(getattr(inp, "component", None)).__name__ == "PasswordInput"
+            }
             # The host app's input contract (types / options / bounds), computed
             # once — its shape is static, only the live values change per turn.
             self._sidecar_contract = self._sidecar_input_contract()
@@ -245,16 +251,22 @@ class ChatAppMixin:
         """
         try:
             from .mcp import _describe_static_inputs
-            return _describe_static_inputs(self, {})
+            contract = _describe_static_inputs(self, {})
         except Exception:                                 # noqa: BLE001
-            return [{"id": n} for n in self._chat_input_names]
+            contract = [{"id": n} for n in self._chat_input_names]
+        # Never advertise secret (password) inputs to the agent.
+        secret = getattr(self, "_sidecar_secret_inputs", set())
+        return [e for e in contract if e.get("id") not in secret]
 
     def _sidecar_validate_input(self, name, value):
         """Return an actionable error string if ``set_input(name, value)`` is
-        invalid (unknown input, or a value outside the input's options), else
-        ``None``. Keeps an invalid value from reaching the host callback (where
-        it would raise a raw exception) and gives an LLM feedback to self-correct.
+        invalid, else ``None``. Rejects secret (password) inputs, unknown inputs,
+        values outside an input's options, and values of the wrong type. Keeps a
+        bad value from reaching the host callback (where it would raise a raw
+        exception) and gives an LLM feedback to self-correct.
         """
+        if name in getattr(self, "_sidecar_secret_inputs", set()):
+            return "The assistant can't set the '%s' field." % name
         contract = {s.get("id"): s
                     for s in (getattr(self, "_sidecar_contract", None) or [])}
         spec = contract.get(name)
@@ -262,10 +274,20 @@ class ChatAppMixin:
             valid = ", ".join(str(s.get("id")) for s in (self._sidecar_contract or []))
             return "No input named '%s'. Valid inputs: %s." % (name, valid or "none")
         options = spec.get("options")
-        if options and value not in options \
-                and str(value) not in [str(o) for o in options]:
-            return "'%s' isn't a valid value for '%s'. Choose one of: %s." % (
-                value, name, ", ".join(str(o) for o in options))
+        if options:
+            if value not in options and str(value) not in [str(o) for o in options]:
+                return "'%s' isn't a valid value for '%s'. Choose one of: %s." % (
+                    value, name, ", ".join(str(o) for o in options))
+            return None
+        jtype = spec.get("type")
+        if value is not None and jtype in ("integer", "number"):
+            try:
+                (int if jtype == "integer" else float)(value)
+            except (TypeError, ValueError):
+                return "'%s' isn't a valid %s for '%s'." % (value, jtype, name)
+        if value is not None and jtype == "boolean" and not isinstance(value, bool) \
+                and str(value).lower() not in ("true", "false", "0", "1"):
+            return "'%s' isn't a valid boolean for '%s' (use true or false)." % (value, name)
         return None
 
     def _sidecar_run_app(self, drive_inputs):
@@ -1019,7 +1041,13 @@ class ChatAppMixin:
         history = self.chat_history.get(sid)
         # Sidecar app-drive: set_input frames accumulate over the turn-start
         # input values, and run_app applies them through the host callback.
-        drive_inputs = dict(app_inputs or {})
+        drive_inputs = dict(app_inputs or {})       # REAL values, for run_app
+        # What the agent sees as ctx.inputs — with secret (password) values
+        # redacted so they never reach the LLM. run_app still uses drive_inputs.
+        _secret = getattr(self, "_sidecar_secret_inputs", None)
+        ctx_inputs = ({k: ("***" if k in _secret else v)
+                       for k, v in (app_inputs or {}).items()}
+                      if _secret else app_inputs)
 
         blocks = list(resume_blocks) if resume is not None and resume_blocks else []
         state = {"last": 0.0, "n": 0}
@@ -1211,7 +1239,7 @@ class ChatAppMixin:
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid, resume=resume, app_inputs=app_inputs,
+            thread_id=sid, resume=resume, app_inputs=ctx_inputs,
             app_input_specs=getattr(self, "_sidecar_contract", None),
         )
 
