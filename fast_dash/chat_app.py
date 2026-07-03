@@ -185,15 +185,22 @@ class ChatAppMixin:
             State("chat-sidecar-open", "data"),
             prevent_initial_call=True,
         )
-        # Open flag -> aside collapsed state (collapsed = closed).
+        # Open flag -> aside collapsed state (collapsed = closed) and the
+        # floating button's visibility: while the aside is open its own close
+        # (X) is the control, so the redundant floating pill is hidden.
         app.clientside_callback(
             """
             function(open) {
-                return {width: 380, breakpoint: 'sm',
-                        collapsed: {desktop: !open, mobile: !open}};
+                var aside = {width: 380, breakpoint: 'sm',
+                             collapsed: {desktop: !open, mobile: !open}};
+                var btn = {position: 'fixed', bottom: '24px', right: '24px',
+                           zIndex: 1000, boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
+                           display: open ? 'none' : 'inline-flex'};
+                return [aside, btn];
             }
             """,
-            Output("appshell", "aside"),
+            [Output("appshell", "aside"),
+             Output("chat-sidecar-toggle", "style")],
             Input("chat-sidecar-open", "data"),
         )
 
