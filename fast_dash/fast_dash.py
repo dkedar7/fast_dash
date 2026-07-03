@@ -130,6 +130,7 @@ class FastDash:
         steps=None,
         chat=False,
         chat_history_size=50,
+        canvas=False,
         serve_agui=False,
         mcp_server=False,
         mcp_port=8001,
@@ -263,6 +264,14 @@ class FastDash:
         # on. All messages here are friendly and ASCII (Windows consoles).
         self.is_chat = bool(chat)
         self.chat_history_size = chat_history_size
+        # canvas: an assistant-driven DynamicDash region beside the transcript
+        # (chat frames rebuild/patch it). Only meaningful in chat mode.
+        self.is_canvas = bool(canvas) and self.is_chat
+        if canvas and not self.is_chat:
+            warnings.warn(
+                "canvas=True has no effect without chat=True; ignoring it.",
+                stacklevel=2,
+            )
         self.serve_agui = bool(serve_agui)
         self.is_langstage = False
         if self.is_chat:
@@ -483,12 +492,14 @@ class FastDash:
         self._chat_msgs = {}
         # HITL (Phase 4): per-session paused turn awaiting an interrupt decision.
         self._chat_pending = {}
+        # Canvas: per-session UI-spec list the assistant rebuilds/patches.
+        self._chat_canvas = {}
         self._chat_active_lock = __import__("threading").Lock()
 
         sig = inspect.signature(callback_fn)
         setting_params = [
             p for name, p in sig.parameters.items()
-            if name not in ("query", "history", "thread_id", "resume")
+            if name not in ("query", "history", "thread_id", "resume", "canvas")
             and p.kind in (p.POSITIONAL_OR_KEYWORD, p.KEYWORD_ONLY)
         ]
         self._chat_setting_names = [p.name for p in setting_params]
@@ -767,6 +778,56 @@ class FastDash:
         """Serialize a Dash component to the plotly-json the reducer inserts."""
         return json.loads(to_json_plotly(component))
 
+    def _chat_canvas_render(self, sid):
+        """Serialize the session's canvas specs into a Dash children list.
+
+        Reuses DynamicDash's ``render_spec`` verbatim, then extracts the group
+        list so it drops straight into ``chat-canvas.children`` (mirroring how
+        DynamicDash sets ``dyn-form.children``).
+        """
+        from .dynamic import render_spec
+        div = render_spec(self._chat_canvas.get(sid, []),
+                          container_id="_canvas_render")
+        return self._chat_bubble_json(div).get("props", {}).get("children", [])
+
+    @staticmethod
+    def _gather_canvas_values(states):
+        """Build ``{name: value}`` from the canvas pattern-matching ALL-states.
+
+        ``states`` is ``(vals_value, vals_checked, vals_contents, ids_value,
+        ids_checked, ids_contents)`` — the same homogeneous-property pool
+        DynamicDash reads its form values from.
+        """
+        (vals_value, vals_checked, vals_contents,
+         ids_value, ids_checked, ids_contents) = states
+        out = {}
+        for vals, ids in ((vals_value, ids_value), (vals_checked, ids_checked),
+                          (vals_contents, ids_contents)):
+            for v, idd in zip(vals or [], ids or []):
+                if isinstance(idd, dict) and "name" in idd:
+                    out[idd["name"]] = v
+        return out
+
+    def _chat_canvas_apply(self, sid, frame):
+        """Apply a ``canvas`` or ``set_props`` frame to the session's spec state."""
+        from .dynamic import COMPONENT_REGISTRY
+        if frame["type"] == "canvas":
+            self._chat_canvas[sid] = list(frame["specs"])
+            return
+        # set_props: patch the target spec's props, routing a value-prop update
+        # to the spec's 'value' so _spec_to_component applies it (props are
+        # overridden by 'value' otherwise).
+        specs = self._chat_canvas.get(sid, [])
+        for spec in specs:
+            if spec.get("name") == frame["target"]:
+                props = dict(frame["props"])
+                factory = COMPONENT_REGISTRY.get(spec.get("type"))
+                vprop = getattr(factory, "component_property", "value")
+                if vprop in props:
+                    spec["value"] = props.pop(vprop)
+                spec["props"] = {**(spec.get("props") or {}), **props}
+                break
+
     def _set_chat_layout(self):
         from .Components import AppLayout
 
@@ -796,14 +857,18 @@ class FastDash:
         }
         app_layout = AppLayout(**layout_args)
         self.layout_object = app_layout
+        event_names = ["chat_frames", "notification-container"]
+        if self.is_canvas:
+            event_names.append("chat_canvas")     # dedicated canvas transport
         self.app.layout = app_layout.generate_chat_layout(
             has_settings=bool(self.inputs_with_ids),
-            stream_event_names=["chat_frames", "notification-container"],
+            stream_event_names=event_names,
             native_stream=self._native_stream,
+            canvas=self.is_canvas,
         )
 
     def _register_chat_callbacks(self):
-        from dash import Input, Output, State
+        from dash import ALL, Input, Output, State
         from dash.exceptions import PreventUpdate
 
         app = self.app
@@ -835,7 +900,9 @@ class FastDash:
             app.clientside_callback(
                 """
                 function(payload, children) {
-                    if (!payload || !payload.op) { return dash_clientside.no_update; }
+                    if (!payload || (payload.op !== 'start' && payload.op !== 'replace0')) {
+                        return dash_clientside.no_update;
+                    }
                     children = Array.isArray(children) ? [...children] : (children ? [children] : []);
                     if (payload.op === 'start') {
                         // Atomic: add the user bubble AND the empty assistant bubble
@@ -858,6 +925,24 @@ class FastDash:
                 State("chat-messages", "children"),
                 prevent_initial_call=True,
             )
+
+            # (2b) Canvas reducer (Flask + canvas mode): a 'canvas' op on the
+            # dedicated chat_canvas event carries the full rendered spec list;
+            # replace chat-canvas.children wholesale (full-state, coalescing-safe).
+            if self.is_canvas:
+                app.clientside_callback(
+                    """
+                    function(payload) {
+                        if (!payload || payload.op !== 'canvas') {
+                            return dash_clientside.no_update;
+                        }
+                        return payload.value || [];
+                    }
+                    """,
+                    Output("chat-canvas", "children", allow_duplicate=True),
+                    Input("socketio", "data-chat_canvas"),
+                    prevent_initial_call=True,
+                )
 
         # (3) Send handler (button click). Guards empty / in-flight, clears the
         # composer, sets the submit trigger, flags streaming.
@@ -923,6 +1008,17 @@ class FastDash:
         if not self._native_stream:
             turn_states.append(State("socketio", "socketId"))
         turn_states += setting_states
+        # Canvas value read-back: the same homogeneous-property pool DynamicDash
+        # gathers its form values from (6 ALL-states, appended last).
+        if self.is_canvas:
+            turn_states += [
+                State({"role": "dyn-input", "name": ALL, "prop": "value"}, "value"),
+                State({"role": "dyn-input", "name": ALL, "prop": "checked"}, "checked"),
+                State({"role": "dyn-input", "name": ALL, "prop": "contents"}, "contents"),
+                State({"role": "dyn-input", "name": ALL, "prop": "value"}, "id"),
+                State({"role": "dyn-input", "name": ALL, "prop": "checked"}, "id"),
+                State({"role": "dyn-input", "name": ALL, "prop": "contents"}, "id"),
+            ]
 
         _turn_cb_kwargs = dict(prevent_initial_call=True)
         if self._native_stream:
@@ -936,13 +1032,19 @@ class FastDash:
             **_turn_cb_kwargs,
         )
         def _chat_turn(submit, session_id, *rest):
+            rest = list(rest)
+            # Canvas ALL-states are appended last; peel them off to read values.
+            canvas_values = None
+            if self.is_canvas:
+                canvas_values = self._gather_canvas_values(rest[-6:])
+                rest = rest[:-6]
             # Flask: rest = (socket_id, *setting_values); ASGI: rest = setting_values.
             if self._native_stream:
                 socket_id = None
-                setting_values = rest
+                setting_values = tuple(rest)
             else:
                 socket_id = rest[0] if rest else None
-                setting_values = rest[1:]
+                setting_values = tuple(rest[1:])
 
             if not submit or not (submit.get("q") or "").strip():
                 raise PreventUpdate
@@ -964,7 +1066,8 @@ class FastDash:
                 self._chat_cancel.pop(sid, None)     # fresh turn, clear Stop flag
 
             try:
-                self._run_chat_turn(query, sid, socket_id, setting_values)
+                self._run_chat_turn(query, sid, socket_id, setting_values,
+                                    canvas_values=canvas_values)
                 return False, []
             finally:
                 with self._chat_active_lock:
@@ -1046,7 +1149,8 @@ class FastDash:
                         self._chat_cancel.pop(sid, None)
 
     def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
-                       resume=None, resume_decision=None, resume_blocks=None):
+                       resume=None, resume_decision=None, resume_blocks=None,
+                       canvas_values=None):
         """Drive one chat turn, streaming its blocks to the browser.
 
         Two transports, one turn-driver:
@@ -1101,8 +1205,12 @@ class FastDash:
                 if not streaming:
                     # Bound the transcript to the same window as history.
                     del msgs[2 * self.chat_history_size:]
+
+            def _emit_canvas():
+                set_props("chat-canvas", {"children": self._chat_canvas_render(sid)})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
+            _sio_emit = None
             if emit is None:
                 from flask_socketio import emit as _sio_emit
 
@@ -1119,6 +1227,16 @@ class FastDash:
                 emit({"op": "replace0",
                       "value": self._chat_bubble_json(
                           self._chat_assistant_bubble(blocks, streaming=streaming))})
+
+            def _emit_canvas():
+                # Dedicated event so a trailing replace0 can't clobber the canvas
+                # op on the shared chat_frames prop; each op is full canvas state,
+                # so coalescing to the latest is harmless.
+                payload = {"op": "canvas", "value": self._chat_canvas_render(sid)}
+                if _sio_emit is not None:
+                    _sio_emit("chat_canvas", payload, namespace="/", to=socket_id)
+                else:
+                    emit(payload)
 
         def _append_text(text):
             if blocks and blocks[-1].get("kind") == "text":
@@ -1155,6 +1273,10 @@ class FastDash:
                 blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
             elif t == "extraction":
                 blocks.append({"kind": "extraction", "content": frame.get("content")}); _flush(True)
+            elif t == "canvas" or t == "set_props":
+                # Canvas mutations target the side canvas, not the transcript.
+                self._chat_canvas_apply(sid, frame)
+                _emit_canvas()
             elif t == "interrupt":
                 blocks.append({
                     "kind": "interrupt",
@@ -1185,7 +1307,7 @@ class FastDash:
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid, resume=resume,
+            thread_id=sid, resume=resume, canvas=canvas_values,
         )
 
         if self._chat_cancelled(sid):
@@ -2803,6 +2925,7 @@ def fastdash(
     run_kwargs=dict(),
     chat=False,
     chat_history_size=50,
+    canvas=False,
     serve_agui=False,
     mcp_server=False,
     mcp_port=8001,
@@ -2921,6 +3044,7 @@ def fastdash(
             run_kwargs=run_kwargs,
             chat=chat,
             chat_history_size=chat_history_size,
+            canvas=canvas,
             serve_agui=serve_agui,
             mcp_server=mcp_server,
             mcp_port=mcp_port,

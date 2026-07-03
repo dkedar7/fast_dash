@@ -663,7 +663,7 @@ class AppLayout:
         return layout
 
     def generate_chat_layout(self, has_settings=False, stream_event_names=None,
-                             native_stream=False):
+                             native_stream=False, canvas=False):
         """Build the native chat-mode layout (RFC #133).
 
         Reuses the shared chrome (header, theme toggle, About, notifications,
@@ -744,40 +744,54 @@ class AppLayout:
             className="fd-chat-main",
             style={"height": "100%", "display": "flex", "flexDirection": "column"},
         )
+        # Fill the viewport below the 56px header so the message list (flex:1)
+        # grows and the composer pins to the bottom.
+        chat_shell = html.Div(
+            main, className="fd-chat-shell",
+            style={"height": "calc(100vh - 56px)"}, id="output-group-col",
+        )
 
-        appshell_children = [
-            dmc.AppShellHeader(
-                dmc.Group(
-                    header_children[0] if header_children else [],
-                    style={"height": "100%", "padding": "0 20px"},
-                ),
-                id="header1162572",
+        header = dmc.AppShellHeader(
+            dmc.Group(
+                header_children[0] if header_children else [],
+                style={"height": "100%", "padding": "0 20px"},
             ),
-            dmc.AppShellMain(
-                html.Div(
-                    main,
-                    className="fd-chat-shell",
-                    # Fill the viewport below the 56px header so the message list
-                    # (flex:1) grows and the composer pins to the bottom.
-                    style={"height": "calc(100vh - 56px)"},
-                    id="output-group-col",
-                ),
-            ),
-        ]
+            id="header1162572",
+        )
+
         navbar_conf = None
-        if has_settings:
-            appshell_children.insert(
-                1,
-                dmc.AppShellNavbar(
-                    self.generate_input_component(),
-                    p="md",
-                    id="navbar3260780",
-                    style={"display": "flex", "flexDirection": "column",
-                           "overflow": "hidden"},
-                ),
+        if canvas:
+            # Split view: chat panel on the left, the assistant-driven canvas
+            # (an agentic DynamicDash region) as the main area. Settings sidebar
+            # is not combined with the canvas in this mode.
+            canvas_region = html.Div(
+                html.Div([], id="chat-canvas", className="fd-chat-canvas"),
+                className="fd-chat-canvas-wrap",
+                style={"height": "calc(100vh - 56px)", "overflowY": "auto",
+                       "overflowX": "hidden", "padding": "18px 22px"},
             )
-            navbar_conf = {"width": 300, "breakpoint": "sm",
+            appshell_children = [
+                header,
+                dmc.AppShellNavbar(chat_shell, id="navbar3260780"),
+                dmc.AppShellMain(canvas_region),
+            ]
+            navbar_conf = {"width": 460, "breakpoint": "sm",
                            "collapsed": {"mobile": False}}
+        else:
+            appshell_children = [header, dmc.AppShellMain(chat_shell)]
+            if has_settings:
+                appshell_children.insert(
+                    1,
+                    dmc.AppShellNavbar(
+                        self.generate_input_component(),
+                        p="md",
+                        id="navbar3260780",
+                        style={"display": "flex", "flexDirection": "column",
+                               "overflow": "hidden"},
+                    ),
+                )
+                navbar_conf = {"width": 300, "breakpoint": "sm",
+                               "collapsed": {"mobile": False}}
 
         appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
         if navbar_conf:
@@ -827,6 +841,12 @@ class AppLayout:
             Input("sidebar-button", "opened"),
         )
         def toggle_sidebar(opened):
+            if getattr(self.app, "is_canvas", False):
+                # In canvas mode the navbar holds the chat panel (not a settings
+                # sidebar), so it must stay open and keep its wider width.
+                return {"width": 460, "breakpoint": "sm",
+                        "collapsed": {"desktop": False, "mobile": False}}
+
             user_agent = request.headers.get("User-Agent")
 
             if not opened or self.app.inputs == [] or self.app.inputs is None:

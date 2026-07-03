@@ -45,12 +45,14 @@ TOOL_END = "tool_end"
 ARTIFACT = "artifact"
 INTERRUPT = "interrupt"
 EXTRACTION = "extraction"
+CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
+SET_PROPS = "set_props"    # patch one canvas component's props/value
 COMPLETE = "complete"
 ERROR = "error"
 
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, EXTRACTION, COMPLETE, ERROR}
+     INTERRUPT, EXTRACTION, CANVAS, SET_PROPS, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -132,6 +134,19 @@ def _normalize_frame(frame):
         }
     elif ftype == EXTRACTION:
         frame = {"type": EXTRACTION, "content": frame.get("content")}
+    elif ftype == CANVAS:
+        specs = frame.get("specs")
+        if not isinstance(specs, (list, tuple)):
+            raise ChatFrameError(
+                "A 'canvas' frame must have a 'specs' list of UI-spec dicts.")
+        frame = {"type": CANVAS, "specs": list(specs)}
+    elif ftype == SET_PROPS:
+        if "target" not in frame:
+            raise ChatFrameError("A 'set_props' frame must have a 'target' key.")
+        props = frame.get("props", {})
+        if not isinstance(props, dict):
+            raise ChatFrameError("A 'set_props' frame's 'props' must be a dict.")
+        frame = {"type": SET_PROPS, "target": str(frame["target"]), "props": dict(props)}
     elif ftype == ERROR:
         frame = {"type": ERROR, "message": _as_text(frame.get("message", ""))}
     elif ftype == COMPLETE:
@@ -263,7 +278,8 @@ def has_text(blocks):
 
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None, cancelled=None, thread_id=None, resume=None):
+             friendly_error=None, cancelled=None, thread_id=None, resume=None,
+             canvas=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -291,6 +307,8 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
         kwargs["thread_id"] = thread_id
     if _declares(callback_fn, "resume"):
         kwargs["resume"] = resume
+    if _declares(callback_fn, "canvas"):
+        kwargs["canvas"] = dict(canvas or {})
 
     parts = []       # accumulated assistant text (content frames)
     frames = []      # all normalized frames (content/tool/artifact/...)

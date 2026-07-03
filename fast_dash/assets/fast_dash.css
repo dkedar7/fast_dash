@@ -217,3 +217,11 @@
   display: inline-block; margin-top: 8px; font-size: 12px;
   color: var(--mantine-color-dimmed);
 }
+
+/* Canvas (chat ⇄ DynamicDash hybrid): assistant-driven output region. */
+.fd-chat-canvas-wrap { background: var(--mantine-color-body); }
+.fd-chat-canvas { display: flex; flex-direction: column; gap: 16px; }
+.fd-chat-canvas:empty::before {
+  content: "The assistant will build here.";
+  color: var(--mantine-color-dimmed); font-size: 14px; font-style: italic;
+}

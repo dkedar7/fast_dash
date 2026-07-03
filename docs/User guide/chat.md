@@ -131,6 +131,42 @@ FastDash(callback_fn="my_pkg.agents:graph", chat=True).run()
 Any callback may also declare a `thread_id` parameter to receive the session id
 (the same value the adapter threads into the checkpointer).
 
+## The canvas (assistant-built UI)
+
+`canvas=True` adds a live output region beside the transcript that the assistant
+**builds and mutates** — a conversational [DynamicDash](dynamic.md). The chat
+becomes a left panel; the canvas is the main area. Two frames drive it, using the
+same UI-spec grammar as DynamicDash (`{name, type, props, value, label}`):
+
+- `{"type": "canvas", "specs": [...]}` — (re)build the canvas from a spec list
+  (component types, properties, layout, content).
+- `{"type": "set_props", "target": "<name>", "props": {...}}` — patch one
+  component in place (e.g. widen a slider's range).
+
+If the callback declares a `canvas` parameter, it receives the canvas's **live
+values** on each turn, so the assistant can read what the user changed:
+
+```python
+from fast_dash import FastDash
+
+def assistant(query: str, canvas: dict):
+    if "build" in query.lower():
+        yield "Set the two numbers on the right, then say 'add them'."
+        yield {"type": "canvas", "specs": [
+            {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 20}},
+            {"name": "b", "type": "Slider", "value": 5, "props": {"min": 0, "max": 20}},
+        ]}
+    elif "add" in query.lower():
+        yield f"{canvas['a']} + {canvas['b']} = {canvas['a'] + canvas['b']}"
+
+FastDash(callback_fn=assistant, chat=True, canvas=True).run()
+```
+
+Component types come from DynamicDash's registry (`Slider`, `Select`, `Switch`,
+`Markdown`, …). The canvas is a separate surface from the transcript: `content`
+frames still stream into the chat, while `canvas`/`set_props` frames target the
+canvas.
+
 ## Backends
 
 Streaming rides whatever transport the backend already uses, with no change to

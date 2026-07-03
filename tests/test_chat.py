@@ -1,6 +1,7 @@
 """Unit tests for the transport-independent chat core (fast_dash/chat.py, RFC #133)."""
 
 import asyncio  # noqa: F401  (async generator tests use it implicitly)
+import json
 import warnings
 
 import pytest
@@ -706,3 +707,109 @@ class TestAguiServing:
                        backend="fastapi", serve_agui=True)
         paths = {getattr(r, "path", None) for r in app.app.server.routes}
         assert "/agui" in paths
+
+
+class TestCanvasFrames:
+    """Frame grammar for the canvas hybrid (chat ⇄ DynamicDash)."""
+
+    def test_canvas_frame_normalizes(self):
+        from fast_dash.chat import _normalize_frame
+        f = _normalize_frame({"type": "canvas",
+                              "specs": [{"name": "a", "type": "Slider"}]})
+        assert f == {"type": "canvas", "specs": [{"name": "a", "type": "Slider"}]}
+
+    def test_canvas_frame_requires_specs_list(self):
+        from fast_dash.chat import ChatFrameError, _normalize_frame
+        for bad in ({"type": "canvas"}, {"type": "canvas", "specs": "no"}):
+            with pytest.raises(ChatFrameError):
+                _normalize_frame(bad)
+
+    def test_set_props_frame_normalizes_and_validates(self):
+        from fast_dash.chat import ChatFrameError, _normalize_frame
+        f = _normalize_frame({"type": "set_props", "target": "a", "props": {"max": 9}})
+        assert f == {"type": "set_props", "target": "a", "props": {"max": 9}}
+        with pytest.raises(ChatFrameError):
+            _normalize_frame({"type": "set_props"})            # missing target
+        with pytest.raises(ChatFrameError):
+            _normalize_frame({"type": "set_props", "target": "a", "props": "x"})
+
+
+class TestChatCanvas:
+    """The assistant-driven canvas end-to-end (RFC #133 follow-up)."""
+
+    def _ids(self, comp, out=None):
+        return _layout_ids(comp, out)
+
+    def _ops(self, app, query, sid="s1", **kw):
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append(payload)):
+            app._run_chat_turn(query, sid, "sock", (), **kw)
+        return ops
+
+    def test_canvas_only_with_chat(self):
+        # canvas without chat warns and is a no-op.
+        with pytest.warns(UserWarning, match="canvas=True has no effect"):
+            app = FastDash(callback_fn=lambda x: "hi", canvas=True)
+        assert app.is_canvas is False
+
+    def test_canvas_layout_present_and_backward_compatible(self):
+        app = FastDash(callback_fn=lambda query: "hi", chat=True, canvas=True)
+        assert app.is_canvas is True
+        ids = self._ids(app.app.layout)
+        assert "chat-canvas" in ids and "chat-messages" in ids
+        # A plain chat app has no canvas region.
+        plain = FastDash(callback_fn=lambda query: "hi", chat=True)
+        assert "chat-canvas" not in self._ids(plain.app.layout)
+
+    def test_canvas_frame_renders_and_stores_state(self):
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "amount", "type": "Slider", "value": 3,
+                 "props": {"min": 0, "max": 10}},
+            ]}
+            yield "done"
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "build")
+        canvas_ops = [p for p in ops if isinstance(p, dict) and p.get("op") == "canvas"]
+        assert canvas_ops, "no canvas op emitted"
+        assert app._chat_canvas["s1"][0]["name"] == "amount"
+        # The transcript is unaffected by canvas frames.
+        assert app.chat_history.get("s1")[-1]["content"] == "done"
+
+    def test_set_props_routes_value_and_props(self):
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "amount", "type": "Slider", "value": 3,
+                 "props": {"min": 0, "max": 10}}]}
+            yield {"type": "set_props", "target": "amount",
+                   "props": {"max": 100, "value": 42}}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "patch")
+        spec = app._chat_canvas["s1"][0]
+        assert spec["value"] == 42                      # value routed to spec['value']
+        assert spec["props"]["max"] == 100              # other props merged
+        last = json.dumps([p for p in ops if isinstance(p, dict)
+                           and p.get("op") == "canvas"][-1]["value"])
+        assert '"max": 100' in last or '"max":100' in last
+
+    def test_canvas_values_injected_when_declared(self):
+        seen = {}
+        def bot(query, canvas):
+            seen.update(canvas)
+            yield f"amount={canvas.get('amount')}"
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        assert app._chat_setting_names == []            # 'canvas' is not a setting
+        self._ops(app, "read", canvas_values={"amount": 7})
+        assert seen == {"amount": 7}
+        assert app.chat_history.get("s1")[-1]["content"] == "amount=7"
+
+    def test_gather_canvas_values_by_name(self):
+        app = FastDash(callback_fn=lambda query: "x", chat=True, canvas=True)
+        states = (
+            [7], [True], [],
+            [{"role": "dyn-input", "name": "amount", "prop": "value"}],
+            [{"role": "dyn-input", "name": "agree", "prop": "checked"}],
+            [],
+        )
+        assert app._gather_canvas_values(states) == {"amount": 7, "agree": True}
