@@ -128,8 +128,20 @@ from fast_dash import FastDash
 FastDash(callback_fn="my_pkg.agents:graph", chat=True).run()
 ```
 
-Any callback may also declare a `thread_id` parameter to receive the session id
-(the same value the adapter threads into the checkpointer).
+## The `ctx` object
+
+`query` and `history` are all the 5-line chatbot needs. Power features fold into
+one optional `ctx` parameter (a `ChatContext`) instead of a growing list of magic
+names — declare it to opt in:
+
+```python
+def bot(query, history, ctx):
+    ...   # ctx.thread_id, ctx.canvas, ctx.resume
+```
+
+- `ctx.thread_id` — the session id (the LangGraph checkpointer thread).
+- `ctx.canvas` — the canvas's live values `{name: value}` (empty without a canvas).
+- `ctx.resume` — a decision answering a pending interrupt (HITL), else `None`.
 
 ## The canvas (assistant-built UI)
 
@@ -143,13 +155,13 @@ same UI-spec grammar as DynamicDash (`{name, type, props, value, label}`):
 - `{"type": "set_props", "target": "<name>", "props": {...}}` — patch one
   component in place (e.g. widen a slider's range).
 
-If the callback declares a `canvas` parameter, it receives the canvas's **live
-values** on each turn, so the assistant can read what the user changed:
+`ctx.canvas` gives the assistant the canvas's **live values** each turn, so it can
+read what the user changed:
 
 ```python
 from fast_dash import FastDash
 
-def assistant(query: str, canvas: dict):
+def assistant(query, ctx):
     if "build" in query.lower():
         yield "Set the two numbers on the right, then say 'add them'."
         yield {"type": "canvas", "specs": [
@@ -157,15 +169,46 @@ def assistant(query: str, canvas: dict):
             {"name": "b", "type": "Slider", "value": 5, "props": {"min": 0, "max": 20}},
         ]}
     elif "add" in query.lower():
-        yield f"{canvas['a']} + {canvas['b']} = {canvas['a'] + canvas['b']}"
+        a, b = ctx.canvas["a"], ctx.canvas["b"]
+        yield f"{a} + {b} = {a + b}"
 
 FastDash(callback_fn=assistant, chat=True, canvas=True).run()
 ```
 
-Component types come from DynamicDash's registry (`Slider`, `Select`, `Switch`,
-`Markdown`, …). The canvas is a separate surface from the transcript: `content`
-frames still stream into the chat, while `canvas`/`set_props` frames target the
-canvas.
+The canvas renders **input** widgets (`Slider`, `Select`, `Switch`, `Markdown`, …)
+*and* **display** components (`Graph`, `Table`, `Image`), so the assistant can
+build full dashboards — charts, tables, and controls together. The canvas is a
+separate surface from the transcript: `content` frames still stream into the
+chat, while `canvas`/`set_props` frames target the canvas.
+
+### Driving the canvas with an LLM
+
+In practice an LLM emits the canvas mutations. `canvas_tool_specs()` returns
+provider-neutral JSON-Schema tool definitions; `apply_tool_call()` turns a
+returned tool call into a frame — no LLM SDK is bundled:
+
+```python
+import anthropic
+from fast_dash import FastDash, canvas_tool_specs, apply_tool_call
+
+client = anthropic.Anthropic()
+TOOLS = canvas_tool_specs()          # build_canvas, set_canvas_props
+
+def assistant(query, history, ctx):
+    msg = client.messages.create(
+        model="claude-sonnet-4-6", max_tokens=1024, tools=TOOLS,
+        messages=[{"role": "user", "content": query}],
+    )
+    for block in msg.content:
+        if block.type == "text":
+            yield block.text
+        elif block.type == "tool_use":
+            frame = apply_tool_call(block)   # -> canvas / set_props frame
+            if frame:
+                yield frame
+
+FastDash(callback_fn=assistant, chat=True, canvas=True).run()
+```
 
 ## Backends
 
@@ -201,10 +244,12 @@ FastDash(callback_fn="my_pkg.agents:graph", chat=True,
 
 `mcp_server=True` exposes the chat app to agents at `/mcp`:
 
-- `describe_app()` reports the composer contract (the `query` string) and any
-  sidebar `settings`.
-- `invoke(query=..., settings=...)` runs one turn headlessly and returns its
-  frames (JSON-safe); history and thread state advance across calls.
+- `describe_app()` reports the composer contract (the `query` string), any
+  sidebar `settings`, and — with a canvas — its current specs and component types.
+- `invoke(query=..., settings=..., canvas_values=...)` runs one turn headlessly
+  and returns its frames (JSON-safe) plus the post-turn `canvas` specs; history
+  and thread state advance across calls. So a headless agent sees and drives the
+  canvas exactly as a browser user does.
 
 ## What chat mode does and doesn't allow
 
