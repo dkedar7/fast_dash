@@ -143,12 +143,24 @@ class ChatAppMixin:
         self._last_sweep = 0.0
         self._chat_fn = agent
         self._chat_setting_names = []
-        # The turn callback reads the host app's live inputs and hands them to
-        # the agent as ctx.inputs, keyed by the host callback's param names.
-        self._chat_input_mode = "ctx"
-        self._chat_input_names = list(
-            inspect.signature(self.callback_fn).parameters
-        )[: len(self.inputs_with_ids)]
+
+        # Host-input read + drive is well-defined only on a single-function app.
+        # A multi-function / steps app has several surfaces (tabs / steps), so
+        # v1 mounts the *conversational* sidecar there (the agent streams and can
+        # use its own tools) without reading or driving host inputs; that needs
+        # its own active-surface design.
+        if self.is_multi or self.is_steps:
+            self._chat_input_mode = "none"
+            self._chat_input_names = []
+            self._sidecar_can_drive = False
+        else:
+            # The turn callback reads the host app's live inputs and hands them
+            # to the agent as ctx.inputs, keyed by the host callback's params.
+            self._chat_input_mode = "ctx"
+            self._chat_input_names = list(
+                inspect.signature(self.callback_fn).parameters
+            )[: len(self.inputs_with_ids)]
+            self._sidecar_can_drive = True
 
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_sidecar_toggle()
@@ -224,7 +236,7 @@ class ChatAppMixin:
         there. A single reducer writes the full input and output value lists
         (position-matched) into the host app's components on a 'drive' op.
         """
-        if self._native_stream:
+        if self._native_stream or not getattr(self, "_sidecar_can_drive", True):
             return
         from dash import Input, Output
         app = self.app
@@ -671,9 +683,13 @@ class ChatAppMixin:
         # browser (socket.io on Flask, set_props on ASGI), append to history,
         # re-enable the composer. On ASGI it becomes a WebSocket callback so
         # set_props can push mid-execution; there is no socket id there.
-        setting_states = [
-            State(inp.id, inp.component_property) for inp in self.inputs_with_ids
-        ]
+        # "none" (multi/steps sidecar) reads no host inputs; "settings" (chat
+        # mode) and "ctx" (single-function sidecar) read inputs_with_ids.
+        setting_states = (
+            []
+            if self._chat_input_mode == "none"
+            else [State(inp.id, inp.component_property) for inp in self.inputs_with_ids]
+        )
         turn_states = [State("chat-session", "data")]
         if not self._native_stream:
             turn_states.append(State("socketio", "socketId"))
@@ -1025,18 +1041,30 @@ class ChatAppMixin:
                 self._chat_canvas_apply(sid, frame)
                 _emit_canvas()
             elif t == "set_input" and self.has_chat_sidecar:
-                # Sidecar: set a host-app input; reflect it in the live control.
-                drive_inputs[frame["name"]] = frame["value"]
-                _emit_drive(inputs=[drive_inputs.get(n)
-                                    for n in self._chat_input_names])
-            elif t == "run_app" and self.has_chat_sidecar:
-                # Sidecar: run the host app on the current inputs, push outputs.
-                try:
-                    _emit_drive(outputs=self._sidecar_run_app(drive_inputs))
-                except Exception as exc:                      # noqa: BLE001
+                if not self._sidecar_can_drive:
                     _append_text(("\n\n" if _has_text(blocks) else "")
-                                 + "**Error running the app:** " + str(exc))
+                                 + "_(This app has multiple surfaces; the "
+                                 "assistant can't set its inputs directly.)_")
                     _flush(True)
+                else:
+                    # Set a host-app input; reflect it in the live control.
+                    drive_inputs[frame["name"]] = frame["value"]
+                    _emit_drive(inputs=[drive_inputs.get(n)
+                                        for n in self._chat_input_names])
+            elif t == "run_app" and self.has_chat_sidecar:
+                if not self._sidecar_can_drive:
+                    _append_text(("\n\n" if _has_text(blocks) else "")
+                                 + "_(This app has multiple surfaces; use its "
+                                 "own Run controls.)_")
+                    _flush(True)
+                else:
+                    # Run the host app on the current inputs, push outputs.
+                    try:
+                        _emit_drive(outputs=self._sidecar_run_app(drive_inputs))
+                    except Exception as exc:                  # noqa: BLE001
+                        _append_text(("\n\n" if _has_text(blocks) else "")
+                                     + "**Error running the app:** " + str(exc))
+                        _flush(True)
             elif t == "interrupt":
                 blocks.append({
                     "kind": "interrupt",

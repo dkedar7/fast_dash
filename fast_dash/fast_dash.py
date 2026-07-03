@@ -562,6 +562,9 @@ class FastDash(ChatAppMixin):
         self.register_callback_fn()
         self.add_streaming()
 
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
+
     def _init_steps(self):
         """Initialize a linear multi-step pipeline app.
 
@@ -636,6 +639,9 @@ class FastDash(ChatAppMixin):
         self.app.title = self.title or ""
         self._set_steps_layout()
         self._register_steps_callbacks()
+
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
 
     @staticmethod
     def _make_user_params_fn(user_params):
@@ -816,10 +822,13 @@ class FastDash(ChatAppMixin):
             "app": self,
         }
         self.layout_object = _StepsLayout(**layout_args)
+        steps_stream = ["notification-container"]
+        if getattr(self, "has_chat_sidecar", False):
+            steps_stream += ["chat_frames", "chat_drive"]
         # Stores for step state — appended after AppShell so they're not
         # inside the navbar/main scroll regions.
         self.app.layout = self.layout_object.generate_layout(
-            stream_event_names=["notification-container"],
+            stream_event_names=steps_stream,
         )
         # Add Dash stores to the layout's children
         self.app.layout.children.extend([
@@ -1411,6 +1420,8 @@ class FastDash(ChatAppMixin):
             "theme": self.theme,
             "app": self,
         }
+        if getattr(self, "has_chat_sidecar", False):
+            all_streaming_components += ["chat_frames", "chat_drive"]
         self.layout_object = _MultiLayout(**layout_args)
         self.app.layout = self.layout_object.generate_layout(
             stream_event_names=all_streaming_components,
