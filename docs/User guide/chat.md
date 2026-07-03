@@ -220,6 +220,33 @@ def assistant(query, history, ctx):
 FastDash(callback_fn=assistant, chat=True, canvas=True).run()
 ```
 
+### App-first: chat as an add-on (`chat_drawer=True`)
+
+By default the chat is the primary surface. With `chat_drawer=True` the app comes
+first: the developer-declared settings and a **Run** button fill a left sidebar,
+the output canvas is the main area, and the chat collapses into a drawer that
+opens from a floating **Assistant** button. The user can drive the whole app with
+settings + Run and never open the chat; the assistant is there when they want it
+to change the layout or plots.
+
+```python
+from typing import Literal
+from fast_dash import FastDash
+
+def studio(query, ctx, points: int = 40,
+           color: Literal["indigo", "teal", "red"] = "indigo"):
+    fig = make_plot(points, color)          # from the settings
+    if query:                                # a chat message (not a Run)
+        yield f"Updated. You asked: {query}"
+    yield {"type": "canvas", "specs": [{"name": "plot", "type": "Graph", "value": fig}]}
+
+FastDash(callback_fn=studio, chat=True, chat_drawer=True).run()
+```
+
+`chat_drawer=True` implies a canvas (the output surface). Clicking **Run** invokes
+the callback with an empty `query` (check `if query:` to tell a Run from a chat
+message) and updates the canvas without adding a transcript entry.
+
 ## Backends
 
 Streaming rides whatever transport the backend already uses, with no change to

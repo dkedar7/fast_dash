@@ -786,7 +786,7 @@ class TestChatCanvas:
 
     def test_canvas_only_with_chat(self):
         # canvas without chat warns and is a no-op.
-        with pytest.warns(UserWarning, match="canvas=True has no effect"):
+        with pytest.warns(UserWarning, match="have no effect without chat"):
             app = FastDash(callback_fn=lambda x: "hi", canvas=True)
         assert app.is_canvas is False
 
@@ -980,3 +980,54 @@ class TestCanvasLLMOnramp:
         with mock.patch("flask_socketio.emit"):
             app._run_chat_turn("go", "s1", "sock", ())
         assert app._session("s1").canvas_specs[0]["props"]["max"] == 50
+
+
+class TestChatDrawer:
+    """App-first layout: settings + Run drive the canvas; chat is a drawer add-on."""
+
+    def _ids(self, comp, out=None):
+        return _layout_ids(comp, out)
+
+    def test_drawer_implies_canvas_and_builds_layout(self):
+        from typing import Literal
+        def app(query, ctx, model: Literal["a", "b"] = "a", temperature: float = 0.5):
+            yield "ok"
+        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
+        assert fd.is_chat_drawer is True
+        assert fd.is_canvas is True                     # implied by chat_drawer
+        ids = self._ids(fd.app.layout)
+        # Run button + collapsible chat aside + toggle, settings in the navbar,
+        # output canvas in the main area.
+        assert {"chat-run", "chat-aside", "chat-drawer-toggle", "chat-canvas",
+                "model", "temperature"} <= ids
+
+    def test_drawer_without_chat_warns(self):
+        with pytest.warns(UserWarning, match="have no effect without chat"):
+            fd = FastDash(callback_fn=lambda x: "hi", chat_drawer=True)
+        assert fd.is_chat_drawer is False
+
+    def test_run_updates_canvas_without_transcript(self):
+        import plotly.graph_objects as go
+        def app(query, ctx, temperature: float = 0.5):
+            if query:
+                yield f"said {query}"                    # chat narration
+            yield {"type": "canvas", "specs": [
+                {"name": "c", "type": "Graph",
+                 "value": go.Figure(go.Bar(x=[1], y=[temperature])), "label": "Out"}]}
+        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, p=None, **k: ops.append(p)):
+            fd._run_chat_turn("", "s1", "sock", (0.9,), to_transcript=False)
+        payloads = [p for p in ops if isinstance(p, dict)]
+        assert any(p.get("op") == "canvas" for p in payloads)          # canvas updated
+        assert not any(p.get("op") in ("start", "replace0") for p in payloads)  # no transcript
+        assert fd.chat_history.get("s1") == []                          # no history
+
+    def test_chat_turn_still_records_transcript(self):
+        def app(query, ctx):
+            yield "reply"
+        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
+        with mock.patch("flask_socketio.emit"):
+            fd._run_chat_turn("hi", "s1", "sock", (), to_transcript=True)
+        assert fd.chat_history.get("s1")[-1]["content"] == "reply"

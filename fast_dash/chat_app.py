@@ -450,6 +450,7 @@ class ChatAppMixin:
             stream_event_names=event_names,
             native_stream=self._native_stream,
             canvas=self.is_canvas,
+            drawer=self.is_chat_drawer,
         )
 
     def _register_chat_callbacks(self):
@@ -633,9 +634,13 @@ class ChatAppMixin:
                 socket_id = rest[0] if rest else None
                 setting_values = tuple(rest[1:])
 
-            if not submit or not (submit.get("q") or "").strip():
+            # A Run (app-first drawer mode) drives the callback from the settings
+            # with no chat message: query is empty, output goes to the canvas
+            # only (no transcript entry).
+            is_run = bool(submit.get("run")) if submit else False
+            if not submit or (not is_run and not (submit.get("q") or "").strip()):
                 raise PreventUpdate
-            query = submit["q"].strip()
+            query = "" if is_run else submit["q"].strip()
             sid = session_id or "default"
 
             sess = self._session(sid)
@@ -655,7 +660,8 @@ class ChatAppMixin:
 
             try:
                 self._run_chat_turn(query, sid, socket_id, setting_values,
-                                    canvas_values=canvas_values)
+                                    canvas_values=canvas_values,
+                                    to_transcript=not is_run)
                 return False, []
             finally:
                 with self._sessions_lock:
@@ -689,6 +695,38 @@ class ChatAppMixin:
             [Output("chat-send", "style"), Output("chat-stop", "style")],
             Input("chat-streaming", "data"),
         )
+
+        # (8) App-first drawer mode: the Run button drives the callback from the
+        # settings (no chat message), and a header toggle opens/closes the chat.
+        if self.is_chat_drawer:
+            # Run -> submit-store with a run marker (empty query, canvas-only).
+            app.clientside_callback(
+                """
+                function(n, streaming) {
+                    var no = dash_clientside.no_update;
+                    if (!n || streaming) { return [no, no]; }
+                    return [{q: '', ts: Date.now(), run: true}, true];
+                }
+                """,
+                [Output("chat-submit-store", "data", allow_duplicate=True),
+                 Output("chat-streaming", "data", allow_duplicate=True)],
+                Input("chat-run", "n_clicks"),
+                State("chat-streaming", "data"),
+                prevent_initial_call=True,
+            )
+            # Toggle the chat drawer (aside) open/closed on the header button.
+            app.clientside_callback(
+                """
+                function(n) {
+                    var open = (n % 2) === 1;
+                    return {width: 440, breakpoint: 'md',
+                            collapsed: {desktop: !open, mobile: !open}};
+                }
+                """,
+                Output("appshell", "aside", allow_duplicate=True),
+                Input("chat-drawer-toggle", "n_clicks"),
+                prevent_initial_call=True,
+            )
 
         # (7) HITL decision buttons (langstage only): a pattern-matching callback
         # resumes the paused turn with the chosen decision. Rendered inside the
@@ -740,7 +778,7 @@ class ChatAppMixin:
 
     def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
                        resume=None, resume_decision=None, resume_blocks=None,
-                       canvas_values=None):
+                       canvas_values=None, to_transcript=True):
         """Drive one chat turn, streaming its blocks to the browser.
 
         Two transports, one turn-driver:
@@ -837,6 +875,8 @@ class ChatAppMixin:
                 blocks.append({"kind": "text", "text": text})
 
         def _flush(force=False):
+            if not to_transcript:
+                return                       # a Run: canvas only, no transcript
             now = _time.monotonic()
             if force or state["n"] >= 20 or (now - state["last"]) >= 0.05:
                 _emit_replace0(streaming=True)
@@ -882,7 +922,9 @@ class ChatAppMixin:
                              + "**Error:** " + frame["message"])
                 _flush(True)
 
-        if resume is None:
+        if not to_transcript:
+            pass                              # a Run: no user/assistant bubbles
+        elif resume is None:
             # Fresh turn: show the user's message and an empty assistant bubble.
             _emit_start()
         else:
@@ -914,6 +956,11 @@ class ChatAppMixin:
         if pending:
             self._session(sid).pending = {"query": query, "blocks": blocks}
             _emit_replace0(streaming=False)          # card with live buttons
+            return
+
+        # A Run (to_transcript=False) only updates the canvas — no transcript
+        # render, no history. The canvas frames already streamed via _emit_canvas.
+        if not to_transcript:
             return
 
         # Complete: freeze any interrupt card and record the turn.

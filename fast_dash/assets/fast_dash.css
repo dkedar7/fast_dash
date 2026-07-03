@@ -247,3 +247,15 @@
   padding: 14px 10px;
   border-top: 1px solid var(--mantine-color-default-border);
 }
+
+/* Chat drawer (app-first mode): a subtle empty-state hint + separation. */
+.mantine-AppShell-aside { border-left: 1px solid var(--mantine-color-default-border); }
+.fd-chat-list:empty::before {
+  content: "Ask the assistant to change the output.";
+  margin: auto;
+  padding: 0 24px;
+  color: var(--mantine-color-dimmed);
+  font-size: 14px;
+  font-style: italic;
+  text-align: center;
+}

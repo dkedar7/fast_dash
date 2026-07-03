@@ -663,7 +663,7 @@ class AppLayout:
         return layout
 
     def generate_chat_layout(self, has_settings=False, stream_event_names=None,
-                             native_stream=False, canvas=False):
+                             native_stream=False, canvas=False, drawer=False):
         """Build the native chat-mode layout (RFC #133).
 
         Reuses the shared chrome (header, theme toggle, About, notifications,
@@ -739,11 +739,14 @@ class AppLayout:
             className="fd-chat-composer-wrap",
         )
 
-        # In canvas mode, input controls live on the chat side, above the
-        # composer: developer-declared settings (model, temperature, an upload —
-        # always present, static) first, then the assistant-built dynamic inputs.
+        # Input-control placement:
+        #  - drawer (app-first): developer settings + a Run button go in the left
+        #    navbar; the assistant's dynamic inputs stay with the chat, in the
+        #    collapsible drawer.
+        #  - panel (chat-first canvas): both the developer settings and the
+        #    dynamic inputs live in the chat panel, above the composer.
         panel_children = [message_list]
-        if canvas and has_settings:
+        if canvas and has_settings and not drawer:
             panel_children.append(
                 html.Div(self.generate_input_component(), id="chat-settings",
                          className="fd-chat-settings")
@@ -773,17 +776,52 @@ class AppLayout:
             id="header1162572",
         )
 
-        navbar_conf = None
+        canvas_region = None
         if canvas:
-            # Split view: chat panel on the left, the assistant-driven canvas
-            # (an agentic DynamicDash region) as the main area. Settings sidebar
-            # is not combined with the canvas in this mode.
             canvas_region = html.Div(
                 html.Div([], id="chat-canvas", className="fd-chat-canvas"),
                 className="fd-chat-canvas-wrap",
                 style={"height": "calc(100vh - 56px)", "overflowY": "auto",
                        "overflowX": "hidden", "padding": "18px 22px"},
             )
+
+        navbar_conf = aside_conf = None
+        if drawer:
+            # App-first: settings + Run in the navbar, the output canvas as the
+            # main area, and the chat in a collapsible right drawer (aside),
+            # hidden by default. The app is fully usable without ever opening it.
+            # generate_input_component() returns navbar *sections*; add the Run
+            # button as a pinned footer section (same pattern as the Run row of a
+            # regular app).
+            navbar_children = list(self.generate_input_component()) if has_settings else []
+            navbar_children.append(
+                dmc.AppShellSection(
+                    html.Div(
+                        dmc.Button(
+                            "Run", id="chat-run", n_clicks=0, fullWidth=True,
+                            leftSection=DashIconify(icon="tabler:player-play", width=16),
+                        ),
+                        style={"paddingTop": "12px",
+                               "borderTop": "1px solid var(--mantine-color-default-border)"},
+                    )
+                )
+            )
+            appshell_children = [
+                header,
+                dmc.AppShellNavbar(
+                    navbar_children, id="navbar3260780", p="md",
+                    style={"display": "flex", "flexDirection": "column",
+                           "overflow": "hidden"},
+                ),
+                dmc.AppShellMain(canvas_region),
+                dmc.AppShellAside(chat_shell, id="chat-aside"),
+            ]
+            navbar_conf = {"width": 320, "breakpoint": "sm",
+                           "collapsed": {"mobile": True}}
+            aside_conf = {"width": 440, "breakpoint": "md",
+                          "collapsed": {"desktop": True, "mobile": True}}
+        elif canvas:
+            # Chat-first split view: chat panel on the left, canvas on the right.
             appshell_children = [
                 header,
                 dmc.AppShellNavbar(chat_shell, id="navbar3260780"),
@@ -810,6 +848,8 @@ class AppLayout:
         appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
         if navbar_conf:
             appshell_kwargs["navbar"] = navbar_conf
+        if aside_conf:
+            appshell_kwargs["aside"] = aside_conf
         appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
         extra = [
@@ -821,6 +861,18 @@ class AppLayout:
             dcc.Store(id="chat-streaming", data=False),
             dcc.Store(id="chat-enter-init"),
         ]
+        if drawer:
+            # Floating action button to open/close the chat drawer (chat is an
+            # opt-in add-on here; the app is fully usable without it).
+            extra.append(
+                dmc.Button(
+                    "Assistant", id="chat-drawer-toggle", n_clicks=0,
+                    leftSection=DashIconify(icon="tabler:message-2", width=18),
+                    radius="xl", size="md",
+                    style={"position": "fixed", "top": "64px", "right": "24px",
+                           "zIndex": 300, "boxShadow": "0 2px 8px rgba(0,0,0,0.15)"},
+                )
+            )
         if self.about and header_children and len(header_children) > 1:
             extra.append(header_children[1])
         if self.branding:
@@ -855,6 +907,11 @@ class AppLayout:
             Input("sidebar-button", "opened"),
         )
         def toggle_sidebar(opened):
+            if getattr(self.app, "is_chat_drawer", False):
+                # App-first (drawer) mode: the navbar holds the settings + Run;
+                # keep it open at its own width.
+                return {"width": 320, "breakpoint": "sm",
+                        "collapsed": {"desktop": False, "mobile": False}}
             if getattr(self.app, "is_canvas", False):
                 # In canvas mode the navbar holds the chat panel (not a settings
                 # sidebar), so it must stay open and keep its wider width.

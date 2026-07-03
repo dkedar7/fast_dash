@@ -133,6 +133,7 @@ class FastDash(ChatAppMixin):
         chat=False,
         chat_history_size=50,
         canvas=False,
+        chat_drawer=False,
         serve_agui=False,
         mcp_server=False,
         mcp_port=8001,
@@ -266,13 +267,17 @@ class FastDash(ChatAppMixin):
         # on. All messages here are friendly and ASCII (Windows consoles).
         self.is_chat = bool(chat)
         self.chat_history_size = chat_history_size
-        # canvas: an assistant-driven DynamicDash region beside the transcript
-        # (chat frames rebuild/patch it). Only meaningful in chat mode.
-        self.is_canvas = bool(canvas) and self.is_chat
-        if canvas and not self.is_chat:
+        # chat_drawer: app-first layout — developer settings + a Run button drive
+        # the output canvas standalone, and chat is a collapsible add-on drawer.
+        # It implies a canvas (the output surface).
+        self.is_chat_drawer = bool(chat_drawer) and self.is_chat
+        # canvas: an assistant-driven region for output (and dynamic controls).
+        # Only meaningful in chat mode; implied by chat_drawer.
+        self.is_canvas = (bool(canvas) or self.is_chat_drawer) and self.is_chat
+        if (canvas or chat_drawer) and not self.is_chat:
             warnings.warn(
-                "canvas=True has no effect without chat=True; ignoring it.",
-                stacklevel=2,
+                "canvas=True / chat_drawer=True have no effect without chat=True; "
+                "ignoring.", stacklevel=2,
             )
         self.serve_agui = bool(serve_agui)
         self.is_langstage = False
@@ -2043,6 +2048,7 @@ def fastdash(
     chat=False,
     chat_history_size=50,
     canvas=False,
+    chat_drawer=False,
     serve_agui=False,
     mcp_server=False,
     mcp_port=8001,
@@ -2162,6 +2168,7 @@ def fastdash(
             chat=chat,
             chat_history_size=chat_history_size,
             canvas=canvas,
+            chat_drawer=chat_drawer,
             serve_agui=serve_agui,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
