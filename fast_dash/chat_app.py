@@ -249,6 +249,25 @@ class ChatAppMixin:
         except Exception:                                 # noqa: BLE001
             return [{"id": n} for n in self._chat_input_names]
 
+    def _sidecar_validate_input(self, name, value):
+        """Return an actionable error string if ``set_input(name, value)`` is
+        invalid (unknown input, or a value outside the input's options), else
+        ``None``. Keeps an invalid value from reaching the host callback (where
+        it would raise a raw exception) and gives an LLM feedback to self-correct.
+        """
+        contract = {s.get("id"): s
+                    for s in (getattr(self, "_sidecar_contract", None) or [])}
+        spec = contract.get(name)
+        if spec is None:
+            valid = ", ".join(str(s.get("id")) for s in (self._sidecar_contract or []))
+            return "No input named '%s'. Valid inputs: %s." % (name, valid or "none")
+        options = spec.get("options")
+        if options and value not in options \
+                and str(value) not in [str(o) for o in options]:
+            return "'%s' isn't a valid value for '%s'. Choose one of: %s." % (
+                value, name, ", ".join(str(o) for o in options))
+        return None
+
     def _sidecar_run_app(self, drive_inputs):
         """Run the host app's callback on ``drive_inputs``; return its outputs.
 
@@ -1128,10 +1147,18 @@ class ChatAppMixin:
                                  + self._sidecar_no_drive_note)
                     _flush(True)
                 else:
-                    # Set a host-app input; reflect it in the live control.
-                    drive_inputs[frame["name"]] = frame["value"]
-                    _emit_drive(inputs=[drive_inputs.get(n)
-                                        for n in self._chat_input_names])
+                    err = self._sidecar_validate_input(frame["name"], frame["value"])
+                    if err:
+                        # Refuse: leave the (still-valid) current value in place
+                        # and tell the agent why, so run_app stays safe.
+                        _append_text(("\n\n" if _has_text(blocks) else "")
+                                     + "_(" + err + ")_")
+                        _flush(True)
+                    else:
+                        # Set a host-app input; reflect it in the live control.
+                        drive_inputs[frame["name"]] = frame["value"]
+                        _emit_drive(inputs=[drive_inputs.get(n)
+                                            for n in self._chat_input_names])
             elif t == "run_app" and self.has_chat_sidecar:
                 if not self._sidecar_can_drive:
                     _append_text(("\n\n" if _has_text(blocks) else "")

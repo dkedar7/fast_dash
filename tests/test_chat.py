@@ -1300,3 +1300,22 @@ class TestChatSidecar:
         expected = [_stringify_id(i.id) for i in app.inputs_with_ids]
         assert app._chat_input_names == expected
         assert [s["id"] for s in app._sidecar_contract] == expected
+
+    def test_set_input_validates_against_contract_options(self):
+        # F1 (from dogfood): an invalid value / unknown input is refused with an
+        # actionable message, and run_app then runs on the still-valid current
+        # value — no raw callback exception reaches the user.
+        from typing import Literal
+        def dashboard(region: Literal["North", "South", "All"] = "All") -> str:
+            return f"r={region}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "region", "value": "Central"}
+            yield {"type": "set_input", "name": "ghost", "value": 1}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        self._ops(app, "go", app_inputs={"region": "All"})
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "isn't a valid value for 'region'" in reply
+        assert "No input named 'ghost'" in reply
+        assert "Error running the app" not in reply       # no raw exception
+        assert app.output_state == ["r=All"]              # ran with the valid value
