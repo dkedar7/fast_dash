@@ -794,10 +794,12 @@ class TestChatCanvas:
         app = FastDash(callback_fn=lambda query: "hi", chat=True, canvas=True)
         assert app.is_canvas is True
         ids = self._ids(app.app.layout)
-        assert "chat-canvas" in ids and "chat-messages" in ids
-        # A plain chat app has no canvas region.
+        # Output canvas (main) + input area (chat side) + transcript.
+        assert {"chat-canvas", "chat-inputs", "chat-messages"} <= ids
+        # A plain chat app has neither canvas region.
         plain = FastDash(callback_fn=lambda query: "hi", chat=True)
-        assert "chat-canvas" not in self._ids(plain.app.layout)
+        plain_ids = self._ids(plain.app.layout)
+        assert "chat-canvas" not in plain_ids and "chat-inputs" not in plain_ids
 
     def test_canvas_frame_renders_and_stores_state(self):
         def bot(query):
@@ -879,9 +881,30 @@ class TestChatCanvas:
         ops = self._ops(app, "grid")
         val = [p for p in ops if isinstance(p, dict)
                and p.get("op") == "canvas"][-1]["value"]
-        assert val["type"] == "Grid"                    # laid out in a grid
-        cols = val["props"]["children"]
+        grid = val["canvas"]                             # Markdown is display -> canvas
+        assert grid["type"] == "Grid"                    # laid out in a grid
+        cols = grid["props"]["children"]
         assert [c["props"]["span"] for c in cols] == [8, 4]   # side-by-side widths
+
+    def test_inputs_and_displays_split_into_regions(self):
+        # Input controls render on the chat side; display components on the canvas.
+        import plotly.graph_objects as go
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "n", "type": "Slider", "value": 3, "props": {"min": 0, "max": 9}},
+                {"name": "on", "type": "Switch", "value": True},
+                {"name": "chart", "type": "Graph", "value": go.Figure(go.Bar(x=[1], y=[2]))},
+                {"name": "note", "type": "Markdown", "value": "hello"},
+            ]}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "build")
+        val = [p for p in ops if isinstance(p, dict)
+               and p.get("op") == "canvas"][-1]["value"]
+        inputs_blob = json.dumps(val["inputs"])
+        canvas_blob = json.dumps(val["canvas"])
+        assert '"Slider"' in inputs_blob and '"Switch"' in inputs_blob   # inputs side
+        assert '"bar"' in canvas_blob                                     # chart on canvas
+        assert '"Slider"' not in canvas_blob and '"bar"' not in inputs_blob
 
 
 class TestCanvasLLMOnramp:

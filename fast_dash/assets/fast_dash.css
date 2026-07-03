@@ -225,3 +225,14 @@
   content: "The assistant will build here.";
   color: var(--mantine-color-dimmed); font-size: 14px; font-style: italic;
 }
+
+/* Canvas input area: the assistant's controls, above the composer (chat side). */
+.fd-chat-inputs {
+  flex: 0 0 auto;
+  max-height: 42vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 8px;
+  border-top: 1px solid var(--mantine-color-default-border);
+}
+.fd-chat-inputs:empty { display: none; padding: 0; border: 0; }

@@ -179,11 +179,13 @@ def assistant(query, ctx):
 FastDash(callback_fn=assistant, chat=True, canvas=True).run()
 ```
 
-The canvas renders **input** widgets (`Slider`, `Select`, `Switch`, `Markdown`, …)
-*and* **display** components (`Graph`, `Table`, `Image`), so the assistant can
-build full dashboards — charts, tables, and controls together. The canvas is a
+Components split by kind automatically: **input** widgets (`Slider`, `Select`,
+`Switch`, `ColorInput`, …) render in an input area on the chat side (above the
+composer), while **display** components (`Graph`, `Table`, `Image`, `Markdown`)
+render in the output canvas. So the assistant builds a control panel on one side
+and a live dashboard on the other, from a single spec list. The canvas is a
 separate surface from the transcript: `content` frames still stream into the
-chat, while `canvas`/`set_props` frames target the canvas.
+chat, while `canvas`/`set_props` frames target it.
 
 ### Driving the canvas with an LLM
 

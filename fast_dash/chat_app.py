@@ -334,20 +334,46 @@ class ChatAppMixin:
         """Serialize a Dash component to the plotly-json the reducer inserts."""
         return json.loads(to_json_plotly(component))
 
-    def _chat_canvas_render(self, sid):
-        """Serialize the session's canvas specs into a Dash children list.
+    # Component value-props that feed back through ctx.canvas — i.e. inputs.
+    # Everything else (figure / data / src / children) is display output.
+    _CANVAS_INPUT_PROPS = frozenset({"value", "checked", "contents"})
 
-        Reuses DynamicDash's ``render_spec`` verbatim, then extracts the group
-        list so it drops straight into ``chat-canvas.children`` (mirroring how
-        DynamicDash sets ``dyn-form.children``).
+    def _partition_canvas_specs(self, specs):
+        """Split specs into (input_specs, display_specs) by component value-prop.
+
+        Input widgets (Slider/Select/Switch/...) render in the chat-side input
+        area; display components (Graph/Table/Image/Markdown) render in the
+        output canvas. Read-back is unaffected — the dyn-input ids are the same
+        wherever they render.
+        """
+        from .dynamic import CANVAS_COMPONENT_REGISTRY
+        inputs, displays = [], []
+        for spec in specs:
+            factory = CANVAS_COMPONENT_REGISTRY.get(spec.get("type"))
+            prop = getattr(factory, "component_property", "value")
+            (inputs if prop in self._CANVAS_INPUT_PROPS else displays).append(spec)
+        return inputs, displays
+
+    def _chat_canvas_render(self, sid):
+        """Render the session's canvas specs, split into input vs display children.
+
+        Returns ``{"inputs": [...], "canvas": [...]}`` — the input controls (for
+        the chat-side input area) and the display output (for the canvas). Reuses
+        DynamicDash's ``render_spec`` verbatim; ``grid=True`` honours each spec's
+        ``span`` for arrangement.
         """
         from .dynamic import CANVAS_COMPONENT_REGISTRY, render_spec
-        # grid=True: specs default to full-width rows (span 12), but a spec's
-        # `span` lets the assistant arrange components into columns.
-        div = render_spec(self._session(sid).canvas_specs,
-                          container_id="_canvas_render",
-                          registry=CANVAS_COMPONENT_REGISTRY, grid=True)
-        return self._chat_bubble_json(div).get("props", {}).get("children", [])
+        input_specs, display_specs = self._partition_canvas_specs(
+            self._session(sid).canvas_specs)
+
+        def _children(specs):
+            if not specs:
+                return []                       # keep the region truly empty
+            div = render_spec(specs, container_id="_canvas_render",
+                              registry=CANVAS_COMPONENT_REGISTRY, grid=True)
+            return self._chat_bubble_json(div).get("props", {}).get("children", [])
+
+        return {"inputs": _children(input_specs), "canvas": _children(display_specs)}
 
     @staticmethod
     def _gather_canvas_values(states):
@@ -486,19 +512,21 @@ class ChatAppMixin:
             )
 
             # (2b) Canvas reducer (Flask + canvas mode): a 'canvas' op on the
-            # dedicated chat_canvas event carries the full rendered spec list;
-            # replace chat-canvas.children wholesale (full-state, coalescing-safe).
+            # dedicated chat_canvas event carries the full rendered state, split
+            # into input controls (chat-side) and display output (the canvas);
+            # replace both wholesale (full-state, coalescing-safe).
             if self.is_canvas:
                 app.clientside_callback(
                     """
                     function(payload) {
-                        if (!payload || payload.op !== 'canvas') {
-                            return dash_clientside.no_update;
-                        }
-                        return payload.value || [];
+                        var no = dash_clientside.no_update;
+                        if (!payload || payload.op !== 'canvas') { return [no, no]; }
+                        var v = payload.value || {};
+                        return [v.inputs || [], v.canvas || []];
                     }
                     """,
-                    Output("chat-canvas", "children", allow_duplicate=True),
+                    [Output("chat-inputs", "children", allow_duplicate=True),
+                     Output("chat-canvas", "children", allow_duplicate=True)],
                     Input("socketio", "data-chat_canvas"),
                     prevent_initial_call=True,
                 )
@@ -769,7 +797,9 @@ class ChatAppMixin:
                     del msgs[2 * self.chat_history_size:]
 
             def _emit_canvas():
-                set_props("chat-canvas", {"children": self._chat_canvas_render(sid)})
+                rendered = self._chat_canvas_render(sid)
+                set_props("chat-inputs", {"children": rendered["inputs"]})
+                set_props("chat-canvas", {"children": rendered["canvas"]})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
             _sio_emit = None

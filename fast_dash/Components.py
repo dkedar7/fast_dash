@@ -739,8 +739,16 @@ class AppLayout:
             className="fd-chat-composer-wrap",
         )
 
+        # In canvas mode, input controls the assistant builds render here (above
+        # the composer, on the chat side); the canvas holds only display output.
+        panel_children = [message_list]
+        if canvas:
+            panel_children.append(
+                html.Div([], id="chat-inputs", className="fd-chat-inputs")
+            )
+        panel_children.append(composer)
         main = html.Div(
-            [message_list, composer],
+            panel_children,
             className="fd-chat-main",
             style={"height": "100%", "display": "flex", "flexDirection": "column"},
         )
