@@ -13,8 +13,7 @@ Everything here is plain Python with no Dash import, so it is unit-testable
 without a browser. Wiring to ``DashSocketIO`` / ``set_props`` and the composer
 UI lives in ``fast_dash.py`` / ``Components.py``.
 
-Frame types (Phase 1 handles content/complete/error; the rest are validated and
-carried for later phases):
+Frame types:
 
     content    {"type": "content",   "content": str}
     reasoning  {"type": "reasoning", "content": str}
@@ -22,6 +21,10 @@ carried for later phases):
     tool_end   {"type": "tool_end",  "name": str, "result": Any,   "id"?: str}
     artifact   {"type": "artifact",  "content": Figure|DataFrame|Image|str}
     interrupt  {"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}
+    canvas     {"type": "canvas",    "specs": [...]}         (chat canvas)
+    set_props  {"type": "set_props", "target": str, "props": dict}  (chat canvas)
+    set_input  {"type": "set_input", "name": str, "value": Any}     (sidecar drive)
+    run_app    {"type": "run_app"}                                   (sidecar drive)
     complete   {"type": "complete"}
     error      {"type": "error",     "message": str}
 
@@ -416,6 +419,10 @@ class ChatHistory:
     def clear(self, sid):
         with self._lock_for(sid):
             self._store.pop(sid, None)
+        # Drop the per-sid lock too, so evicting sessions doesn't leave a
+        # slowly-growing lock registry on a long-running server.
+        with self._registry_lock:
+            self._locks.pop(sid, None)
 
 
 @dataclasses.dataclass

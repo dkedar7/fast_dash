@@ -675,6 +675,8 @@ class ChatAppMixin:
         from dash import Input, Output, State
         from dash.exceptions import PreventUpdate
 
+        from .chat import ChatFrameError
+
         app = self.app
 
         # Shared chrome callbacks (dark-mode toggle, burger, About). A sidecar
@@ -876,6 +878,13 @@ class ChatAppMixin:
                 self._run_chat_turn(query, sid, socket_id, setting_values,
                                     to_transcript=not is_run, app_inputs=app_inputs)
                 return False, []
+            except ChatFrameError as e:
+                # A malformed frame is a developer bug worth surfacing — but at
+                # the callback boundary it must not wedge the UI (an uncaught
+                # raise would leave chat-streaming stuck True, disabling the
+                # composer until a refresh). Surface it as a notification.
+                return False, _get_error_notification_component(
+                    "Chat callback yielded a malformed frame: %s" % e)
             finally:
                 with self._sessions_lock:
                     sess.active = False
@@ -1002,6 +1011,10 @@ class ChatAppMixin:
                 try:
                     self._resume_chat_turn(sid, socket_id, decision)
                     return False, []
+                except ChatFrameError as e:
+                    # Same boundary guard as _chat_turn: never wedge the UI.
+                    return False, _get_error_notification_component(
+                        "Chat callback yielded a malformed frame: %s" % e)
                 finally:
                     with self._sessions_lock:
                         sess.active = False
@@ -1234,14 +1247,26 @@ class ChatAppMixin:
                     b["decision"] = resume_decision
             _emit_replace0(streaming=True)
 
-        result = run_turn(
-            self._chat_fn, query,
-            history=history, settings=settings, emit=_on_frame,
-            friendly_error=lambda m: m,
-            cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid, resume=resume, app_inputs=ctx_inputs,
-            app_input_specs=getattr(self, "_sidecar_contract", None),
-        )
+        from .chat import ChatFrameError
+        try:
+            result = run_turn(
+                self._chat_fn, query,
+                history=history, settings=settings, emit=_on_frame,
+                friendly_error=lambda m: m,
+                cancelled=lambda: self._chat_cancelled(sid),
+                thread_id=sid, resume=resume, app_inputs=ctx_inputs,
+                app_input_specs=getattr(self, "_sidecar_contract", None),
+            )
+        except ChatFrameError as e:
+            # A malformed frame is a developer bug worth surfacing loudly — but
+            # it must not abort the turn mid-stream (that would strand the
+            # streaming bubble and, at the callback boundary, wedge the
+            # composer). Keep the partial reply, surface the bug in the
+            # transcript, and finish the turn normally.
+            _append_text(("\n\n" if _has_text(blocks) else "")
+                         + "**Malformed chat frame:** " + str(e))
+            _flush(True)
+            result = {"content": "", "frames": [], "interrupt": None}
 
         if self._chat_cancelled(sid):
             _append_text(("\n\n" if _has_text(blocks) else "") + "_(stopped)_")

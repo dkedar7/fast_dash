@@ -1333,6 +1333,23 @@ class TestChatSidecar:
         assert "isn't a valid integer for 'n'" in app.chat_history.get("s1")[-1]["content"]
         assert app.output_state == ["n=1"]
 
+    def test_malformed_frame_does_not_wedge_the_turn(self):
+        # R2 (ship review): a malformed known-type frame is a developer bug, but
+        # it must not abort the turn mid-stream (which stranded the streaming
+        # bubble and left the composer disabled). The partial reply is kept, the
+        # bug is surfaced in the transcript, and the next turn works.
+        def bad_agent(query, ctx):
+            yield "partial "
+            yield {"type": "content"}                     # missing 'content' key
+        app = FastDash(callback_fn=lambda a=1: a, chat_agent=bad_agent)
+        self._ops(app, "go", app_inputs={"a": 1})         # must not raise
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert reply.startswith("partial ")               # partial text kept
+        assert "Malformed chat frame" in reply            # bug surfaced loudly
+        assert app._session("s1").active is False
+        self._ops(app, "again", app_inputs={"a": 1})      # session not poisoned
+        assert len(app.chat_history.get("s1")) == 4
+
     def test_password_inputs_are_hidden_and_unsettable(self):
         # Security: a PasswordInput's value is redacted from ctx.inputs and the
         # contract, and set_input on it is refused — but run_app still runs the
