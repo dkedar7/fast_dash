@@ -592,6 +592,61 @@ class AppLayout:
             id="footer5265971",
         )
 
+    def _chat_aside(self):
+        """The chat sidecar surface: a right AppShellAside with the chat panel.
+
+        Only built when the host app declares ``chat_agent=``. Reuses the shared
+        chat fragment (transcript + composer); a header carries the agent's
+        title and a close button.
+        """
+        title = getattr(self.app, "chat_agent_title", "Assistant")
+        header = html.Div(
+            dmc.Group(
+                [
+                    dmc.Group(
+                        [DashIconify(icon="tabler:message-2", width=18),
+                         html.Span(title, style={"fontWeight": 600})],
+                        gap="xs", wrap="nowrap",
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:x", width=18),
+                        id="chat-sidecar-close", variant="subtle", size="sm",
+                        n_clicks=0,
+                    ),
+                ],
+                justify="space-between", wrap="nowrap", style={"width": "100%"},
+            ),
+            style={"flex": "0 0 auto", "padding": "10px 12px",
+                   "borderBottom": "1px solid var(--mantine-color-default-border)"},
+        )
+        body = html.Div(
+            [self._chat_message_list(), self._chat_composer()],
+            className="fd-chat-main",
+            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
+                   "flexDirection": "column"},
+        )
+        return dmc.AppShellAside(
+            html.Div(
+                [header, body],
+                style={"height": "calc(100vh - 56px)", "display": "flex",
+                       "flexDirection": "column"},
+            ),
+            id="chat-aside",
+        )
+
+    def _chat_sidecar_toggle_button(self):
+        """Floating button that opens/closes the chat sidecar aside."""
+        title = getattr(self.app, "chat_agent_title", "Assistant")
+        return dmc.Button(
+            title,
+            id="chat-sidecar-toggle",
+            n_clicks=0,
+            leftSection=DashIconify(icon="tabler:message-2", width=18),
+            radius="xl",
+            style={"position": "fixed", "bottom": "24px", "right": "24px",
+                   "zIndex": 1000, "boxShadow": "0 2px 12px rgba(0,0,0,0.2)"},
+        )
+
     def generate_layout(self, stream_event_names=None):
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -600,44 +655,51 @@ class AppLayout:
         navbar_content = self.generate_input_component()
         main_content = self.generate_output_component()
 
-        appshell = dmc.AppShell(
-            [
-                dmc.AppShellHeader(
-                    dmc.Group(
-                        header_children[0] if header_children else [],
-                        style={"height": "100%", "padding": "0 20px"},
-                    ),
-                    id="header1162572",
+        has_sidecar = getattr(self.app, "has_chat_sidecar", False)
+
+        appshell_children = [
+            dmc.AppShellHeader(
+                dmc.Group(
+                    header_children[0] if header_children else [],
+                    style={"height": "100%", "padding": "0 20px"},
                 ),
-                dmc.AppShellNavbar(
-                    navbar_content,
-                    p="md",
-                    id="navbar3260780",
-                    # Column so the grow inputs-section scrolls and the Run
-                    # footer section stays pinned; the section owns scrolling.
-                    style={
-                        "display": "flex",
-                        "flexDirection": "column",
-                        "overflow": "hidden",
-                    },
+                id="header1162572",
+            ),
+            dmc.AppShellNavbar(
+                navbar_content,
+                p="md",
+                id="navbar3260780",
+                # Column so the grow inputs-section scrolls and the Run
+                # footer section stays pinned; the section owns scrolling.
+                style={
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "overflow": "hidden",
+                },
+            ),
+            dmc.AppShellMain(
+                html.Div(
+                    main_content,
+                    style={"padding": "20px", "height": "100%"},
+                    id="output-group-col",
                 ),
-                dmc.AppShellMain(
-                    html.Div(
-                        main_content,
-                        style={"padding": "20px", "height": "100%"},
-                        id="output-group-col",
-                    ),
-                ),
-            ],
+            ),
+        ]
+        appshell_kwargs = dict(
             header={"height": 56},
-            navbar={
-                "width": 300,
-                "breakpoint": "sm",
-                "collapsed": {"mobile": False},
-            },
+            navbar={"width": 300, "breakpoint": "sm", "collapsed": {"mobile": False}},
             padding=0,
             id="appshell",
         )
+        if has_sidecar:
+            appshell_children.append(self._chat_aside())
+            # Collapsed by default; the floating toggle opens it.
+            appshell_kwargs["aside"] = {
+                "width": 380, "breakpoint": "sm",
+                "collapsed": {"desktop": True, "mobile": True},
+            }
+
+        appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
         # Collect items that go outside AppShell
         extra = [
@@ -653,6 +715,11 @@ class AppLayout:
 
         extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
 
+        if has_sidecar:
+            extra += self._chat_stores()
+            extra.append(dcc.Store(id="chat-sidecar-open", data=False))
+            extra.append(self._chat_sidecar_toggle_button())
+
         layout = dmc.MantineProvider(
             [appshell] + extra,
             id="mantine-provider",
@@ -662,29 +729,14 @@ class AppLayout:
 
         return layout
 
-    def generate_chat_layout(self, has_settings=False, stream_event_names=None,
-                             native_stream=False, canvas=False, drawer=False):
-        """Build the native chat-mode layout (RFC #133).
+    @staticmethod
+    def _chat_message_list():
+        """The transcript container — shared by chat mode and the sidecar aside.
 
-        Reuses the shared chrome (header, theme toggle, About, notifications,
-        MantineProvider) and lays out a streaming transcript with a composer
-        pinned at the bottom of the main area. Settings inputs (any callback
-        parameter besides ``query``/``history``) render in the sidebar, which is
-        hidden entirely when there are none.
-
-        Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
-        an ASGI backend (``native_stream``) they are pushed with ``set_props``
-        into the ``chat-frames-store`` and the reducer listens on that store
-        instead of a socket event (no flask-socketio, which is WSGI-only).
+        Newest message at the visual bottom (column-reverse pins the scroll to
+        the bottom, as the Chat output component does).
         """
-        if self.minimal:
-            self.title = self.subtitle = self.navbar = self.footer = False
-
-        header_children = self.generate_navbar_container() or []
-
-        # Transcript: newest message at the visual bottom (column-reverse sticks
-        # the scroll to the bottom, as the Chat output component does).
-        message_list = html.Div(
+        return html.Div(
             [],
             id="chat-messages",
             className="fd-chat-list",
@@ -700,7 +752,10 @@ class AppLayout:
             },
         )
 
-        composer = html.Div(
+    @staticmethod
+    def _chat_composer():
+        """The composer (textarea + send/stop) — shared by chat mode and sidecar."""
+        return html.Div(
             dmc.Group(
                 [
                     dmc.Textarea(
@@ -738,6 +793,39 @@ class AppLayout:
             ),
             className="fd-chat-composer-wrap",
         )
+
+    @staticmethod
+    def _chat_stores():
+        """The dcc.Stores the chat callbacks bind to — shared by both surfaces."""
+        return [
+            dcc.Store(id="chat-session", storage_type="session"),
+            dcc.Store(id="chat-submit-store"),
+            dcc.Store(id="chat-streaming", data=False),
+            dcc.Store(id="chat-enter-init"),
+        ]
+
+    def generate_chat_layout(self, has_settings=False, stream_event_names=None,
+                             native_stream=False, canvas=False, drawer=False):
+        """Build the native chat-mode layout (RFC #133).
+
+        Reuses the shared chrome (header, theme toggle, About, notifications,
+        MantineProvider) and lays out a streaming transcript with a composer
+        pinned at the bottom of the main area. Settings inputs (any callback
+        parameter besides ``query``/``history``) render in the sidebar, which is
+        hidden entirely when there are none.
+
+        Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
+        an ASGI backend (``native_stream``) they are pushed with ``set_props``
+        into the ``chat-frames-store`` and the reducer listens on that store
+        instead of a socket event (no flask-socketio, which is WSGI-only).
+        """
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
+        header_children = self.generate_navbar_container() or []
+
+        message_list = self._chat_message_list()
+        composer = self._chat_composer()
 
         # Developer-declared settings placement:
         #  - drawer (app-first): the settings + a Run button go in the left
@@ -873,11 +961,7 @@ class AppLayout:
         extra = [
             dmc.NotificationContainer(id="notification-container"),
             html.Div(id="dummy-div", style={"display": "none"}),
-            # Chat-mode state stores.
-            dcc.Store(id="chat-session", storage_type="session"),
-            dcc.Store(id="chat-submit-store"),
-            dcc.Store(id="chat-streaming", data=False),
-            dcc.Store(id="chat-enter-init"),
+            *self._chat_stores(),                 # chat state stores (shared)
         ]
         if self.about and header_children and len(header_children) > 1:
             extra.append(header_children[1])

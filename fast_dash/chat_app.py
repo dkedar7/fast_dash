@@ -42,6 +42,15 @@ class ChatAppMixin:
         from .chat import ChatHistory
 
         self.state_counter = 0
+        # The callback that drives each chat turn. In chat mode it's the app's
+        # own callback; a sidecar (chat_agent= on a normal app) points it at the
+        # agent instead, so _run_chat_turn is surface-agnostic.
+        self._chat_fn = callback_fn
+        # How the turn callback's input States are used: "settings" (chat mode,
+        # passed to the callback as kwargs) or "ctx" (sidecar, surfaced as
+        # ctx.inputs). Set to "ctx" by _init_chat_sidecar.
+        self._chat_input_mode = "settings"
+        self._chat_input_names = []
         self.chat_history = ChatHistory(size=self.chat_history_size)
         # One ChatSession per browser session holds all per-session state (the
         # in-flight/cancel guard, ASGI transcript, HITL pending turn, canvas
@@ -96,6 +105,84 @@ class ChatAppMixin:
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+
+    # ----- chat sidecar (chat_agent= on a normal app) -------------------- #
+
+    def _init_chat_sidecar(self):
+        """Mount an independent chat agent on a normal app (``chat_agent=``).
+
+        Runs the same streaming turn machinery as chat mode, but the host app
+        keeps its own callback, inputs, and outputs. The agent reads the app's
+        live inputs via ``ctx.inputs`` and drives it with ``set_input`` /
+        ``run_app`` frames; it shares nothing else with the app.
+        """
+        import inspect
+        import threading
+
+        from .chat import ChatHistory
+        from .adapters.langstage import build_chat_callback, is_langstage_target
+
+        agent = self._chat_agent
+        # A LangGraph graph / "module:attr" spec is bridged to the frame grammar.
+        if is_langstage_target(agent):
+            agent = build_chat_callback(agent)
+            self.is_langstage = True
+
+        _params = list(inspect.signature(agent).parameters)
+        if not _params or _params[0] != "query":
+            raise TypeError(
+                "A chat_agent's first parameter must be named 'query' (it "
+                "receives the composer text). Got signature (%s)."
+                % ", ".join(_params)
+            )
+
+        # Per-session chat state, independent of the app's own callback.
+        self.chat_history = ChatHistory(size=self.chat_history_size)
+        self._sessions = {}
+        self._sessions_lock = threading.Lock()
+        self._last_sweep = 0.0
+        self._chat_fn = agent
+        self._chat_setting_names = []
+        # The turn callback reads the host app's live inputs and hands them to
+        # the agent as ctx.inputs, keyed by the host callback's param names.
+        self._chat_input_mode = "ctx"
+        self._chat_input_names = list(
+            inspect.signature(self.callback_fn).parameters
+        )[: len(self.inputs_with_ids)]
+
+        self._register_chat_callbacks(register_chrome=False)
+        self._register_chat_sidecar_toggle()
+
+    def _register_chat_sidecar_toggle(self):
+        """Open/close the sidecar aside (floating button + in-aside close)."""
+        from dash import Input, Output, State
+        app = self.app
+
+        # The floating toggle and the in-aside close button both flip the flag.
+        app.clientside_callback(
+            """
+            function(n_toggle, n_close, open) {
+                if (!n_toggle && !n_close) { return dash_clientside.no_update; }
+                return !open;
+            }
+            """,
+            Output("chat-sidecar-open", "data"),
+            [Input("chat-sidecar-toggle", "n_clicks"),
+             Input("chat-sidecar-close", "n_clicks")],
+            State("chat-sidecar-open", "data"),
+            prevent_initial_call=True,
+        )
+        # Open flag -> aside collapsed state (collapsed = closed).
+        app.clientside_callback(
+            """
+            function(open) {
+                return {width: 380, breakpoint: 'sm',
+                        collapsed: {desktop: !open, mobile: !open}};
+            }
+            """,
+            Output("appshell", "aside"),
+            Input("chat-sidecar-open", "data"),
+        )
 
     # ----- chat mode: layout + callbacks (RFC #133) ---------------------- #
 
@@ -375,14 +462,15 @@ class ChatAppMixin:
             drawer=self.is_chat_drawer,
         )
 
-    def _register_chat_callbacks(self):
+    def _register_chat_callbacks(self, register_chrome=True):
         from dash import Input, Output, State
         from dash.exceptions import PreventUpdate
 
         app = self.app
 
-        # Shared chrome callbacks (dark-mode toggle, burger, About).
-        if not self.minimal:
+        # Shared chrome callbacks (dark-mode toggle, burger, About). A sidecar
+        # rides a normal app that already registered these, so it opts out.
+        if register_chrome and not self.minimal:
             self.layout_object.callbacks(self)
 
         # (1) Per-browser session id — generated once on load, kept stable.
@@ -530,13 +618,22 @@ class ChatAppMixin:
         )
         def _chat_turn(submit, session_id, *rest):
             rest = list(rest)
-            # Flask: rest = (socket_id, *setting_values); ASGI: rest = setting_values.
+            # Flask: rest = (socket_id, *state_values); ASGI: rest = state_values.
             if self._native_stream:
                 socket_id = None
-                setting_values = tuple(rest)
+                state_values = tuple(rest)
             else:
                 socket_id = rest[0] if rest else None
-                setting_values = tuple(rest[1:])
+                state_values = tuple(rest[1:])
+            # In chat mode the input states are settings passed to the callback
+            # as kwargs; in a sidecar (chat_agent= on a normal app) they are the
+            # host app's live inputs, surfaced to the agent via ctx.inputs.
+            if self._chat_input_mode == "ctx":
+                app_inputs = dict(zip(self._chat_input_names, state_values))
+                setting_values = ()
+            else:
+                app_inputs = None
+                setting_values = state_values
 
             # A Run (app-first drawer mode) drives the callback from the settings
             # with no chat message: query is empty, output goes to the canvas
@@ -564,7 +661,7 @@ class ChatAppMixin:
 
             try:
                 self._run_chat_turn(query, sid, socket_id, setting_values,
-                                    to_transcript=not is_run)
+                                    to_transcript=not is_run, app_inputs=app_inputs)
                 return False, []
             finally:
                 with self._sessions_lock:
@@ -699,7 +796,7 @@ class ChatAppMixin:
 
     def _run_chat_turn(self, query, sid, socket_id, setting_values, emit=None,
                        resume=None, resume_decision=None, resume_blocks=None,
-                       to_transcript=True):
+                       to_transcript=True, app_inputs=None):
         """Drive one chat turn, streaming its blocks to the browser.
 
         Two transports, one turn-driver:
@@ -854,11 +951,11 @@ class ChatAppMixin:
             _emit_replace0(streaming=True)
 
         result = run_turn(
-            self.callback_fn, query,
+            self._chat_fn, query,
             history=history, settings=settings, emit=_on_frame,
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
-            thread_id=sid, resume=resume,
+            thread_id=sid, resume=resume, app_inputs=app_inputs,
         )
 
         if self._chat_cancelled(sid):

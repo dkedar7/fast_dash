@@ -50,10 +50,14 @@ class ChatContext:
     * ``thread_id`` -- the chat session id (a LangGraph checkpointer thread).
     * ``resume`` -- a decision answering a pending ``interrupt`` (HITL), else
       ``None``.
+    * ``inputs`` -- the host app's live input values ``{name: value}`` when the
+      agent runs as a **sidecar** on a normal Fast Dash app (empty otherwise);
+      lets the assistant read what the user set on the dashboard.
     """
 
     thread_id: str = "default"
     resume: Any = None
+    inputs: dict = dataclasses.field(default_factory=dict)
 
 # Frame type constants -------------------------------------------------------
 CONTENT = "content"
@@ -398,7 +402,8 @@ def has_text(blocks):
 
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
-             friendly_error=None, cancelled=None, thread_id=None, resume=None):
+             friendly_error=None, cancelled=None, thread_id=None, resume=None,
+             app_inputs=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -424,10 +429,11 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
         kwargs["history"] = list(history or [])
     if _declares(callback_fn, "ctx"):
         # Power features fold into one context object instead of separate magic
-        # params (thread_id / resume).
+        # params (thread_id / resume / inputs).
         kwargs["ctx"] = ChatContext(
             thread_id=thread_id or "default",
             resume=resume,
+            inputs=dict(app_inputs or {}),
         )
 
     parts = []       # accumulated assistant text (content frames)

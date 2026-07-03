@@ -134,6 +134,8 @@ class FastDash(ChatAppMixin):
         chat_history_size=50,
         canvas=False,
         chat_drawer=False,
+        chat_agent=None,
+        chat_agent_title=None,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -318,6 +320,22 @@ class FastDash(ChatAppMixin):
             # the composer contract (describe_app) and a headless invoke(query=)
             # that drives one turn and returns its frames (see fast_dash.mcp).
 
+        # --- Chat sidecar (chat_agent= on a normal app) ----------------------
+        # A *normal* Fast Dash app (typed inputs -> outputs, Run button) can
+        # mount an independent chat agent in a side drawer. The agent shares
+        # nothing with the app's own callback except the ability to read the
+        # app's live inputs (ctx.inputs) and drive it (set_input / run_app
+        # frames). This is the mirror of chat=True, which *is* the chat.
+        if chat_agent is not None and self.is_chat:
+            raise TypeError(
+                "chat_agent= cannot be combined with chat=True (that app is "
+                "already a chat). Use chat_agent= to add an assistant to a "
+                "normal app."
+            )
+        self.has_chat_sidecar = bool(chat_agent) and not self.is_chat
+        self._chat_agent = chat_agent
+        self.chat_agent_title = chat_agent_title or "Assistant"
+
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -373,8 +391,9 @@ class FastDash(ChatAppMixin):
         self._backend = self.kwargs.pop("backend", None)
         # Native-WebSocket streaming: when streaming is requested on an ASGI
         # backend, partial updates are pushed with set_props instead of
-        # flask-socketio (which is WSGI-only).
-        self._native_stream = bool(stream) and bool(self._backend)
+        # flask-socketio (which is WSGI-only). A chat sidecar always streams, so
+        # it counts as requesting streaming even on an otherwise-static app.
+        self._native_stream = (bool(stream) or self.has_chat_sidecar) and bool(self._backend)
         source = dash.Dash
         if self._backend:
             self.kwargs.setdefault("websocket_callbacks", True)
@@ -397,8 +416,9 @@ class FastDash(ChatAppMixin):
         self.server = self.app.server
         self.callback = self.app.callback
 
-        # Legacy flask-socketio server: only for the Flask streaming path.
-        if stream == True and not self._native_stream:
+        # Legacy flask-socketio server: for the Flask streaming path (streaming
+        # outputs or a chat sidecar streaming its turns).
+        if (stream == True or self.has_chat_sidecar) and not self._native_stream:
             socketio = SocketIO(self.app.server)
 
         # Define other attributes
@@ -470,6 +490,11 @@ class FastDash(ChatAppMixin):
         self.add_streaming()
         if self.mcp_server_enabled:
             self._register_mcp_mirror()
+
+        # Mount an independent chat agent in a side drawer (chat_agent=), after
+        # the normal app's layout + callbacks are in place.
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
 
         # Keep track of the number of clicks
         self.submit_clicks = 0
@@ -1240,6 +1265,10 @@ class FastDash(ChatAppMixin):
 
         for component in chat_components:
             [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(getattr(component, "stream_limit", 10))]
+
+        # A chat sidecar streams its turns over the same socketio component.
+        if getattr(self, "has_chat_sidecar", False):
+            streaming_components.append("chat_frames")
 
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
@@ -2047,6 +2076,8 @@ def fastdash(
     chat_history_size=50,
     canvas=False,
     chat_drawer=False,
+    chat_agent=None,
+    chat_agent_title=None,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2166,6 +2197,8 @@ def fastdash(
             chat_history_size=chat_history_size,
             canvas=canvas,
             chat_drawer=chat_drawer,
+            chat_agent=chat_agent,
+            chat_agent_title=chat_agent_title,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,
