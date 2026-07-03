@@ -632,3 +632,45 @@ class TestChatMcp:
         assert desc["mode"] == "chat" and desc["settings"] == []
         out = _call(c, "invoke", {"query": "hello there"})
         assert out["ok"] is True and "hello there" in out["content"]
+
+    def test_describe_app_reports_disabled_canvas_by_default(self):
+        c = _client_for(_chat_app())
+        assert _call(c, "describe_app")["canvas"] == {"enabled": False}
+
+
+def _canvas_chat_app(**kw):
+    def bot(query: str, ctx):
+        """A canvas-building assistant, over MCP."""
+        if "build" in query.lower():
+            yield {"type": "canvas", "specs": [
+                {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 10}},
+            ]}
+            yield "built"
+        else:
+            yield f"a is {ctx.canvas.get('a')}"
+    return FastDash(callback_fn=bot, chat=True, canvas=True, mcp_server=True, **kw)
+
+
+class TestChatCanvasMcp:
+    """A canvas chat app exposes and drives the canvas over MCP (agent parity)."""
+
+    def test_describe_app_reports_canvas_contract(self):
+        c = _client_for(_canvas_chat_app())
+        canvas = _call(c, "describe_app")["canvas"]
+        assert canvas["enabled"] is True
+        assert "Graph" in canvas["component_types"]     # display types available
+        assert canvas["specs"] == []                     # nothing built yet
+
+    def test_invoke_builds_canvas_and_reports_specs(self):
+        c = _client_for(_canvas_chat_app())
+        out = _call(c, "invoke", {"query": "build it"})
+        assert out["ok"] is True
+        assert out["canvas"]["specs"][0]["name"] == "a"  # canvas reflected back
+        # And a later describe_app sees the built canvas.
+        assert _call(c, "describe_app")["canvas"]["specs"][0]["name"] == "a"
+
+    def test_invoke_reads_canvas_values(self):
+        c = _client_for(_canvas_chat_app())
+        _call(c, "invoke", {"query": "build it"})
+        out = _call(c, "invoke", {"query": "read", "canvas_values": {"a": 9}})
+        assert out["ok"] is True and "a is 9" in out["content"]

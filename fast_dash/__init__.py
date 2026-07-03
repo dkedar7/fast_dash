@@ -35,12 +35,14 @@ from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
 from fast_dash.dynamic import DynamicDash, render_spec, COMPONENT_REGISTRY
-from fast_dash.chat import ChatContext
+from fast_dash.chat import ChatContext, canvas_tool_specs, apply_tool_call
 
 __all__ = [
     "FastDash",
     "fastdash",
     "ChatContext",
+    "canvas_tool_specs",
+    "apply_tool_call",
     "Fastify",
     "depends_on",
     "from_step",

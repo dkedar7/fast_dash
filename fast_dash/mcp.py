@@ -462,6 +462,20 @@ def _describe_chat_settings(fd) -> list[dict]:
     return settings
 
 
+def _describe_chat_canvas(fd) -> dict:
+    """Canvas contract for a chat app: enabled, current specs, allowed types."""
+    if not getattr(fd, "is_canvas", False):
+        return {"enabled": False}
+    from fast_dash.dynamic import CANVAS_COMPONENT_REGISTRY
+    from fast_dash.utils import _jsonify_for_mcp
+    sess = getattr(fd, "_sessions", {}).get(_MCP_CHAT_SID)
+    return {
+        "enabled": True,
+        "specs": _jsonify_for_mcp(sess.canvas_specs if sess else []),
+        "component_types": sorted(CANVAS_COMPONENT_REGISTRY),
+    }
+
+
 def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
     """Register the chat-app MCP tools: ``describe_app`` + headless ``invoke``."""
     from fast_dash.chat import run_turn, wire_safe
@@ -471,9 +485,10 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
     def describe_app() -> dict:
         """Describe this chat app's contract for a headless agent.
 
-        Reports the composer (the required ``query`` string an agent sends) and
-        any sidebar ``settings`` (each with its ``name``, ``type``, ``default``,
-        and allowed ``options``). Drive the app with ``invoke(query=...)``.
+        Reports the composer (the required ``query`` string an agent sends), any
+        sidebar ``settings``, and — when the app has an assistant-driven canvas —
+        the ``canvas`` (its current specs and the component types it accepts).
+        Drive the app with ``invoke(query=...)``.
         """
         return {
             "title": getattr(fd, "title", None) or "",
@@ -481,16 +496,19 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
             "mode": "chat",
             "composer": {"query": {"type": "string", "required": True}},
             "settings": _describe_chat_settings(fd),
+            "canvas": _describe_chat_canvas(fd),
         }
 
     @mcp_enabled(name="invoke", expose_docstring=True)
-    def invoke(query: str, settings: dict = None) -> dict:
+    def invoke(query: str, settings: dict = None, canvas_values: dict = None) -> dict:
         """Run one chat turn headlessly and return its frames (JSON-safe).
 
         ``query`` is the composer text. ``settings`` optionally sets sidebar
-        values (keyed by parameter ``name`` from ``describe_app``). History and
-        thread state advance across calls, so successive invocations continue the
-        same conversation.
+        values (keyed by parameter ``name`` from ``describe_app``).
+        ``canvas_values`` supplies the canvas's live values the turn should see
+        (as a browser user's edits would), keyed by canvas component name.
+        History and thread state advance across calls. When the app has a canvas,
+        the response includes the post-turn ``canvas`` specs.
         """
         if not isinstance(query, str) or not query.strip():
             return {"ok": False, "error": "query must be a non-empty string"}
@@ -506,20 +524,34 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
             }
 
         frames = []
+        is_canvas = getattr(fd, "is_canvas", False)
+
+        def _emit(f):
+            frames.append(f)
+            # Reflect canvas mutations into the headless session so describe_app
+            # and the invoke response show the current canvas (agent parity).
+            if is_canvas and f.get("type") in ("canvas", "set_props"):
+                fd._chat_canvas_apply(_MCP_CHAT_SID, f)
+
         history = fd.chat_history.get(_MCP_CHAT_SID)
         try:
             result = run_turn(
                 fd.callback_fn, query.strip(),
-                history=history, settings=settings,
-                emit=lambda f: frames.append(f),
+                history=history, settings=settings, emit=_emit,
                 friendly_error=lambda m: m, thread_id=_MCP_CHAT_SID,
+                canvas=canvas_values,
             )
         except Exception as e:                     # defensive: never crash /mcp
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
         fd.chat_history.append_turn(_MCP_CHAT_SID, query.strip(), result["content"])
         safe_frames = [_jsonify_for_mcp(wire_safe(f)) for f in frames]
-        return {"ok": True, "content": result["content"], "frames": safe_frames}
+        resp = {"ok": True, "content": result["content"], "frames": safe_frames}
+        if is_canvas:
+            sess = getattr(fd, "_sessions", {}).get(_MCP_CHAT_SID)
+            resp["canvas"] = {"specs": _jsonify_for_mcp(
+                sess.canvas_specs if sess else [])}
+        return resp
 
 
 def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:

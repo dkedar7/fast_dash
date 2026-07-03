@@ -32,12 +32,15 @@ from fast_dash.Components import (
     ColorInput,
     DateInput,
     DateRange,
+    Graph,
+    Image,
     Markdown,
     MultiSelect,
     NumberInput,
     PasswordInput,
     Slider,
     Switch,
+    Table,
     Text,
     TextArea,
     Upload,
@@ -47,6 +50,7 @@ from fast_dash.utils import Fastify
 
 
 __all__ = [
+    "CANVAS_COMPONENT_REGISTRY",
     "COMPONENT_REGISTRY",
     "DynamicDash",
     "render_spec",
@@ -77,18 +81,32 @@ COMPONENT_REGISTRY: dict[str, Any] = {
     "UploadImage": UploadImage,
 }
 
+# The chat canvas renders *display* components too (charts, tables, images), not
+# just the input widgets DynamicDash forms use. Kept separate so the input
+# registry stays input-only.
+CANVAS_COMPONENT_REGISTRY: dict[str, Any] = {
+    **COMPONENT_REGISTRY,
+    "Graph": Graph,
+    "Table": Table,
+    "Image": Image,
+}
+
 
 def _humanize(name: str) -> str:
     return name.replace("_", " ").replace("-", " ").strip().title()
 
 
-def _spec_to_component(spec: dict) -> Any:
+def _spec_to_component(spec: dict, registry: dict | None = None) -> Any:
     """Instantiate a FastComponent from a single UI spec dict.
 
     The returned component carries a dict id of the shape
     ``{"role": "dyn-input", "name": <name>, "prop": <component_property>}``
     so the Run callback can read it back under a homogeneous-property pool.
+    ``registry`` defaults to the input registry; the chat canvas passes
+    :data:`CANVAS_COMPONENT_REGISTRY` to also allow display components.
     """
+    if registry is None:
+        registry = COMPONENT_REGISTRY
     if not isinstance(spec, dict):
         raise TypeError(f"Spec entries must be dicts, got {type(spec).__name__}")
 
@@ -96,13 +114,13 @@ def _spec_to_component(spec: dict) -> Any:
     type_ = spec.get("type")
     if not name:
         raise ValueError(f"Spec missing required 'name': {spec!r}")
-    if type_ not in COMPONENT_REGISTRY:
+    if type_ not in registry:
         raise ValueError(
             f"Unknown component type {type_!r} for field {name!r}. "
-            f"Allowed: {sorted(COMPONENT_REGISTRY)}"
+            f"Allowed: {sorted(registry)}"
         )
 
-    factory = COMPONENT_REGISTRY[type_]
+    factory = registry[type_]
     props = dict(spec.get("props") or {})
     # Pass props through Fastify.__call__ → deep-copies the component and
     # setattrs each kwarg, which Dash picks up as a prop override.
@@ -121,7 +139,8 @@ def _spec_to_component(spec: dict) -> Any:
     return comp
 
 
-def render_spec(specs: Iterable[dict], container_id: str = "dyn-form") -> html.Div:
+def render_spec(specs: Iterable[dict], container_id: str = "dyn-form",
+                registry: dict | None = None) -> html.Div:
     """Render a list of UI specs into a Dash container.
 
     Spec shape::
@@ -135,13 +154,13 @@ def render_spec(specs: Iterable[dict], container_id: str = "dyn-form") -> html.D
         }
 
     Pure function; no callback registration. Reused by the parent-control
-    resolver callback inside :class:`DynamicDash` and by the MCP
-    ``set_form`` tool.
+    resolver callback inside :class:`DynamicDash`, the MCP ``set_form`` tool, and
+    the chat canvas (which passes :data:`CANVAS_COMPONENT_REGISTRY`).
     """
     specs = list(specs or [])
     groups = []
     for spec in specs:
-        comp = _spec_to_component(spec)
+        comp = _spec_to_component(spec, registry=registry)
         groups.append(
             dmc.Stack(
                 [

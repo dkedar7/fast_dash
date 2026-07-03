@@ -195,6 +195,99 @@ def wire_safe(frame):
 
 
 # --------------------------------------------------------------------------- #
+# LLM on-ramp for the canvas
+# --------------------------------------------------------------------------- #
+
+def canvas_tool_specs():
+    """Provider-neutral JSON-Schema tool defs for driving the canvas with an LLM.
+
+    Returns two tools -- ``build_canvas`` and ``set_canvas_props`` -- in the
+    ``{name, description, input_schema}`` shape (the inner ``input_schema`` is
+    standard JSON Schema, portable to any provider). Hand them to your LLM's
+    ``tools=`` argument; pass each returned tool call to :func:`apply_tool_call`
+    to get a frame to ``yield``. No LLM SDK is imported or required.
+    """
+    from .dynamic import CANVAS_COMPONENT_REGISTRY
+    spec_item = {
+        "type": "object",
+        "properties": {
+            "name": {"type": "string", "description": "Unique component id."},
+            "type": {"type": "string", "enum": sorted(CANVAS_COMPONENT_REGISTRY)},
+            "value": {"description": "Initial value (type depends on component)."},
+            "label": {"type": "string"},
+            "props": {"type": "object", "description": "Extra component props."},
+        },
+        "required": ["name", "type"],
+    }
+    return [
+        {
+            "name": "build_canvas",
+            "description": ("Build or replace the output canvas from a list of "
+                            "UI-spec components (inputs, charts, tables, text)."),
+            "input_schema": {
+                "type": "object",
+                "properties": {"specs": {"type": "array", "items": spec_item}},
+                "required": ["specs"],
+            },
+        },
+        {
+            "name": "set_canvas_props",
+            "description": ("Patch one canvas component's properties in place "
+                            "(e.g. widen a slider's range, change a value)."),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "target": {"type": "string",
+                               "description": "The component name to patch."},
+                    "props": {"type": "object"},
+                },
+                "required": ["target", "props"],
+            },
+        },
+    ]
+
+
+def _tool_call_parts(tool_call):
+    """Extract ``(name, args_dict)`` from an LLM tool call (dict or SDK object)."""
+    import json as _json
+
+    def _coerce(a):
+        if isinstance(a, str):
+            try:
+                return _json.loads(a)
+            except (ValueError, TypeError):
+                return {}
+        return a or {}
+
+    if isinstance(tool_call, dict):
+        fn = tool_call.get("function") or {}
+        name = tool_call.get("name") or fn.get("name")
+        args = tool_call.get("input")
+        if args is None:
+            args = tool_call.get("arguments", fn.get("arguments"))
+        return name, _coerce(args)
+    # Object form (e.g. an Anthropic ToolUseBlock: .name / .input).
+    return getattr(tool_call, "name", None), _coerce(getattr(tool_call, "input", None))
+
+
+def apply_tool_call(tool_call):
+    """Map an LLM ``build_canvas`` / ``set_canvas_props`` call to a chat frame.
+
+    Accepts a provider tool-call dict (``{name, input}`` / ``{name, arguments}``
+    / OpenAI ``{function: {...}}``) or an SDK object with ``.name``/``.input``.
+    Returns a ``canvas`` or ``set_props`` frame to ``yield``, or ``None`` for an
+    unrecognized tool (so a mixed tool loop can skip it).
+    """
+    name, args = _tool_call_parts(tool_call)
+    if name == "build_canvas":
+        return {"type": CANVAS, "specs": args.get("specs", [])}
+    if name == "set_canvas_props":
+        return {"type": SET_PROPS, "target": args.get("target"),
+                "props": args.get("props", {})}
+    return None
+
+
+# --------------------------------------------------------------------------- #
 # History store
 # --------------------------------------------------------------------------- #
 

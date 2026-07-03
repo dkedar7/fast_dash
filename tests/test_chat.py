@@ -850,3 +850,78 @@ class TestChatCanvas:
             [],
         )
         assert app._gather_canvas_values(states) == {"amount": 7, "agree": True}
+
+    def test_canvas_renders_display_components(self):
+        # E1: the assistant can build dashboards (charts/tables), not just forms.
+        import plotly.graph_objects as go
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "chart", "type": "Graph",
+                 "value": go.Figure(go.Bar(x=[1, 2], y=[3, 4])), "label": "Sales"},
+                {"name": "tbl", "type": "Table",
+                 "value": [{"a": 1, "b": 2}], "label": ""},
+            ]}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "dashboard")
+        last = json.dumps([p for p in ops if isinstance(p, dict)
+                           and p.get("op") == "canvas"][-1]["value"])
+        assert '"bar"' in last                          # Graph rendered on the canvas
+        assert app._session("s1").canvas_specs[0]["type"] == "Graph"
+
+
+class TestCanvasLLMOnramp:
+    """canvas_tool_specs / apply_tool_call: wire an LLM to the canvas (E2)."""
+
+    def test_tool_specs_shape_and_types(self):
+        from fast_dash import canvas_tool_specs
+        specs = canvas_tool_specs()
+        names = {t["name"] for t in specs}
+        assert names == {"build_canvas", "set_canvas_props"}
+        build = next(t for t in specs if t["name"] == "build_canvas")
+        item = build["input_schema"]["properties"]["specs"]["items"]
+        assert "Graph" in item["properties"]["type"]["enum"]      # display types offered
+        assert item["required"] == ["name", "type"]
+
+    def test_apply_build_canvas_tool_call(self):
+        from fast_dash import apply_tool_call
+        frame = apply_tool_call({"name": "build_canvas",
+                                 "input": {"specs": [{"name": "a", "type": "Slider"}]}})
+        assert frame == {"type": "canvas", "specs": [{"name": "a", "type": "Slider"}]}
+
+    def test_apply_set_props_tool_call(self):
+        from fast_dash import apply_tool_call
+        frame = apply_tool_call({"name": "set_canvas_props",
+                                 "input": {"target": "a", "props": {"max": 20}}})
+        assert frame == {"type": "set_props", "target": "a", "props": {"max": 20}}
+
+    def test_apply_handles_json_string_and_openai_shapes(self):
+        from fast_dash import apply_tool_call
+        # OpenAI-style: function.arguments as a JSON string.
+        frame = apply_tool_call({"function": {"name": "build_canvas",
+                                              "arguments": '{"specs": []}'}})
+        assert frame == {"type": "canvas", "specs": []}
+
+    def test_apply_object_form_and_unknown(self):
+        from fast_dash import apply_tool_call
+
+        class ToolUse:                                    # Anthropic-like block
+            name = "set_canvas_props"
+            input = {"target": "x", "props": {"value": 1}}
+        assert apply_tool_call(ToolUse())["type"] == "set_props"
+        assert apply_tool_call({"name": "some_other_tool", "input": {}}) is None
+
+    def test_frames_from_tool_calls_drive_the_canvas(self):
+        # End-to-end: an LLM's tool calls -> frames -> canvas render.
+        from fast_dash import apply_tool_call
+        calls = [
+            {"name": "build_canvas", "input": {"specs": [
+                {"name": "a", "type": "Slider", "value": 3, "props": {"min": 0, "max": 10}}]}},
+            {"name": "set_canvas_props", "input": {"target": "a", "props": {"max": 50}}},
+        ]
+        def bot(query):
+            for tc in calls:
+                yield apply_tool_call(tc)
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("go", "s1", "sock", ())
+        assert app._session("s1").canvas_specs[0]["props"]["max"] == 50

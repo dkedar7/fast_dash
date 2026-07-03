@@ -341,9 +341,10 @@ class ChatAppMixin:
         list so it drops straight into ``chat-canvas.children`` (mirroring how
         DynamicDash sets ``dyn-form.children``).
         """
-        from .dynamic import render_spec
+        from .dynamic import CANVAS_COMPONENT_REGISTRY, render_spec
         div = render_spec(self._session(sid).canvas_specs,
-                          container_id="_canvas_render")
+                          container_id="_canvas_render",
+                          registry=CANVAS_COMPONENT_REGISTRY)
         return self._chat_bubble_json(div).get("props", {}).get("children", [])
 
     @staticmethod
@@ -366,7 +367,7 @@ class ChatAppMixin:
 
     def _chat_canvas_apply(self, sid, frame):
         """Apply a ``canvas`` or ``set_props`` frame to the session's spec state."""
-        from .dynamic import COMPONENT_REGISTRY
+        from .dynamic import CANVAS_COMPONENT_REGISTRY
         sess = self._session(sid)
         if frame["type"] == "canvas":
             sess.canvas_specs = list(frame["specs"])
@@ -377,7 +378,7 @@ class ChatAppMixin:
         for spec in sess.canvas_specs:
             if spec.get("name") == frame["target"]:
                 props = dict(frame["props"])
-                factory = COMPONENT_REGISTRY.get(spec.get("type"))
+                factory = CANVAS_COMPONENT_REGISTRY.get(spec.get("type"))
                 vprop = getattr(factory, "component_property", "value")
                 if vprop in props:
                     spec["value"] = props.pop(vprop)
