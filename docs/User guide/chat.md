@@ -247,6 +247,66 @@ FastDash(callback_fn=studio, chat=True, chat_drawer=True).run()
 the callback with an empty `query` (check `if query:` to tell a Run from a chat
 message) and updates the canvas without adding a transcript entry.
 
+## Add an assistant to a normal app (`chat_agent=`)
+
+The sections above make the chat *the* app. The mirror image: keep a **normal**
+Fast Dash app — typed inputs, real outputs, a Run button — and mount an
+**independent** chat agent in a side drawer with `chat_agent=`. The agent is a
+chat callback or a LangGraph graph, exactly as for `chat=True`:
+
+```python
+from fast_dash import FastDash
+
+def dashboard(revenue: int = 100, region: str = "West") -> str:
+    """A normal Fast Dash app."""
+    return f"{region}: ${revenue}"
+
+FastDash(
+    callback_fn=dashboard,                 # your app, unchanged
+    chat_agent=my_langgraph_agent,         # graph | "module:attr" | (query, ...) callback
+    chat_agent_title="Assistant",
+).run()
+```
+
+A floating **Assistant** button opens the chat aside; the app keeps working on
+its own (set inputs, Run, read outputs). The agent shares nothing with the app's
+callback except two capabilities, both through `ctx`:
+
+- **Read** — declare `ctx` and `ctx.inputs` gives the agent the app's live input
+  values `{name: value}` each turn, so it can answer questions about what the
+  user set.
+- **Drive** — the agent can `yield {"type": "set_input", "name": ..., "value": ...}`
+  to set a control and `yield {"type": "run_app"}` to run the app on the current
+  inputs and refresh its outputs. Anything a user can do, the agent can do.
+
+`app_tool_specs(ctx.inputs)` returns provider-neutral tool defs for `set_input`
+and `run_app`; `apply_tool_call` maps a returned tool call to the frame — the
+same on-ramp as the canvas:
+
+```python
+from fast_dash import app_tool_specs, apply_tool_call
+
+def assistant(query, ctx):
+    tools = app_tool_specs(list(ctx.inputs))          # set_input / run_app
+    msg = client.messages.create(model="claude-sonnet-4-6", tools=tools,
+                                 messages=[{"role": "user", "content": query}])
+    for block in msg.content:
+        if block.type == "text":
+            yield block.text
+        elif block.type == "tool_use":
+            frame = apply_tool_call(block)
+            if frame:
+                yield frame
+```
+
+`chat_agent=` also mounts on **multi-function** and **steps** apps — the
+assistant appears as a conversational drawer on every surface. Reading and
+driving the host inputs (`ctx.inputs`, `set_input`, `run_app`) is supported on
+**single-function** apps; on multi-function / steps apps the drawer is
+conversational only for now (those apps have several surfaces, so active-surface
+drive is a separate feature). `chat_agent=` and `chat=True` are mutually
+exclusive — one adds a chat *to* an app, the other *is* the chat.
+
 ## Backends
 
 Streaming rides whatever transport the backend already uses, with no change to

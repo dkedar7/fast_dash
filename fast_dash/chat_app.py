@@ -1058,9 +1058,16 @@ class ChatAppMixin:
                                  "own Run controls.)_")
                     _flush(True)
                 else:
-                    # Run the host app on the current inputs, push outputs.
+                    # Run the host app on the current inputs, push outputs. Send
+                    # the full input list too: socketio's data-chat_drive prop is
+                    # latest-value-wins, so a trailing run_app must carry the
+                    # inputs set earlier this turn or they'd be clobbered.
                     try:
-                        _emit_drive(outputs=self._sidecar_run_app(drive_inputs))
+                        outputs = self._sidecar_run_app(drive_inputs)
+                        _emit_drive(
+                            inputs=[drive_inputs.get(n)
+                                    for n in self._chat_input_names],
+                            outputs=outputs)
                     except Exception as exc:                  # noqa: BLE001
                         _append_text(("\n\n" if _has_text(blocks) else "")
                                      + "**Error running the app:** " + str(exc))

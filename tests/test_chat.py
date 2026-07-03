@@ -1058,3 +1058,154 @@ class TestChatDrawer:
         with mock.patch("flask_socketio.emit"):
             fd._run_chat_turn("hi", "s1", "sock", (), to_transcript=True)
         assert fd.chat_history.get("s1")[-1]["content"] == "reply"
+
+
+class TestSidecarFrames:
+    """set_input / run_app frame grammar (chat sidecar drive)."""
+
+    def test_set_input_frame_normalizes(self):
+        f = _normalize_frame({"type": "set_input", "name": "a", "value": 5})
+        assert f == {"type": "set_input", "name": "a", "value": 5}
+
+    def test_set_input_requires_name(self):
+        with pytest.raises(ChatFrameError):
+            _normalize_frame({"type": "set_input", "value": 5})
+
+    def test_run_app_frame_normalizes(self):
+        assert _normalize_frame({"type": "run_app"}) == {"type": "run_app"}
+
+    def test_app_tool_specs_and_apply(self):
+        from fast_dash import app_tool_specs, apply_tool_call
+        specs = app_tool_specs(["a", "b"])
+        assert {t["name"] for t in specs} == {"set_input", "run_app"}
+        set_tool = next(t for t in specs if t["name"] == "set_input")
+        assert set_tool["input_schema"]["properties"]["name"]["enum"] == ["a", "b"]
+        assert apply_tool_call({"name": "set_input", "input": {"name": "a", "value": 3}}) == \
+            {"type": "set_input", "name": "a", "value": 3}
+        assert apply_tool_call({"name": "run_app", "input": {}}) == {"type": "run_app"}
+
+
+class TestChatSidecar:
+    """chat_agent=: an independent chat agent mounted on a normal app."""
+
+    def _ops(self, app, query, sid="s1", app_inputs=None):
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append((ev, payload))):
+            app._run_chat_turn(query, sid, "sock", (), app_inputs=app_inputs)
+        return ops
+
+    def test_builds_on_a_normal_app_with_both_surfaces(self):
+        def dashboard(revenue: int = 100) -> str:
+            return f"rev {revenue}"
+        def agent(query, ctx):
+            yield "hi"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent, chat_agent_title="Helper")
+        assert app.has_chat_sidecar is True
+        ids = _layout_ids(app.app.layout)
+        # The normal output surface AND the chat panel both exist.
+        assert "output-group-col" in ids
+        assert {"chat-messages", "chat-input", "chat-send", "chat-aside",
+                "chat-sidecar-toggle", "chat-sidecar-close"} <= ids
+
+    def test_plain_app_has_no_chat_dom(self):
+        app = FastDash(callback_fn=lambda x: "hi")
+        ids = _layout_ids(app.app.layout)
+        assert "chat-messages" not in ids and "chat-aside" not in ids
+
+    def test_chat_and_chat_agent_are_rejected(self):
+        def agent(query):
+            yield "x"
+        with pytest.raises(TypeError, match="cannot be combined with chat=True"):
+            FastDash(callback_fn=lambda query: "hi", chat=True, chat_agent=agent)
+
+    def test_agent_must_be_query_first(self):
+        def bad_agent(message, ctx):
+            yield "x"
+        with pytest.raises(TypeError, match="first parameter must be named 'query'"):
+            FastDash(callback_fn=lambda a: a, chat_agent=bad_agent)
+
+    def test_turn_streams_and_records_history_independently(self):
+        seen = {}
+        def dashboard(a: int = 1) -> str:
+            seen["ran"] = True                 # must NOT run on a chat turn
+            return str(a)
+        def agent(query, ctx):
+            yield f"echo: {query}"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        self._ops(app, "hello")
+        assert app.chat_history.get("s1")[-1]["content"] == "echo: hello"
+        assert "ran" not in seen               # the host callback was untouched
+
+    def test_ctx_inputs_reads_host_inputs(self):
+        seen = {}
+        def dashboard(revenue: int = 1, region: str = "W") -> str:
+            return "x"
+        def agent(query, ctx):
+            seen["inputs"] = dict(ctx.inputs)
+            yield "ok"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        assert app._chat_input_mode == "ctx"
+        self._ops(app, "hi", app_inputs={"revenue": 42, "region": "E"})
+        assert seen["inputs"] == {"revenue": 42, "region": "E"}
+
+    def test_set_input_accumulates_and_run_app_pushes_outputs(self):
+        def dashboard(a: int = 1, b: int = 2) -> str:
+            return f"sum={a + b}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "a", "value": 10}
+            yield {"type": "set_input", "name": "b", "value": 20}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        ops = self._ops(app, "go", app_inputs={"a": 1, "b": 2})
+        drive = [p for ev, p in ops if ev == "chat_drive"]
+        # set_input a -> [10, 2]; set_input b -> [10, 20]; run_app -> outputs.
+        assert drive[0]["inputs"] == [10, 2]
+        assert drive[1]["inputs"] == [10, 20]
+        assert drive[2]["outputs"] == ["sum=30"]
+        # The run_app op carries the full inputs too, so the latest-wins
+        # data-chat_drive prop can't clobber the set_inputs made this turn.
+        assert drive[2]["inputs"] == [10, 20]
+
+    def test_drive_on_asgi_uses_set_props(self):
+        import dash
+        def dashboard(a: int = 1, b: int = 2) -> str:
+            return f"sum={a + b}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "a", "value": 7}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app._native_stream = True
+        calls = []
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("go", "s1", None, (), app_inputs={"a": 1, "b": 2})
+        non_transcript = [(c, p) for c, p in calls if c != "chat-messages"]
+        assert ("a", {"value": 7}) in non_transcript
+        # The single output component was updated with sum=9.
+        assert any(list(p.values()) == ["sum=9"] for _, p in non_transcript)
+
+    def test_sidecar_on_multi_is_conversational_and_guards_drive(self):
+        def f1(x: int = 1) -> str: return f"f1={x}"
+        def f2(y: int = 2) -> str: return f"f2={y}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "x", "value": 9}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=[f1, f2], chat_agent=agent)
+        assert app.has_chat_sidecar and app._chat_input_mode == "none"
+        assert app._sidecar_can_drive is False
+        ids = _layout_ids(app.app.layout)
+        assert {"chat-aside", "multi-function-tabs"} <= ids
+        self._ops(app, "go")
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "multiple surfaces" in reply         # drive deflected, not fatal
+
+    @requires_langstage
+    def test_langgraph_graph_as_sidecar(self):
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat_agent="langstage_core.demo.stub:graph")
+        assert app.has_chat_sidecar and app.is_langstage
+        self._ops(app, "hello there")
+        assert "hello there" in app.chat_history.get("s1")[-1]["content"]
