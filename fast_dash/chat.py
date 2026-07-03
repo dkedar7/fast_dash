@@ -216,6 +216,10 @@ def canvas_tool_specs():
             "value": {"description": "Initial value (type depends on component)."},
             "label": {"type": "string"},
             "props": {"type": "object", "description": "Extra component props."},
+            "span": {"type": "integer", "minimum": 1, "maximum": 12,
+                     "description": ("Grid width out of 12 for arrangement "
+                                     "(default 12 = full-width row; 6 = half, "
+                                     "so two span-6 items sit side by side).")},
         },
         "required": ["name", "type"],
     }

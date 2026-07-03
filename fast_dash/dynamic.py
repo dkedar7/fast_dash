@@ -140,7 +140,7 @@ def _spec_to_component(spec: dict, registry: dict | None = None) -> Any:
 
 
 def render_spec(specs: Iterable[dict], container_id: str = "dyn-form",
-                registry: dict | None = None) -> html.Div:
+                registry: dict | None = None, grid: bool = False) -> html.Div:
     """Render a list of UI specs into a Dash container.
 
     Spec shape::
@@ -150,27 +150,30 @@ def render_spec(specs: Iterable[dict], container_id: str = "dyn-form",
             "type": "Slider",       # required, key in COMPONENT_REGISTRY
             "label": "Optional",    # falls back to title-cased name
             "value": 0.5,           # optional initial value
-            "props": {"min": 0, "max": 1, "step": 0.05}  # forwarded to inner Dash component
+            "props": {"min": 0, "max": 1, "step": 0.05},  # forwarded to inner Dash component
+            "span": 6              # grid width out of 12 (grid mode only)
         }
 
     Pure function; no callback registration. Reused by the parent-control
     resolver callback inside :class:`DynamicDash`, the MCP ``set_form`` tool, and
     the chat canvas (which passes :data:`CANVAS_COMPONENT_REGISTRY`).
+
+    ``grid`` lays the components out in a responsive 12-column grid, each spec
+    taking its ``span`` (default 12 = full width, i.e. one per row — the same
+    stacked layout as ``grid=False``). Two ``span: 6`` specs sit side by side.
     """
     specs = list(specs or [])
     groups = []
     for spec in specs:
         comp = _spec_to_component(spec, registry=registry)
-        groups.append(
-            dmc.Stack(
-                [
-                    dmc.Text(comp.label_, size="sm", fw=500),
-                    comp,
-                ],
-                gap=4,
-            )
+        stack = dmc.Stack(
+            [dmc.Text(comp.label_, size="sm", fw=500), comp], gap=4,
         )
-    return html.Div(groups, id=container_id)
+        groups.append(
+            dmc.GridCol(stack, span=spec.get("span", 12)) if grid else stack
+        )
+    body = dmc.Grid(groups, gutter="md") if grid else groups
+    return html.Div(body, id=container_id)
 
 
 def _prepare_output(comp: Any, idx: int) -> Any:

@@ -148,12 +148,16 @@ def bot(query, history, ctx):
 `canvas=True` adds a live output region beside the transcript that the assistant
 **builds and mutates** — a conversational [DynamicDash](dynamic.md). The chat
 becomes a left panel; the canvas is the main area. Two frames drive it, using the
-same UI-spec grammar as DynamicDash (`{name, type, props, value, label}`):
+same UI-spec grammar as DynamicDash (`{name, type, props, value, label, span}`):
 
 - `{"type": "canvas", "specs": [...]}` — (re)build the canvas from a spec list
-  (component types, properties, layout, content).
+  (component types, properties, content).
 - `{"type": "set_props", "target": "<name>", "props": {...}}` — patch one
   component in place (e.g. widen a slider's range).
+
+Each spec's optional **`span`** (out of 12, default 12 = full-width row) arranges
+components into a responsive grid — two `span: 6` panels sit side by side, so the
+assistant lays out real multi-column dashboards, not just a single column.
 
 `ctx.canvas` gives the assistant the canvas's **live values** each turn, so it can
 read what the user changed:

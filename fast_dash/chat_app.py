@@ -342,9 +342,11 @@ class ChatAppMixin:
         DynamicDash sets ``dyn-form.children``).
         """
         from .dynamic import CANVAS_COMPONENT_REGISTRY, render_spec
+        # grid=True: specs default to full-width rows (span 12), but a spec's
+        # `span` lets the assistant arrange components into columns.
         div = render_spec(self._session(sid).canvas_specs,
                           container_id="_canvas_render",
-                          registry=CANVAS_COMPONENT_REGISTRY)
+                          registry=CANVAS_COMPONENT_REGISTRY, grid=True)
         return self._chat_bubble_json(div).get("props", {}).get("children", [])
 
     @staticmethod

@@ -868,6 +868,21 @@ class TestChatCanvas:
         assert '"bar"' in last                          # Graph rendered on the canvas
         assert app._session("s1").canvas_specs[0]["type"] == "Graph"
 
+    def test_canvas_span_arranges_into_grid(self):
+        # The assistant controls arrangement via per-spec `span` (out of 12).
+        def bot(query):
+            yield {"type": "canvas", "specs": [
+                {"name": "a", "type": "Markdown", "value": "left", "span": 8},
+                {"name": "b", "type": "Markdown", "value": "right", "span": 4},
+            ]}
+        app = FastDash(callback_fn=bot, chat=True, canvas=True)
+        ops = self._ops(app, "grid")
+        val = [p for p in ops if isinstance(p, dict)
+               and p.get("op") == "canvas"][-1]["value"]
+        assert val["type"] == "Grid"                    # laid out in a grid
+        cols = val["props"]["children"]
+        assert [c["props"]["span"] for c in cols] == [8, 4]   # side-by-side widths
+
 
 class TestCanvasLLMOnramp:
     """canvas_tool_specs / apply_tool_call: wire an LLM to the canvas (E2)."""
