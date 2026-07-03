@@ -697,7 +697,8 @@ class ChatAppMixin:
         )
 
         # (8) App-first drawer mode: the Run button drives the callback from the
-        # settings (no chat message), and a header toggle opens/closes the chat.
+        # settings (no chat message), and the left panel toggles between the
+        # inputs view and the chat view (the chat is an alternative to the inputs).
         if self.is_chat_drawer:
             # Run -> submit-store with a run marker (empty query, canvas-only).
             app.clientside_callback(
@@ -714,17 +715,34 @@ class ChatAppMixin:
                 State("chat-streaming", "data"),
                 prevent_initial_call=True,
             )
-            # Toggle the chat drawer (aside) open/closed on the header button.
+            # Expand -> show the chat view (hide the inputs).
             app.clientside_callback(
                 """
                 function(n) {
-                    var open = (n % 2) === 1;
-                    return {width: 440, breakpoint: 'md',
-                            collapsed: {desktop: !open, mobile: !open}};
+                    if (!n) { return [dash_clientside.no_update, dash_clientside.no_update]; }
+                    return [{display: 'none'},
+                            {display: 'flex', flexDirection: 'column',
+                             height: 'calc(100vh - 56px)'}];
                 }
                 """,
-                Output("appshell", "aside", allow_duplicate=True),
-                Input("chat-drawer-toggle", "n_clicks"),
+                [Output("chat-inputs-view", "style", allow_duplicate=True),
+                 Output("chat-panel-view", "style", allow_duplicate=True)],
+                Input("chat-open", "n_clicks"),
+                prevent_initial_call=True,
+            )
+            # Back -> show the inputs view (hide the chat).
+            app.clientside_callback(
+                """
+                function(n) {
+                    if (!n) { return [dash_clientside.no_update, dash_clientside.no_update]; }
+                    return [{display: 'flex', flexDirection: 'column',
+                             height: 'calc(100vh - 56px)', padding: '12px'},
+                            {display: 'none'}];
+                }
+                """,
+                [Output("chat-inputs-view", "style", allow_duplicate=True),
+                 Output("chat-panel-view", "style", allow_duplicate=True)],
+                Input("chat-back", "n_clicks"),
                 prevent_initial_call=True,
             )
 

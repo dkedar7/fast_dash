@@ -223,11 +223,13 @@ FastDash(callback_fn=assistant, chat=True, canvas=True).run()
 ### App-first: chat as an add-on (`chat_drawer=True`)
 
 By default the chat is the primary surface. With `chat_drawer=True` the app comes
-first: the developer-declared settings and a **Run** button fill a left sidebar,
-the output canvas is the main area, and the chat collapses into a drawer that
-opens from a floating **Assistant** button. The user can drive the whole app with
-settings + Run and never open the chat; the assistant is there when they want it
-to change the layout or plots.
+first: the developer-declared settings and a **Run** button fill a left panel, the
+output canvas is the main area, and the chat tucks behind a **Chat with the
+assistant** button at the bottom of that panel. Clicking it swaps the panel in
+place — the settings give way to the chat, with a **Back to inputs** link to
+return. The user can drive the whole app with settings + Run and never open the
+chat; the assistant is one click away when they want it to change the layout or
+plots.
 
 ```python
 from typing import Literal

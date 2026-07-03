@@ -248,8 +248,7 @@
   border-top: 1px solid var(--mantine-color-default-border);
 }
 
-/* Chat drawer (app-first mode): a subtle empty-state hint + separation. */
-.mantine-AppShell-aside { border-left: 1px solid var(--mantine-color-default-border); }
+/* App-first (chat_drawer): empty chat hint. */
 .fd-chat-list:empty::before {
   content: "Ask the assistant to change the output.";
   margin: auto;

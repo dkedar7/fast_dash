@@ -785,41 +785,64 @@ class AppLayout:
                        "overflowX": "hidden", "padding": "18px 22px"},
             )
 
-        navbar_conf = aside_conf = None
+        navbar_conf = None
         if drawer:
-            # App-first: settings + Run in the navbar, the output canvas as the
-            # main area, and the chat in a collapsible right drawer (aside),
-            # hidden by default. The app is fully usable without ever opening it.
-            # generate_input_component() returns navbar *sections*; add the Run
-            # button as a pinned footer section (same pattern as the Run row of a
-            # regular app).
-            navbar_children = list(self.generate_input_component()) if has_settings else []
-            navbar_children.append(
-                dmc.AppShellSection(
+            # App-first: the left panel drives the output canvas (main area). It
+            # toggles between two views in the same container:
+            #   * inputs view (default): the developer settings + a Run button,
+            #     with an "expand" button at the bottom that brings up the chat;
+            #   * chat view: the assistant, as an alternative to those inputs,
+            #     with a Back button to return.
+            run_button = dmc.Button(
+                "Run", id="chat-run", n_clicks=0, fullWidth=True,
+                leftSection=DashIconify(icon="tabler:player-play", width=16),
+            )
+            open_chat_button = dmc.Button(
+                "Chat with the assistant", id="chat-open", n_clicks=0,
+                leftSection=DashIconify(icon="tabler:message-2", width=16),
+                variant="light", fullWidth=True,
+            )
+            inputs_view = html.Div(
+                [
+                    dmc.ScrollArea(
+                        dmc.Stack(list(self.inputs or []), gap="lg"),
+                        type="auto",
+                        style={"flex": "1 1 auto", "minHeight": 0},
+                    ),
                     html.Div(
-                        dmc.Button(
-                            "Run", id="chat-run", n_clicks=0, fullWidth=True,
-                            leftSection=DashIconify(icon="tabler:player-play", width=16),
-                        ),
-                        style={"paddingTop": "12px",
+                        [run_button, open_chat_button],
+                        style={"flex": "0 0 auto", "paddingTop": "12px",
+                               "display": "flex", "flexDirection": "column",
+                               "gap": "8px",
                                "borderTop": "1px solid var(--mantine-color-default-border)"},
-                    )
-                )
+                    ),
+                ],
+                id="chat-inputs-view",
+                style={"height": "calc(100vh - 56px)", "display": "flex",
+                       "flexDirection": "column", "padding": "12px"},
+            )
+            back_button = html.Div(
+                dmc.Button(
+                    "Back to inputs", id="chat-back", n_clicks=0,
+                    leftSection=DashIconify(icon="tabler:arrow-left", width=16),
+                    variant="subtle", size="xs",
+                ),
+                style={"flex": "0 0 auto", "padding": "6px 8px",
+                       "borderBottom": "1px solid var(--mantine-color-default-border)"},
+            )
+            chat_view = html.Div(
+                [back_button, html.Div(main, style={"flex": "1 1 auto", "minHeight": 0})],
+                id="chat-panel-view",
+                style={"height": "calc(100vh - 56px)", "display": "none",
+                       "flexDirection": "column"},
             )
             appshell_children = [
                 header,
-                dmc.AppShellNavbar(
-                    navbar_children, id="navbar3260780", p="md",
-                    style={"display": "flex", "flexDirection": "column",
-                           "overflow": "hidden"},
-                ),
+                dmc.AppShellNavbar([inputs_view, chat_view], id="navbar3260780"),
                 dmc.AppShellMain(canvas_region),
-                dmc.AppShellAside(chat_shell, id="chat-aside"),
             ]
-            navbar_conf = {"width": 320, "breakpoint": "sm",
-                           "collapsed": {"mobile": True}}
-            aside_conf = {"width": 440, "breakpoint": "md",
-                          "collapsed": {"desktop": True, "mobile": True}}
+            navbar_conf = {"width": 380, "breakpoint": "sm",
+                           "collapsed": {"mobile": False}}
         elif canvas:
             # Chat-first split view: chat panel on the left, canvas on the right.
             appshell_children = [
@@ -848,8 +871,6 @@ class AppLayout:
         appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
         if navbar_conf:
             appshell_kwargs["navbar"] = navbar_conf
-        if aside_conf:
-            appshell_kwargs["aside"] = aside_conf
         appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
         extra = [
@@ -861,18 +882,6 @@ class AppLayout:
             dcc.Store(id="chat-streaming", data=False),
             dcc.Store(id="chat-enter-init"),
         ]
-        if drawer:
-            # Floating action button to open/close the chat drawer (chat is an
-            # opt-in add-on here; the app is fully usable without it).
-            extra.append(
-                dmc.Button(
-                    "Assistant", id="chat-drawer-toggle", n_clicks=0,
-                    leftSection=DashIconify(icon="tabler:message-2", width=18),
-                    radius="xl", size="md",
-                    style={"position": "fixed", "top": "64px", "right": "24px",
-                           "zIndex": 300, "boxShadow": "0 2px 8px rgba(0,0,0,0.15)"},
-                )
-            )
         if self.about and header_children and len(header_children) > 1:
             extra.append(header_children[1])
         if self.branding:

@@ -996,10 +996,10 @@ class TestChatDrawer:
         assert fd.is_chat_drawer is True
         assert fd.is_canvas is True                     # implied by chat_drawer
         ids = self._ids(fd.app.layout)
-        # Run button + collapsible chat aside + toggle, settings in the navbar,
-        # output canvas in the main area.
-        assert {"chat-run", "chat-aside", "chat-drawer-toggle", "chat-canvas",
-                "model", "temperature"} <= ids
+        # Left panel toggles between the inputs view (settings + Run + an expand
+        # button) and the chat view (with a Back button); output canvas in main.
+        assert {"chat-run", "chat-open", "chat-back", "chat-inputs-view",
+                "chat-panel-view", "chat-canvas", "model", "temperature"} <= ids
 
     def test_drawer_without_chat_warns(self):
         with pytest.warns(UserWarning, match="have no effect without chat"):
