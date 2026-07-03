@@ -152,6 +152,7 @@ class ChatAppMixin:
 
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_sidecar_toggle()
+        self._register_chat_drive_reducer()
 
     def _register_chat_sidecar_toggle(self):
         """Open/close the sidecar aside (floating button + in-aside close)."""
@@ -182,6 +183,79 @@ class ChatAppMixin:
             """,
             Output("appshell", "aside"),
             Input("chat-sidecar-open", "data"),
+        )
+
+    def _sidecar_run_app(self, drive_inputs):
+        """Run the host app's callback on ``drive_inputs``; return its outputs.
+
+        Uses the same transform pipeline as the Run button, so a ``run_app``
+        drive produces exactly what a manual Run would. Returns the list of
+        output-component property values (figures, tables, text, ...).
+        """
+        from .utils import _transform_inputs, _transform_outputs
+        raw = [drive_inputs.get(n) for n in self._chat_input_names]
+        inputs = _transform_inputs(raw, self.input_tags)
+        self.state_counter += 1
+        result = self.callback_fn(*inputs)
+        result = list(result) if isinstance(result, tuple) else [result]
+        return _transform_outputs(result, self.output_tags,
+                                  self.outputs_with_ids, self.state_counter)
+
+    @staticmethod
+    def _json_safe(value):
+        """A JSON-serializable form of a component value (figures -> dicts)."""
+        try:
+            json.dumps(value)
+            return value
+        except (TypeError, ValueError):
+            pass
+        try:
+            return json.loads(to_json_plotly(value))
+        except Exception:
+            return str(value)
+
+    def _json_safe_list(self, values):
+        return [self._json_safe(v) for v in values]
+
+    def _register_chat_drive_reducer(self):
+        """Flask: write set_input/run_app pushes into the live components.
+
+        ASGI drives components with ``set_props`` directly, so this is a no-op
+        there. A single reducer writes the full input and output value lists
+        (position-matched) into the host app's components on a 'drive' op.
+        """
+        if self._native_stream:
+            return
+        from dash import Input, Output
+        app = self.app
+
+        in_outputs = [Output(inp.id, inp.component_property, allow_duplicate=True)
+                      for inp in self.inputs_with_ids]
+        out_outputs = [Output(out.id, out.component_property, allow_duplicate=True)
+                       for out in self.outputs_with_ids]
+        outputs = in_outputs + out_outputs
+        if not outputs:
+            return
+        n_in, n_out = len(in_outputs), len(out_outputs)
+        app.clientside_callback(
+            """
+            function(payload) {
+                var no = dash_clientside.no_update;
+                var res = [];
+                var i;
+                if (!payload || payload.op !== 'drive') {
+                    for (i = 0; i < %d; i++) { res.push(no); }
+                    return res;
+                }
+                var inv = payload.inputs, ov = payload.outputs;
+                for (i = 0; i < %d; i++) { res.push(inv ? inv[i] : no); }
+                for (i = 0; i < %d; i++) { res.push(ov ? ov[i] : no); }
+                return res;
+            }
+            """ % (n_in + n_out, n_in, n_out),
+            outputs,
+            Input("socketio", "data-chat_drive"),
+            prevent_initial_call=True,
         )
 
     # ----- chat mode: layout + callbacks (RFC #133) ---------------------- #
@@ -826,6 +900,9 @@ class ChatAppMixin:
 
         settings = dict(zip(self._chat_setting_names, setting_values))
         history = self.chat_history.get(sid)
+        # Sidecar app-drive: set_input frames accumulate over the turn-start
+        # input values, and run_app applies them through the host callback.
+        drive_inputs = dict(app_inputs or {})
 
         blocks = list(resume_blocks) if resume is not None and resume_blocks else []
         state = {"last": 0.0, "n": 0}
@@ -854,6 +931,15 @@ class ChatAppMixin:
 
             def _emit_canvas():
                 set_props("chat-canvas", {"children": self._chat_canvas_render(sid)})
+
+            def _emit_drive(inputs=None, outputs=None):
+                # ASGI: push input/output component values directly via set_props.
+                if inputs is not None:
+                    for inp, val in zip(self.inputs_with_ids, inputs):
+                        set_props(inp.id, {inp.component_property: val})
+                if outputs is not None:
+                    for out, val in zip(self.outputs_with_ids, outputs):
+                        set_props(out.id, {out.component_property: val})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
             _sio_emit = None
@@ -881,6 +967,21 @@ class ChatAppMixin:
                 payload = {"op": "canvas", "value": self._chat_canvas_render(sid)}
                 if _sio_emit is not None:
                     _sio_emit("chat_canvas", payload, namespace="/", to=socket_id)
+                else:
+                    emit(payload)
+
+            def _emit_drive(inputs=None, outputs=None):
+                # Flask: emit a full-state drive op; a clientside reducer writes
+                # the values into the live input/output components.
+                payload = {
+                    "op": "drive",
+                    "inputs": (self._json_safe_list(inputs)
+                               if inputs is not None else None),
+                    "outputs": (self._json_safe_list(outputs)
+                                if outputs is not None else None),
+                }
+                if _sio_emit is not None:
+                    _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
                 else:
                     emit(payload)
 
@@ -919,10 +1020,23 @@ class ChatAppMixin:
                 _flush(True)
             elif t == "artifact":
                 blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
-            elif t == "canvas" or t == "set_props":
+            elif (t == "canvas" or t == "set_props") and self.is_canvas:
                 # Canvas mutations target the side canvas, not the transcript.
                 self._chat_canvas_apply(sid, frame)
                 _emit_canvas()
+            elif t == "set_input" and self.has_chat_sidecar:
+                # Sidecar: set a host-app input; reflect it in the live control.
+                drive_inputs[frame["name"]] = frame["value"]
+                _emit_drive(inputs=[drive_inputs.get(n)
+                                    for n in self._chat_input_names])
+            elif t == "run_app" and self.has_chat_sidecar:
+                # Sidecar: run the host app on the current inputs, push outputs.
+                try:
+                    _emit_drive(outputs=self._sidecar_run_app(drive_inputs))
+                except Exception as exc:                      # noqa: BLE001
+                    _append_text(("\n\n" if _has_text(blocks) else "")
+                                 + "**Error running the app:** " + str(exc))
+                    _flush(True)
             elif t == "interrupt":
                 blocks.append({
                     "kind": "interrupt",

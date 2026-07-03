@@ -1266,9 +1266,11 @@ class FastDash(ChatAppMixin):
         for component in chat_components:
             [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(getattr(component, "stream_limit", 10))]
 
-        # A chat sidecar streams its turns over the same socketio component.
+        # A chat sidecar streams its turns and its app-drive pushes over the
+        # same socketio component.
         if getattr(self, "has_chat_sidecar", False):
             streaming_components.append("chat_frames")
+            streaming_components.append("chat_drive")
 
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 

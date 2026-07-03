@@ -68,12 +68,14 @@ ARTIFACT = "artifact"
 INTERRUPT = "interrupt"
 CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
 SET_PROPS = "set_props"    # patch one canvas component's props/value
+SET_INPUT = "set_input"    # sidecar: set one host-app input value
+RUN_APP = "run_app"        # sidecar: run the host app on its current inputs
 COMPLETE = "complete"
 ERROR = "error"
 
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, CANVAS, SET_PROPS, COMPLETE, ERROR}
+     INTERRUPT, CANVAS, SET_PROPS, SET_INPUT, RUN_APP, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -166,6 +168,13 @@ def _normalize_frame(frame):
         if not isinstance(props, dict):
             raise ChatFrameError("A 'set_props' frame's 'props' must be a dict.")
         frame = {"type": SET_PROPS, "target": str(frame["target"]), "props": dict(props)}
+    elif ftype == SET_INPUT:
+        if "name" not in frame:
+            raise ChatFrameError("A 'set_input' frame must have a 'name' key.")
+        frame = {"type": SET_INPUT, "name": str(frame["name"]),
+                 "value": frame.get("value")}
+    elif ftype == RUN_APP:
+        frame = {"type": RUN_APP}
     elif ftype == ERROR:
         frame = {"type": ERROR, "message": _as_text(frame.get("message", ""))}
     elif ftype == COMPLETE:
@@ -248,6 +257,42 @@ def canvas_tool_specs():
     ]
 
 
+def app_tool_specs(input_names=None):
+    """Provider-neutral tool defs for a chat **sidecar** to drive its host app.
+
+    Two tools -- ``set_input`` (set one of the app's inputs) and ``run_app``
+    (run the app on its current inputs and update its outputs) -- in the same
+    ``{name, description, input_schema}`` shape as :func:`canvas_tool_specs`.
+    Pass the host app's ``input_names`` (e.g. from ``ctx.inputs``) so the model
+    only targets real inputs. :func:`apply_tool_call` maps a returned call to a
+    ``set_input`` / ``run_app`` frame. No LLM SDK is imported.
+    """
+    name_schema = {"type": "string", "description": "The input name to set."}
+    if input_names:
+        name_schema["enum"] = list(input_names)
+    return [
+        {
+            "name": "set_input",
+            "description": ("Set one of the app's inputs to a new value "
+                            "(reflected in the live control)."),
+            "input_schema": {
+                "type": "object",
+                "properties": {
+                    "name": name_schema,
+                    "value": {"description": "New value for the input."},
+                },
+                "required": ["name", "value"],
+            },
+        },
+        {
+            "name": "run_app",
+            "description": ("Run the app on its current inputs and refresh its "
+                            "outputs (like clicking Run)."),
+            "input_schema": {"type": "object", "properties": {}},
+        },
+    ]
+
+
 def _tool_call_parts(tool_call):
     """Extract ``(name, args_dict)`` from an LLM tool call (dict or SDK object)."""
     import json as _json
@@ -272,12 +317,14 @@ def _tool_call_parts(tool_call):
 
 
 def apply_tool_call(tool_call):
-    """Map an LLM ``build_canvas`` / ``set_canvas_props`` call to a chat frame.
+    """Map an LLM tool call to a chat frame.
 
-    Accepts a provider tool-call dict (``{name, input}`` / ``{name, arguments}``
-    / OpenAI ``{function: {...}}``) or an SDK object with ``.name``/``.input``.
-    Returns a ``canvas`` or ``set_props`` frame to ``yield``, or ``None`` for an
-    unrecognized tool (so a mixed tool loop can skip it).
+    Handles the canvas tools (``build_canvas`` / ``set_canvas_props``) and the
+    sidecar app-drive tools (``set_input`` / ``run_app``). Accepts a provider
+    tool-call dict (``{name, input}`` / ``{name, arguments}`` / OpenAI
+    ``{function: {...}}``) or an SDK object with ``.name``/``.input``. Returns
+    the matching frame to ``yield``, or ``None`` for an unrecognized tool (so a
+    mixed tool loop can skip it).
     """
     name, args = _tool_call_parts(tool_call)
     if name == "build_canvas":
@@ -285,6 +332,11 @@ def apply_tool_call(tool_call):
     if name == "set_canvas_props":
         return {"type": SET_PROPS, "target": args.get("target"),
                 "props": args.get("props", {})}
+    if name == "set_input":
+        return {"type": SET_INPUT, "name": args.get("name"),
+                "value": args.get("value")}
+    if name == "run_app":
+        return {"type": RUN_APP}
     return None
 
 
