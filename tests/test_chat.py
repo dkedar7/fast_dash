@@ -1076,13 +1076,25 @@ class TestSidecarFrames:
 
     def test_app_tool_specs_and_apply(self):
         from fast_dash import app_tool_specs, apply_tool_call
-        specs = app_tool_specs(["a", "b"])
+        specs = app_tool_specs(["a", "b"])                # bare names still work
         assert {t["name"] for t in specs} == {"set_input", "run_app"}
         set_tool = next(t for t in specs if t["name"] == "set_input")
         assert set_tool["input_schema"]["properties"]["name"]["enum"] == ["a", "b"]
         assert apply_tool_call({"name": "set_input", "input": {"name": "a", "value": 3}}) == \
             {"type": "set_input", "name": "a", "value": 3}
         assert apply_tool_call({"name": "run_app", "input": {}}) == {"type": "run_app"}
+
+    def test_app_tool_specs_from_contract_is_typed(self):
+        # Given the input contract, set_input enumerates targets and describes
+        # each one's type + allowed options (so the model sends valid values).
+        from fast_dash import app_tool_specs
+        contract = [
+            {"id": "revenue", "type": "integer"},
+            {"id": "region", "type": "string", "options": ["N", "S"]},
+        ]
+        name = app_tool_specs(contract)[0]["input_schema"]["properties"]["name"]
+        assert name["enum"] == ["revenue", "region"]
+        assert "region: string (one of: N, S)" in name["description"]
 
 
 class TestChatSidecar:
@@ -1209,3 +1221,53 @@ class TestChatSidecar:
         assert app.has_chat_sidecar and app.is_langstage
         self._ops(app, "hello there")
         assert "hello there" in app.chat_history.get("s1")[-1]["content"]
+
+    def test_ctx_input_specs_carries_the_typed_contract(self):
+        # A1: the agent sees the host app's input contract (types + options).
+        from typing import Literal
+        seen = {}
+        def dashboard(revenue: int = 1, region: Literal["N", "S"] = "N") -> str:
+            return "x"
+        def agent(query, ctx):
+            seen["specs"] = ctx.input_specs
+            yield "ok"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        self._ops(app, "hi", app_inputs={"revenue": 1, "region": "N"})
+        by_id = {s["id"]: s for s in seen["specs"]}
+        assert by_id["revenue"]["type"] == "integer"
+        assert by_id["region"]["options"] == ["N", "S"]
+
+    def test_run_app_updates_server_output_state(self):
+        # A2: the agent's run mirrors a manual Run server-side.
+        def dashboard(a: int = 1, b: int = 2) -> str:
+            return f"sum={a + b}"
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "a", "value": 5}
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        assert app.app_initialized is False
+        self._ops(app, "go", app_inputs={"a": 1, "b": 2})
+        assert app.output_state == ["sum=7"]
+        assert app.app_initialized is True
+
+    def test_update_live_disables_drive_with_warning(self):
+        # A3: driving an update_live app would double-run, so drive is off there.
+        def dashboard(x: int = 1) -> str:
+            return str(x)
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "x", "value": 9}
+        with pytest.warns(UserWarning, match="double-run"):
+            app = FastDash(callback_fn=dashboard, chat_agent=agent, update_live=True)
+        assert app._sidecar_can_drive is False
+        self._ops(app, "go", app_inputs={"x": 1})
+        assert "recomputes live" in app.chat_history.get("s1")[-1]["content"]
+
+    def test_host_callback_lock_is_present(self):
+        # A4: one lock serializes the user's Run and the agent's run_app.
+        import _thread
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        def agent(query, ctx):
+            yield "ok"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        assert isinstance(app._host_callback_lock, type(_thread.allocate_lock()))

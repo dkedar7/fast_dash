@@ -118,6 +118,7 @@ class ChatAppMixin:
         """
         import inspect
         import threading
+        import warnings
 
         from .chat import ChatHistory
         from .adapters.langstage import build_chat_callback, is_langstage_target
@@ -153,6 +154,9 @@ class ChatAppMixin:
             self._chat_input_mode = "none"
             self._chat_input_names = []
             self._sidecar_can_drive = False
+            self._sidecar_no_drive_note = (
+                "_(This app has multiple surfaces; the assistant can't set its "
+                "inputs directly.)_")
         else:
             # The turn callback reads the host app's live inputs and hands them
             # to the agent as ctx.inputs, keyed by the host callback's params.
@@ -160,7 +164,26 @@ class ChatAppMixin:
             self._chat_input_names = list(
                 inspect.signature(self.callback_fn).parameters
             )[: len(self.inputs_with_ids)]
-            self._sidecar_can_drive = True
+            # The host app's input contract (types / options / bounds), computed
+            # once — its shape is static, only the live values change per turn.
+            self._sidecar_contract = self._sidecar_input_contract()
+            if self.update_live:
+                # update_live recomputes on every input change, so set_input
+                # would trigger a run and run_app would run again (double
+                # execution). Keep the sidecar read + conversational there.
+                if self.inputs_with_ids:
+                    warnings.warn(
+                        "chat_agent drive (set_input / run_app) is disabled on "
+                        "an update_live app: its inputs recompute on change, so "
+                        "driving would double-run the callback. The sidecar is "
+                        "read-only there.", stacklevel=2)
+                self._sidecar_can_drive = False
+                self._sidecar_no_drive_note = (
+                    "_(This app recomputes live; the assistant reads it but "
+                    "doesn't set its inputs.)_")
+            else:
+                self._sidecar_can_drive = True
+                self._sidecar_no_drive_note = None
 
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_sidecar_toggle()
@@ -204,6 +227,19 @@ class ChatAppMixin:
             Input("chat-sidecar-open", "data"),
         )
 
+    def _sidecar_input_contract(self):
+        """The host app's input contract (types / options / bounds) for the agent.
+
+        Reuses the MCP describe path (``_describe_static_inputs``) so the sidecar
+        agent and a headless MCP agent see the *same* contract — one source of
+        truth. Falls back to bare names if that path is unavailable.
+        """
+        try:
+            from .mcp import _describe_static_inputs
+            return _describe_static_inputs(self, {})
+        except Exception:                                 # noqa: BLE001
+            return [{"id": n} for n in self._chat_input_names]
+
     def _sidecar_run_app(self, drive_inputs):
         """Run the host app's callback on ``drive_inputs``; return its outputs.
 
@@ -214,11 +250,41 @@ class ChatAppMixin:
         from .utils import _transform_inputs, _transform_outputs
         raw = [drive_inputs.get(n) for n in self._chat_input_names]
         inputs = _transform_inputs(raw, self.input_tags)
-        self.state_counter += 1
-        result = self.callback_fn(*inputs)
-        result = list(result) if isinstance(result, tuple) else [result]
-        return _transform_outputs(result, self.output_tags,
-                                  self.outputs_with_ids, self.state_counter)
+        # Serialize against a user's manual Run (A4): one host-callback execution
+        # at a time across the Run thread and this chat thread.
+        lock = getattr(self, "_host_callback_lock", None)
+        if lock is None:
+            lock = self._host_callback_lock = threading.Lock()
+        with lock:
+            self.state_counter += 1
+            result = self.callback_fn(*inputs)
+            result = list(result) if isinstance(result, tuple) else [result]
+            outputs = _transform_outputs(result, self.output_tags,
+                                         self.outputs_with_ids, self.state_counter)
+            # Mirror a manual Run's server-side effect, so describe_app (over MCP)
+            # and any state replay reflect what the agent produced.
+            self.output_state = outputs
+            self.latest_output_state = outputs
+            self.app_initialized = True
+        self._sidecar_sync_mcp_mirror(drive_inputs)
+        return outputs
+
+    def _sidecar_sync_mcp_mirror(self, drive_inputs):
+        """Reflect the agent's driven inputs into the MCP input mirror.
+
+        Keeps ``describe_app`` accurate after the agent sets inputs, when the app
+        also exposes an MCP surface (``mcp_server=True``). No-op otherwise.
+        """
+        state = getattr(self, "_mcp_state", None)
+        if state is None:
+            return
+        try:
+            from .mcp import _stringify_id
+            for inp, name in zip(self.inputs_with_ids, self._chat_input_names):
+                if name in drive_inputs:
+                    state.inputs[_stringify_id(inp.id)] = drive_inputs[name]
+        except Exception:                                 # noqa: BLE001
+            pass
 
     @staticmethod
     def _json_safe(value):
@@ -1050,8 +1116,7 @@ class ChatAppMixin:
             elif t == "set_input" and self.has_chat_sidecar:
                 if not self._sidecar_can_drive:
                     _append_text(("\n\n" if _has_text(blocks) else "")
-                                 + "_(This app has multiple surfaces; the "
-                                 "assistant can't set its inputs directly.)_")
+                                 + self._sidecar_no_drive_note)
                     _flush(True)
                 else:
                     # Set a host-app input; reflect it in the live control.
@@ -1061,8 +1126,7 @@ class ChatAppMixin:
             elif t == "run_app" and self.has_chat_sidecar:
                 if not self._sidecar_can_drive:
                     _append_text(("\n\n" if _has_text(blocks) else "")
-                                 + "_(This app has multiple surfaces; use its "
-                                 "own Run controls.)_")
+                                 + self._sidecar_no_drive_note)
                     _flush(True)
                 else:
                     # Run the host app on the current inputs, push outputs. Send
@@ -1112,6 +1176,7 @@ class ChatAppMixin:
             friendly_error=lambda m: m,
             cancelled=lambda: self._chat_cancelled(sid),
             thread_id=sid, resume=resume, app_inputs=app_inputs,
+            app_input_specs=getattr(self, "_sidecar_contract", None),
         )
 
         if self._chat_cancelled(sid):

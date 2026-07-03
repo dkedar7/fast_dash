@@ -274,20 +274,23 @@ callback except two capabilities, both through `ctx`:
 
 - **Read** — declare `ctx` and `ctx.inputs` gives the agent the app's live input
   values `{name: value}` each turn, so it can answer questions about what the
-  user set.
+  user set. `ctx.input_specs` gives the app's input *contract* (types, options,
+  bounds) — the same one an MCP agent sees.
 - **Drive** — the agent can `yield {"type": "set_input", "name": ..., "value": ...}`
   to set a control and `yield {"type": "run_app"}` to run the app on the current
   inputs and refresh its outputs. Anything a user can do, the agent can do.
 
-`app_tool_specs(ctx.inputs)` returns provider-neutral tool defs for `set_input`
-and `run_app`; `apply_tool_call` maps a returned tool call to the frame — the
-same on-ramp as the canvas:
+`app_tool_specs(ctx.input_specs)` returns provider-neutral tool defs for
+`set_input` and `run_app` — the `set_input` schema enumerates the valid inputs
+and describes each one's type and allowed options, so the model sends valid
+values. `apply_tool_call` maps a returned tool call to the frame — the same
+on-ramp as the canvas:
 
 ```python
 from fast_dash import app_tool_specs, apply_tool_call
 
 def assistant(query, ctx):
-    tools = app_tool_specs(list(ctx.inputs))          # set_input / run_app
+    tools = app_tool_specs(ctx.input_specs)           # typed set_input / run_app
     msg = client.messages.create(model="claude-sonnet-4-6", tools=tools,
                                  messages=[{"role": "user", "content": query}])
     for block in msg.content:

@@ -53,11 +53,16 @@ class ChatContext:
     * ``inputs`` -- the host app's live input values ``{name: value}`` when the
       agent runs as a **sidecar** on a normal Fast Dash app (empty otherwise);
       lets the assistant read what the user set on the dashboard.
+    * ``input_specs`` -- the sidecar host app's input *contract* (a list of
+      ``{id, type, options, props, ...}``), the same one an MCP agent sees. Pass
+      it to :func:`app_tool_specs` for a typed ``set_input`` schema, or inline it
+      in the system prompt.
     """
 
     thread_id: str = "default"
     resume: Any = None
     inputs: dict = dataclasses.field(default_factory=dict)
+    input_specs: list = dataclasses.field(default_factory=list)
 
 # Frame type constants -------------------------------------------------------
 CONTENT = "content"
@@ -257,19 +262,46 @@ def canvas_tool_specs():
     ]
 
 
-def app_tool_specs(input_names=None):
+def app_tool_specs(inputs=None):
     """Provider-neutral tool defs for a chat **sidecar** to drive its host app.
 
     Two tools -- ``set_input`` (set one of the app's inputs) and ``run_app``
     (run the app on its current inputs and update its outputs) -- in the same
     ``{name, description, input_schema}`` shape as :func:`canvas_tool_specs`.
-    Pass the host app's ``input_names`` (e.g. from ``ctx.inputs``) so the model
-    only targets real inputs. :func:`apply_tool_call` maps a returned call to a
-    ``set_input`` / ``run_app`` frame. No LLM SDK is imported.
+
+    ``inputs`` may be a list of input *names* (``ctx.inputs`` keys) or, better,
+    the host app's input *contract* (``ctx.input_specs`` -- a list of
+    ``{id, type, options, props}`` dicts). Given the contract, the ``set_input``
+    schema enumerates the valid targets and describes each one's type, allowed
+    options, and numeric bounds, so the model sends valid values on the first
+    try. :func:`apply_tool_call` maps a returned call to a ``set_input`` /
+    ``run_app`` frame. No LLM SDK is imported.
     """
+    names, lines = [], []
+    for it in (inputs or []):
+        if isinstance(it, str):
+            names.append(it)
+            continue
+        if not isinstance(it, dict):
+            continue
+        name = it.get("id") or it.get("name")
+        if not name:
+            continue
+        names.append(name)
+        desc = "%s: %s" % (name, it.get("type") or "value")
+        options = it.get("options")
+        if options:
+            desc += " (one of: %s)" % ", ".join(str(o) for o in options)
+        bounds = it.get("props") or {}
+        if "min" in bounds or "max" in bounds:
+            desc += " (range %s..%s)" % (bounds.get("min"), bounds.get("max"))
+        lines.append(desc)
+
     name_schema = {"type": "string", "description": "The input name to set."}
-    if input_names:
-        name_schema["enum"] = list(input_names)
+    if lines:
+        name_schema["description"] += " Inputs -> " + "; ".join(lines) + "."
+    if names:
+        name_schema["enum"] = names
     return [
         {
             "name": "set_input",
@@ -455,7 +487,7 @@ def has_text(blocks):
 
 def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
              friendly_error=None, cancelled=None, thread_id=None, resume=None,
-             app_inputs=None):
+             app_inputs=None, app_input_specs=None):
     """Run one chat turn.
 
     Drives ``callback_fn`` (a generator function, or a function returning a
@@ -486,6 +518,7 @@ def run_turn(callback_fn, query, *, history=None, settings=None, emit=None,
             thread_id=thread_id or "default",
             resume=resume,
             inputs=dict(app_inputs or {}),
+            input_specs=list(app_input_specs or []),
         )
 
     parts = []       # accumulated assistant text (content frames)

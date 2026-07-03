@@ -2,6 +2,7 @@ import functools
 import inspect
 import logging
 import re
+import threading
 import traceback
 import uuid
 import warnings
@@ -441,6 +442,10 @@ class FastDash(ChatAppMixin):
 
         # Initialize state indicators
         self.state_counter = 0
+        # Serializes host-callback execution between a user's Run (process_input)
+        # and a chat sidecar's run_app, so a stateful callback is never entered
+        # by two threads at once.
+        self._host_callback_lock = threading.Lock()
 
         if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn, upper_case=True)
@@ -1504,22 +1509,25 @@ class FastDash(ChatAppMixin):
                         stream_handler_func = functools.partial(
                             self.stream_handler, socket_id=args[-1]
                         )
-                    with StreamContext(stream_handler_func):
-                        output_state = self.callback_fn(*inputs)
+                    # Serialize against a chat sidecar's run_app (A4): never run
+                    # the host callback from two threads at once.
+                    with self._host_callback_lock:
+                        with StreamContext(stream_handler_func):
+                            output_state = self.callback_fn(*inputs)
 
-                    if isinstance(output_state, tuple):
-                        self.output_state = list(output_state)
+                        if isinstance(output_state, tuple):
+                            self.output_state = list(output_state)
 
-                    else:
-                        self.output_state = [output_state]
+                        else:
+                            self.output_state = [output_state]
 
-                    # Transform outputs to fit in the desired components
-                    self.output_state = _transform_outputs(
-                        self.output_state, self.output_tags, self.outputs_with_ids, self.state_counter
-                    )
+                        # Transform outputs to fit in the desired components
+                        self.output_state = _transform_outputs(
+                            self.output_state, self.output_tags, self.outputs_with_ids, self.state_counter
+                        )
 
-                    # Log the latest output state
-                    self.latest_output_state = self.output_state
+                        # Log the latest output state
+                        self.latest_output_state = self.output_state
 
                     return self.output_state + [default_notification, False]
 
