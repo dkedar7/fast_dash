@@ -1271,3 +1271,32 @@ class TestChatSidecar:
             yield "ok"
         app = FastDash(callback_fn=dashboard, chat_agent=agent)
         assert isinstance(app._host_callback_lock, type(_thread.allocate_lock()))
+
+    def test_chat_agent_drive_false_is_read_only(self):
+        # #5: read-only opt-out — the agent still reads ctx.inputs but its
+        # set_input / run_app are refused.
+        seen = {}
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        def agent(query, ctx):
+            seen["inputs"] = dict(ctx.inputs)
+            yield {"type": "set_input", "name": "a", "value": 9}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent,
+                       chat_agent_drive=False)
+        assert app._sidecar_can_drive is False
+        self._ops(app, "go", app_inputs={"a": 5})
+        assert seen["inputs"] == {"a": 5}                  # read still works
+        assert "read-only" in app.chat_history.get("s1")[-1]["content"]
+
+    def test_input_names_come_from_inputs_with_ids(self):
+        # #6: names are derived from inputs_with_ids (the same source as the
+        # contract + set_input enum), not a positional guess off the signature.
+        from fast_dash.mcp import _stringify_id
+        def dashboard(revenue: int = 1, region: str = "N") -> str:
+            return "x"
+        def agent(query, ctx):
+            yield "x"
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        expected = [_stringify_id(i.id) for i in app.inputs_with_ids]
+        assert app._chat_input_names == expected
+        assert [s["id"] for s in app._sidecar_contract] == expected

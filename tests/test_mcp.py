@@ -668,3 +668,29 @@ class TestChatCanvasMcp:
         assert out["canvas"]["specs"][0]["name"] == "a"  # canvas reflected back
         # And a later describe_app sees the built canvas.
         assert _call(c, "describe_app")["canvas"]["specs"][0]["name"] == "a"
+
+
+class TestSidecarMcp:
+    """A normal app can carry BOTH an MCP surface and a chat_agent sidecar."""
+
+    def test_mcp_and_chat_agent_coexist_and_mirror_syncs(self):
+        from unittest import mock
+
+        def dashboard(revenue: int = 100) -> str:
+            """A dashboard."""
+            return f"rev {revenue}"
+
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "revenue", "value": 500}
+            yield {"type": "run_app"}
+
+        app = FastDash(callback_fn=dashboard, chat_agent=agent, mcp_server=True)
+        assert app.has_chat_sidecar and app.mcp_server_enabled
+        c = _client_for(app)
+        # Both surfaces build; describe_app still reports the app contract.
+        assert "inputs" in _call(c, "describe_app")
+        # After the sidecar drives, describe_app reflects it (A2 mirror sync).
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("go", "s1", "sock", (), app_inputs={"revenue": 100})
+        rev = [i for i in _call(c, "describe_app")["inputs"] if i["id"] == "revenue"]
+        assert rev and rev[0]["current_value"] == 500

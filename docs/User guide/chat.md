@@ -302,13 +302,25 @@ def assistant(query, ctx):
                 yield frame
 ```
 
+Pass **`chat_agent_drive=False`** for a **read-only** assistant: it still reads
+`ctx.inputs` / `ctx.input_specs` and converses, but `set_input` / `run_app` are
+refused (useful when you want an explainer, not a co-pilot).
+
 `chat_agent=` also mounts on **multi-function** and **steps** apps — the
 assistant appears as a conversational drawer on every surface. Reading and
 driving the host inputs (`ctx.inputs`, `set_input`, `run_app`) is supported on
 **single-function** apps; on multi-function / steps apps the drawer is
 conversational only for now (those apps have several surfaces, so active-surface
-drive is a separate feature). `chat_agent=` and `chat=True` are mutually
-exclusive — one adds a chat *to* an app, the other *is* the chat.
+drive is a separate feature). Drive is also off on `update_live` apps (their
+inputs recompute on change, so an explicit `run_app` would run the callback
+twice). `chat_agent=` and `chat=True` are mutually exclusive — one adds a chat
+*to* an app, the other *is* the chat.
+
+!!! note "Large outputs"
+    `run_app`'s outputs are streamed to the browser like any other update; a
+    very large output (a big `DataFrame` or image) is a correspondingly large
+    payload per drive. Prefer paging or summarising heavy outputs the assistant
+    triggers frequently.
 
 ## Backends
 

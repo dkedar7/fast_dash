@@ -137,6 +137,7 @@ class FastDash(ChatAppMixin):
         chat_drawer=False,
         chat_agent=None,
         chat_agent_title=None,
+        chat_agent_drive=True,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -336,6 +337,9 @@ class FastDash(ChatAppMixin):
         self.has_chat_sidecar = bool(chat_agent) and not self.is_chat
         self._chat_agent = chat_agent
         self.chat_agent_title = chat_agent_title or "Assistant"
+        # chat_agent_drive=False makes the sidecar read-only: the agent can read
+        # ctx.inputs and converse, but set_input / run_app are refused.
+        self.chat_agent_drive = bool(chat_agent_drive)
 
         self.mode = mode
         self.disable_logs = disable_logs
@@ -2099,6 +2103,7 @@ def fastdash(
     chat_drawer=False,
     chat_agent=None,
     chat_agent_title=None,
+    chat_agent_drive=True,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2220,6 +2225,7 @@ def fastdash(
             chat_drawer=chat_drawer,
             chat_agent=chat_agent,
             chat_agent_title=chat_agent_title,
+            chat_agent_drive=chat_agent_drive,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,

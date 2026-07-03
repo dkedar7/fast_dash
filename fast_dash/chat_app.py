@@ -159,15 +159,24 @@ class ChatAppMixin:
                 "inputs directly.)_")
         else:
             # The turn callback reads the host app's live inputs and hands them
-            # to the agent as ctx.inputs, keyed by the host callback's params.
+            # to the agent as ctx.inputs, keyed by the host input ids — the same
+            # keys the contract and set_input use (derived from inputs_with_ids,
+            # not a positional guess off the callback signature, which would
+            # mis-key an explicit inputs= that doesn't line up 1:1 with params).
+            from .mcp import _stringify_id
             self._chat_input_mode = "ctx"
-            self._chat_input_names = list(
-                inspect.signature(self.callback_fn).parameters
-            )[: len(self.inputs_with_ids)]
+            self._chat_input_names = [
+                _stringify_id(inp.id) for inp in self.inputs_with_ids
+            ]
             # The host app's input contract (types / options / bounds), computed
             # once — its shape is static, only the live values change per turn.
             self._sidecar_contract = self._sidecar_input_contract()
-            if self.update_live:
+            if not self.chat_agent_drive:
+                # Developer opted the app out of being driven (read-only agent).
+                self._sidecar_can_drive = False
+                self._sidecar_no_drive_note = (
+                    "_(The assistant is read-only for this app.)_")
+            elif self.update_live:
                 # update_live recomputes on every input change, so set_input
                 # would trigger a run and run_app would run again (double
                 # execution). Keep the sidecar read + conversational there.
