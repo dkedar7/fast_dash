@@ -299,6 +299,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chat-apps" class="md-nav__link">
+    Chat apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-it-works" class="md-nav__link">
     How it works
   </a>
@@ -503,8 +510,22 @@
   
   
     <li class="md-nav__item">
+      <a href="User%20guide/chat/" class="md-nav__link">
+        5. Chat apps
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="User%20guide/deployment/" class="md-nav__link">
-        5. Deployment
+        6. Deployment
       </a>
     </li>
   
@@ -749,6 +770,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#chat-apps" class="md-nav__link">
+    Chat apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#how-it-works" class="md-nav__link">
     How it works
   </a>
@@ -896,6 +924,24 @@
 <span class="c1"># Serving on http://127.0.0.1:8080</span>
 </code></pre></div>
 <p>That's the entire app. Open the URL, type a name, click Run, see the response.</p>
+<h2 id="chat-apps">Chat apps</h2>
+<p>Pass <code>chat=True</code> and your callback becomes a streaming chat app — a composer, a
+scrolling transcript, and per-session history — with no LLM provider baked in:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+    <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">my_llm</span><span class="o">.</span><span class="n">stream</span><span class="p">(</span><span class="n">query</span><span class="p">):</span>     <span class="c1"># any provider — you choose</span>
+        <span class="k">yield</span> <span class="n">token</span>
+</code></pre></div>
+<p><code>yield</code> strings to stream the reply as markdown; add a <code>history</code> parameter for
+multi-turn memory, and any other parameter becomes a sidebar setting. <code>chat=True</code>
+also accepts a LangGraph graph, and <code>canvas=True</code> gives the assistant a live
+output region it builds and mutates.</p>
+<p>Or keep a <strong>normal</strong> app and add an assistant beside it with <code>chat_agent=</code>: the
+agent reads your app's live inputs (<code>ctx.inputs</code>) and can drive it (<code>set_input</code> /
+<code>run_app</code>) — anything a user can do, the agent can do. See the
+<a href="https://docs.fastdash.app/User%20guide/chat/">chat guide</a>.</p>
 <h2 id="how-it-works">How it works</h2>
 <p>The <code>@fastdash</code> decorator does three things at import time:</p>
 <ol>
@@ -1303,7 +1349,7 @@
 <ul>
 <li><strong>Output labels are inferred from the <code>return</code> line of your source.</strong> If the source can't be retrieved (REPL, <code>exec</code>, frozen environments), Fast Dash falls back to generic <code>OUTPUT_1</code>, <code>OUTPUT_2</code> labels rather than crashing. Pass <code>output_labels=[...]</code> explicitly to control them.</li>
 <li><strong>Reusing component instances across inputs and outputs</strong> can mutate shared attributes. Construct fresh components per slot (or use <code>inputs=Text</code> rather than <code>inputs=text_instance</code>).</li>
-<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (<code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>). Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables).</li>
+<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. It sets light/dark mode (dark for <code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>); Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables). To set the <strong>accent colour</strong> of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass <code>accent="indigo"</code> — a Mantine colour name — rather than expecting <code>theme</code> to carry it.</li>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/dkedar7/fast_dash.git

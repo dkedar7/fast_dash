@@ -383,8 +383,22 @@
   
   
     <li class="md-nav__item">
+      <a href="../User%20guide/chat/" class="md-nav__link">
+        5. Chat apps
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../User%20guide/deployment/" class="md-nav__link">
-        5. Deployment
+        6. Deployment
       </a>
     </li>
   
@@ -637,6 +651,39 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-050">Release 0.5.0</h1>
+<h2 id="050-2026-07-03">0.5.0 (2026-07-03)</h2>
+<h3 id="features">Features</h3>
+<ul>
+<li><strong>Native chat mode (<code>chat=True</code>)</strong>: turn a callback into a streaming chat app
+  — a bottom-anchored composer, a scrolling transcript, per-session history, and
+  a provider-neutral frame grammar (<code>content</code> / <code>reasoning</code> / <code>tool_start</code> /
+  <code>tool_end</code> / <code>artifact</code> / <code>interrupt</code> / <code>error</code>). No LLM SDK is bundled.</li>
+<li><strong>LangGraph agents</strong>: <code>chat=True</code> also accepts a compiled LangGraph graph or a
+  <code>"module:attr"</code> spec string (via <code>fast-dash[langstage]</code>), with multi-turn
+  memory on the graph's checkpointer and human-in-the-loop interrupts.</li>
+<li><strong>The canvas (<code>canvas=True</code>)</strong>: a live, assistant-built output region beside the
+  transcript — a conversational DynamicDash the model builds and mutates with
+  <code>canvas</code> / <code>set_props</code> frames. <code>chat_drawer=True</code> gives an app-first layout.</li>
+<li><strong>Chat sidecar (<code>chat_agent=</code>)</strong>: mount an independent chat agent on a <em>normal</em>
+  Fast Dash app. The agent reads the app's live inputs (<code>ctx.inputs</code>,
+  <code>ctx.input_specs</code>) and drives it (<code>set_input</code> / <code>run_app</code> frames, or the
+  <code>app_tool_specs()</code> / <code>apply_tool_call()</code> LLM on-ramp) — anything a user can do,
+  the agent can do. <code>chat_agent_drive=False</code> makes it read-only.</li>
+<li><strong>Driving chat over MCP</strong>: <code>mcp_server=True</code> exposes a chat app's <code>describe_app</code>
+  / <code>invoke</code> contract so a headless agent sees and drives it like a browser user.</li>
+<li><strong>UI refresh</strong>: a first-class <code>accent=</code> colour, an enriched Mantine theme,
+  docstring-derived input help captions, skeleton loaders, a pre-run empty state,
+  a sidecar drive affordance (agent-set inputs flash, the output pulses),
+  streaming caret, code-copy buttons, mobile sheet + a11y (aria-labels, focus,
+  reduced-motion). Dropped the unused FontAwesome stylesheet.</li>
+</ul>
+<h3 id="security">Security</h3>
+<ul>
+<li><strong>Password inputs are never exposed to a sidecar agent</strong>: a <code>PasswordInput</code>'s
+  value is redacted from <code>ctx.inputs</code>, omitted from the contract, and <code>set_input</code>
+  on it is refused — while the app still runs with the real value.</li>
+</ul>
 <h1 id="release-0214">Release 0.2.14</h1>
 <h2 id="0214-2025-09-22">0.2.14 (2025-09-22)</h2>
 <h3 id="bug-fixes">Bug Fixes</h3>
@@ -662,7 +709,7 @@
 </ul>
 <h1 id="release-0211">Release 0.2.11</h1>
 <h2 id="0211-2025-06-26">0.2.11 (2025-06-26)</h2>
-<h3 id="features">Features</h3>
+<h3 id="features_1">Features</h3>
 <ul>
 <li><strong>CLI</strong>: Add CLI project creation functionality and register script entry point</li>
 <li><strong>Notifications</strong>: Add notify function and integrate notification handling in FastDash class</li>
@@ -698,7 +745,7 @@
 </ul>
 <h1 id="release-028">Release 0.2.8</h1>
 <h2 id="028-2023-12-10">0.2.8 (2023-12-10)</h2>
-<h3 id="features_1">Features</h3>
+<h3 id="features_2">Features</h3>
 <ul>
 <li>On mobile layouts, automatically close sidebars when submit is clicked. Thank you @seanbearden for the issue.</li>
 <li>New examples in the documentation.</li>
@@ -710,7 +757,7 @@
 <li>Fix: If input is None, it's not automatically transformed.</li>
 </ul>
 <h2 id="027-2023-10-18">0.2.7 (2023-10-18)</h2>
-<h3 id="features_2">Features</h3>
+<h3 id="features_3">Features</h3>
 <ul>
 <li>New component: <code>Table</code></li>
 <li>
@@ -729,7 +776,7 @@
 <li>Support for Python 3.7 has been deprecated.</li>
 </ul>
 <h2 id="026-2023-09-04">0.2.6 (2023-09-04)</h2>
-<h3 id="features_3">Features</h3>
+<h3 id="features_4">Features</h3>
 <ul>
 <li>New chat component! Setting the output data type to <code>Chat</code> and returning a dictionary displays a chat component.</li>
 <li>Introduced a transformation step before passing inputs to the callback. This allows converting non-native inputs to native data types. For example, passing a PIL.Image as input data tyoe hint doesn't need converting it to a base64 string.</li>
@@ -749,14 +796,14 @@
 <li>Improve pytest coverage.</li>
 </ul>
 <h2 id="023-2023-08-01">0.2.3 (2023-08-01)</h2>
-<h3 id="features_4">Features</h3>
+<h3 id="features_5">Features</h3>
 <ul>
 <li>Dash components can be used as type hints directly. They are converted to Fast components during app initialization.</li>
 <li>Added a mosaic layout example to README.</li>
 <li><code>dash</code> can be imported from <code>fast_dash</code> like this: <code>from fast_dash import dash</code>.</li>
 </ul>
 <h2 id="022-2023-07-26">0.2.2 (2023-07-26)</h2>
-<h3 id="features_5">Features</h3>
+<h3 id="features_6">Features</h3>
 <ul>
 <li>New example: Chat over docs with Embedchain.</li>
 </ul>
@@ -765,7 +812,7 @@
 <li>Squashed a bug that was preventing the submit and reset buttons to sync with each other. The result is a more stable deploy using callback context.</li>
 </ul>
 <h2 id="021-2023-07-23">0.2.1 (2023-07-23)</h2>
-<h3 id="features_6">Features</h3>
+<h3 id="features_7">Features</h3>
 <ul>
 <li>Infer output labels from the callback function or specify the `output_labels`` argument</li>
 <li>Show overlay when loading outputs</li>
@@ -780,7 +827,7 @@
 <li>New pytests to improve coverage</li>
 </ul>
 <h2 id="020-2023-07-02">0.2.0 (2023-07-02)</h2>
-<h3 id="features_7">Features</h3>
+<h3 id="features_8">Features</h3>
 <ul>
 <li>Enable sidebar layout.</li>
 <li>Mosaic to build custom layouts.</li>

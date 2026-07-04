@@ -461,8 +461,22 @@
   
   
     <li class="md-nav__item">
+      <a href="../User%20guide/chat/" class="md-nav__link">
+        5. Chat apps
+      </a>
+    </li>
+  
+
+            
+          
+            
+              
+  
+  
+  
+    <li class="md-nav__item">
       <a href="../User%20guide/deployment/" class="md-nav__link">
-        5. Deployment
+        6. Deployment
       </a>
     </li>
   
@@ -778,23 +792,26 @@
 <figcaption>Simple example app</figcaption>
 </figure>
 <h2 id="chatbot-example">Chatbot example</h2>
-<p>Fast Dash also offers many in-built components to make development easier. 
-These can be used as data type hints.
-Here's a dummy chatbot example.</p>
+<p>Pass <code>chat=True</code> and your callback becomes a streaming chat app — a composer
+pinned at the bottom, a scrolling transcript, and per-session history — with no
+LLM provider baked in. The first parameter must be named <code>query</code>; <code>yield</code>
+strings to stream the reply.</p>
 <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1</span>
 <span class="normal">2</span>
 <span class="normal">3</span>
 <span class="normal">4</span>
 <span class="normal">5</span>
 <span class="normal">6</span>
-<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">Chat</span>
+<span class="normal">7</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
 
-<span class="nd">@fastdash</span><span class="p">(</span><span class="n">theme</span><span class="o">=</span><span class="s2">&quot;sketchy&quot;</span><span class="p">)</span>
-<span class="k">def</span><span class="w"> </span><span class="nf">virtual_assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Chat</span><span class="p">:</span>
-    <span class="n">response</span> <span class="o">=</span> <span class="s2">&quot;I am Groot.&quot;</span>
-    <span class="n">chat</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">query</span><span class="o">=</span><span class="n">query</span><span class="p">,</span> <span class="n">response</span><span class="o">=</span><span class="n">response</span><span class="p">)</span>
-    <span class="k">return</span> <span class="n">chat</span>
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">virtual_assistant</span><span class="p">(</span><span class="n">query</span><span class="p">:</span> <span class="nb">str</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;A helpful assistant.&quot;&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="p">[</span><span class="s2">&quot;I &quot;</span><span class="p">,</span> <span class="s2">&quot;am &quot;</span><span class="p">,</span> <span class="s2">&quot;Groot.&quot;</span><span class="p">]:</span>   <span class="c1"># replace with your LLM&#39;s stream</span>
+        <span class="k">yield</span> <span class="n">token</span>
 </code></pre></div></td></tr></table></div>
+<p>See the <a href="../User%20guide/chat/">chat guide</a> for history, sidebar settings, and the
+frame grammar (tool calls, reasoning, inline artifacts).</p>
 <figure>
 <p><img alt="Simple example" src="https://storage.googleapis.com/fast_dash/0.2.7/Simple%20chatbot%20example.png" />
   </p>
