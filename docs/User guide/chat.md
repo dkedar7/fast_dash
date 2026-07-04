@@ -147,7 +147,7 @@ def bot(query, history, ctx):
 ## The canvas (assistant-built output)
 
 `canvas=True` adds a live **output** region beside the transcript that the
-assistant **builds and mutates** — a conversational [DynamicDash](dynamic.md).
+assistant **builds and mutates** — a conversational DynamicDash.
 The chat becomes a left panel; the canvas is the main area. It is a display
 surface — charts, tables, images, and text the assistant maintains across turns
 (a slider the user has to talk to would be inert, so the canvas holds output, not
