@@ -43,6 +43,38 @@
 }
 .fd-drive-pulse { animation: fd-drive-pulse 1.2s var(--fd-ease); }
 
+/* Skeleton loader: while .fd-loading is on the output column, each card shows
+   a shimmer over the (hidden) content instead of a bare spinner. */
+.fd-output-skeleton {
+  display: none;
+  position: absolute;
+  inset: 0;
+  padding: 18px 18px 20px;
+  flex-direction: column;
+  gap: 12px;
+  z-index: 3;
+  background: var(--mantine-color-body);
+}
+.fd-loading .fd-output-skeleton { display: flex; }
+.fd-loading .fd-output-content { visibility: hidden; }
+.fd-skeleton-bar { height: 12px; border-radius: 6px; flex: 0 0 auto; }
+.fd-skeleton-block { flex: 1 1 auto; border-radius: 10px; min-height: 60px; }
+.fd-skeleton-bar, .fd-skeleton-block {
+  background: linear-gradient(90deg,
+    var(--mantine-color-default-hover) 25%,
+    var(--mantine-color-default-border) 37%,
+    var(--mantine-color-default-hover) 63%);
+  background-size: 400% 100%;
+  animation: fd-shimmer 1.4s ease infinite;
+}
+@keyframes fd-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+/* The loading overlay is now only a signal — hide its spinner (skeleton is UI). */
+#loading-overlay .mantine-Loader-root,
+#loading-overlay [class*="LoadingOverlay-loader"] { display: none !important; }
+
 /* Fast Dash output cards — modern card treatment, overflow containment, and
    empty state. Uses Mantine CSS variables so it adapts to light/dark. */
 
@@ -110,6 +142,16 @@
 .fd-output-placeholder-icon {
   opacity: 0.35;
 }
+
+/* Before the first Run, show the placeholder OVER the (empty) output component
+   so a Graph's blank axes don't read as a finished result. Overrides the
+   content-detection :has() rules below. */
+.fd-not-run .fd-output-placeholder {
+  display: flex !important;
+  z-index: 4;
+  background: var(--mantine-color-body);
+}
+.fd-not-run .fd-output-content { visibility: hidden; }
 
 /* Hide the empty-state hint once any real output content has rendered, across
    the Fast Dash output types (plot, table, image, markdown/text). */

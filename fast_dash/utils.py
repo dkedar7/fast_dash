@@ -659,6 +659,18 @@ def _make_output_groups(outputs, update_live, prefix=""):
                                 ),
                                 className="fd-output-placeholder",
                             ),
+                            # Skeleton shimmer shown while a run is in flight
+                            # (toggled by the .fd-loading class on the output col).
+                            html.Div(
+                                [
+                                    html.Div(className="fd-skeleton-bar",
+                                             style={"width": "60%"}),
+                                    html.Div(className="fd-skeleton-bar",
+                                             style={"width": "85%"}),
+                                    html.Div(className="fd-skeleton-block"),
+                                ],
+                                className="fd-output-skeleton",
+                            ),
                             html.Div(output_, className="fd-output-content"),
                         ],
                         className="fd-output-body",

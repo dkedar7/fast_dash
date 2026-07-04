@@ -1464,6 +1464,17 @@ class FastDash(ChatAppMixin):
             prevent_initial_call=True,
         )
 
+        # Pre-run empty state: show the "Run to see results" placeholder (over
+        # an empty output component) until the first Run. Keyed on the click
+        # count only, so it fires instantly and isn't deferred by the run.
+        # (The loading skeleton is driven separately by the process_input
+        # `running=` bracket on #output-loading-wrap — see register_callback_fn.)
+        self.app.clientside_callback(
+            "function(n) { return (n && n > 0) ? '' : 'fd-not-run'; }",
+            Output("output-group-col", "className"),
+            Input("submit_inputs", "n_clicks"),
+        )
+
         # Native streaming makes the main callback a WebSocket callback so
         # set_props can stream partial updates mid-execution. The legacy Flask
         # path is unchanged (no websocket kwarg, socketId State present).
@@ -1473,6 +1484,11 @@ class FastDash(ChatAppMixin):
                 # Spinner-in-button while the callback runs (reads more alive
                 # than only a full-pane overlay).
                 (Output("submit_inputs", "loading"), True, False),
+                # Skeleton shimmer over the output cards for the run's duration.
+                # `running` brackets the callback reliably (unlike a clientside
+                # read of loading-overlay.visible); on a dedicated wrapper so it
+                # never collides with the pre-run placeholder class.
+                (Output("output-loading-wrap", "className"), "fd-loading", ""),
             ],
             prevent_initial_call=False,
         )

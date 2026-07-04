@@ -610,11 +610,16 @@ class AppLayout:
             width=12,
         )
 
+        # The overlay is kept only as the loading *signal* (its `visible` drives
+        # the .fd-loading skeleton class); its own dim/spinner is neutralised in
+        # CSS so the per-card skeleton is the sole loading UI.
         loader_component = dmc.LoadingOverlay(
             id="loading-overlay",
             loaderProps=dict(type=self.loader),
+            overlayProps={"backgroundOpacity": 0},
         )
-        output_layout = html.Div([loader_component, output_layout])
+        output_layout = html.Div([loader_component, output_layout],
+                                 id="output-loading-wrap")
 
         return output_layout
 
