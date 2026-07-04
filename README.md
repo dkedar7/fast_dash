@@ -300,7 +300,7 @@ The agent calls **`describe_app()`** to discover the input contract (each input'
 
 ```python
 # From the agent's side, in one call:
-invoke({"n": 12, "color": "#2f9e44"})   # set inputs and run, one round-trip
+invoke(inputs={"n": 12, "color": "#2f9e44"})   # set inputs and run, one round-trip
 ```
 
 **Agent-generated UI** with `DynamicDash` — the form materializes when an agent calls the `set_form` tool:
