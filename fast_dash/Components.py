@@ -85,13 +85,38 @@ class AppLayout:
         _DARK_THEMES = {"CYBORG", "DARKLY", "QUARTZ", "SLATE", "SOLAR", "SUPERHERO", "VAPOR"}
         self._color_scheme = "dark" if (self.theme or "").upper() in _DARK_THEMES else "light"
 
-        # Vizro-inspired Mantine theme: flat, professional, Inter font
+        # Flat, professional Mantine theme (Inter). The accent (primaryColor)
+        # is a first-class knob: FastDash(accent="indigo") themes buttons,
+        # links, focus rings, and the chat user bubble. Falls back to a calm
+        # blue. An unknown accent name is ignored by Mantine (stays blue).
+        _FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        _accent = (getattr(self.app, "accent", None) or "blue")
+        if isinstance(_accent, str):
+            _accent = _accent.strip().lower()
         self._mantine_theme = {
-            "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            "primaryColor": "blue",
-            "defaultRadius": 4,
+            "fontFamily": _FONT,
+            "fontFamilyMonospace": "'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace",
+            "primaryColor": _accent,
+            "defaultRadius": "md",
+            "focusRing": "auto",
+            "cursorType": "pointer",
+            "fontSizes": {"xs": "12px", "sm": "13px", "md": "14px",
+                          "lg": "16px", "xl": "18px"},
+            "radius": {"xs": "3px", "sm": "5px", "md": "8px", "lg": "12px", "xl": "16px"},
+            "shadows": {
+                "xs": "0 1px 2px rgba(15,23,42,0.06)",
+                "sm": "0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)",
+                "md": "0 4px 12px rgba(15,23,42,0.08)",
+                "lg": "0 10px 24px rgba(15,23,42,0.10)",
+            },
             "headings": {
-                "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                "fontFamily": _FONT,
+                "fontWeight": "600",
+                "sizes": {
+                    "h1": {"fontSize": "22px", "lineHeight": "1.3"},
+                    "h2": {"fontSize": "18px", "lineHeight": "1.35"},
+                    "h3": {"fontSize": "15px", "lineHeight": "1.4"},
+                },
             },
             "colors": {
                 "dark": [
@@ -107,6 +132,7 @@ class AppLayout:
                 "NumberInput": {"defaultProps": {"size": "sm"}},
                 "Textarea": {"defaultProps": {"size": "sm"}},
                 "Switch": {"defaultProps": {"size": "sm"}},
+                "Tooltip": {"defaultProps": {"withArrow": True, "openDelay": 300}},
             },
         }
 

@@ -1,3 +1,30 @@
+/* ==========================================================================
+   Fast Dash design tokens. Layered on Mantine's CSS variables so everything
+   (cards, chat, aside, motion) draws from one system and adapts to light/dark.
+   ========================================================================== */
+:root {
+  --fd-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --fd-transition: 200ms var(--fd-ease);
+  --fd-transition-fast: 120ms ease;
+  --fd-radius: var(--mantine-radius-md);
+  --fd-radius-sm: var(--mantine-radius-sm);
+  --fd-shadow-card: var(--mantine-shadow-sm);
+  --fd-shadow-float: var(--mantine-shadow-lg);
+  --fd-border: 1px solid var(--mantine-color-default-border);
+  --fd-accent: var(--mantine-primary-color-filled);
+}
+
+/* Respect the user's motion preference (a11y). */
+@media (prefers-reduced-motion: reduce) {
+  :root { --fd-transition: 0ms; --fd-transition-fast: 0ms; }
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* Fast Dash output cards — modern card treatment, overflow containment, and
    empty state. Uses Mantine CSS variables so it adapts to light/dark. */
 

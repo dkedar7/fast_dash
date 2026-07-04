@@ -122,6 +122,7 @@ class FastDash(ChatAppMixin):
         stream=False,
         about=True,
         theme=None,
+        accent=None,
         update_live=False,
         port=8080,
         mode=None,
@@ -380,11 +381,13 @@ class FastDash(ChatAppMixin):
         self.stream = stream
         self.about = about
         self.theme = theme or "JOURNAL"
+        # Accent color (Mantine primaryColor): themes buttons, links, focus
+        # rings, and the chat user bubble. One knob for "what colour is my app".
+        self.accent = accent
         self.minimal = minimal
 
         external_stylesheets = [
             theme_mapper(self.theme),
-            "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
         ]
 
         # Backend selection. Default = Flask, with an explicit server so the
@@ -2090,6 +2093,7 @@ def fastdash(
     stream=False,
     about=True,
     theme=None,
+    accent=None,
     update_live=False,
     port=8080,
     mode=None,
@@ -2212,6 +2216,7 @@ def fastdash(
             stream=stream,
             about=about,
             theme=theme,
+            accent=accent,
             update_live=update_live,
             mode=mode,
             port=port,
