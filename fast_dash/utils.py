@@ -556,14 +556,22 @@ def _make_input_groups(inputs_with_ids, update_live, prefix="", show_submit=True
 
         input_.ack = ack_component
 
+        group_children = [
+            dmc.Text(display_label, size="sm", fw=500, className="fd-input-label"),
+        ]
+        # Help caption from the callback's docstring (the schema knows more than
+        # the label shows).
+        help_text = getattr(input_, "help_", None)
+        if help_text:
+            group_children.append(
+                dmc.Text(help_text, size="xs", c="dimmed",
+                         className="fd-input-help")
+            )
+        group_children += [input_, ack_component]
+
         input_groups.append(
             dmc.Stack(
-                [
-                    dmc.Text(display_label, size="sm", fw=500,
-                             className="fd-input-label"),
-                    input_,
-                    ack_component,
-                ],
+                group_children,
                 gap=4,
                 className="fd-input-group",
             )
@@ -987,6 +995,24 @@ def _get_default_property(component_type):
         default_property = "value"
 
     return default_property
+
+
+def _parse_param_docs(func):
+    """``{param_name: description}`` from a callback's docstring (any style).
+
+    Uses ``docstring_parser`` (already a dependency), so Google / NumPy / Sphinx
+    ``Args:`` / ``Parameters`` / ``:param:`` blocks all work. Descriptions are
+    collapsed to a single line for a compact help caption under each input.
+    """
+    try:
+        parsed = docstring_parser.parse(func.__doc__ or "")
+    except Exception:                                     # noqa: BLE001
+        return {}
+    out = {}
+    for p in parsed.params:
+        if p.arg_name and p.description:
+            out[p.arg_name] = " ".join(p.description.split())
+    return out
 
 
 def _parse_docstring_as_markdown(func, title=None, get_short=False):

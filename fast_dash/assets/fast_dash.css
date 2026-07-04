@@ -153,6 +153,13 @@
   word-break: break-word;
 }
 
+/* Docstring-derived help caption sits tight under the label, above the widget. */
+.fd-input-help {
+  margin-top: -2px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
 /* --- Native chat mode (RFC #133) -------------------------------------------- */
 
 .fd-chat-main { max-width: 900px; margin: 0 auto; width: 100%; }

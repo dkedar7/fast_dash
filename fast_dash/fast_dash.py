@@ -38,6 +38,7 @@ from .utils import (
     theme_mapper,
     _infer_variable_names,
     _parse_docstring_as_markdown,
+    _parse_param_docs,
     _get_error_notification_component,
     from_step,
 )
@@ -478,6 +479,14 @@ class FastDash(ChatAppMixin):
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = _assign_ids_to_outputs(self.outputs, self.callback_fn)
+        # Attach per-input help text from the callback docstring (rendered as a
+        # caption under each input label).
+        _param_docs = _parse_param_docs(self.callback_fn)
+        for _name, _inp in zip(
+            list(inspect.signature(self.callback_fn).parameters), self.inputs_with_ids
+        ):
+            if getattr(_inp, "help_", None) is None:
+                _inp.help_ = _param_docs.get(_name)
         self.ack_mask = [
             False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
             for input_ in self.inputs_with_ids
