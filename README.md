@@ -75,7 +75,13 @@ def assistant(query: str):
 ```
 
 `yield` strings to stream the reply as markdown; add a `history` parameter for
-multi-turn memory, and any other parameter becomes a sidebar setting. See the
+multi-turn memory, and any other parameter becomes a sidebar setting. `chat=True`
+also accepts a LangGraph graph, and `canvas=True` gives the assistant a live
+output region it builds and mutates.
+
+Or keep a **normal** app and add an assistant beside it with `chat_agent=`: the
+agent reads your app's live inputs (`ctx.inputs`) and can drive it (`set_input` /
+`run_app`) — anything a user can do, the agent can do. See the
 [chat guide](https://docs.fastdash.app/User%20guide/chat/).
 
 ## How it works
@@ -347,7 +353,7 @@ The full list lives in the [docs](https://docs.fastdash.app).
 
 - **Output labels are inferred from the `return` line of your source.** If the source can't be retrieved (REPL, `exec`, frozen environments), Fast Dash falls back to generic `OUTPUT_1`, `OUTPUT_2` labels rather than crashing. Pass `output_labels=[...]` explicitly to control them.
 - **Reusing component instances across inputs and outputs** can mutate shared attributes. Construct fresh components per slot (or use `inputs=Text` rather than `inputs=text_instance`).
-- **The `theme` arg expects a Bootswatch name**, not a CSS URL. The chrome (header, navbar, buttons, inputs) is rendered with Mantine components and does not pick up Bootswatch accent colors or fonts — only the dark/light mode flips for known dark themes (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`). Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables).
+- **The `theme` arg expects a Bootswatch name**, not a CSS URL. It sets light/dark mode (dark for `CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`); Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables). To set the **accent colour** of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass `accent="indigo"` — a Mantine colour name — rather than expecting `theme` to carry it.
 
 ## Development
 
