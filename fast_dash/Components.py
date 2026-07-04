@@ -741,9 +741,10 @@ class AppLayout:
         )
         if has_sidecar:
             appshell_children.append(self._chat_aside())
-            # Collapsed by default; the floating toggle opens it.
+            # Collapsed by default; the floating toggle opens it. Full-width
+            # sheet on small screens, fixed panel on desktop.
             appshell_kwargs["aside"] = {
-                "width": 380, "breakpoint": "sm",
+                "width": {"base": "100%", "sm": 380}, "breakpoint": "sm",
                 "collapsed": {"desktop": True, "mobile": True},
             }
 

@@ -22,12 +22,45 @@
     });
   }
 
+  function focusComposer() {
+    var root = document.getElementById("chat-input");
+    if (!root) { return; }
+    var ta = root.tagName === "TEXTAREA" ? root : root.querySelector("textarea");
+    if (ta) { setTimeout(function () { ta.focus(); }, 60); }
+  }
+
+  function wireSidecarA11y() {
+    // Opening the sidecar (or the drawer expand button) focuses the composer;
+    // Esc closes the sidecar aside. Progressive — only where those ids exist.
+    ["chat-sidecar-toggle", "chat-open"].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el && !el.dataset.fdFocusBound) {
+        el.dataset.fdFocusBound = "1";
+        el.addEventListener("click", focusComposer);
+      }
+    });
+    if (!document.body.dataset.fdEscBound) {
+      document.body.dataset.fdEscBound = "1";
+      document.addEventListener("keydown", function (e) {
+        if (e.key !== "Escape") { return; }
+        var open = document.getElementById("chat-sidecar-open");
+        var close = document.getElementById("chat-sidecar-close");
+        var aside = document.getElementById("chat-aside");
+        // Only act when a sidecar aside is actually open on screen.
+        if (close && aside && aside.offsetParent !== null) { close.click(); }
+      });
+    }
+  }
+
   function init() {
     var list = document.getElementById("chat-messages");
     if (!list) { return false; }
     addCopyButtons(list);
-    new MutationObserver(function () { addCopyButtons(list); })
-      .observe(list, { childList: true, subtree: true });
+    wireSidecarA11y();
+    new MutationObserver(function () {
+      addCopyButtons(list);
+      wireSidecarA11y();
+    }).observe(list, { childList: true, subtree: true });
     return true;
   }
 

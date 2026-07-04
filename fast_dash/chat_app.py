@@ -231,7 +231,7 @@ class ChatAppMixin:
         app.clientside_callback(
             """
             function(open) {
-                var aside = {width: 380, breakpoint: 'sm',
+                var aside = {width: {base: '100%', sm: 380}, breakpoint: 'sm',
                              collapsed: {desktop: !open, mobile: !open}};
                 var btn = {position: 'fixed', bottom: '24px', right: '24px',
                            zIndex: 1000, boxShadow: '0 2px 12px rgba(0,0,0,0.2)',
