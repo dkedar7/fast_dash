@@ -897,7 +897,7 @@ values.</p>
 </div>
 <h2 id="drive-it-from-the-agent">Drive it from the agent</h2>
 <div class="highlight"><pre><span></span><code><span class="c1"># From the agent&#39;s side — set inputs and run in a single round-trip:</span>
-<span class="n">invoke</span><span class="p">({</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">})</span>
+<span class="n">invoke</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">})</span>
 </code></pre></div>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
@@ -920,7 +920,7 @@ materializes in the browser within ~500 ms of the call.</p>
 <span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="mi">8052</span><span class="p">)</span>                    <span class="c1"># run() mounts the MCP server on :8052/mcp</span>
 </code></pre></div>
 <p>The agent then calls, for example:</p>
-<div class="highlight"><pre><span></span><code><span class="n">set_form</span><span class="p">([</span>
+<div class="highlight"><pre><span></span><code><span class="n">set_form</span><span class="p">(</span><span class="n">specs</span><span class="o">=</span><span class="p">[</span>
     <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;communication&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Slider&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}},</span>
     <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;technical&quot;</span><span class="p">,</span>     <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Slider&quot;</span><span class="p">,</span> <span class="s2">&quot;props&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;min&quot;</span><span class="p">:</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">&quot;max&quot;</span><span class="p">:</span> <span class="mi">10</span><span class="p">}},</span>
 <span class="p">])</span>

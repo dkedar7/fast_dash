@@ -651,6 +651,32 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-051">Release 0.5.1</h1>
+<h2 id="051-2026-07-04">0.5.1 (2026-07-04)</h2>
+<h3 id="bug-fixes">Bug fixes</h3>
+<ul>
+<li><strong><code>describe_app()</code> reports a JSON <code>type</code> consistently across app kinds.</strong> A
+  static app derived each input's <code>type</code> from the callback annotation (a JSON
+  type like <code>"integer"</code>), but a <code>DynamicDash</code> form reported the <em>component name</em>
+  (<code>"Slider"</code>) in the same field — so a headless agent reading <code>type</code> got two
+  different vocabularies. <code>DynamicDash</code> now reports the JSON type too, with the
+  component name always in <code>tag</code> (as on a static app). (#131)</li>
+<li><strong><code>Optional[T]</code> inputs report <code>T</code>'s type, not <code>"string"</code>.</strong> An
+  <code>Optional[int]</code> / <code>int | None</code> parameter collapsed to <code>type: "string"</code> because
+  the raw <code>Union</code> wrapper isn't in the type map. The wrapper is now unwrapped to
+  its single non-<code>None</code> member, so an optional input advertises the type it
+  actually accepts (<code>integer</code> / <code>number</code> / <code>boolean</code>). (#132)</li>
+<li><strong>Date/datetime input defaults are surfaced, not dropped.</strong> A <code>DateInput</code> /
+  timestamp built from a <code>datetime.date</code> / <code>datetime.datetime</code> default reported
+  <code>default: null</code> (the default-handling branch didn't match a date object). It
+  now surfaces the ISO string the DatePicker emits, keeping the time component
+  for a <code>datetime</code>. (#134)</li>
+<li><strong>Docs: MCP tool examples use keyword arguments.</strong> The flagship <code>invoke</code> /
+  <code>set_form</code> snippets in the README and the AI-agents guide showed
+  <code>invoke({...})</code> / <code>set_form([...])</code>, omitting the required <code>inputs=</code> / <code>specs=</code>
+  keyword the tools expect. (#137)</li>
+</ul>
+<p>Same contract-correctness class as #110 / #116 / #120 / #126.</p>
 <h1 id="release-050">Release 0.5.0</h1>
 <h2 id="050-2026-07-03">0.5.0 (2026-07-03)</h2>
 <h3 id="features">Features</h3>
@@ -686,13 +712,13 @@
 </ul>
 <h1 id="release-0214">Release 0.2.14</h1>
 <h2 id="0214-2025-09-22">0.2.14 (2025-09-22)</h2>
-<h3 id="bug-fixes">Bug Fixes</h3>
+<h3 id="bug-fixes_1">Bug Fixes</h3>
 <ul>
 <li><strong>Automatic updates with no arguments</strong>: Fixes behavior of callback execution when it has no arguments.</li>
 </ul>
 <h1 id="release-0213">Release 0.2.13</h1>
 <h2 id="0213-2025-07-01">0.2.13 (2025-07-01)</h2>
-<h3 id="bug-fixes_1">Bug Fixes</h3>
+<h3 id="bug-fixes_2">Bug Fixes</h3>
 <ul>
 <li><strong>Disable websockets</strong>: Default behavior is disabled websockets so server deployments are faster.</li>
 </ul>
@@ -703,7 +729,7 @@
 <li><strong>Dependencies</strong>: <code>fastdash</code> CLI can also be configured with a port number</li>
 <li><strong>Testing</strong>: Modify text streaming test to use <code>update</code> function correctly</li>
 </ul>
-<h3 id="bug-fixes_2">Bug Fixes</h3>
+<h3 id="bug-fixes_3">Bug Fixes</h3>
 <ul>
 <li><strong>Stream handler</strong>: Fix stream handler to use notification=False by default</li>
 </ul>
@@ -724,7 +750,7 @@
 <li><strong>Components</strong>: Replace dcc.Dropdown with dmc.Select and dmc.MultiSelect for improved component handling</li>
 <li><strong>Testing</strong>: Implement polling mechanism and improve synchronization in streaming tests</li>
 </ul>
-<h3 id="bug-fixes_3">Bug Fixes</h3>
+<h3 id="bug-fixes_4">Bug Fixes</h3>
 <ul>
 <li><strong>Component Data</strong>: Fix component data handling in _get_component_from_input and update tests</li>
 <li><strong>Dependencies</strong>: Remove unused default properties for DateRangePicker and Prism components</li>
