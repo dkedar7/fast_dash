@@ -1451,7 +1451,7 @@ def _get_component_from_input(hint, default_value=None):
             )
             component = Fastify(
                 component=dcc.Upload(
-                    children=dbc.Col(["Click to upload image"]),
+                    children=html.Div("Click to upload image"),
                     style={
                         "lineHeight": "60px",
                         "borderWidth": "1px",
@@ -1473,7 +1473,7 @@ def _get_component_from_input(hint, default_value=None):
             )
             component = Fastify(
                 component=dcc.Upload(
-                    children=dbc.Col(["Click to upload image"]),
+                    children=html.Div("Click to upload image"),
                     style={
                         "lineHeight": "60px",
                         "borderWidth": "1px",
@@ -1592,7 +1592,7 @@ def _get_component_from_input(hint, default_value=None):
                 )
                 component = Fastify(
                     component=dcc.Upload(
-                        children=dbc.Col(["Click to upload image"]),
+                        children=html.Div("Click to upload image"),
                         style={
                             "lineHeight": "60px",
                             "borderWidth": "1px",
@@ -1795,7 +1795,11 @@ Text = Fastify(
     tag="Text",
 )
 
-TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
+TextArea = Fastify(
+    component=dmc.Textarea(autosize=True, minRows=3, maxRows=12),
+    component_property="value",
+    tag="Text",
+)
 
 NumberInput = Fastify(
     component=dmc.NumberInput(
@@ -1881,7 +1885,7 @@ Slider = Fastify(
 ##### Input components
 Upload = Fastify(
     component=dcc.Upload(
-        children=dbc.Col(["Click to upload"]),
+        children=html.Div("Click to upload"),
         style={
             "lineHeight": "60px",
             "borderWidth": "1px",
@@ -1902,7 +1906,7 @@ acknowledge_image_component = Fastify(
 
 UploadImage = Fastify(
     component=dcc.Upload(
-        children=dbc.Col(["Click to upload image"]),
+        children=html.Div("Click to upload image"),
         style={
             "lineHeight": "60px",
             "borderWidth": "1px",
