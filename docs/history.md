@@ -1,5 +1,33 @@
 # History
 
+# Release 0.5.1
+
+## 0.5.1 (2026-07-04)
+
+### Bug fixes
+- **`describe_app()` reports a JSON `type` consistently across app kinds.** A
+  static app derived each input's `type` from the callback annotation (a JSON
+  type like `"integer"`), but a `DynamicDash` form reported the *component name*
+  (`"Slider"`) in the same field — so a headless agent reading `type` got two
+  different vocabularies. `DynamicDash` now reports the JSON type too, with the
+  component name always in `tag` (as on a static app). (#131)
+- **`Optional[T]` inputs report `T`'s type, not `"string"`.** An
+  `Optional[int]` / `int | None` parameter collapsed to `type: "string"` because
+  the raw `Union` wrapper isn't in the type map. The wrapper is now unwrapped to
+  its single non-`None` member, so an optional input advertises the type it
+  actually accepts (`integer` / `number` / `boolean`). (#132)
+- **Date/datetime input defaults are surfaced, not dropped.** A `DateInput` /
+  timestamp built from a `datetime.date` / `datetime.datetime` default reported
+  `default: null` (the default-handling branch didn't match a date object). It
+  now surfaces the ISO string the DatePicker emits, keeping the time component
+  for a `datetime`. (#134)
+- **Docs: MCP tool examples use keyword arguments.** The flagship `invoke` /
+  `set_form` snippets in the README and the AI-agents guide showed
+  `invoke({...})` / `set_form([...])`, omitting the required `inputs=` / `specs=`
+  keyword the tools expect. (#137)
+
+Same contract-correctness class as #110 / #116 / #120 / #126.
+
 # Release 0.5.0
 
 ## 0.5.0 (2026-07-03)

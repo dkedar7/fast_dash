@@ -12,10 +12,11 @@ fixture enforces that here by resetting the registry before each test.
 
 from __future__ import annotations
 
+import datetime  # module-level so get_type_hints resolves date/datetime hints (#134)
 import enum
 import importlib.util
 import json
-from typing import Annotated  # module-level so get_type_hints can resolve it (#119)
+from typing import Annotated, Optional  # module-level for get_type_hints (#119, #132)
 
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
@@ -494,6 +495,51 @@ class TestTools:
         assert q["options"] == ["1", "2"]
         assert q["current_value"] == "2"
 
+    def test_optional_annotation_reports_wrapped_type(self):
+        # #132: an Optional[T] parameter reported type "string" because the raw
+        # Union wrapper isn't in the type map. The wrapper must be unwrapped to
+        # its single non-None member so the contract reports the type the input
+        # actually accepts (integer/number/boolean), not a blanket string.
+        def f(
+            count: Optional[int] = 3,
+            ratio: Optional[float] = None,
+            flag: Optional[bool] = True,
+            name: Optional[str] = "x",
+        ) -> str:
+            """Echo."""
+            return "ok"
+
+        app = FastDash(callback_fn=f, mcp_server=True)
+        c = _client_for(app)
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert by_id["count"]["type"] == "integer"   # was "string" pre-fix
+        assert by_id["ratio"]["type"] == "number"
+        assert by_id["flag"]["type"] == "boolean"
+        assert by_id["name"]["type"] == "string"
+        # a None default still surfaces as null (nothing to seed).
+        assert by_id["ratio"]["default"] is None
+        assert by_id["count"]["default"] == 3
+
+    def test_datetime_default_surfaces_iso_string(self):
+        # #134: a Date/Timestamp input built from a datetime.date / datetime
+        # default reported default null (the scalar branch didn't match a date
+        # object). It must surface the ISO string the DatePicker emits, keeping
+        # the time component for a datetime.
+        def sched(
+            day: datetime.date = datetime.date(2021, 6, 15),
+            at: datetime.datetime = datetime.datetime(2021, 6, 15, 10, 30),
+        ) -> str:
+            """Echo."""
+            return "ok"
+
+        app = FastDash(callback_fn=sched, mcp_server=True)
+        c = _client_for(app)
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert by_id["day"]["default"] == "2021-06-15"          # was null pre-fix
+        assert by_id["at"]["default"] == "2021-06-15T10:30:00"  # keeps the time
+        # dates travel as JSON strings (no native JSON date type).
+        assert by_id["day"]["type"] == "string"
+
     def test_describe_app_reflects_dynamic_form(self):
         # #106: after set_form, describe_app must report the agent-built form's
         # contract (id/type/props), not just the value mirror.
@@ -505,7 +551,10 @@ class TestTools:
         ]})
         by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
         assert set(by_id) == {"communication", "technical"}   # both discoverable
-        assert by_id["communication"]["type"] == "Slider"
+        # #131: type is a JSON type (as on a static app), the component name is
+        # in tag — so a headless agent reads ``type`` the same way everywhere.
+        assert by_id["communication"]["tag"] == "Slider"
+        assert by_id["communication"]["type"] == "number"
         assert by_id["communication"]["props"]["max"] == 10   # bounds exposed
         # set one field — both still listed; current_value updated for the set one.
         _call(c, "set_inputs", {"inputs": {"communication": 5}})

@@ -76,7 +76,7 @@ defaults, allowed options, and **current values** — and use that to build a va
 
 ```python
 # From the agent's side — set inputs and run in a single round-trip:
-invoke({"n": 12, "color": "#2f9e44"})
+invoke(inputs={"n": 12, "color": "#2f9e44"})
 ```
 
 Agent mutations are reflected in the **live browser** within ~500 ms (no
@@ -107,7 +107,7 @@ app.run(port=8052)                    # run() mounts the MCP server on :8052/mcp
 The agent then calls, for example:
 
 ```python
-set_form([
+set_form(specs=[
     {"name": "communication", "type": "Slider", "props": {"min": 0, "max": 10}},
     {"name": "technical",     "type": "Slider", "props": {"min": 0, "max": 10}},
 ])

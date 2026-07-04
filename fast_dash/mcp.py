@@ -234,11 +234,50 @@ def _seed_input_mirror(fd) -> None:
 
 
 def _json_type_name(annotation) -> str:
-    """Best-effort JSON-schema type name for a Python annotation."""
+    """Best-effort JSON-schema type name for a Python annotation.
+
+    Unwraps ``Optional[T]`` / ``Union[T, None]`` (and PEP 604 ``T | None``) to
+    the single non-``None`` member first, so an optional parameter reports the
+    type it actually accepts instead of collapsing to ``"string"`` (issue #132).
+    """
+    try:
+        import types as _types
+        import typing
+
+        origin = typing.get_origin(annotation)
+        is_union = origin is typing.Union or (
+            hasattr(_types, "UnionType") and origin is _types.UnionType
+        )
+        if is_union:
+            members = [a for a in typing.get_args(annotation) if a is not type(None)]
+            if len(members) == 1:
+                annotation = members[0]
+    except Exception:
+        pass
     return {
         int: "integer", float: "number", str: "string",
         bool: "boolean", list: "array", dict: "object",
     }.get(annotation, "string")
+
+
+# JSON type each DynamicDash spec component emits. Lets describe_app report a
+# uniform JSON ``type`` for both static and dynamic apps — a static app derived
+# it from the callback annotation, a DynamicDash form has no annotations, so it
+# derives it from the spec's component name here. The component name itself
+# always stays in the ``tag`` field. (issue #131)
+_SPEC_JSON_TYPE = {
+    "Text": "string", "TextArea": "string", "Select": "string",
+    "DateInput": "string", "ColorInput": "string", "PasswordInput": "string",
+    "Markdown": "string", "Upload": "string", "UploadImage": "string",
+    "NumberInput": "number", "Slider": "number",
+    "Switch": "boolean",
+    "MultiSelect": "array", "DateRange": "array",
+}
+
+
+def _spec_json_type(spec_type) -> str:
+    """JSON type for a DynamicDash spec component name, defaulting to string."""
+    return _SPEC_JSON_TYPE.get(spec_type, "string")
 
 
 def _annotation_options(annotation):
@@ -361,6 +400,12 @@ def _describe_static_inputs(fd, snapshot):
                 elif isinstance(dflt, dict):
                     if options is None:
                         options = list(dflt.keys())   # dict default = MultiSelect keys
+                elif isinstance(dflt, (datetime.date, datetime.datetime)):
+                    # A DateInput/date-range default is a date/datetime object, not
+                    # a scalar — surface its ISO string (the exact value the browser
+                    # DatePicker emits) instead of dropping it to null. isoformat()
+                    # keeps the time component for a datetime. (issue #134)
+                    default = dflt.isoformat()
                 elif isinstance(dflt, (str, bool, int, float)):
                     default = dflt                    # a scalar default IS the value
                 # else (range / arbitrary objects): leave default None so the
@@ -809,8 +854,11 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                 cur = snapshot.get(name, default)
                 inputs.append({
                     "id": name,
+                    # tag = the DynamicDash component name (e.g. "Slider");
+                    # type = its JSON type, so ``type`` means the same thing here
+                    # as on a static app's contract (issue #131).
                     "tag": spec.get("type"),
-                    "type": spec.get("type"),
+                    "type": _spec_json_type(spec.get("type")),
                     "label": spec.get("label"),
                     "default": _jsonify_for_mcp(default),
                     "options": _jsonify_for_mcp(options),
