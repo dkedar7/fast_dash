@@ -550,8 +550,12 @@ class TestSessionState:
         app = FastDash(callback_fn=lambda query: "ok", chat=True)
         old = app._session("old")
         app.chat_history.append_turn("old", "q", "a")
-        old.last_seen = 0.0                            # ancient
-        app._last_sweep = 0.0                          # force a sweep next call
+        # Make 'old' look ancient and force a sweep independent of the machine's
+        # monotonic-clock base: eviction compares (now - last_seen) to the TTL,
+        # and a freshly-booted CI runner starts near 0, so last_seen=0 is NOT
+        # necessarily older than the 6h TTL. A large-negative base always is.
+        old.last_seen = -1e12
+        app._last_sweep = -1e12                        # force a sweep next call
         app._session("new")                            # triggers eviction
         assert "old" not in app._sessions              # evicted
         assert app.chat_history.get("old") == []       # history cleared too
