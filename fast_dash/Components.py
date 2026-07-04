@@ -406,11 +406,15 @@ class AppLayout:
         if self.github_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="ri:github-fill", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="ri:github-fill", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "GitHub repository"},
+                        ),
+                        label="GitHub",
                     ),
                     href=self.github_url,
                     target="_blank",
@@ -420,11 +424,15 @@ class AppLayout:
         if self.linkedin_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "LinkedIn"},
+                        ),
+                        label="LinkedIn",
                     ),
                     href=self.linkedin_url,
                     target="_blank",
@@ -434,11 +442,15 @@ class AppLayout:
         if self.twitter_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="formkit:twitter", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="formkit:twitter", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "X / Twitter"},
+                        ),
+                        label="X / Twitter",
                     ),
                     href=self.twitter_url,
                     target="_blank",
@@ -450,7 +462,13 @@ class AppLayout:
                 [
                     dmc.Group(
                         [
-                            dmc.Burger(id="sidebar-button", opened=True, size="sm"),
+                            dmc.Tooltip(
+                                dmc.Burger(
+                                    id="sidebar-button", opened=True, size="sm",
+                                    **{"aria-label": "Toggle the inputs panel"},
+                                ),
+                                label="Toggle inputs",
+                            ),
                             dmc.Text(
                                 self.title or "",
                                 fw=600,
@@ -463,12 +481,16 @@ class AppLayout:
                     dmc.Group(
                         [
                             *(right_items or []),
-                            dmc.Switch(
-                                id="theme-toggle",
-                                offLabel=DashIconify(icon="radix-icons:sun", width=16),
-                                onLabel=DashIconify(icon="radix-icons:moon", width=16),
-                                size="md",
-                                checked=self._color_scheme == "dark",
+                            dmc.Tooltip(
+                                dmc.Switch(
+                                    id="theme-toggle",
+                                    offLabel=DashIconify(icon="radix-icons:sun", width=16),
+                                    onLabel=DashIconify(icon="radix-icons:moon", width=16),
+                                    size="md",
+                                    checked=self._color_scheme == "dark",
+                                    **{"aria-label": "Toggle dark mode"},
+                                ),
+                                label="Toggle theme",
                             ),
                         ],
                         gap="xs",

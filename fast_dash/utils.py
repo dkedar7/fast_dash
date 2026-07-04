@@ -577,6 +577,7 @@ def _make_input_groups(inputs_with_ids, update_live, prefix="", show_submit=True
                     id=f"{prefix}submit_inputs",
                     n_clicks=0,
                     fullWidth=True,
+                    leftSection=DashIconify(icon="tabler:player-play-filled", width=16),
                 ),
             ],
             style={"paddingTop": "8px"}
@@ -612,6 +613,9 @@ def _assign_ids_to_outputs(outputs, callback_fn, prefix=""):
 
 def _make_output_groups(outputs, update_live, prefix=""):
     output_groups = []
+    # A single-output app doesn't need a card title (the chart/table title
+    # already says what it is); only label cards when there are several.
+    single_output = len(outputs) == 1
 
     for idx, output_ in enumerate(outputs):
         label = f"Output {idx + 1}" if output_.label_ is None else output_.label_
@@ -619,14 +623,16 @@ def _make_output_groups(outputs, update_live, prefix=""):
         if prefix and label.startswith(prefix):
             label = label[len(prefix):]
         label = label.replace("_", " ").title()
-        output_groups.append(
-            dmc.Paper(
-                [
-                    # Header strip with the output's title.
-                    html.Div(
-                        dmc.Text(label, size="sm", fw=600),
-                        className="fd-output-header",
-                    ),
+        card_children = []
+        if not single_output:
+            card_children.append(
+                # Header strip with the output's title.
+                html.Div(
+                    dmc.Text(label, size="sm", fw=600),
+                    className="fd-output-header",
+                )
+            )
+        card_children.append(
                     # Body: the output, with an empty-state hint layered behind.
                     html.Div(
                         [
@@ -648,8 +654,11 @@ def _make_output_groups(outputs, update_live, prefix=""):
                             html.Div(output_, className="fd-output-content"),
                         ],
                         className="fd-output-body",
-                    ),
-                ],
+                    )
+        )
+        output_groups.append(
+            dmc.Paper(
+                card_children,
                 p=0,
                 radius="md",
                 withBorder=True,

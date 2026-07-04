@@ -1459,7 +1459,12 @@ class FastDash(ChatAppMixin):
         # set_props can stream partial updates mid-execution. The legacy Flask
         # path is unchanged (no websocket kwarg, socketId State present).
         _proc_cb_kwargs = dict(
-            running=[(Output("submit_inputs", "disabled"), True, False)],
+            running=[
+                (Output("submit_inputs", "disabled"), True, False),
+                # Spinner-in-button while the callback runs (reads more alive
+                # than only a full-pane overlay).
+                (Output("submit_inputs", "loading"), True, False),
+            ],
             prevent_initial_call=False,
         )
         if self._native_stream:
