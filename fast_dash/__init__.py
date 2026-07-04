@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.4.1"
+__version__ = "0.5.0"
 
 from fast_dash.Components import (
     Graph,
@@ -35,10 +35,20 @@ from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
 from fast_dash.dynamic import DynamicDash, render_spec, COMPONENT_REGISTRY
+from fast_dash.chat import (
+    ChatContext,
+    canvas_tool_specs,
+    app_tool_specs,
+    apply_tool_call,
+)
 
 __all__ = [
     "FastDash",
     "fastdash",
+    "ChatContext",
+    "canvas_tool_specs",
+    "app_tool_specs",
+    "apply_tool_call",
     "Fastify",
     "depends_on",
     "from_step",

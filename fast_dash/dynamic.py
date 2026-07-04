@@ -32,12 +32,15 @@ from fast_dash.Components import (
     ColorInput,
     DateInput,
     DateRange,
+    Graph,
+    Image,
     Markdown,
     MultiSelect,
     NumberInput,
     PasswordInput,
     Slider,
     Switch,
+    Table,
     Text,
     TextArea,
     Upload,
@@ -47,6 +50,7 @@ from fast_dash.utils import Fastify
 
 
 __all__ = [
+    "CANVAS_COMPONENT_REGISTRY",
     "COMPONENT_REGISTRY",
     "DynamicDash",
     "render_spec",
@@ -77,18 +81,33 @@ COMPONENT_REGISTRY: dict[str, Any] = {
     "UploadImage": UploadImage,
 }
 
+# The chat canvas is a *display* surface the assistant builds and mutates
+# (charts, tables, images, text) — not an input form. Kept deliberately
+# display-only: assistant-built input widgets would be inert (nothing reads them
+# back), so the canvas advertises only components that render output.
+CANVAS_COMPONENT_REGISTRY: dict[str, Any] = {
+    "Graph": Graph,
+    "Table": Table,
+    "Image": Image,
+    "Markdown": Markdown,
+}
+
 
 def _humanize(name: str) -> str:
     return name.replace("_", " ").replace("-", " ").strip().title()
 
 
-def _spec_to_component(spec: dict) -> Any:
+def _spec_to_component(spec: dict, registry: dict | None = None) -> Any:
     """Instantiate a FastComponent from a single UI spec dict.
 
     The returned component carries a dict id of the shape
     ``{"role": "dyn-input", "name": <name>, "prop": <component_property>}``
     so the Run callback can read it back under a homogeneous-property pool.
+    ``registry`` defaults to the input registry; the chat canvas passes
+    :data:`CANVAS_COMPONENT_REGISTRY` to also allow display components.
     """
+    if registry is None:
+        registry = COMPONENT_REGISTRY
     if not isinstance(spec, dict):
         raise TypeError(f"Spec entries must be dicts, got {type(spec).__name__}")
 
@@ -96,13 +115,13 @@ def _spec_to_component(spec: dict) -> Any:
     type_ = spec.get("type")
     if not name:
         raise ValueError(f"Spec missing required 'name': {spec!r}")
-    if type_ not in COMPONENT_REGISTRY:
+    if type_ not in registry:
         raise ValueError(
             f"Unknown component type {type_!r} for field {name!r}. "
-            f"Allowed: {sorted(COMPONENT_REGISTRY)}"
+            f"Allowed: {sorted(registry)}"
         )
 
-    factory = COMPONENT_REGISTRY[type_]
+    factory = registry[type_]
     props = dict(spec.get("props") or {})
     # Pass props through Fastify.__call__ → deep-copies the component and
     # setattrs each kwarg, which Dash picks up as a prop override.
@@ -121,7 +140,8 @@ def _spec_to_component(spec: dict) -> Any:
     return comp
 
 
-def render_spec(specs: Iterable[dict], container_id: str = "dyn-form") -> html.Div:
+def render_spec(specs: Iterable[dict], container_id: str = "dyn-form",
+                registry: dict | None = None, grid: bool = False) -> html.Div:
     """Render a list of UI specs into a Dash container.
 
     Spec shape::
@@ -131,27 +151,30 @@ def render_spec(specs: Iterable[dict], container_id: str = "dyn-form") -> html.D
             "type": "Slider",       # required, key in COMPONENT_REGISTRY
             "label": "Optional",    # falls back to title-cased name
             "value": 0.5,           # optional initial value
-            "props": {"min": 0, "max": 1, "step": 0.05}  # forwarded to inner Dash component
+            "props": {"min": 0, "max": 1, "step": 0.05},  # forwarded to inner Dash component
+            "span": 6              # grid width out of 12 (grid mode only)
         }
 
     Pure function; no callback registration. Reused by the parent-control
-    resolver callback inside :class:`DynamicDash` and by the MCP
-    ``set_form`` tool.
+    resolver callback inside :class:`DynamicDash`, the MCP ``set_form`` tool, and
+    the chat canvas (which passes :data:`CANVAS_COMPONENT_REGISTRY`).
+
+    ``grid`` lays the components out in a responsive 12-column grid, each spec
+    taking its ``span`` (default 12 = full width, i.e. one per row — the same
+    stacked layout as ``grid=False``). Two ``span: 6`` specs sit side by side.
     """
     specs = list(specs or [])
     groups = []
     for spec in specs:
-        comp = _spec_to_component(spec)
-        groups.append(
-            dmc.Stack(
-                [
-                    dmc.Text(comp.label_, size="sm", fw=500),
-                    comp,
-                ],
-                gap=4,
-            )
+        comp = _spec_to_component(spec, registry=registry)
+        stack = dmc.Stack(
+            [dmc.Text(comp.label_, size="sm", fw=500), comp], gap=4,
         )
-    return html.Div(groups, id=container_id)
+        groups.append(
+            dmc.GridCol(stack, span=spec.get("span", 12)) if grid else stack
+        )
+    body = dmc.Grid(groups, gutter="md") if grid else groups
+    return html.Div(body, id=container_id)
 
 
 def _prepare_output(comp: Any, idx: int) -> Any:

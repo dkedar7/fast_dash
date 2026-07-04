@@ -44,6 +44,10 @@ _HAS_FASTAPI = importlib.util.find_spec("fastapi") is not None
 requires_fastapi = pytest.mark.skipif(
     not _HAS_FASTAPI, reason="fastapi backend extra not installed"
 )
+_HAS_LANGSTAGE = importlib.util.find_spec("langstage_core") is not None
+requires_langstage = pytest.mark.skipif(
+    not _HAS_LANGSTAGE, reason="langstage extra not installed"
+)
 
 
 def _layout_ids(comp, out=None):
@@ -552,3 +556,141 @@ class TestTools:
         out = _call(c, "set_form", {"specs": [{"name": "x", "type": "NotReal"}]})
         assert out["ok"] is False
         assert "Unknown component type" in out["error"]
+
+
+# --- chat-mode MCP contract (RFC #133 Phase 3) ----------------------------- #
+
+def _chat_app(**kw):
+    def bot(query: str, tone: str = "neutral"):
+        """A tiny streaming assistant."""
+        yield {"type": "tool_start", "name": "lookup", "id": "1", "args": {"q": query}}
+        yield {"type": "tool_end", "name": "lookup", "id": "1", "result": "ok"}
+        yield f"[{tone}] you said: {query}"
+    return FastDash(callback_fn=bot, chat=True, mcp_server=True, **kw)
+
+
+class TestChatMcp:
+    """A chat app exposes describe_app (composer contract) + headless invoke."""
+
+    def test_chat_registers_only_chat_tools(self):
+        c = _client_for(_chat_app())
+        tools = _tools(c)
+        assert "describe_app" in tools and "invoke" in tools
+        # The input-mirror tools are for static apps, not chat.
+        assert "set_input" not in tools and "set_form" not in tools
+
+    def test_describe_app_reports_composer_and_settings(self):
+        c = _client_for(_chat_app())
+        desc = _call(c, "describe_app")
+        assert desc["mode"] == "chat"
+        assert desc["composer"]["query"]["type"] == "string"
+        assert desc["composer"]["query"]["required"] is True
+        names = {s["name"]: s for s in desc["settings"]}
+        assert "tone" in names
+        assert names["tone"]["type"] == "string"      # type-consistent contract
+
+    def test_invoke_runs_a_turn_and_returns_json_safe_frames(self):
+        c = _client_for(_chat_app())
+        out = _call(c, "invoke", {"query": "hello", "settings": {"tone": "excited"}})
+        assert out["ok"] is True
+        assert out["content"] == "[excited] you said: hello"
+        types = [f["type"] for f in out["frames"]]
+        assert types == ["tool_start", "tool_end", "content", "complete"]
+        # Frames must be JSON round-trippable (nothing non-serializable leaks).
+        json.dumps(out["frames"])
+
+    def test_invoke_advances_history_across_calls(self):
+        c = _client_for(_chat_app())
+        _call(c, "invoke", {"query": "first"})
+        out = _call(c, "invoke", {"query": "second"})
+        assert out["ok"] is True and "second" in out["content"]
+
+    def test_invoke_rejects_empty_query_and_unknown_setting(self):
+        c = _client_for(_chat_app())
+        assert _call(c, "invoke", {"query": "   "})["ok"] is False
+        bad = _call(c, "invoke", {"query": "x", "settings": {"nope": 1}})
+        assert bad["ok"] is False and "unknown setting" in bad["error"]
+
+    def test_invoke_artifact_frame_is_wire_safe_placeholder(self):
+        # An artifact (a Figure) must never cross the MCP boundary raw; it is a
+        # JSON-safe placeholder, like on the socket wire.
+        def bot(query: str):
+            yield {"type": "artifact", "content": go.Figure(go.Bar(x=[1], y=[1]))}
+            yield "done"
+        c = _client_for(FastDash(callback_fn=bot, chat=True, mcp_server=True))
+        out = _call(c, "invoke", {"query": "plot"})
+        art = [f for f in out["frames"] if f["type"] == "artifact"]
+        assert art and art[0].get("pending") is True
+        json.dumps(out["frames"])
+
+    @requires_langstage
+    def test_invoke_drives_a_langstage_agent(self):
+        app = FastDash(callback_fn="langstage_core.demo.stub:graph",
+                       chat=True, mcp_server=True)
+        c = _client_for(app)
+        desc = _call(c, "describe_app")
+        assert desc["mode"] == "chat" and desc["settings"] == []
+        out = _call(c, "invoke", {"query": "hello there"})
+        assert out["ok"] is True and "hello there" in out["content"]
+
+    def test_describe_app_reports_disabled_canvas_by_default(self):
+        c = _client_for(_chat_app())
+        assert _call(c, "describe_app")["canvas"] == {"enabled": False}
+
+
+def _canvas_chat_app(**kw):
+    def bot(query: str):
+        """A canvas-building assistant, over MCP."""
+        if "build" in query.lower():
+            yield {"type": "canvas", "specs": [
+                {"name": "a", "type": "Markdown", "value": "## Report"},
+            ]}
+            yield "built"
+        else:
+            yield "nothing to build yet"
+    return FastDash(callback_fn=bot, chat=True, canvas=True, mcp_server=True, **kw)
+
+
+class TestChatCanvasMcp:
+    """A canvas chat app exposes and drives the canvas over MCP (agent parity)."""
+
+    def test_describe_app_reports_canvas_contract(self):
+        c = _client_for(_canvas_chat_app())
+        canvas = _call(c, "describe_app")["canvas"]
+        assert canvas["enabled"] is True
+        assert "Graph" in canvas["component_types"]     # display types available
+        assert canvas["specs"] == []                     # nothing built yet
+
+    def test_invoke_builds_canvas_and_reports_specs(self):
+        c = _client_for(_canvas_chat_app())
+        out = _call(c, "invoke", {"query": "build it"})
+        assert out["ok"] is True
+        assert out["canvas"]["specs"][0]["name"] == "a"  # canvas reflected back
+        # And a later describe_app sees the built canvas.
+        assert _call(c, "describe_app")["canvas"]["specs"][0]["name"] == "a"
+
+
+class TestSidecarMcp:
+    """A normal app can carry BOTH an MCP surface and a chat_agent sidecar."""
+
+    def test_mcp_and_chat_agent_coexist_and_mirror_syncs(self):
+        from unittest import mock
+
+        def dashboard(revenue: int = 100) -> str:
+            """A dashboard."""
+            return f"rev {revenue}"
+
+        def agent(query, ctx):
+            yield {"type": "set_input", "name": "revenue", "value": 500}
+            yield {"type": "run_app"}
+
+        app = FastDash(callback_fn=dashboard, chat_agent=agent, mcp_server=True)
+        assert app.has_chat_sidecar and app.mcp_server_enabled
+        c = _client_for(app)
+        # Both surfaces build; describe_app still reports the app contract.
+        assert "inputs" in _call(c, "describe_app")
+        # After the sidecar drives, describe_app reflects it (A2 mirror sync).
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("go", "s1", "sock", (), app_inputs={"revenue": 100})
+        rev = [i for i in _call(c, "describe_app")["inputs"] if i["id"] == "revenue"]
+        assert rev and rev[0]["current_value"] == 500

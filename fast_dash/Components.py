@@ -85,13 +85,38 @@ class AppLayout:
         _DARK_THEMES = {"CYBORG", "DARKLY", "QUARTZ", "SLATE", "SOLAR", "SUPERHERO", "VAPOR"}
         self._color_scheme = "dark" if (self.theme or "").upper() in _DARK_THEMES else "light"
 
-        # Vizro-inspired Mantine theme: flat, professional, Inter font
+        # Flat, professional Mantine theme (Inter). The accent (primaryColor)
+        # is a first-class knob: FastDash(accent="indigo") themes buttons,
+        # links, focus rings, and the chat user bubble. Falls back to a calm
+        # blue. An unknown accent name is ignored by Mantine (stays blue).
+        _FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
+        _accent = (getattr(self.app, "accent", None) or "blue")
+        if isinstance(_accent, str):
+            _accent = _accent.strip().lower()
         self._mantine_theme = {
-            "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
-            "primaryColor": "blue",
-            "defaultRadius": 4,
+            "fontFamily": _FONT,
+            "fontFamilyMonospace": "'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace",
+            "primaryColor": _accent,
+            "defaultRadius": "md",
+            "focusRing": "auto",
+            "cursorType": "pointer",
+            "fontSizes": {"xs": "12px", "sm": "13px", "md": "14px",
+                          "lg": "16px", "xl": "18px"},
+            "radius": {"xs": "3px", "sm": "5px", "md": "8px", "lg": "12px", "xl": "16px"},
+            "shadows": {
+                "xs": "0 1px 2px rgba(15,23,42,0.06)",
+                "sm": "0 1px 3px rgba(15,23,42,0.08), 0 1px 2px rgba(15,23,42,0.04)",
+                "md": "0 4px 12px rgba(15,23,42,0.08)",
+                "lg": "0 10px 24px rgba(15,23,42,0.10)",
+            },
             "headings": {
-                "fontFamily": "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+                "fontFamily": _FONT,
+                "fontWeight": "600",
+                "sizes": {
+                    "h1": {"fontSize": "22px", "lineHeight": "1.3"},
+                    "h2": {"fontSize": "18px", "lineHeight": "1.35"},
+                    "h3": {"fontSize": "15px", "lineHeight": "1.4"},
+                },
             },
             "colors": {
                 "dark": [
@@ -107,6 +132,7 @@ class AppLayout:
                 "NumberInput": {"defaultProps": {"size": "sm"}},
                 "Textarea": {"defaultProps": {"size": "sm"}},
                 "Switch": {"defaultProps": {"size": "sm"}},
+                "Tooltip": {"defaultProps": {"withArrow": True, "openDelay": 300}},
             },
         }
 
@@ -380,11 +406,15 @@ class AppLayout:
         if self.github_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="ri:github-fill", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="ri:github-fill", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "GitHub repository"},
+                        ),
+                        label="GitHub",
                     ),
                     href=self.github_url,
                     target="_blank",
@@ -394,11 +424,15 @@ class AppLayout:
         if self.linkedin_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="entypo-social:linkedin-with-circle", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "LinkedIn"},
+                        ),
+                        label="LinkedIn",
                     ),
                     href=self.linkedin_url,
                     target="_blank",
@@ -408,11 +442,15 @@ class AppLayout:
         if self.twitter_url:
             right_items.append(
                 html.A(
-                    dmc.ActionIcon(
-                        DashIconify(icon="formkit:twitter", width=20),
-                        variant="subtle",
-                        color="gray",
-                        size="lg",
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="formkit:twitter", width=20),
+                            variant="subtle",
+                            color="gray",
+                            size="lg",
+                            **{"aria-label": "X / Twitter"},
+                        ),
+                        label="X / Twitter",
                     ),
                     href=self.twitter_url,
                     target="_blank",
@@ -424,7 +462,13 @@ class AppLayout:
                 [
                     dmc.Group(
                         [
-                            dmc.Burger(id="sidebar-button", opened=True, size="sm"),
+                            dmc.Tooltip(
+                                dmc.Burger(
+                                    id="sidebar-button", opened=True, size="sm",
+                                    **{"aria-label": "Toggle the inputs panel"},
+                                ),
+                                label="Toggle inputs",
+                            ),
                             dmc.Text(
                                 self.title or "",
                                 fw=600,
@@ -437,12 +481,16 @@ class AppLayout:
                     dmc.Group(
                         [
                             *(right_items or []),
-                            dmc.Switch(
-                                id="theme-toggle",
-                                offLabel=DashIconify(icon="radix-icons:sun", width=16),
-                                onLabel=DashIconify(icon="radix-icons:moon", width=16),
-                                size="md",
-                                checked=self._color_scheme == "dark",
+                            dmc.Tooltip(
+                                dmc.Switch(
+                                    id="theme-toggle",
+                                    offLabel=DashIconify(icon="radix-icons:sun", width=16),
+                                    onLabel=DashIconify(icon="radix-icons:moon", width=16),
+                                    size="md",
+                                    checked=self._color_scheme == "dark",
+                                    **{"aria-label": "Toggle dark mode"},
+                                ),
+                                label="Toggle theme",
                             ),
                         ],
                         gap="xs",
@@ -562,11 +610,16 @@ class AppLayout:
             width=12,
         )
 
+        # The overlay is kept only as the loading *signal* (its `visible` drives
+        # the .fd-loading skeleton class); its own dim/spinner is neutralised in
+        # CSS so the per-card skeleton is the sole loading UI.
         loader_component = dmc.LoadingOverlay(
             id="loading-overlay",
             loaderProps=dict(type=self.loader),
+            overlayProps={"backgroundOpacity": 0},
         )
-        output_layout = html.Div([loader_component, output_layout])
+        output_layout = html.Div([loader_component, output_layout],
+                                 id="output-loading-wrap")
 
         return output_layout
 
@@ -592,6 +645,61 @@ class AppLayout:
             id="footer5265971",
         )
 
+    def _chat_aside(self):
+        """The chat sidecar surface: a right AppShellAside with the chat panel.
+
+        Only built when the host app declares ``chat_agent=``. Reuses the shared
+        chat fragment (transcript + composer); a header carries the agent's
+        title and a close button.
+        """
+        title = getattr(self.app, "chat_agent_title", "Assistant")
+        header = html.Div(
+            dmc.Group(
+                [
+                    dmc.Group(
+                        [DashIconify(icon="tabler:message-2", width=18),
+                         html.Span(title, style={"fontWeight": 600})],
+                        gap="xs", wrap="nowrap",
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:x", width=18),
+                        id="chat-sidecar-close", variant="subtle", size="sm",
+                        n_clicks=0,
+                    ),
+                ],
+                justify="space-between", wrap="nowrap", style={"width": "100%"},
+            ),
+            style={"flex": "0 0 auto", "padding": "10px 12px",
+                   "borderBottom": "1px solid var(--mantine-color-default-border)"},
+        )
+        body = html.Div(
+            [self._chat_message_list(), self._chat_composer()],
+            className="fd-chat-main",
+            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
+                   "flexDirection": "column"},
+        )
+        return dmc.AppShellAside(
+            html.Div(
+                [header, body],
+                style={"height": "calc(100vh - 56px)", "display": "flex",
+                       "flexDirection": "column"},
+            ),
+            id="chat-aside",
+        )
+
+    def _chat_sidecar_toggle_button(self):
+        """Floating button that opens/closes the chat sidecar aside."""
+        title = getattr(self.app, "chat_agent_title", "Assistant")
+        return dmc.Button(
+            title,
+            id="chat-sidecar-toggle",
+            n_clicks=0,
+            leftSection=DashIconify(icon="tabler:message-2", width=18),
+            radius="xl",
+            style={"position": "fixed", "bottom": "24px", "right": "24px",
+                   "zIndex": 1000, "boxShadow": "0 2px 12px rgba(0,0,0,0.2)"},
+        )
+
     def generate_layout(self, stream_event_names=None):
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -600,44 +708,52 @@ class AppLayout:
         navbar_content = self.generate_input_component()
         main_content = self.generate_output_component()
 
-        appshell = dmc.AppShell(
-            [
-                dmc.AppShellHeader(
-                    dmc.Group(
-                        header_children[0] if header_children else [],
-                        style={"height": "100%", "padding": "0 20px"},
-                    ),
-                    id="header1162572",
+        has_sidecar = getattr(self.app, "has_chat_sidecar", False)
+
+        appshell_children = [
+            dmc.AppShellHeader(
+                dmc.Group(
+                    header_children[0] if header_children else [],
+                    style={"height": "100%", "padding": "0 20px"},
                 ),
-                dmc.AppShellNavbar(
-                    navbar_content,
-                    p="md",
-                    id="navbar3260780",
-                    # Column so the grow inputs-section scrolls and the Run
-                    # footer section stays pinned; the section owns scrolling.
-                    style={
-                        "display": "flex",
-                        "flexDirection": "column",
-                        "overflow": "hidden",
-                    },
+                id="header1162572",
+            ),
+            dmc.AppShellNavbar(
+                navbar_content,
+                p="md",
+                id="navbar3260780",
+                # Column so the grow inputs-section scrolls and the Run
+                # footer section stays pinned; the section owns scrolling.
+                style={
+                    "display": "flex",
+                    "flexDirection": "column",
+                    "overflow": "hidden",
+                },
+            ),
+            dmc.AppShellMain(
+                html.Div(
+                    main_content,
+                    style={"padding": "20px", "height": "100%"},
+                    id="output-group-col",
                 ),
-                dmc.AppShellMain(
-                    html.Div(
-                        main_content,
-                        style={"padding": "20px", "height": "100%"},
-                        id="output-group-col",
-                    ),
-                ),
-            ],
+            ),
+        ]
+        appshell_kwargs = dict(
             header={"height": 56},
-            navbar={
-                "width": 300,
-                "breakpoint": "sm",
-                "collapsed": {"mobile": False},
-            },
+            navbar={"width": 300, "breakpoint": "sm", "collapsed": {"mobile": False}},
             padding=0,
             id="appshell",
         )
+        if has_sidecar:
+            appshell_children.append(self._chat_aside())
+            # Collapsed by default; the floating toggle opens it. Full-width
+            # sheet on small screens, fixed panel on desktop.
+            appshell_kwargs["aside"] = {
+                "width": {"base": "100%", "sm": 380}, "breakpoint": "sm",
+                "collapsed": {"desktop": True, "mobile": True},
+            }
+
+        appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
         # Collect items that go outside AppShell
         extra = [
@@ -653,6 +769,16 @@ class AppLayout:
 
         extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
 
+        if has_sidecar:
+            extra += self._chat_stores()
+            extra.append(dcc.Store(id="chat-sidecar-open", data=False))
+            # Drive-affordance plumbing: chat-drive-tick carries the flash signal
+            # (bumped via set_props on ASGI); chat-drive-flash is a dummy sink for
+            # the clientside flash callback.
+            extra.append(dcc.Store(id="chat-drive-tick"))
+            extra.append(dcc.Store(id="chat-drive-flash"))
+            extra.append(self._chat_sidecar_toggle_button())
+
         layout = dmc.MantineProvider(
             [appshell] + extra,
             id="mantine-provider",
@@ -661,6 +787,257 @@ class AppLayout:
         )
 
         return layout
+
+    @staticmethod
+    def _chat_message_list():
+        """The transcript container — shared by chat mode and the sidecar aside.
+
+        Newest message at the visual bottom (column-reverse pins the scroll to
+        the bottom, as the Chat output component does).
+        """
+        return html.Div(
+            [],
+            id="chat-messages",
+            className="fd-chat-list",
+            style={
+                "flex": "1 1 auto",
+                "minHeight": 0,
+                "overflowY": "auto",
+                "overflowX": "hidden",
+                "display": "flex",
+                "flexDirection": "column-reverse",
+                "gap": "14px",
+                "padding": "18px 8px",
+            },
+        )
+
+    @staticmethod
+    def _chat_composer():
+        """The composer (textarea + send/stop) — shared by chat mode and sidecar."""
+        return html.Div(
+            dmc.Group(
+                [
+                    dmc.Textarea(
+                        id="chat-input",
+                        placeholder="Send a message...  (Enter to send, Shift+Enter for a new line)",
+                        autosize=True,
+                        minRows=1,
+                        maxRows=6,
+                        style={"flex": "1 1 auto"},
+                        styles={"input": {"borderRadius": "10px"}},
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:send", width=20),
+                        id="chat-send",
+                        size="lg",
+                        radius="md",
+                        variant="filled",
+                        n_clicks=0,
+                    ),
+                    dmc.ActionIcon(
+                        DashIconify(icon="tabler:player-stop-filled", width=20),
+                        id="chat-stop",
+                        size="lg",
+                        radius="md",
+                        variant="filled",
+                        color="red",
+                        n_clicks=0,
+                        style={"display": "none"},   # shown only while streaming
+                    ),
+                ],
+                gap="sm",
+                align="flex-end",
+                wrap="nowrap",
+                className="fd-chat-composer",
+            ),
+            className="fd-chat-composer-wrap",
+        )
+
+    @staticmethod
+    def _chat_stores():
+        """The dcc.Stores the chat callbacks bind to — shared by both surfaces."""
+        return [
+            dcc.Store(id="chat-session", storage_type="session"),
+            dcc.Store(id="chat-submit-store"),
+            dcc.Store(id="chat-streaming", data=False),
+            dcc.Store(id="chat-enter-init"),
+        ]
+
+    def generate_chat_layout(self, has_settings=False, stream_event_names=None,
+                             native_stream=False, canvas=False, drawer=False):
+        """Build the native chat-mode layout (RFC #133).
+
+        Reuses the shared chrome (header, theme toggle, About, notifications,
+        MantineProvider) and lays out a streaming transcript with a composer
+        pinned at the bottom of the main area. Settings inputs (any callback
+        parameter besides ``query``/``history``) render in the sidebar, which is
+        hidden entirely when there are none.
+
+        Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
+        an ASGI backend (``native_stream``) they are pushed with ``set_props``
+        into the ``chat-frames-store`` and the reducer listens on that store
+        instead of a socket event (no flask-socketio, which is WSGI-only).
+        """
+        if self.minimal:
+            self.title = self.subtitle = self.navbar = self.footer = False
+
+        header_children = self.generate_navbar_container() or []
+
+        message_list = self._chat_message_list()
+        composer = self._chat_composer()
+
+        # Developer-declared settings placement:
+        #  - drawer (app-first): the settings + a Run button go in the left
+        #    navbar; the chat is a collapsible alternative view.
+        #  - panel (chat-first canvas): the settings live in the chat panel,
+        #    above the composer.
+        # (The canvas itself is display-only — the assistant builds output there,
+        #  not input widgets — so there is no chat-side dynamic-input region.)
+        panel_children = [message_list]
+        if canvas and has_settings and not drawer:
+            panel_children.append(
+                html.Div(self.generate_input_component(), id="chat-settings",
+                         className="fd-chat-settings")
+            )
+        panel_children.append(composer)
+        main = html.Div(
+            panel_children,
+            className="fd-chat-main",
+            style={"height": "100%", "display": "flex", "flexDirection": "column"},
+        )
+        # Fill the viewport below the 56px header so the message list (flex:1)
+        # grows and the composer pins to the bottom.
+        chat_shell = html.Div(
+            main, className="fd-chat-shell",
+            style={"height": "calc(100vh - 56px)"}, id="output-group-col",
+        )
+
+        header = dmc.AppShellHeader(
+            dmc.Group(
+                header_children[0] if header_children else [],
+                style={"height": "100%", "padding": "0 20px"},
+            ),
+            id="header1162572",
+        )
+
+        canvas_region = None
+        if canvas:
+            canvas_region = html.Div(
+                html.Div([], id="chat-canvas", className="fd-chat-canvas"),
+                className="fd-chat-canvas-wrap",
+                style={"height": "calc(100vh - 56px)", "overflowY": "auto",
+                       "overflowX": "hidden", "padding": "18px 22px"},
+            )
+
+        navbar_conf = None
+        if drawer:
+            # App-first: the left panel drives the output canvas (main area). It
+            # toggles between two views in the same container:
+            #   * inputs view (default): the developer settings + a Run button,
+            #     with an "expand" button at the bottom that brings up the chat;
+            #   * chat view: the assistant, as an alternative to those inputs,
+            #     with a Back button to return.
+            run_button = dmc.Button(
+                "Run", id="chat-run", n_clicks=0, fullWidth=True,
+                leftSection=DashIconify(icon="tabler:player-play", width=16),
+            )
+            open_chat_button = dmc.Button(
+                "Chat with the assistant", id="chat-open", n_clicks=0,
+                leftSection=DashIconify(icon="tabler:message-2", width=16),
+                variant="light", fullWidth=True,
+            )
+            inputs_view = html.Div(
+                [
+                    dmc.ScrollArea(
+                        dmc.Stack(list(self.inputs or []), gap="lg"),
+                        type="auto",
+                        style={"flex": "1 1 auto", "minHeight": 0},
+                    ),
+                    html.Div(
+                        [run_button, open_chat_button],
+                        style={"flex": "0 0 auto", "paddingTop": "12px",
+                               "display": "flex", "flexDirection": "column",
+                               "gap": "8px",
+                               "borderTop": "1px solid var(--mantine-color-default-border)"},
+                    ),
+                ],
+                id="chat-inputs-view",
+                style={"height": "calc(100vh - 56px)", "display": "flex",
+                       "flexDirection": "column", "padding": "12px"},
+            )
+            back_button = html.Div(
+                dmc.Button(
+                    "Back to inputs", id="chat-back", n_clicks=0,
+                    leftSection=DashIconify(icon="tabler:arrow-left", width=16),
+                    variant="subtle", size="xs",
+                ),
+                style={"flex": "0 0 auto", "padding": "6px 8px",
+                       "borderBottom": "1px solid var(--mantine-color-default-border)"},
+            )
+            chat_view = html.Div(
+                [back_button, html.Div(main, style={"flex": "1 1 auto", "minHeight": 0})],
+                id="chat-panel-view",
+                style={"height": "calc(100vh - 56px)", "display": "none",
+                       "flexDirection": "column"},
+            )
+            appshell_children = [
+                header,
+                dmc.AppShellNavbar([inputs_view, chat_view], id="navbar3260780"),
+                dmc.AppShellMain(canvas_region),
+            ]
+            navbar_conf = {"width": 380, "breakpoint": "sm",
+                           "collapsed": {"mobile": False}}
+        elif canvas:
+            # Chat-first split view: chat panel on the left, canvas on the right.
+            appshell_children = [
+                header,
+                dmc.AppShellNavbar(chat_shell, id="navbar3260780"),
+                dmc.AppShellMain(canvas_region),
+            ]
+            navbar_conf = {"width": 460, "breakpoint": "sm",
+                           "collapsed": {"mobile": False}}
+        else:
+            appshell_children = [header, dmc.AppShellMain(chat_shell)]
+            if has_settings:
+                appshell_children.insert(
+                    1,
+                    dmc.AppShellNavbar(
+                        self.generate_input_component(),
+                        p="md",
+                        id="navbar3260780",
+                        style={"display": "flex", "flexDirection": "column",
+                               "overflow": "hidden"},
+                    ),
+                )
+                navbar_conf = {"width": 300, "breakpoint": "sm",
+                               "collapsed": {"mobile": False}}
+
+        appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
+        if navbar_conf:
+            appshell_kwargs["navbar"] = navbar_conf
+        appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
+
+        extra = [
+            dmc.NotificationContainer(id="notification-container"),
+            html.Div(id="dummy-div", style={"display": "none"}),
+            *self._chat_stores(),                 # chat state stores (shared)
+        ]
+        if self.about and header_children and len(header_children) > 1:
+            extra.append(header_children[1])
+        if self.branding:
+            extra.append(self.generate_footer_container())
+        # Flask streams frames as socket.io events applied by a clientside
+        # reducer; ASGI pushes the full rendered message list straight to
+        # chat-messages.children via set_props, so no socket component is added.
+        if not native_stream:
+            extra.append(DashSocketIO(id="socketio", eventNames=stream_event_names))
+
+        return dmc.MantineProvider(
+            [appshell] + extra,
+            id="mantine-provider",
+            theme=self._mantine_theme,
+            forceColorScheme=self._color_scheme,
+        )
 
     def callbacks(self, app):
         # Dark mode toggle — clientside for instant response
@@ -679,6 +1056,17 @@ class AppLayout:
             Input("sidebar-button", "opened"),
         )
         def toggle_sidebar(opened):
+            if getattr(self.app, "is_chat_drawer", False):
+                # App-first (drawer) mode: the navbar holds the settings + Run;
+                # keep it open at its own width.
+                return {"width": 320, "breakpoint": "sm",
+                        "collapsed": {"desktop": False, "mobile": False}}
+            if getattr(self.app, "is_canvas", False):
+                # In canvas mode the navbar holds the chat panel (not a settings
+                # sidebar), so it must stay open and keep its wider width.
+                return {"width": 460, "breakpoint": "sm",
+                        "collapsed": {"desktop": False, "mobile": False}}
+
             user_agent = request.headers.get("User-Agent")
 
             if not opened or self.app.inputs == [] or self.app.inputs is None:
@@ -1068,7 +1456,7 @@ def _get_component_from_input(hint, default_value=None):
             )
             component = Fastify(
                 component=dcc.Upload(
-                    children=dbc.Col(["Click to upload image"]),
+                    children=html.Div("Click to upload image"),
                     style={
                         "lineHeight": "60px",
                         "borderWidth": "1px",
@@ -1090,7 +1478,7 @@ def _get_component_from_input(hint, default_value=None):
             )
             component = Fastify(
                 component=dcc.Upload(
-                    children=dbc.Col(["Click to upload image"]),
+                    children=html.Div("Click to upload image"),
                     style={
                         "lineHeight": "60px",
                         "borderWidth": "1px",
@@ -1209,7 +1597,7 @@ def _get_component_from_input(hint, default_value=None):
                 )
                 component = Fastify(
                     component=dcc.Upload(
-                        children=dbc.Col(["Click to upload image"]),
+                        children=html.Div("Click to upload image"),
                         style={
                             "lineHeight": "60px",
                             "borderWidth": "1px",
@@ -1412,7 +1800,11 @@ Text = Fastify(
     tag="Text",
 )
 
-TextArea = Fastify(component=dbc.Textarea(), component_property="value", tag="Text")
+TextArea = Fastify(
+    component=dmc.Textarea(autosize=True, minRows=3, maxRows=12),
+    component_property="value",
+    tag="Text",
+)
 
 NumberInput = Fastify(
     component=dmc.NumberInput(
@@ -1498,7 +1890,7 @@ Slider = Fastify(
 ##### Input components
 Upload = Fastify(
     component=dcc.Upload(
-        children=dbc.Col(["Click to upload"]),
+        children=html.Div("Click to upload"),
         style={
             "lineHeight": "60px",
             "borderWidth": "1px",
@@ -1519,7 +1911,7 @@ acknowledge_image_component = Fastify(
 
 UploadImage = Fastify(
     component=dcc.Upload(
-        children=dbc.Col(["Click to upload image"]),
+        children=html.Div("Click to upload image"),
         style={
             "lineHeight": "60px",
             "borderWidth": "1px",

@@ -1,7 +1,7 @@
 [tool]
 [project]
 name = "fast_dash"
-version = "0.4.1"
+version = "0.5.0"
 homepage = "https://github.com/dkedar7/fast_dash"
 documentation = "https://docs.fastdash.app"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
@@ -59,6 +59,10 @@ test = [
 
 fastapi = [
     "dash[fastapi]>=4.3.0"
+    ]
+
+langstage = [
+    "langstage-core[agui]>=1.0.0"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]

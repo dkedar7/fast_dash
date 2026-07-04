@@ -1,5 +1,38 @@
 # History
 
+# Release 0.5.0
+
+## 0.5.0 (2026-07-03)
+
+### Features
+- **Native chat mode (`chat=True`)**: turn a callback into a streaming chat app
+  — a bottom-anchored composer, a scrolling transcript, per-session history, and
+  a provider-neutral frame grammar (`content` / `reasoning` / `tool_start` /
+  `tool_end` / `artifact` / `interrupt` / `error`). No LLM SDK is bundled.
+- **LangGraph agents**: `chat=True` also accepts a compiled LangGraph graph or a
+  `"module:attr"` spec string (via `fast-dash[langstage]`), with multi-turn
+  memory on the graph's checkpointer and human-in-the-loop interrupts.
+- **The canvas (`canvas=True`)**: a live, assistant-built output region beside the
+  transcript — a conversational DynamicDash the model builds and mutates with
+  `canvas` / `set_props` frames. `chat_drawer=True` gives an app-first layout.
+- **Chat sidecar (`chat_agent=`)**: mount an independent chat agent on a *normal*
+  Fast Dash app. The agent reads the app's live inputs (`ctx.inputs`,
+  `ctx.input_specs`) and drives it (`set_input` / `run_app` frames, or the
+  `app_tool_specs()` / `apply_tool_call()` LLM on-ramp) — anything a user can do,
+  the agent can do. `chat_agent_drive=False` makes it read-only.
+- **Driving chat over MCP**: `mcp_server=True` exposes a chat app's `describe_app`
+  / `invoke` contract so a headless agent sees and drives it like a browser user.
+- **UI refresh**: a first-class `accent=` colour, an enriched Mantine theme,
+  docstring-derived input help captions, skeleton loaders, a pre-run empty state,
+  a sidecar drive affordance (agent-set inputs flash, the output pulses),
+  streaming caret, code-copy buttons, mobile sheet + a11y (aria-labels, focus,
+  reduced-motion). Dropped the unused FontAwesome stylesheet.
+
+### Security
+- **Password inputs are never exposed to a sidecar agent**: a `PasswordInput`'s
+  value is redacted from `ctx.inputs`, omitted from the contract, and `set_input`
+  on it is refused — while the app still runs with the real value.
+
 # Release 0.2.14
 
 ## 0.2.14 (2025-09-22)

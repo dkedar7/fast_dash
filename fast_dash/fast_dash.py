@@ -1,6 +1,8 @@
 import functools
+import inspect
 import logging
 import re
+import threading
 import traceback
 import uuid
 import warnings
@@ -36,9 +38,12 @@ from .utils import (
     theme_mapper,
     _infer_variable_names,
     _parse_docstring_as_markdown,
+    _parse_param_docs,
     _get_error_notification_component,
     from_step,
 )
+
+from .chat_app import ChatAppMixin
 
 import contextvars
 import functools
@@ -83,7 +88,7 @@ def notify(data, action="show"):
         return handler(component, data, notification=True)
     
 
-class FastDash:
+class FastDash(ChatAppMixin):
     """
     Fast Dash app object containing automatically generated UI components and callbacks.
 
@@ -118,6 +123,7 @@ class FastDash:
         stream=False,
         about=True,
         theme=None,
+        accent=None,
         update_live=False,
         port=8080,
         mode=None,
@@ -127,6 +133,13 @@ class FastDash:
         run_kwargs=dict(),
         tab_titles=None,
         steps=None,
+        chat=False,
+        chat_history_size=50,
+        canvas=False,
+        chat_drawer=False,
+        chat_agent=None,
+        chat_agent_title=None,
+        chat_agent_drive=True,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -252,6 +265,84 @@ class FastDash:
             self.callback_fns = [callback_fn]
             self.tab_titles = None
 
+        # --- Chat mode (RFC #133) --------------------------------------------
+        # Validate the D1 interaction matrix and normalize flags. Chat mode is
+        # a distinct interaction (a composer + a streaming transcript), so it
+        # forbids combinations that would only half-work and forces streaming
+        # on. All messages here are friendly and ASCII (Windows consoles).
+        self.is_chat = bool(chat)
+        self.chat_history_size = chat_history_size
+        # chat_drawer: app-first layout — developer settings + a Run button drive
+        # the output canvas standalone, and chat is a collapsible add-on drawer.
+        # It implies a canvas (the output surface).
+        self.is_chat_drawer = bool(chat_drawer) and self.is_chat
+        # canvas: an assistant-driven region for output (and dynamic controls).
+        # Only meaningful in chat mode; implied by chat_drawer.
+        self.is_canvas = (bool(canvas) or self.is_chat_drawer) and self.is_chat
+        if (canvas or chat_drawer) and not self.is_chat:
+            warnings.warn(
+                "canvas=True / chat_drawer=True have no effect without chat=True; "
+                "ignoring.", stacklevel=2,
+            )
+        self.is_langstage = False
+        if self.is_chat:
+            # A LangGraph graph or "module:attr" spec is bridged to the frame
+            # grammar by the langstage adapter; replace it with the generated
+            # (query, thread_id) callback before the signature checks below.
+            from .adapters.langstage import build_chat_callback, is_langstage_target
+            if is_langstage_target(callback_fn):
+                callback_fn = build_chat_callback(callback_fn)
+                self.callback_fns = [callback_fn]
+                self.is_langstage = True
+            if self.is_multi or self.is_steps:
+                raise TypeError(
+                    "chat=True is not supported with multi-function or steps "
+                    "apps. Use a single callback function."
+                )
+            if update_live:
+                raise TypeError(
+                    "chat=True and update_live=True are incompatible interaction "
+                    "models. Chat streams on submit; drop update_live."
+                )
+            _params = list(inspect.signature(callback_fn).parameters)
+            if not _params or _params[0] != "query":
+                raise TypeError(
+                    "A chat callback's first parameter must be named 'query' "
+                    "(it receives the composer text). Got signature "
+                    "(%s)." % ", ".join(_params)
+                )
+            if outputs is not None:
+                warnings.warn(
+                    "outputs= is ignored in chat mode; the transcript is the "
+                    "output.", stacklevel=2,
+                )
+                outputs = None
+            if not stream:
+                # Chat is inherently streaming; stream is implied.
+                stream = True
+            # mcp_server=True is supported in chat mode: the MCP surface exposes
+            # the composer contract (describe_app) and a headless invoke(query=)
+            # that drives one turn and returns its frames (see fast_dash.mcp).
+
+        # --- Chat sidecar (chat_agent= on a normal app) ----------------------
+        # A *normal* Fast Dash app (typed inputs -> outputs, Run button) can
+        # mount an independent chat agent in a side drawer. The agent shares
+        # nothing with the app's own callback except the ability to read the
+        # app's live inputs (ctx.inputs) and drive it (set_input / run_app
+        # frames). This is the mirror of chat=True, which *is* the chat.
+        if chat_agent is not None and self.is_chat:
+            raise TypeError(
+                "chat_agent= cannot be combined with chat=True (that app is "
+                "already a chat). Use chat_agent= to add an assistant to a "
+                "normal app."
+            )
+        self.has_chat_sidecar = bool(chat_agent) and not self.is_chat
+        self._chat_agent = chat_agent
+        self.chat_agent_title = chat_agent_title or "Assistant"
+        # chat_agent_drive=False makes the sidecar read-only: the agent can read
+        # ctx.inputs and converse, but set_input / run_app are refused.
+        self.chat_agent_drive = bool(chat_agent_drive)
+
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
@@ -291,11 +382,13 @@ class FastDash:
         self.stream = stream
         self.about = about
         self.theme = theme or "JOURNAL"
+        # Accent color (Mantine primaryColor): themes buttons, links, focus
+        # rings, and the chat user bubble. One knob for "what colour is my app".
+        self.accent = accent
         self.minimal = minimal
 
         external_stylesheets = [
             theme_mapper(self.theme),
-            "https://use.fontawesome.com/releases/v5.9.0/css/all.css",
         ]
 
         # Backend selection. Default = Flask, with an explicit server so the
@@ -307,8 +400,9 @@ class FastDash:
         self._backend = self.kwargs.pop("backend", None)
         # Native-WebSocket streaming: when streaming is requested on an ASGI
         # backend, partial updates are pushed with set_props instead of
-        # flask-socketio (which is WSGI-only).
-        self._native_stream = bool(stream) and bool(self._backend)
+        # flask-socketio (which is WSGI-only). A chat sidecar always streams, so
+        # it counts as requesting streaming even on an otherwise-static app.
+        self._native_stream = (bool(stream) or self.has_chat_sidecar) and bool(self._backend)
         source = dash.Dash
         if self._backend:
             self.kwargs.setdefault("websocket_callbacks", True)
@@ -331,8 +425,9 @@ class FastDash:
         self.server = self.app.server
         self.callback = self.app.callback
 
-        # Legacy flask-socketio server: only for the Flask streaming path.
-        if stream == True and not self._native_stream:
+        # Legacy flask-socketio server: for the Flask streaming path (streaming
+        # outputs or a chat sidecar streaming its turns).
+        if (stream == True or self.has_chat_sidecar) and not self._native_stream:
             socketio = SocketIO(self.app.server)
 
         # Define other attributes
@@ -345,6 +440,8 @@ class FastDash:
             self._init_steps()
         elif self.is_multi:
             self._init_multi_function()
+        elif self.is_chat:
+            self._init_chat(callback_fn, inputs)
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
 
@@ -353,6 +450,10 @@ class FastDash:
 
         # Initialize state indicators
         self.state_counter = 0
+        # Serializes host-callback execution between a user's Run (process_input)
+        # and a chat sidecar's run_app, so a stateful callback is never entered
+        # by two threads at once.
+        self._host_callback_lock = threading.Lock()
 
         if output_labels == "infer":
             self.output_labels = _infer_variable_names(callback_fn, upper_case=True)
@@ -378,6 +479,14 @@ class FastDash:
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = _assign_ids_to_outputs(self.outputs, self.callback_fn)
+        # Attach per-input help text from the callback docstring (rendered as a
+        # caption under each input label).
+        _param_docs = _parse_param_docs(self.callback_fn)
+        for _name, _inp in zip(
+            list(inspect.signature(self.callback_fn).parameters), self.inputs_with_ids
+        ):
+            if getattr(_inp, "help_", None) is None:
+                _inp.help_ = _param_docs.get(_name)
         self.ack_mask = [
             False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
             for input_ in self.inputs_with_ids
@@ -403,10 +512,16 @@ class FastDash:
         if self.mcp_server_enabled:
             self._register_mcp_mirror()
 
+        # Mount an independent chat agent in a side drawer (chat_agent=), after
+        # the normal app's layout + callbacks are in place.
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
+
         # Keep track of the number of clicks
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+
 
     def _init_multi_function(self):
         """Initialize a multi-function tabbed Fast Dash app."""
@@ -467,6 +582,9 @@ class FastDash:
         self.set_layout()
         self.register_callback_fn()
         self.add_streaming()
+
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
 
     def _init_steps(self):
         """Initialize a linear multi-step pipeline app.
@@ -542,6 +660,9 @@ class FastDash:
         self.app.title = self.title or ""
         self._set_steps_layout()
         self._register_steps_callbacks()
+
+        if self.has_chat_sidecar:
+            self._init_chat_sidecar()
 
     @staticmethod
     def _make_user_params_fn(user_params):
@@ -722,10 +843,13 @@ class FastDash:
             "app": self,
         }
         self.layout_object = _StepsLayout(**layout_args)
+        steps_stream = ["notification-container"]
+        if getattr(self, "has_chat_sidecar", False):
+            steps_stream += ["chat_frames", "chat_drive"]
         # Stores for step state — appended after AppShell so they're not
         # inside the navbar/main scroll regions.
         self.app.layout = self.layout_object.generate_layout(
-            stream_event_names=["notification-container"],
+            stream_event_names=steps_stream,
         )
         # Add Dash stores to the layout's children
         self.app.layout.children.extend([
@@ -1172,6 +1296,12 @@ class FastDash:
         for component in chat_components:
             [streaming_components.append(f"{component.id}_{i + 1}_response") for i in range(getattr(component, "stream_limit", 10))]
 
+        # A chat sidecar streams its turns and its app-drive pushes over the
+        # same socketio component.
+        if getattr(self, "has_chat_sidecar", False):
+            streaming_components.append("chat_frames")
+            streaming_components.append("chat_drive")
+
         self.app.layout = app_layout.generate_layout(stream_event_names=streaming_components)
 
     def _set_multi_layout(self):
@@ -1311,6 +1441,8 @@ class FastDash:
             "theme": self.theme,
             "app": self,
         }
+        if getattr(self, "has_chat_sidecar", False):
+            all_streaming_components += ["chat_frames", "chat_drive"]
         self.layout_object = _MultiLayout(**layout_args)
         self.app.layout = self.layout_object.generate_layout(
             stream_event_names=all_streaming_components,
@@ -1332,11 +1464,32 @@ class FastDash:
             prevent_initial_call=True,
         )
 
+        # Pre-run empty state: show the "Run to see results" placeholder (over
+        # an empty output component) until the first Run. Keyed on the click
+        # count only, so it fires instantly and isn't deferred by the run.
+        # (The loading skeleton is driven separately by the process_input
+        # `running=` bracket on #output-loading-wrap — see register_callback_fn.)
+        self.app.clientside_callback(
+            "function(n) { return (n && n > 0) ? '' : 'fd-not-run'; }",
+            Output("output-group-col", "className"),
+            Input("submit_inputs", "n_clicks"),
+        )
+
         # Native streaming makes the main callback a WebSocket callback so
         # set_props can stream partial updates mid-execution. The legacy Flask
         # path is unchanged (no websocket kwarg, socketId State present).
         _proc_cb_kwargs = dict(
-            running=[(Output("submit_inputs", "disabled"), True, False)],
+            running=[
+                (Output("submit_inputs", "disabled"), True, False),
+                # Spinner-in-button while the callback runs (reads more alive
+                # than only a full-pane overlay).
+                (Output("submit_inputs", "loading"), True, False),
+                # Skeleton shimmer over the output cards for the run's duration.
+                # `running` brackets the callback reliably (unlike a clientside
+                # read of loading-overlay.visible); on a dedicated wrapper so it
+                # never collides with the pre-run placeholder class.
+                (Output("output-loading-wrap", "className"), "fd-loading", ""),
+            ],
             prevent_initial_call=False,
         )
         if self._native_stream:
@@ -1393,22 +1546,25 @@ class FastDash:
                         stream_handler_func = functools.partial(
                             self.stream_handler, socket_id=args[-1]
                         )
-                    with StreamContext(stream_handler_func):
-                        output_state = self.callback_fn(*inputs)
+                    # Serialize against a chat sidecar's run_app (A4): never run
+                    # the host callback from two threads at once.
+                    with self._host_callback_lock:
+                        with StreamContext(stream_handler_func):
+                            output_state = self.callback_fn(*inputs)
 
-                    if isinstance(output_state, tuple):
-                        self.output_state = list(output_state)
+                        if isinstance(output_state, tuple):
+                            self.output_state = list(output_state)
 
-                    else:
-                        self.output_state = [output_state]
+                        else:
+                            self.output_state = [output_state]
 
-                    # Transform outputs to fit in the desired components
-                    self.output_state = _transform_outputs(
-                        self.output_state, self.output_tags, self.outputs_with_ids, self.state_counter
-                    )
+                        # Transform outputs to fit in the desired components
+                        self.output_state = _transform_outputs(
+                            self.output_state, self.output_tags, self.outputs_with_ids, self.state_counter
+                        )
 
-                    # Log the latest output state
-                    self.latest_output_state = self.output_state
+                        # Log the latest output state
+                        self.latest_output_state = self.output_state
 
                     return self.output_state + [default_notification, False]
 
@@ -1967,6 +2123,7 @@ def fastdash(
     stream=False,
     about=True,
     theme=None,
+    accent=None,
     update_live=False,
     port=8080,
     mode=None,
@@ -1974,6 +2131,13 @@ def fastdash(
     disable_logs=False,
     scale_height=1,
     run_kwargs=dict(),
+    chat=False,
+    chat_history_size=50,
+    canvas=False,
+    chat_drawer=False,
+    chat_agent=None,
+    chat_agent_title=None,
+    chat_agent_drive=True,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2082,6 +2246,7 @@ def fastdash(
             stream=stream,
             about=about,
             theme=theme,
+            accent=accent,
             update_live=update_live,
             mode=mode,
             port=port,
@@ -2089,6 +2254,13 @@ def fastdash(
             disable_logs=disable_logs,
             scale_height=scale_height,
             run_kwargs=run_kwargs,
+            chat=chat,
+            chat_history_size=chat_history_size,
+            canvas=canvas,
+            chat_drawer=chat_drawer,
+            chat_agent=chat_agent,
+            chat_agent_title=chat_agent_title,
+            chat_agent_drive=chat_agent_drive,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,
