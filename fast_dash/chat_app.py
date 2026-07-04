@@ -200,9 +200,11 @@ class ChatAppMixin:
                 self._sidecar_can_drive = True
                 self._sidecar_no_drive_note = None
 
+        self._drive_tick = 0                          # bumped per drive (ASGI flash)
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_sidecar_toggle()
         self._register_chat_drive_reducer()
+        self._register_chat_drive_flash()
 
     def _register_chat_sidecar_toggle(self):
         """Open/close the sidecar aside (floating button + in-aside close)."""
@@ -390,6 +392,50 @@ class ChatAppMixin:
             """ % (n_in + n_out, n_in, n_out),
             outputs,
             Input("socketio", "data-chat_drive"),
+            prevent_initial_call=True,
+        )
+
+    def _register_chat_drive_flash(self):
+        """Flash the controls the agent just set, and pulse the output on a run.
+
+        A brief highlight makes agent-driven changes legible — trust in an
+        agent-driven app comes from *seeing* what it touched. Reads the drive
+        signal from wherever the transport delivers it (Flask: the chat_drive
+        socket event; ASGI: the chat-drive-tick store set via set_props).
+        """
+        if not getattr(self, "_sidecar_can_drive", False):
+            return
+        from dash import Input, Output
+        app = self.app
+
+        flash_js = """
+        function(payload) {
+            var no = window.dash_clientside.no_update;
+            if (!payload) { return no; }
+            var d = payload.op === 'drive' ? payload : payload;   // both shapes
+            var pulse = function(el, cls) {
+                if (!el) { return; }
+                el.classList.remove(cls);
+                void el.offsetWidth;                 // reflow -> restart anim
+                el.classList.add(cls);
+                setTimeout(function(){ el.classList.remove(cls); }, 1100);
+            };
+            (d.changed || []).forEach(function(id) {
+                pulse(document.getElementById(id), 'fd-drive-flash');
+            });
+            if (d.ran) {
+                document.querySelectorAll('.fd-output-card, .fd-output-content > *')
+                    .forEach(function(c){ pulse(c, 'fd-drive-pulse'); });
+            }
+            return no;
+        }
+        """
+        if self._native_stream:
+            trigger = Input("chat-drive-tick", "data")
+        else:
+            trigger = Input("socketio", "data-chat_drive")
+        app.clientside_callback(
+            flash_js, Output("chat-drive-flash", "data"), trigger,
             prevent_initial_call=True,
         )
 
@@ -1055,6 +1101,7 @@ class ChatAppMixin:
         # Sidecar app-drive: set_input frames accumulate over the turn-start
         # input values, and run_app applies them through the host callback.
         drive_inputs = dict(app_inputs or {})       # REAL values, for run_app
+        drive_changed = []                           # input names set this turn
         # What the agent sees as ctx.inputs — with secret (password) values
         # redacted so they never reach the LLM. run_app still uses drive_inputs.
         _secret = getattr(self, "_sidecar_secret_inputs", None)
@@ -1090,7 +1137,7 @@ class ChatAppMixin:
             def _emit_canvas():
                 set_props("chat-canvas", {"children": self._chat_canvas_render(sid)})
 
-            def _emit_drive(inputs=None, outputs=None):
+            def _emit_drive(inputs=None, outputs=None, changed=None, ran=False):
                 # ASGI: push input/output component values directly via set_props.
                 if inputs is not None:
                     for inp, val in zip(self.inputs_with_ids, inputs):
@@ -1098,6 +1145,12 @@ class ChatAppMixin:
                 if outputs is not None:
                     for out, val in zip(self.outputs_with_ids, outputs):
                         set_props(out.id, {out.component_property: val})
+                # Flash affordance: bump a tick store so a clientside callback
+                # highlights the just-changed controls / pulses the output.
+                self._drive_tick += 1
+                set_props("chat-drive-tick", {"data": {
+                    "changed": list(changed or []), "ran": bool(ran),
+                    "n": self._drive_tick}})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
             _sio_emit = None
@@ -1128,15 +1181,18 @@ class ChatAppMixin:
                 else:
                     emit(payload)
 
-            def _emit_drive(inputs=None, outputs=None):
+            def _emit_drive(inputs=None, outputs=None, changed=None, ran=False):
                 # Flask: emit a full-state drive op; a clientside reducer writes
-                # the values into the live input/output components.
+                # the values into the live input/output components and flashes
+                # the changed controls.
                 payload = {
                     "op": "drive",
                     "inputs": (self._json_safe_list(inputs)
                                if inputs is not None else None),
                     "outputs": (self._json_safe_list(outputs)
                                 if outputs is not None else None),
+                    "changed": list(changed or []),
+                    "ran": bool(ran),
                 }
                 if _sio_emit is not None:
                     _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
@@ -1196,10 +1252,15 @@ class ChatAppMixin:
                                      + "_(" + err + ")_")
                         _flush(True)
                     else:
-                        # Set a host-app input; reflect it in the live control.
+                        # Set a host-app input; reflect it in the live control
+                        # and flash it.
                         drive_inputs[frame["name"]] = frame["value"]
-                        _emit_drive(inputs=[drive_inputs.get(n)
-                                            for n in self._chat_input_names])
+                        if frame["name"] not in drive_changed:
+                            drive_changed.append(frame["name"])
+                        _emit_drive(
+                            inputs=[drive_inputs.get(n)
+                                    for n in self._chat_input_names],
+                            changed=[frame["name"]])
             elif t == "run_app" and self.has_chat_sidecar:
                 if not self._sidecar_can_drive:
                     _append_text(("\n\n" if _has_text(blocks) else "")
@@ -1215,7 +1276,8 @@ class ChatAppMixin:
                         _emit_drive(
                             inputs=[drive_inputs.get(n)
                                     for n in self._chat_input_names],
-                            outputs=outputs)
+                            outputs=outputs,
+                            changed=list(drive_changed), ran=True)
                     except Exception as exc:                  # noqa: BLE001
                         _append_text(("\n\n" if _has_text(blocks) else "")
                                      + "**Error running the app:** " + str(exc))

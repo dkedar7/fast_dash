@@ -25,6 +25,24 @@
   }
 }
 
+/* Sidecar drive affordance: flash a control the agent set, pulse the output
+   when it runs the app. Trust comes from *seeing* what the assistant touched. */
+@keyframes fd-drive-flash {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  12%  { box-shadow: 0 0 0 3px color-mix(in srgb, var(--mantine-primary-color-filled) 55%, transparent); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+.fd-drive-flash {
+  animation: fd-drive-flash 1.1s var(--fd-ease);
+  border-radius: var(--fd-radius-sm);
+}
+@keyframes fd-drive-pulse {
+  0%   { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+  20%  { box-shadow: 0 0 0 4px color-mix(in srgb, var(--mantine-primary-color-filled) 35%, transparent); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+.fd-drive-pulse { animation: fd-drive-pulse 1.2s var(--fd-ease); }
+
 /* Fast Dash output cards — modern card treatment, overflow containment, and
    empty state. Uses Mantine CSS variables so it adapts to light/dark. */
 
@@ -168,17 +186,68 @@
   border-bottom-left-radius: 4px;
 }
 
-/* Raw streaming text keeps newlines while a turn is in flight. */
+/* Raw streaming text keeps newlines while a turn is in flight, with a soft
+   blinking caret so an in-flight reply reads as "typing". */
 .fd-chat-stream { white-space: pre-wrap; }
+.fd-chat-stream::after {
+  content: "";
+  display: inline-block;
+  width: 2px;
+  height: 1em;
+  margin-left: 1px;
+  vertical-align: text-bottom;
+  background: var(--mantine-primary-color-filled);
+  animation: fd-caret-blink 1s steps(2, start) infinite;
+}
+@keyframes fd-caret-blink { 0%, 50% { opacity: 1; } 50.01%, 100% { opacity: 0; } }
 
 /* Markdown inside a bubble should not add outer margins that break the padding. */
 .fd-chat-bubble p:first-child { margin-top: 0; }
 .fd-chat-bubble p:last-child { margin-bottom: 0; }
+
+/* Code blocks: a proper surface + a hover copy button (added by JS). */
 .fd-chat-bubble pre {
+  position: relative;
   overflow-x: auto;             /* wide code scrolls inside the bubble */
   max-width: 100%;
+  background: var(--mantine-color-default-hover);
+  padding: 10px 12px;
+  border-radius: var(--fd-radius-sm);
+  font-size: 12.5px;
+  line-height: 1.5;
 }
-.fd-chat-bubble table { display: block; overflow-x: auto; }
+.fd-chat-bubble code { font-size: 0.92em; }
+.fd-code-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 11px;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: var(--fd-border);
+  background: var(--mantine-color-body);
+  color: var(--mantine-color-dimmed);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--fd-transition-fast);
+}
+.fd-chat-bubble pre:hover .fd-code-copy { opacity: 1; }
+.fd-chat-bubble table {
+  display: block;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+.fd-chat-bubble th, .fd-chat-bubble td {
+  border: var(--fd-border);
+  padding: 5px 10px;
+  text-align: left;
+}
+.fd-chat-bubble th { background: var(--mantine-color-default-hover); font-weight: 600; }
+
+/* Floating sidecar button: gentle motion on hover. */
+#chat-sidecar-toggle { transition: transform var(--fd-transition-fast), box-shadow var(--fd-transition-fast); }
+#chat-sidecar-toggle:hover { transform: translateY(-1px); }
 
 /* Composer pinned at the bottom of the chat area. */
 .fd-chat-composer-wrap {

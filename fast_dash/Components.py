@@ -766,6 +766,11 @@ class AppLayout:
         if has_sidecar:
             extra += self._chat_stores()
             extra.append(dcc.Store(id="chat-sidecar-open", data=False))
+            # Drive-affordance plumbing: chat-drive-tick carries the flash signal
+            # (bumped via set_props on ASGI); chat-drive-flash is a dummy sink for
+            # the clientside flash callback.
+            extra.append(dcc.Store(id="chat-drive-tick"))
+            extra.append(dcc.Store(id="chat-drive-flash"))
             extra.append(self._chat_sidecar_toggle_button())
 
         layout = dmc.MantineProvider(
