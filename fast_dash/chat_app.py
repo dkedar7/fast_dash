@@ -202,7 +202,8 @@ class ChatAppMixin:
 
         self._drive_tick = 0                          # bumped per drive (ASGI flash)
         self._register_chat_callbacks(register_chrome=False)
-        self._register_chat_sidecar_toggle()
+        if getattr(self, "chat_agent_position", "aside") != "sidebar":
+            self._register_chat_sidecar_toggle()      # no toggle when always shown
         self._register_chat_drive_reducer()
         self._register_chat_drive_flash()
 
