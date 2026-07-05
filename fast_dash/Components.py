@@ -788,13 +788,15 @@ class AppLayout:
 
         return layout
 
-    @staticmethod
-    def _chat_message_list():
+    def _chat_message_list(self):
         """The transcript container — shared by chat mode and the sidecar aside.
 
         Newest message at the visual bottom (column-reverse pins the scroll to
-        the bottom, as the Chat output component does).
+        the bottom, as the Chat output component does). The empty-transcript hint
+        is rendered by CSS from ``data-placeholder`` (set from the app's
+        ``chat_placeholder``) so it can differ per app and per mode.
         """
+        placeholder = getattr(self.app, "chat_placeholder", None) or ""
         return html.Div(
             [],
             id="chat-messages",
@@ -809,6 +811,7 @@ class AppLayout:
                 "gap": "14px",
                 "padding": "18px 8px",
             },
+            **{"data-placeholder": placeholder},
         )
 
     @staticmethod
