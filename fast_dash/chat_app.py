@@ -370,10 +370,18 @@ class ChatAppMixin:
                       for inp in self.inputs_with_ids]
         out_outputs = [Output(out.id, out.component_property, allow_duplicate=True)
                        for out in self.outputs_with_ids]
-        outputs = in_outputs + out_outputs
-        if not outputs:
+        value_outputs = in_outputs + out_outputs
+        if not value_outputs:
             return
         n_in, n_out = len(in_outputs), len(out_outputs)
+        # On a run_app, also clear the pre-run 'fd-not-run' placeholder so the
+        # agent's run refreshes the *view*, not just the inputs. The placeholder
+        # is otherwise only cleared by a manual Run (submit_inputs.n_clicks),
+        # which the sidecar never fires -- so outputs were written but stayed
+        # hidden behind "Run to see results".
+        drive_outputs = value_outputs + [
+            Output("output-group-col", "className", allow_duplicate=True)
+        ]
         app.clientside_callback(
             """
             function(payload) {
@@ -382,15 +390,17 @@ class ChatAppMixin:
                 var i;
                 if (!payload || payload.op !== 'drive') {
                     for (i = 0; i < %d; i++) { res.push(no); }
+                    res.push(no);
                     return res;
                 }
                 var inv = payload.inputs, ov = payload.outputs;
                 for (i = 0; i < %d; i++) { res.push(inv ? inv[i] : no); }
                 for (i = 0; i < %d; i++) { res.push(ov ? ov[i] : no); }
+                res.push(payload.ran ? '' : no);   // reveal outputs on a run
                 return res;
             }
             """ % (n_in + n_out, n_in, n_out),
-            outputs,
+            drive_outputs,
             Input("socketio", "data-chat_drive"),
             prevent_initial_call=True,
         )
@@ -1145,6 +1155,11 @@ class ChatAppMixin:
                 if outputs is not None:
                     for out, val in zip(self.outputs_with_ids, outputs):
                         set_props(out.id, {out.component_property: val})
+                if ran:
+                    # Clear the pre-run placeholder so the run reveals the outputs
+                    # (parity with the Flask reducer; otherwise only a manual Run
+                    # clears it). See _register_chat_drive_reducer.
+                    set_props("output-group-col", {"className": ""})
                 # Flash affordance: bump a tick store so a clientside callback
                 # highlights the just-changed controls / pulses the output.
                 self._drive_tick += 1

@@ -1,5 +1,21 @@
 # History
 
+# Release 0.5.2
+
+## 0.5.2 (2026-07-05)
+
+### Bug fixes
+- **Chat sidecar `run_app` now renders the outputs, not just the inputs.** When a
+  `chat_agent` drove the app (`set_input` + `run_app`), it correctly updated the
+  input controls and computed the new outputs — but the outputs stayed hidden
+  behind the pre-run "Run to see results" placeholder, so the charts never
+  refreshed until the user clicked Run manually. The placeholder
+  (`fd-not-run` on `#output-group-col`) was only cleared by a real Run
+  (`submit_inputs.n_clicks`), which the sidecar never fires. The drive path now
+  clears it on a `run_app` (both the Flask drive reducer and the ASGI
+  `set_props` path), so an agent's run refreshes the *view* — the "anything you
+  can do, the agent can do" promise holds for outputs too.
+
 # Release 0.5.1
 
 ## 0.5.1 (2026-07-04)

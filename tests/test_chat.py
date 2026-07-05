@@ -1183,6 +1183,26 @@ class TestChatSidecar:
         # data-chat_drive prop can't clobber the set_inputs made this turn.
         assert drive[2]["inputs"] == [10, 20]
 
+    def test_run_app_clears_pre_run_placeholder_flask(self):
+        # A sidecar run_app writes the outputs, but the "Run to see results"
+        # placeholder (fd-not-run on #output-group-col) is otherwise only cleared
+        # by a manual Run (submit_inputs.n_clicks) -- so the agent's run left the
+        # outputs written-but-hidden. The Flask drive reducer must also clear the
+        # placeholder from the same chat_drive op.
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        def agent(query, ctx):
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        wired = False
+        for out_key, spec in app.app.callback_map.items():
+            if "output-group-col.className" not in out_key:
+                continue
+            inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
+            if any("data-chat_drive" in x for x in inputs):
+                wired = True
+        assert wired, "drive reducer must clear output-group-col on a run"
+
     def test_drive_on_asgi_uses_set_props(self):
         import dash
         def dashboard(a: int = 1, b: int = 2) -> str:
@@ -1200,6 +1220,10 @@ class TestChatSidecar:
         assert ("a", {"value": 7}) in non_transcript
         # The single output component was updated with sum=9.
         assert any(list(p.values()) == ["sum=9"] for _, p in non_transcript)
+        # ...and the pre-run "Run to see results" placeholder is cleared, so the
+        # run reveals the outputs instead of leaving them hidden (issue: sidecar
+        # run_app drove inputs but never rendered the view).
+        assert ("output-group-col", {"className": ""}) in non_transcript
 
     def test_sidecar_on_multi_is_conversational_and_guards_drive(self):
         def f1(x: int = 1) -> str: return f"f1={x}"
