@@ -4167,7 +4167,12 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2111</span>
 <span class="normal">2112</span>
 <span class="normal">2113</span>
-<span class="normal">2114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
+<span class="normal">2114</span>
+<span class="normal">2115</span>
+<span class="normal">2116</span>
+<span class="normal">2117</span>
+<span class="normal">2118</span>
+<span class="normal">2119</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -4219,6 +4224,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">chat_agent_position</span><span class="o">=</span><span class="s2">&quot;aside&quot;</span><span class="p">,</span>
         <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span>
@@ -4422,6 +4428,10 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="c1"># chat_agent_drive=False makes the sidecar read-only: the agent can read</span>
         <span class="c1"># ctx.inputs and converse, but set_input / run_app are refused.</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">chat_agent_drive</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">chat_agent_drive</span><span class="p">)</span>
+        <span class="c1"># Where the sidecar chat lives: &quot;aside&quot; (a toggled right panel, default)</span>
+        <span class="c1"># or &quot;sidebar&quot; (stacked under the inputs in the left navbar, always shown).</span>
+        <span class="n">_pos</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">chat_agent_position</span> <span class="ow">or</span> <span class="s2">&quot;aside&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">chat_agent_position</span> <span class="o">=</span> <span class="n">_pos</span> <span class="k">if</span> <span class="n">_pos</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;aside&quot;</span><span class="p">,</span> <span class="s2">&quot;sidebar&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;aside&quot;</span>
 
         <span class="c1"># Empty-transcript hint. Defaults to the surface the assistant acts on:</span>
         <span class="c1"># canvas/sidecar drive an *output*, so &quot;change the output&quot; fits; a pure</span>
@@ -6211,7 +6221,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h3 id="fast_dash.fast_dash.FastDash.__init__" class="doc doc-heading">
-<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_drawer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_drawer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">chat_agent_position</span><span class="o">=</span><span class="s1">&#39;aside&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h3>
 
@@ -6856,7 +6866,12 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">454</span>
 <span class="normal">455</span>
 <span class="normal">456</span>
-<span class="normal">457</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">457</span>
+<span class="normal">458</span>
+<span class="normal">459</span>
+<span class="normal">460</span>
+<span class="normal">461</span>
+<span class="normal">462</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -6893,6 +6908,7 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">chat_agent_position</span><span class="o">=</span><span class="s2">&quot;aside&quot;</span><span class="p">,</span>
     <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span>
@@ -7096,6 +7112,10 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="c1"># chat_agent_drive=False makes the sidecar read-only: the agent can read</span>
     <span class="c1"># ctx.inputs and converse, but set_input / run_app are refused.</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">chat_agent_drive</span> <span class="o">=</span> <span class="nb">bool</span><span class="p">(</span><span class="n">chat_agent_drive</span><span class="p">)</span>
+    <span class="c1"># Where the sidecar chat lives: &quot;aside&quot; (a toggled right panel, default)</span>
+    <span class="c1"># or &quot;sidebar&quot; (stacked under the inputs in the left navbar, always shown).</span>
+    <span class="n">_pos</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">chat_agent_position</span> <span class="ow">or</span> <span class="s2">&quot;aside&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">chat_agent_position</span> <span class="o">=</span> <span class="n">_pos</span> <span class="k">if</span> <span class="n">_pos</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;aside&quot;</span><span class="p">,</span> <span class="s2">&quot;sidebar&quot;</span><span class="p">)</span> <span class="k">else</span> <span class="s2">&quot;aside&quot;</span>
 
     <span class="c1"># Empty-transcript hint. Defaults to the surface the assistant acts on:</span>
     <span class="c1"># canvas/sidecar drive an *output*, so &quot;change the output&quot; fits; a pure</span>
@@ -7230,12 +7250,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2025</span>
-<span class="normal">2026</span>
-<span class="normal">2027</span>
-<span class="normal">2028</span>
-<span class="normal">2029</span>
-<span class="normal">2030</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2030</span>
 <span class="normal">2031</span>
 <span class="normal">2032</span>
 <span class="normal">2033</span>
@@ -7319,7 +7334,12 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2111</span>
 <span class="normal">2112</span>
 <span class="normal">2113</span>
-<span class="normal">2114</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">2114</span>
+<span class="normal">2115</span>
+<span class="normal">2116</span>
+<span class="normal">2117</span>
+<span class="normal">2118</span>
+<span class="normal">2119</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
     <span class="c1"># Native-WebSocket streaming pushes via set_props directly; the</span>
     <span class="c1"># socket.io clientside listeners below are only for the Flask path.</span>
@@ -7431,12 +7451,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1928</span>
-<span class="normal">1929</span>
-<span class="normal">1930</span>
-<span class="normal">1931</span>
-<span class="normal">1932</span>
-<span class="normal">1933</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1933</span>
 <span class="normal">1934</span>
 <span class="normal">1935</span>
 <span class="normal">1936</span>
@@ -7482,7 +7497,12 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">1976</span>
 <span class="normal">1977</span>
 <span class="normal">1978</span>
-<span class="normal">1979</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">1979</span>
+<span class="normal">1980</span>
+<span class="normal">1981</span>
+<span class="normal">1982</span>
+<span class="normal">1983</span>
+<span class="normal">1984</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
@@ -7564,12 +7584,7 @@ rather than append on the native path.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1981</span>
-<span class="normal">1982</span>
-<span class="normal">1983</span>
-<span class="normal">1984</span>
-<span class="normal">1985</span>
-<span class="normal">1986</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1986</span>
 <span class="normal">1987</span>
 <span class="normal">1988</span>
 <span class="normal">1989</span>
@@ -7606,7 +7621,12 @@ rather than append on the native path.</p>
 <span class="normal">2020</span>
 <span class="normal">2021</span>
 <span class="normal">2022</span>
-<span class="normal">2023</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2023</span>
+<span class="normal">2024</span>
+<span class="normal">2025</span>
+<span class="normal">2026</span>
+<span class="normal">2027</span>
+<span class="normal">2028</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Native-WebSocket streaming handler — pushes via ``set_props``.</span>
 
 <span class="sd">    The ASGI counterpart of :meth:`stream_handler`. Called by</span>
@@ -8443,7 +8463,7 @@ to get a frame to <code>yield</code>. No LLM SDK is imported or required.</p>
 
 
 <h2 id="fast_dash.fastdash" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_drawer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_drawer</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">chat_agent_position</span><span class="o">=</span><span class="s1">&#39;aside&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -8720,12 +8740,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2117</span>
-<span class="normal">2118</span>
-<span class="normal">2119</span>
-<span class="normal">2120</span>
-<span class="normal">2121</span>
-<span class="normal">2122</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2122</span>
 <span class="normal">2123</span>
 <span class="normal">2124</span>
 <span class="normal">2125</span>
@@ -8891,7 +8906,14 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 <span class="normal">2285</span>
 <span class="normal">2286</span>
 <span class="normal">2287</span>
-<span class="normal">2288</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">2288</span>
+<span class="normal">2289</span>
+<span class="normal">2290</span>
+<span class="normal">2291</span>
+<span class="normal">2292</span>
+<span class="normal">2293</span>
+<span class="normal">2294</span>
+<span class="normal">2295</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -8926,6 +8948,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
     <span class="n">chat_agent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat_agent_title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat_agent_drive</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">chat_agent_position</span><span class="o">=</span><span class="s2">&quot;aside&quot;</span><span class="p">,</span>
     <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span>
@@ -9050,6 +9073,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
             <span class="n">chat_agent</span><span class="o">=</span><span class="n">chat_agent</span><span class="p">,</span>
             <span class="n">chat_agent_title</span><span class="o">=</span><span class="n">chat_agent_title</span><span class="p">,</span>
             <span class="n">chat_agent_drive</span><span class="o">=</span><span class="n">chat_agent_drive</span><span class="p">,</span>
+            <span class="n">chat_agent_position</span><span class="o">=</span><span class="n">chat_agent_position</span><span class="p">,</span>
             <span class="n">chat_placeholder</span><span class="o">=</span><span class="n">chat_placeholder</span><span class="p">,</span>
             <span class="n">mcp_server</span><span class="o">=</span><span class="n">mcp_server</span><span class="p">,</span>
             <span class="n">mcp_port</span><span class="o">=</span><span class="n">mcp_port</span><span class="p">,</span>
