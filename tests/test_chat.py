@@ -1124,6 +1124,33 @@ class TestChatSidecar:
         assert {"chat-messages", "chat-input", "chat-send", "chat-aside",
                 "chat-sidecar-toggle", "chat-sidecar-close"} <= ids
 
+    def test_chat_placeholder_default_and_override(self):
+        # The empty-transcript hint (CSS reads data-placeholder) fits the mode:
+        # a pure chat is a conversation, a sidecar drives the output. Overridable.
+        def _placeholder(app):
+            found = []
+            def walk(c):
+                if getattr(c, "id", None) == "chat-messages":
+                    found.append(c)
+                ch = getattr(c, "children", None)
+                for x in (ch if isinstance(ch, (list, tuple)) else [ch]) if ch is not None else []:
+                    if hasattr(x, "children") or hasattr(x, "id"):
+                        walk(x)
+            walk(app.app.layout)
+            return found[0].to_plotly_json()["props"].get("data-placeholder")
+
+        pure = FastDash(callback_fn=lambda query: query, chat=True)
+        assert _placeholder(pure) == "Send a message to start the conversation."
+
+        def dfn(a: int = 1) -> str:
+            return str(a)
+        side = FastDash(callback_fn=dfn, chat_agent=lambda query, ctx: (yield "hi"))
+        assert _placeholder(side) == "Ask the assistant to change the output."
+
+        custom = FastDash(callback_fn=lambda query: query, chat=True,
+                          chat_placeholder="Add a source, then ask.")
+        assert _placeholder(custom) == "Add a source, then ask."
+
     def test_plain_app_has_no_chat_dom(self):
         app = FastDash(callback_fn=lambda x: "hi")
         ids = _layout_ids(app.app.layout)

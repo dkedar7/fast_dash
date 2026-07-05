@@ -1,5 +1,18 @@
 # History
 
+# Release 0.5.3
+
+## 0.5.3 (2026-07-05)
+
+### Changed
+- **The empty-chat hint fits the app and the mode.** The transcript's
+  placeholder was hardcoded to "Ask the assistant to change the output." — which
+  reads oddly for a pure `chat=True` app (there is no output to change). It now
+  defaults per mode (a conversation for `chat=True`, "change the output" for a
+  canvas / sidecar) and is overridable with a new `chat_placeholder=` argument.
+  The text is rendered from a `data-placeholder` attribute so it can differ per
+  app.
+
 # Release 0.5.2
 
 ## 0.5.2 (2026-07-05)
