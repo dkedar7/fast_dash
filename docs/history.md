@@ -1,5 +1,21 @@
 # History
 
+# Release 0.5.5
+
+## 0.5.5 (2026-07-05)
+
+### Fixed
+- **`chat_agent_position="sidebar"` layout.** The wider (420px) sidebar wasn't
+  reaching Mantine's AppShell: the `toggle_sidebar` callback reset the navbar to
+  `width: 300` on load, so the main content offset and the collapse animation
+  were computed from the wrong width. The result was the output area sliding
+  *under* the sidebar (right panel clipped off-screen) and the sidebar refusing
+  to fully close (a ~120px strip stayed visible). The callback now returns the
+  sidebar-chat width, matching the layout, so the offset and collapse-transform
+  are consistent — the output fills the space beside the sidebar, and toggling
+  the inputs closes it completely. Removed the `--app-shell-navbar-width` CSS
+  override that was papering over the mismatch.
+
 # Release 0.5.4
 
 ## 0.5.4 (2026-07-05)

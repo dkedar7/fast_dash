@@ -1130,8 +1130,16 @@ class AppLayout:
             else:
                 collapsed = {"desktop": False, "mobile": False}
 
+            # Sidebar-positioned chat stacks under the inputs and needs the wider
+            # navbar. Must match generate_layout's width, or dmc derives the main
+            # offset and collapse-transform from the wrong width -- leaving the
+            # output shifted under the sidebar and the sidebar unable to fully
+            # close. (Same reason canvas/drawer return their own widths above.)
+            sidebar_chat = getattr(self.app, "has_chat_sidecar", False) and (
+                getattr(self.app, "chat_agent_position", "aside") == "sidebar")
+
             return {
-                "width": 300,
+                "width": 420 if sidebar_chat else 300,
                 "breakpoint": "sm",
                 "collapsed": collapsed,
             }

@@ -382,11 +382,12 @@
   border-top: 1px solid var(--mantine-color-default-border);
 }
 
-/* chat_agent_position="sidebar": widen the navbar so the stacked chat (and its
-   charts) have room. Overrides Mantine's inline --app-shell-navbar-width. */
-.fd-chat-sidebar {
-  --app-shell-navbar-width: 26.25rem !important;   /* 420px */
-}
+/* chat_agent_position="sidebar" widens the navbar (to 420px) via the AppShell
+   `navbar.width` prop in generate_layout + the toggle_sidebar callback, so
+   Mantine derives the main offset and collapse-transform from the real width.
+   No CSS var override here -- forcing only the width var desynced the offset
+   (output slid under the sidebar) and the collapse distance (sidebar wouldn't
+   fully close). The `.fd-chat-sidebar` class is kept as a styling hook. */
 
 /* Empty-transcript hint. Text comes from the chat list's data-placeholder
    (set from FastDash(chat_placeholder=...)), so it fits the app and mode. */
