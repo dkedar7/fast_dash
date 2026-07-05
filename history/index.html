@@ -651,6 +651,18 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-053">Release 0.5.3</h1>
+<h2 id="053-2026-07-05">0.5.3 (2026-07-05)</h2>
+<h3 id="changed">Changed</h3>
+<ul>
+<li><strong>The empty-chat hint fits the app and the mode.</strong> The transcript's
+  placeholder was hardcoded to "Ask the assistant to change the output." — which
+  reads oddly for a pure <code>chat=True</code> app (there is no output to change). It now
+  defaults per mode (a conversation for <code>chat=True</code>, "change the output" for a
+  canvas / sidecar) and is overridable with a new <code>chat_placeholder=</code> argument.
+  The text is rendered from a <code>data-placeholder</code> attribute so it can differ per
+  app.</li>
+</ul>
 <h1 id="release-052">Release 0.5.2</h1>
 <h2 id="052-2026-07-05">0.5.2 (2026-07-05)</h2>
 <h3 id="bug-fixes">Bug fixes</h3>
