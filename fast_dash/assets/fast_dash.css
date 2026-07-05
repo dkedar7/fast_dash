@@ -382,6 +382,12 @@
   border-top: 1px solid var(--mantine-color-default-border);
 }
 
+/* chat_agent_position="sidebar": widen the navbar so the stacked chat (and its
+   charts) have room. Overrides Mantine's inline --app-shell-navbar-width. */
+.fd-chat-sidebar {
+  --app-shell-navbar-width: 26.25rem !important;   /* 420px */
+}
+
 /* Empty-transcript hint. Text comes from the chat list's data-placeholder
    (set from FastDash(chat_placeholder=...)), so it fits the app and mode. */
 .fd-chat-list:empty::before {

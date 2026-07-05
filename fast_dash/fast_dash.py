@@ -140,6 +140,7 @@ class FastDash(ChatAppMixin):
         chat_agent=None,
         chat_agent_title=None,
         chat_agent_drive=True,
+        chat_agent_position="aside",
         chat_placeholder=None,
         mcp_server=False,
         mcp_port=8001,
@@ -343,6 +344,10 @@ class FastDash(ChatAppMixin):
         # chat_agent_drive=False makes the sidecar read-only: the agent can read
         # ctx.inputs and converse, but set_input / run_app are refused.
         self.chat_agent_drive = bool(chat_agent_drive)
+        # Where the sidecar chat lives: "aside" (a toggled right panel, default)
+        # or "sidebar" (stacked under the inputs in the left navbar, always shown).
+        _pos = str(chat_agent_position or "aside").lower()
+        self.chat_agent_position = _pos if _pos in ("aside", "sidebar") else "aside"
 
         # Empty-transcript hint. Defaults to the surface the assistant acts on:
         # canvas/sidecar drive an *output*, so "change the output" fits; a pure
@@ -2149,6 +2154,7 @@ def fastdash(
     chat_agent=None,
     chat_agent_title=None,
     chat_agent_drive=True,
+    chat_agent_position="aside",
     chat_placeholder=None,
     mcp_server=False,
     mcp_port=8001,
@@ -2273,6 +2279,7 @@ def fastdash(
             chat_agent=chat_agent,
             chat_agent_title=chat_agent_title,
             chat_agent_drive=chat_agent_drive,
+            chat_agent_position=chat_agent_position,
             chat_placeholder=chat_placeholder,
             mcp_server=mcp_server,
             mcp_port=mcp_port,

@@ -255,6 +255,20 @@ def _layout_ids(comp, out=None):
     return out
 
 
+def _find_by_id(comp, target):
+    """Return the first component in the tree whose id == target, else None."""
+    if getattr(comp, "id", None) == target:
+        return comp
+    ch = getattr(comp, "children", None)
+    if ch is not None:
+        for c in (ch if isinstance(ch, (list, tuple)) else [ch]):
+            if c is not None:
+                found = _find_by_id(c, target)
+                if found is not None:
+                    return found
+    return None
+
+
 class TestChatConstruction:
     """The D1 interaction matrix (RFC #133), enforced at construction time."""
 
@@ -1150,6 +1164,29 @@ class TestChatSidecar:
         custom = FastDash(callback_fn=lambda query: query, chat=True,
                           chat_placeholder="Add a source, then ask.")
         assert _placeholder(custom) == "Add a source, then ask."
+
+    def test_chat_agent_position_sidebar_stacks_chat_in_navbar(self):
+        # chat_agent_position="sidebar" moves the chat under the inputs in the
+        # left navbar: no right aside, no floating toggle.
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat_agent=lambda query, ctx: (yield "hi"),
+                       chat_agent_position="sidebar")
+        assert app.chat_agent_position == "sidebar"
+        ids = _layout_ids(app.app.layout)
+        assert {"chat-messages", "chat-input", "chat-send"} <= ids   # chat exists
+        assert "chat-aside" not in ids                               # ...not as an aside
+        assert "chat-sidecar-toggle" not in ids                      # ...and no float toggle
+        # the transcript is actually inside the navbar container
+        navbar = _find_by_id(app.app.layout, "navbar3260780")
+        assert "chat-messages" in _layout_ids(navbar)
+
+    def test_chat_agent_position_defaults_to_aside(self):
+        app = FastDash(callback_fn=lambda a=1: str(a),
+                       chat_agent=lambda query, ctx: (yield "x"))
+        assert app.chat_agent_position == "aside"
+        assert {"chat-aside", "chat-sidecar-toggle"} <= _layout_ids(app.app.layout)
 
     def test_plain_app_has_no_chat_dom(self):
         app = FastDash(callback_fn=lambda x: "hi")

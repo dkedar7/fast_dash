@@ -1,5 +1,17 @@
 # History
 
+# Release 0.5.4
+
+## 0.5.4 (2026-07-05)
+
+### Added
+- **`chat_agent_position="sidebar"`** places the chat sidecar *inside the left
+  inputs sidebar* — stacked under the inputs, always visible — instead of the
+  default floating right aside (`"aside"`). The inputs take their natural height
+  and the chat fills the rest; the navbar is widened to give it (and its charts)
+  room. Good for putting a conversational assistant right next to the controls
+  it complements.
+
 # Release 0.5.3
 
 ## 0.5.3 (2026-07-05)

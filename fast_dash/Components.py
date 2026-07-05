@@ -547,16 +547,24 @@ class AppLayout:
         # (A position:sticky button inside dmc.ScrollArea does NOT stick — Radix
         # wraps the content in a way that breaks sticky — so it scrolled away
         # once the form was taller than the viewport.)
+        # In sidebar mode the chat panel lives under the inputs, so the inputs
+        # take their natural (capped) height and the chat gets the growing space;
+        # otherwise the inputs own the scroll and Run is pinned at the bottom.
+        for_sidebar = (
+            getattr(self.app, "has_chat_sidecar", False)
+            and getattr(self.app, "chat_agent_position", "aside") == "sidebar"
+        )
         sections = [
             dmc.AppShellSection(
                 dmc.ScrollArea(
                     dmc.Stack(sidebar_children, gap="md"),
                     type="auto",
-                    style={"height": "100%"},
+                    style={"maxHeight": "38vh"} if for_sidebar else {"height": "100%"},
                     id="input-group-wrapper",
                 ),
-                grow=True,
-                style={"minHeight": 0, "overflow": "hidden"},
+                grow=not for_sidebar,
+                style=({"flex": "0 0 auto"} if for_sidebar
+                       else {"minHeight": 0, "overflow": "hidden"}),
             )
         ]
         if submit_row is not None:
@@ -569,6 +577,14 @@ class AppLayout:
                             "borderTop": "1px solid var(--mantine-color-default-border)",
                         },
                     )
+                )
+            )
+        if for_sidebar:
+            sections.append(
+                dmc.AppShellSection(
+                    self._chat_sidebar_panel(),
+                    grow=True,
+                    style={"minHeight": 0, "overflow": "hidden"},
                 )
             )
 
@@ -687,6 +703,30 @@ class AppLayout:
             id="chat-aside",
         )
 
+    def _chat_sidebar_panel(self):
+        """The sidecar chat as a panel stacked under the inputs in the navbar.
+
+        Used when ``chat_agent_position="sidebar"``: the same transcript +
+        composer as the aside, but always visible in the left sidebar below the
+        inputs (no floating toggle, no right aside).
+        """
+        title = getattr(self.app, "chat_agent_title", "Assistant")
+        header = html.Div(
+            dmc.Group(
+                [DashIconify(icon="tabler:message-2", width=18),
+                 html.Span(title, style={"fontWeight": 600})],
+                gap="xs", wrap="nowrap",
+            ),
+            style={"flex": "0 0 auto", "padding": "10px 2px 8px",
+                   "borderTop": "1px solid var(--mantine-color-default-border)"},
+        )
+        return html.Div(
+            [header, self._chat_message_list(), self._chat_composer()],
+            className="fd-chat-main",
+            style={"flex": "1 1 auto", "minHeight": 0, "height": "100%",
+                   "display": "flex", "flexDirection": "column"},
+        )
+
     def _chat_sidecar_toggle_button(self):
         """Floating button that opens/closes the chat sidecar aside."""
         title = getattr(self.app, "chat_agent_title", "Assistant")
@@ -709,6 +749,11 @@ class AppLayout:
         main_content = self.generate_output_component()
 
         has_sidecar = getattr(self.app, "has_chat_sidecar", False)
+        # Sidebar-positioned sidecar: the chat is stacked under the inputs in the
+        # navbar (built by generate_input_component), so there's no right aside
+        # and no floating toggle; the navbar is widened to give the chat room.
+        sidebar_chat = has_sidecar and (
+            getattr(self.app, "chat_agent_position", "aside") == "sidebar")
 
         appshell_children = [
             dmc.AppShellHeader(
@@ -740,11 +785,16 @@ class AppLayout:
         ]
         appshell_kwargs = dict(
             header={"height": 56},
-            navbar={"width": 300, "breakpoint": "sm", "collapsed": {"mobile": False}},
+            navbar={"width": 420 if sidebar_chat else 300, "breakpoint": "sm",
+                    "collapsed": {"mobile": False}},
             padding=0,
             id="appshell",
         )
-        if has_sidecar:
+        if sidebar_chat:
+            # The chat needs a wider sidebar than the default; a CSS var override
+            # (via this class) applies it reliably across dmc versions.
+            appshell_kwargs["className"] = "fd-chat-sidebar"
+        if has_sidecar and not sidebar_chat:
             appshell_children.append(self._chat_aside())
             # Collapsed by default; the floating toggle opens it. Full-width
             # sheet on small screens, fixed panel on desktop.
@@ -777,7 +827,8 @@ class AppLayout:
             # the clientside flash callback.
             extra.append(dcc.Store(id="chat-drive-tick"))
             extra.append(dcc.Store(id="chat-drive-flash"))
-            extra.append(self._chat_sidecar_toggle_button())
+            if not sidebar_chat:   # sidebar chat is always shown; no floating toggle
+                extra.append(self._chat_sidecar_toggle_button())
 
         layout = dmc.MantineProvider(
             [appshell] + extra,
