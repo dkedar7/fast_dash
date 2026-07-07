@@ -237,7 +237,8 @@ class _AutoAgentPlaceholder:
         # grammar so it streams as chat frames. (Guarded: if for some reason it
         # is already a plain (query, ctx) callable, use it as-is.)
         if is_langstage_target(graph):
-            return build_chat_callback(graph)
+            return build_chat_callback(
+                graph, getattr(self._app, "chat_extractors", None))
         return graph
 
     def __call__(self, query, ctx):
@@ -297,6 +298,7 @@ class FastDash(ChatAppMixin):
         chat_model=None,
         chat_title="Assistant",
         chat_placeholder=None,
+        chat_extractors=None,
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
@@ -378,6 +380,17 @@ class FastDash(ChatAppMixin):
             steps (list of funcs, optional): A linear pipeline of step functions. Each step gets its own \
                 page in a stepper UI; outputs of earlier steps can feed downstream steps via ``from_step``. \
                 When provided, ``callback_fn`` is ignored. Defaults to None.
+
+            chat_extractors (iterable, optional): Extra typed-object extractors for a LangGraph chat agent. \
+                Each must satisfy the langstage ``ToolExtractor`` protocol (a ``tool_name`` string, an \
+                ``extracted_type`` string, and a callable ``extract(content)``). They are appended to the \
+                seven built-in extractors (think_tool, write_todos, memory, skill_view, skill_manage, \
+                compression, display_inline), deduped by ``tool_name`` with your extractor winning on a \
+                collision -- so you can override how a built-in tool renders. The matching extractor runs \
+                after each tool result and its non-None return is rendered as a typed card in the transcript. \
+                Only used for a LangGraph agent (a graph / spec string / auto-built assistant); a plain \
+                ``(query, ctx)`` chat callable ignores this silently. Entries are validated at construction. \
+                Defaults to None.
         """
 
         # Detect pipeline (steps) mode
@@ -432,11 +445,20 @@ class FastDash(ChatAppMixin):
         # (query, ctx) chat callable, or a model instance (auto-built agent).
         # The signature tiebreak: a callback whose first param is `query` is a
         # chat handler; otherwise it is an app callback. All errors are ASCII.
-        from .adapters.langstage import build_chat_callback, is_langstage_target
+        from .adapters.langstage import (
+            build_chat_callback,
+            is_langstage_target,
+            validate_extractors,
+        )
 
         self.chat_history_size = chat_history_size
         self.chat_title = chat_title or "Assistant"
         self.chat_model = chat_model
+        # Extra typed-object extractors appended to the built-in langstage
+        # defaults (deduped by tool_name, user winning). Duck-type validated
+        # here so a bad entry fails at construction, not mid-turn. Ignored by a
+        # non-langstage chat (a plain (query, ctx) callable) -- see the docstring.
+        self.chat_extractors = validate_extractors(chat_extractors)
         self.is_chat = False            # full-page chat mode
         self.has_chat_sidecar = False   # app + agent sidecar
         self.is_langstage = False
@@ -535,7 +557,7 @@ class FastDash(ChatAppMixin):
         if self.is_chat:
             target = self._chat_target
             if is_langstage_target(target):
-                target = build_chat_callback(target)
+                target = build_chat_callback(target, self.chat_extractors)
                 self.is_langstage = True
             self._chat_target = target
             self.callback_fn = callback_fn = target
@@ -2591,6 +2613,7 @@ def fastdash(
     chat_model=None,
     chat_title="Assistant",
     chat_placeholder=None,
+    chat_extractors=None,
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
@@ -2713,6 +2736,7 @@ def fastdash(
             chat_model=chat_model,
             chat_title=chat_title,
             chat_placeholder=chat_placeholder,
+            chat_extractors=chat_extractors,
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,

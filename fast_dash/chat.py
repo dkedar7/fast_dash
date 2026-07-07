@@ -20,6 +20,7 @@ Frame types:
     tool_start {"type": "tool_start","name": str, "args": dict|str, "id"?: str}
     tool_end   {"type": "tool_end",  "name": str, "result": Any,   "id"?: str}
     artifact   {"type": "artifact",  "content": Figure|DataFrame|Image|str}
+    extraction {"type": "extraction","tool_name": str, "extracted_type": str, "data": Any}
     interrupt  {"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}
     set_input  {"type": "set_input", "name": str, "value": Any}     (sidecar drive)
     run_app    {"type": "run_app"}                                   (sidecar drive)
@@ -71,6 +72,7 @@ REASONING = "reasoning"
 TOOL_START = "tool_start"
 TOOL_END = "tool_end"
 ARTIFACT = "artifact"
+EXTRACTION = "extraction"  # langstage typed-object event (todos/reflection/...)
 INTERRUPT = "interrupt"
 CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
 SET_PROPS = "set_props"    # patch one canvas component's props/value
@@ -87,7 +89,7 @@ ERROR = "error"
 # (canvas_tool_specs / apply_tool_call) still build these frame dicts for code
 # that opts into the canvas explicitly.
 _KNOWN_FRAME_TYPES = frozenset(
-    {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
+    {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT, EXTRACTION,
      INTERRUPT, SET_INPUT, RUN_APP, SET_OUTPUT, SET_LAYOUT, COMPLETE, ERROR}
 )
 
@@ -161,6 +163,19 @@ def _normalize_frame(frame):
         # Keep the raw payload on the object for server-side rendering; it is
         # replaced by a placeholder before hitting the wire (see wire_safe).
         frame = {"type": ARTIFACT, "content": frame["content"]}
+    elif ftype == EXTRACTION:
+        # A langstage typed-object event: {tool_name, extracted_type, data}.
+        # Both string keys are required; data is coerced JSON-safe so nothing a
+        # custom extractor returns can crash the socket (RFC principle 7).
+        if "extracted_type" not in frame:
+            raise ChatFrameError(
+                "An 'extraction' frame must have an 'extracted_type' key.")
+        frame = {
+            "type": EXTRACTION,
+            "tool_name": str(frame.get("tool_name", "")),
+            "extracted_type": str(frame["extracted_type"]),
+            "data": _json_safe_data(frame.get("data")),
+        }
     elif ftype == INTERRUPT:
         frame = {
             "type": INTERRUPT,
@@ -197,6 +212,22 @@ def _normalize_frame(frame):
 def _as_text(value):
     """Coerce a content payload to text without leaking a non-ASCII repr."""
     return value if isinstance(value, str) else str(value)
+
+
+def _json_safe_data(value):
+    """Return a JSON-serializable form of an extraction payload.
+
+    Extraction ``data`` crosses the socket raw (unlike an artifact, it is plain
+    structured data, not a live figure). The built-in extractors already return
+    JSON (lists / dicts / strings); this guards a *custom* extractor that returns
+    something exotic so a typed event never crashes the transport.
+    """
+    import json as _json
+    try:
+        _json.dumps(value)
+        return value
+    except (TypeError, ValueError):
+        return _json.loads(_json.dumps(value, default=str))
 
 
 def wire_safe(frame):

@@ -21,6 +21,65 @@ _MISSING_EXTRA_MSG = (
 )
 
 
+def default_extractors():
+    """Fresh instances of the built-in langstage typed-object extractors.
+
+    These turn a LangGraph agent's tool results into ``extraction`` frames
+    (``think_tool`` -> reflection, ``write_todos`` -> todos, ``display_inline``
+    -> inline rich content, and the skill / memory / compression events) so the
+    chat renderer can show a typed card per event instead of a raw tool blob.
+
+    Imported lazily and extra-guarded: on a build without ``langstage-core`` the
+    list is empty, so a plain ``(query, ctx)`` chat callback is unaffected.
+    Returns fresh instances every call (extractors are cheap and stateless, and
+    the caller may dedupe/merge with user extractors).
+    """
+    try:
+        from langstage_core import (
+            CompressionExtractor,
+            DisplayInlineExtractor,
+            MemoryExtractor,
+            SkillManageExtractor,
+            SkillViewExtractor,
+            ThinkToolExtractor,
+            TodoExtractor,
+        )
+    except ImportError:                                # extra not installed
+        return []
+    return [
+        ThinkToolExtractor(),
+        TodoExtractor(),
+        MemoryExtractor(),
+        SkillViewExtractor(),
+        SkillManageExtractor(),
+        CompressionExtractor(),
+        DisplayInlineExtractor(),
+    ]
+
+
+def _merge_extractors(user_extractors):
+    """Built-in defaults plus ``user_extractors``, deduped by ``tool_name``.
+
+    A user extractor whose ``tool_name`` matches a built-in one wins (its entry
+    replaces the default), so an app can override the rendering of any built-in
+    tool while keeping the rest of the defaults. Order is preserved (defaults
+    first, then any user extractors for new tool names).
+    """
+    by_tool = {}
+    order = []
+    for ex in default_extractors():
+        name = getattr(ex, "tool_name", None)
+        if name not in by_tool:
+            order.append(name)
+        by_tool[name] = ex
+    for ex in (user_extractors or []):
+        name = getattr(ex, "tool_name", None)
+        if name not in by_tool:
+            order.append(name)
+        by_tool[name] = ex                             # user wins on collision
+    return [by_tool[name] for name in order]
+
+
 def is_langstage_target(obj) -> bool:
     """True if ``obj`` should be driven by the LangGraph adapter.
 
@@ -41,7 +100,7 @@ def is_langstage_target(obj) -> bool:
     return hasattr(obj, "get_graph") and hasattr(obj, "astream")
 
 
-def build_chat_callback(target):
+def build_chat_callback(target, extractors=None):
     """Return a chat callback ``(query, ctx)`` that streams ``target``.
 
     ``target`` is a compiled LangGraph graph or a spec string. The returned
@@ -49,6 +108,14 @@ def build_chat_callback(target):
     chat session id, injected by the turn runner) selects the checkpointer thread
     so sequential turns on one session share memory, and ``ctx.resume`` continues
     a turn paused on an interrupt (HITL).
+
+    ``extractors`` controls the typed-object streaming that turns tool results
+    into ``extraction`` frames (rendered as typed cards):
+
+    * ``None`` (default) -> the seven built-in extractors (see
+      :func:`default_extractors`).
+    * an iterable -> the built-ins **plus** those extractors, deduped by
+      ``tool_name`` with the user's extractor winning on a collision.
     """
     try:
         from langstage_core import load_agent_spec
@@ -58,17 +125,52 @@ def build_chat_callback(target):
 
     graph = load_agent_spec(target) if isinstance(target, str) else target
     agent = build_agent(graph)
+    merged = _merge_extractors(extractors)
 
     def _langstage_chat(query, ctx):
         """Stream a LangGraph agent turn as chat frames (via langstage-core)."""
         # iter_event_frames yields an async generator; the chat turn runner
         # drives sync and async generators uniformly.
         return iter_event_frames(agent, query, thread_id=ctx.thread_id or "default",
-                                 resume=ctx.resume)
+                                 resume=ctx.resume, extractors=merged)
 
     _langstage_chat.__fast_dash_langstage__ = True
     _langstage_chat.__fast_dash_agent__ = agent
     return _langstage_chat
+
+
+def validate_extractors(extractors):
+    """Return a list of ``extractors`` after duck-type validation (ASCII errors).
+
+    Each entry must satisfy the ``ToolExtractor`` protocol: a ``tool_name`` and
+    ``extracted_type`` (str-ish attributes) plus a callable ``extract``. This is
+    a construction-time check so a bad ``chat_extractors=`` fails with a friendly
+    message rather than deep inside a streaming turn. ``None`` -> ``[]``.
+    """
+    if extractors is None:
+        return []
+    try:
+        items = list(extractors)
+    except TypeError:
+        raise TypeError(
+            "chat_extractors must be an iterable of extractor objects "
+            "(each with tool_name, extracted_type, and extract). Got %r."
+            % (type(extractors).__name__,)
+        )
+    for i, ex in enumerate(items):
+        missing = [
+            attr for attr in ("tool_name", "extracted_type", "extract")
+            if not hasattr(ex, attr)
+        ]
+        if missing or not callable(getattr(ex, "extract", None)):
+            raise TypeError(
+                "chat_extractors[%d] is not a valid extractor: a %s is missing "
+                "%s. An extractor needs a 'tool_name' string, an "
+                "'extracted_type' string, and a callable 'extract(content)'."
+                % (i, type(ex).__name__,
+                   ", ".join(missing or ["a callable extract"]))
+            )
+    return items
 
 
 def make_resume_input(decisions, value=None):
