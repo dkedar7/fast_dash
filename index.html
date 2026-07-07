@@ -303,6 +303,19 @@
     Chat apps
   </a>
   
+    <nav class="md-nav" aria-label="Chat apps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#give-the-agent-tools" class="md-nav__link">
+    Give the agent tools
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -774,6 +787,19 @@
     Chat apps
   </a>
   
+    <nav class="md-nav" aria-label="Chat apps">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#give-the-agent-tools" class="md-nav__link">
+    Give the agent tools
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -935,12 +961,44 @@ scrolling transcript, and per-session history — with no LLM provider baked in:
         <span class="k">yield</span> <span class="n">token</span>
 </code></pre></div>
 <p><code>yield</code> strings to stream the reply as markdown; add a <code>history</code> parameter for
-multi-turn memory, and any other parameter becomes a sidebar setting. <code>chat=True</code>
-also accepts a LangGraph graph, and <code>canvas=True</code> gives the assistant a live
-output region it builds and mutates.</p>
-<p>Or keep a <strong>normal</strong> app and add an assistant beside it with <code>chat_agent=</code>: the
-agent reads your app's live inputs (<code>ctx.inputs</code>) and can drive it (<code>set_input</code> /
-<code>run_app</code>) — anything a user can do, the agent can do. See the
+multi-turn memory, and any other parameter becomes a sidebar setting. <code>chat=</code>
+also accepts a LangGraph graph, a <code>(query, ctx)</code> callable, or a chat-model
+instance.</p>
+<p>Or keep a <strong>normal</strong> app and add an assistant beside it — pass your agent as
+<code>chat=</code>: the agent reads your app's live inputs (<code>ctx.inputs</code>) and can drive it
+(<code>set_input</code> / <code>run_app</code>) — anything a user can do, the agent can do.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">(</span><span class="n">revenue</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;West&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">: $</span><span class="si">{</span><span class="n">revenue</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">assistant</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>        <span class="c1"># ctx.inputs holds the app&#39;s live values</span>
+    <span class="k">yield</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;set_input&quot;</span><span class="p">,</span> <span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;revenue&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="mi">250</span><span class="p">}</span>
+    <span class="k">yield</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;run_app&quot;</span><span class="p">}</span>
+    <span class="k">yield</span> <span class="s2">&quot;Bumped revenue to 250 and re-ran.&quot;</span>
+
+<span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">dashboard</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="n">assistant</span><span class="p">,</span> <span class="n">chat_title</span><span class="o">=</span><span class="s2">&quot;Helper&quot;</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<h3 id="give-the-agent-tools">Give the agent tools</h3>
+<p>Pass a chat model (or <code>chat=True</code> with <code>chat_model=</code>) and Fast Dash auto-builds
+a LangChain assistant wired to your app. Its tools — read the app, set inputs,
+run it, set individual outputs, rearrange the layout, run Python — come from
+<code>agent_toolkit(app)</code>, trimmed to the <code>chat_tools</code> allowlist you choose:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">(</span><span class="n">revenue</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;West&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">: $</span><span class="si">{</span><span class="n">revenue</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="c1"># The default toolkit lets the agent drive inputs, set outputs, re-mosaic the</span>
+<span class="c1"># layout, and run Python (with approval). Narrow it with chat_tools=.</span>
+<span class="n">FastDash</span><span class="p">(</span>
+    <span class="n">callback_fn</span><span class="o">=</span><span class="n">dashboard</span><span class="p">,</span>
+    <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">chat_model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>            <span class="c1"># or a model instance / FASTDASH_MODEL</span>
+    <span class="n">chat_tools</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;read_app&quot;</span><span class="p">,</span> <span class="s2">&quot;set_input&quot;</span><span class="p">,</span> <span class="s2">&quot;run_app&quot;</span><span class="p">),</span>   <span class="c1"># read-only + drive, no code exec</span>
+<span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
+</code></pre></div>
+<p>Install the extra with <code>pip install "fast-dash[agent]"</code>. See the
 <a href="https://docs.fastdash.app/User%20guide/chat/">chat guide</a>.</p>
 <h2 id="how-it-works">How it works</h2>
 <p>The <code>@fastdash</code> decorator does three things at import time:</p>

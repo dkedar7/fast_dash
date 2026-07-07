@@ -470,36 +470,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-canvas-assistant-built-output" class="md-nav__link">
-    The canvas (assistant-built output)
+  <a href="#add-an-assistant-to-a-normal-app-a-chat-sidecar" class="md-nav__link">
+    Add an assistant to a normal app (a chat sidecar)
   </a>
   
-    <nav class="md-nav" aria-label="The canvas (assistant-built output)">
+    <nav class="md-nav" aria-label="Add an assistant to a normal app (a chat sidecar)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#driving-the-canvas-with-an-llm" class="md-nav__link">
-    Driving the canvas with an LLM
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#app-first-chat-as-an-add-on-chat_drawertrue" class="md-nav__link">
-    App-first: chat as an add-on (chat_drawer=True)
+  <a href="#let-fast-dash-build-the-agent-agent_toolkit" class="md-nav__link">
+    Let Fast Dash build the agent (agent_toolkit)
   </a>
   
 </li>
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#add-an-assistant-to-a-normal-app-chat_agent" class="md-nav__link">
-    Add an assistant to a normal app (chat_agent=)
-  </a>
   
 </li>
       
@@ -829,36 +815,22 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#the-canvas-assistant-built-output" class="md-nav__link">
-    The canvas (assistant-built output)
+  <a href="#add-an-assistant-to-a-normal-app-a-chat-sidecar" class="md-nav__link">
+    Add an assistant to a normal app (a chat sidecar)
   </a>
   
-    <nav class="md-nav" aria-label="The canvas (assistant-built output)">
+    <nav class="md-nav" aria-label="Add an assistant to a normal app (a chat sidecar)">
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#driving-the-canvas-with-an-llm" class="md-nav__link">
-    Driving the canvas with an LLM
-  </a>
-  
-</li>
-        
-          <li class="md-nav__item">
-  <a href="#app-first-chat-as-an-add-on-chat_drawertrue" class="md-nav__link">
-    App-first: chat as an add-on (chat_drawer=True)
+  <a href="#let-fast-dash-build-the-agent-agent_toolkit" class="md-nav__link">
+    Let Fast Dash build the agent (agent_toolkit)
   </a>
   
 </li>
         
       </ul>
     </nav>
-  
-</li>
-      
-        <li class="md-nav__item">
-  <a href="#add-an-assistant-to-a-normal-app-chat_agent" class="md-nav__link">
-    Add an assistant to a normal app (chat_agent=)
-  </a>
   
 </li>
       
@@ -962,9 +934,8 @@ app — dropdowns, number inputs, switches, even a dataset upload:</p>
     <span class="o">...</span>   <span class="c1"># model / temperature / dataset are passed to every turn</span>
 </code></pre></div>
 <p><code>model</code> becomes a dropdown, <code>temperature</code> a number input, <code>dataset</code> an upload
-box. Their live values are passed to the callback each turn. Without a canvas
-they render in a <strong>sidebar</strong>; with <code>canvas=True</code> they render in the <strong>chat panel</strong>
-above the composer.</p>
+box. Their live values are passed to the callback each turn, rendered in the
+<strong>sidebar</strong> above (or beside) the transcript.</p>
 <h2 id="the-frame-grammar">The frame grammar</h2>
 <p>Yielding a <code>str</code> is sugar for a text frame. For richer replies, <code>yield</code> frame
 dicts — every type below renders natively:</p>
@@ -1060,99 +1031,14 @@ names — declare it to opt in:</p>
 <li><code>ctx.thread_id</code> — the session id (the LangGraph checkpointer thread).</li>
 <li><code>ctx.resume</code> — a decision answering a pending interrupt (HITL), else <code>None</code>.</li>
 </ul>
-<h2 id="the-canvas-assistant-built-output">The canvas (assistant-built output)</h2>
-<p><code>canvas=True</code> adds a live <strong>output</strong> region beside the transcript that the
-assistant <strong>builds and mutates</strong> — a conversational DynamicDash.
-The chat becomes a left panel; the canvas is the main area. It is a display
-surface — charts, tables, images, and text the assistant maintains across turns
-(a slider the user has to talk to would be inert, so the canvas holds output, not
-input widgets). Two frames drive it, using the same UI-spec grammar as
-DynamicDash (<code>{name, type, props, value, label, span}</code>):</p>
-<ul>
-<li><code>{"type": "canvas", "specs": [...]}</code> — (re)build the canvas from a spec list of
-  display components (<code>Graph</code>, <code>Table</code>, <code>Image</code>, <code>Markdown</code>).</li>
-<li><code>{"type": "set_props", "target": "&lt;name&gt;", "props": {...}}</code> — patch one
-  component in place (e.g. swap a chart's <code>figure</code>).</li>
-</ul>
-<p>Each spec's optional <strong><code>span</code></strong> (out of 12, default 12 = full-width row) arranges
-components into a responsive grid — two <code>span: 6</code> panels sit side by side, so the
-assistant lays out real multi-column dashboards, not just a single column.</p>
-<p>The user drives the app by <em>talking</em>; the assistant reads the request and rebuilds
-or patches the canvas in response:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">plotly.graph_objects</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">go</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">assistant</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-    <span class="n">n</span> <span class="o">=</span> <span class="mi">200</span> <span class="k">if</span> <span class="s2">&quot;more&quot;</span> <span class="ow">in</span> <span class="n">query</span><span class="o">.</span><span class="n">lower</span><span class="p">()</span> <span class="k">else</span> <span class="mi">50</span>
-    <span class="n">x</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">linspace</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">12</span><span class="p">,</span> <span class="n">n</span><span class="p">)</span>
-    <span class="n">fig</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Scatter</span><span class="p">(</span><span class="n">x</span><span class="o">=</span><span class="n">x</span><span class="p">,</span> <span class="n">y</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">sin</span><span class="p">(</span><span class="n">x</span><span class="p">)))</span>
-    <span class="k">yield</span> <span class="sa">f</span><span class="s2">&quot;Plotted </span><span class="si">{</span><span class="n">n</span><span class="si">}</span><span class="s2"> points.&quot;</span>
-    <span class="k">yield</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;canvas&quot;</span><span class="p">,</span> <span class="s2">&quot;specs&quot;</span><span class="p">:</span> <span class="p">[</span>
-        <span class="p">{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;plot&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Graph&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">fig</span><span class="p">,</span> <span class="s2">&quot;span&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">},</span>
-    <span class="p">]}</span>
-
-<span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">assistant</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</code></pre></div>
-<p>The canvas is a separate surface from the transcript: <code>content</code> frames still
-stream into the chat, while <code>canvas</code>/<code>set_props</code> frames target the canvas. For
-fixed, user-set controls (model, temperature, an upload), declare them as
-<a href="#developer-declared-settings">settings</a> — they render on the chat side and their
-live values reach the callback each turn.</p>
-<h3 id="driving-the-canvas-with-an-llm">Driving the canvas with an LLM</h3>
-<p>In practice an LLM emits the canvas mutations. <code>canvas_tool_specs()</code> returns
-provider-neutral JSON-Schema tool definitions; <code>apply_tool_call()</code> turns a
-returned tool call into a frame — no LLM SDK is bundled:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">anthropic</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span><span class="p">,</span> <span class="n">canvas_tool_specs</span><span class="p">,</span> <span class="n">apply_tool_call</span>
-
-<span class="n">client</span> <span class="o">=</span> <span class="n">anthropic</span><span class="o">.</span><span class="n">Anthropic</span><span class="p">()</span>
-<span class="n">TOOLS</span> <span class="o">=</span> <span class="n">canvas_tool_specs</span><span class="p">()</span>          <span class="c1"># build_canvas, set_canvas_props</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">assistant</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">history</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-    <span class="n">msg</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span>
-        <span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">,</span> <span class="n">max_tokens</span><span class="o">=</span><span class="mi">1024</span><span class="p">,</span> <span class="n">tools</span><span class="o">=</span><span class="n">TOOLS</span><span class="p">,</span>
-        <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">}],</span>
-    <span class="p">)</span>
-    <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">msg</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="n">block</span><span class="o">.</span><span class="n">text</span>
-        <span class="k">elif</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;tool_use&quot;</span><span class="p">:</span>
-            <span class="n">frame</span> <span class="o">=</span> <span class="n">apply_tool_call</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>   <span class="c1"># -&gt; canvas / set_props frame</span>
-            <span class="k">if</span> <span class="n">frame</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">frame</span>
-
-<span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">assistant</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">canvas</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</code></pre></div>
-<h3 id="app-first-chat-as-an-add-on-chat_drawertrue">App-first: chat as an add-on (<code>chat_drawer=True</code>)</h3>
-<p>By default the chat is the primary surface. With <code>chat_drawer=True</code> the app comes
-first: the developer-declared settings and a <strong>Run</strong> button fill a left panel, the
-output canvas is the main area, and the chat tucks behind a <strong>Chat with the
-assistant</strong> button at the bottom of that panel. Clicking it swaps the panel in
-place — the settings give way to the chat, with a <strong>Back to inputs</strong> link to
-return. The user can drive the whole app with settings + Run and never open the
-chat; the assistant is one click away when they want it to change the layout or
-plots.</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">Literal</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
-
-<span class="k">def</span><span class="w"> </span><span class="nf">studio</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">ctx</span><span class="p">,</span> <span class="n">points</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">40</span><span class="p">,</span>
-           <span class="n">color</span><span class="p">:</span> <span class="n">Literal</span><span class="p">[</span><span class="s2">&quot;indigo&quot;</span><span class="p">,</span> <span class="s2">&quot;teal&quot;</span><span class="p">,</span> <span class="s2">&quot;red&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="s2">&quot;indigo&quot;</span><span class="p">):</span>
-    <span class="n">fig</span> <span class="o">=</span> <span class="n">make_plot</span><span class="p">(</span><span class="n">points</span><span class="p">,</span> <span class="n">color</span><span class="p">)</span>          <span class="c1"># from the settings</span>
-    <span class="k">if</span> <span class="n">query</span><span class="p">:</span>                                <span class="c1"># a chat message (not a Run)</span>
-        <span class="k">yield</span> <span class="sa">f</span><span class="s2">&quot;Updated. You asked: </span><span class="si">{</span><span class="n">query</span><span class="si">}</span><span class="s2">&quot;</span>
-    <span class="k">yield</span> <span class="p">{</span><span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;canvas&quot;</span><span class="p">,</span> <span class="s2">&quot;specs&quot;</span><span class="p">:</span> <span class="p">[{</span><span class="s2">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;plot&quot;</span><span class="p">,</span> <span class="s2">&quot;type&quot;</span><span class="p">:</span> <span class="s2">&quot;Graph&quot;</span><span class="p">,</span> <span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">fig</span><span class="p">}]}</span>
-
-<span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">studio</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">chat_drawer</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
-</code></pre></div>
-<p><code>chat_drawer=True</code> implies a canvas (the output surface). Clicking <strong>Run</strong> invokes
-the callback with an empty <code>query</code> (check <code>if query:</code> to tell a Run from a chat
-message) and updates the canvas without adding a transcript entry.</p>
-<h2 id="add-an-assistant-to-a-normal-app-chat_agent">Add an assistant to a normal app (<code>chat_agent=</code>)</h2>
+<h2 id="add-an-assistant-to-a-normal-app-a-chat-sidecar">Add an assistant to a normal app (a chat sidecar)</h2>
 <p>The sections above make the chat <em>the</em> app. The mirror image: keep a <strong>normal</strong>
 Fast Dash app — typed inputs, real outputs, a Run button — and mount an
-<strong>independent</strong> chat agent in a side drawer with <code>chat_agent=</code>. The agent is a
-chat callback or a LangGraph graph, exactly as for <code>chat=True</code>:</p>
+<strong>independent</strong> chat assistant beside it by passing your agent as <code>chat=</code>. The
+assistant lives in the left sidebar, stacked under the inputs and collapsible;
+the app keeps working on its own (set inputs, Run, read outputs). The agent is a
+chat callback, a LangGraph graph, or a chat-model instance — exactly as for
+full-page chat:</p>
 <div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">(</span><span class="n">revenue</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;West&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
@@ -1161,58 +1047,62 @@ chat callback or a LangGraph graph, exactly as for <code>chat=True</code>:</p>
 
 <span class="n">FastDash</span><span class="p">(</span>
     <span class="n">callback_fn</span><span class="o">=</span><span class="n">dashboard</span><span class="p">,</span>                 <span class="c1"># your app, unchanged</span>
-    <span class="n">chat_agent</span><span class="o">=</span><span class="n">my_langgraph_agent</span><span class="p">,</span>         <span class="c1"># graph | &quot;module:attr&quot; | (query, ...) callback</span>
-    <span class="n">chat_agent_title</span><span class="o">=</span><span class="s2">&quot;Assistant&quot;</span><span class="p">,</span>
+    <span class="n">chat</span><span class="o">=</span><span class="n">my_langgraph_agent</span><span class="p">,</span>               <span class="c1"># graph | &quot;module:attr&quot; | (query, ctx) callback | model</span>
+    <span class="n">chat_title</span><span class="o">=</span><span class="s2">&quot;Assistant&quot;</span><span class="p">,</span>
 <span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
-<p>A floating <strong>Assistant</strong> button opens the chat aside; the app keeps working on
-its own (set inputs, Run, read outputs). The agent shares nothing with the app's
-callback except two capabilities, both through <code>ctx</code>:</p>
+<p>The agent shares nothing with the app's callback except the capabilities the
+toolkit grants, all reached through <code>ctx</code> and drive frames:</p>
 <ul>
 <li><strong>Read</strong> — declare <code>ctx</code> and <code>ctx.inputs</code> gives the agent the app's live input
-  values <code>{name: value}</code> each turn, so it can answer questions about what the
-  user set. <code>ctx.input_specs</code> gives the app's input <em>contract</em> (types, options,
-  bounds) — the same one an MCP agent sees.</li>
+  values <code>{name: value}</code> each turn. <code>ctx.input_specs</code> gives the app's input
+  <em>contract</em> (types, options, bounds) — the same one an MCP agent sees.</li>
 <li><strong>Drive</strong> — the agent can <code>yield {"type": "set_input", "name": ..., "value": ...}</code>
-  to set a control and <code>yield {"type": "run_app"}</code> to run the app on the current
-  inputs and refresh its outputs. Anything a user can do, the agent can do.</li>
+  to set a control, <code>yield {"type": "run_app"}</code> to run the app and refresh its
+  outputs, <code>yield {"type": "set_output", "slot": "A", "value": ...}</code> to render a
+  value into one output slot directly, and <code>yield {"type": "set_layout", "mosaic": "AB"}</code>
+  to rearrange the existing output slots. Anything a user can do, the agent can do.</li>
 </ul>
-<p><code>app_tool_specs(ctx.input_specs)</code> returns provider-neutral tool defs for
-<code>set_input</code> and <code>run_app</code> — the <code>set_input</code> schema enumerates the valid inputs
-and describes each one's type and allowed options, so the model sends valid
-values. <code>apply_tool_call</code> maps a returned tool call to the frame — the same
-on-ramp as the canvas:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">app_tool_specs</span><span class="p">,</span> <span class="n">apply_tool_call</span>
+<h3 id="let-fast-dash-build-the-agent-agent_toolkit">Let Fast Dash build the agent (<code>agent_toolkit</code>)</h3>
+<p>Pass a chat model (a model instance, a <code>"provider:model"</code> string, or <code>chat=True</code>
+with <code>chat_model=</code>) and Fast Dash <strong>auto-builds</strong> a LangChain assistant wired to
+your app. Its tools come from <code>agent_toolkit(app)</code> — <code>read_app</code>, <code>set_input</code>,
+<code>run_app</code>, <code>set_output</code>, <code>set_layout</code>, and <code>run_python</code> — trimmed to the
+<code>chat_tools</code> allowlist you pass (needs <code>pip install "fast-dash[agent]"</code>):</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
 
-<span class="k">def</span><span class="w"> </span><span class="nf">assistant</span><span class="p">(</span><span class="n">query</span><span class="p">,</span> <span class="n">ctx</span><span class="p">):</span>
-    <span class="n">tools</span> <span class="o">=</span> <span class="n">app_tool_specs</span><span class="p">(</span><span class="n">ctx</span><span class="o">.</span><span class="n">input_specs</span><span class="p">)</span>           <span class="c1"># typed set_input / run_app</span>
-    <span class="n">msg</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">messages</span><span class="o">.</span><span class="n">create</span><span class="p">(</span><span class="n">model</span><span class="o">=</span><span class="s2">&quot;claude-sonnet-4-6&quot;</span><span class="p">,</span> <span class="n">tools</span><span class="o">=</span><span class="n">tools</span><span class="p">,</span>
-                                 <span class="n">messages</span><span class="o">=</span><span class="p">[{</span><span class="s2">&quot;role&quot;</span><span class="p">:</span> <span class="s2">&quot;user&quot;</span><span class="p">,</span> <span class="s2">&quot;content&quot;</span><span class="p">:</span> <span class="n">query</span><span class="p">}])</span>
-    <span class="k">for</span> <span class="n">block</span> <span class="ow">in</span> <span class="n">msg</span><span class="o">.</span><span class="n">content</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;text&quot;</span><span class="p">:</span>
-            <span class="k">yield</span> <span class="n">block</span><span class="o">.</span><span class="n">text</span>
-        <span class="k">elif</span> <span class="n">block</span><span class="o">.</span><span class="n">type</span> <span class="o">==</span> <span class="s2">&quot;tool_use&quot;</span><span class="p">:</span>
-            <span class="n">frame</span> <span class="o">=</span> <span class="n">apply_tool_call</span><span class="p">(</span><span class="n">block</span><span class="p">)</span>
-            <span class="k">if</span> <span class="n">frame</span><span class="p">:</span>
-                <span class="k">yield</span> <span class="n">frame</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">dashboard</span><span class="p">(</span><span class="n">revenue</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span><span class="p">,</span> <span class="n">region</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;West&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">region</span><span class="si">}</span><span class="s2">: $</span><span class="si">{</span><span class="n">revenue</span><span class="si">}</span><span class="s2">&quot;</span>
+
+<span class="n">FastDash</span><span class="p">(</span>
+    <span class="n">callback_fn</span><span class="o">=</span><span class="n">dashboard</span><span class="p">,</span>
+    <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="n">chat_model</span><span class="o">=</span><span class="s2">&quot;openai:gpt-4o-mini&quot;</span><span class="p">,</span>       <span class="c1"># or a model instance / FASTDASH_MODEL</span>
+    <span class="n">chat_tools</span><span class="o">=</span><span class="p">(</span><span class="s2">&quot;read_app&quot;</span><span class="p">,</span> <span class="s2">&quot;set_input&quot;</span><span class="p">,</span> <span class="s2">&quot;run_app&quot;</span><span class="p">),</span>  <span class="c1"># read + drive, no code exec</span>
+<span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
-<p>Pass <strong><code>chat_agent_drive=False</code></strong> for a <strong>read-only</strong> assistant: it still reads
-<code>ctx.inputs</code> / <code>ctx.input_specs</code> and converses, but <code>set_input</code> / <code>run_app</code> are
-refused (useful when you want an explainer, not a co-pilot).</p>
-<p><code>chat_agent=</code> also mounts on <strong>multi-function</strong> and <strong>steps</strong> apps — the
-assistant appears as a conversational drawer on every surface. Reading and
-driving the host inputs (<code>ctx.inputs</code>, <code>set_input</code>, <code>run_app</code>) is supported on
-<strong>single-function</strong> apps; on multi-function / steps apps the drawer is
-conversational only for now (those apps have several surfaces, so active-surface
-drive is a separate feature). Drive is also off on <code>update_live</code> apps (their
-inputs recompute on change, so an explicit <code>run_app</code> would run the callback
-twice). <code>chat_agent=</code> and <code>chat=True</code> are mutually exclusive — one adds a chat
-<em>to</em> an app, the other <em>is</em> the chat.</p>
+<p><code>chat_tools=None</code> (the default) enables the full toolkit — including
+<code>run_python</code>, which runs Python in the app process with human-in-the-loop
+approval. Narrow it to a tuple of tool-name strings (and/or <code>RunPython(...)</code>
+configs). <code>chat_tools=("read_app",)</code> gives a <strong>read-only</strong> assistant that
+converses and reads <code>ctx.inputs</code> but can't drive the app; <code>chat_tools=()</code> is a
+chat with no app access at all.</p>
+<p>To wire the toolkit into an agent you build yourself, call <code>agent_toolkit(app)</code>
+for the tools and <code>app_prompt(app)</code> for a system prompt, or attach
+<code>FastDashMiddleware(app)</code> to a LangChain <code>create_agent</code>.</p>
+<p>The auto-trim rules keep the assistant safe by default: on an <code>update_live</code> app
+every app-driving verb is dropped (its inputs recompute on change, so driving
+would double-run the callback or be immediately overwritten — the assistant is
+read-only there), and on a multi-function / steps app the toolkit trims to
+<code>read_app</code> only. A chat-shaped <code>callback_fn</code> <strong>and</strong> an agent in <code>chat=</code> is
+rejected — one adds a chat <em>to</em> an app, the other <em>is</em> the chat.</p>
 <p>Bad inputs are handled: <code>set_input</code> is validated against the app's contract, so
 an unknown input, a value outside an input's options, or a wrong-typed value is
 refused with a message (and fed back to the model) rather than reaching the
-callback. Pressing <strong>Stop</strong> mid-turn stops immediately — any input the agent had
-already set stays set (Stop means "stop now", not "undo").</p>
+callback. A user's <strong>Run</strong> always wins — it restores the default output layout,
+so <code>set_layout</code> / <code>set_output</code> changes never outlive a manual Run. Pressing
+<strong>Stop</strong> mid-turn stops immediately — any input the agent had already set stays
+set (Stop means "stop now", not "undo").</p>
 <div class="admonition warning">
 <p class="admonition-title">Password inputs are never exposed</p>
 <p>A <code>PasswordInput</code>'s value is <strong>redacted</strong> from <code>ctx.inputs</code>, omitted from
@@ -1246,12 +1136,10 @@ generator that yields an <code>interrupt</code> frame renders the card as inform
 <h2 id="driving-a-chat-app-over-mcp">Driving a chat app over MCP</h2>
 <p><code>mcp_server=True</code> exposes the chat app to agents at <code>/mcp</code>:</p>
 <ul>
-<li><code>describe_app()</code> reports the composer contract (the <code>query</code> string), any
-  sidebar <code>settings</code>, and — with a canvas — its current specs and component types.</li>
+<li><code>describe_app()</code> reports the composer contract (the <code>query</code> string) and any
+  sidebar <code>settings</code>.</li>
 <li><code>invoke(query=..., settings=...)</code> runs one turn headlessly and returns its
-  frames (JSON-safe) plus the post-turn <code>canvas</code> specs (the display output the
-  assistant built); history and thread state advance across calls. So a headless
-  agent sees the canvas exactly as a browser user does.</li>
+  frames (JSON-safe); history and thread state advance across calls.</li>
 </ul>
 <h2 id="what-chat-mode-does-and-doesnt-allow">What chat mode does and doesn't allow</h2>
 <p><code>chat=True</code> is a distinct interaction mode, so a few combinations are rejected at
