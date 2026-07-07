@@ -127,7 +127,7 @@ class ChatAppMixin:
         agent = self._chat_agent
         # A LangGraph graph / "module:attr" spec is bridged to the frame grammar.
         if is_langstage_target(agent):
-            agent = build_chat_callback(agent)
+            agent = build_chat_callback(agent, getattr(self, "chat_extractors", None))
             self.is_langstage = True
 
         _params = list(inspect.signature(agent).parameters)
@@ -794,6 +794,8 @@ class ChatAppMixin:
                 parts.append(self._chat_tool_card(b))
             elif kind == "artifact":
                 parts.append(self._chat_artifact_block(b["content"], streaming))
+            elif kind == "extraction":
+                parts.append(self._chat_extraction_block(b, streaming))
             elif kind == "interrupt":
                 parts.append(self._chat_interrupt_card(b, pending=not b.get("resolved")))
         return html.Div(
@@ -856,12 +858,16 @@ class ChatAppMixin:
                          className="fd-chat-interrupt")
 
     @staticmethod
-    def _chat_reasoning_block(text):
-        """A collapsible 'thinking' block (native details/summary, no callback)."""
+    def _chat_reasoning_block(text, summary="Thinking"):
+        """A collapsible 'thinking' block (native details/summary, no callback).
+
+        ``summary`` labels the closed block; a langstage ``reflection`` event
+        reuses this renderer with a "Reflection" label.
+        """
         from dash import dcc, html
         return html.Details(
             [
-                html.Summary("Thinking", className="fd-chat-reasoning-summary"),
+                html.Summary(summary, className="fd-chat-reasoning-summary"),
                 dcc.Markdown(text or "", className="fd-chat-reasoning-body"),
             ],
             className="fd-chat-reasoning",
@@ -930,11 +936,15 @@ class ChatAppMixin:
             import pandas as pd
             if isinstance(content, pd.DataFrame):
                 from dash import dash_table
-                return dash_table.DataTable(
-                    data=content.to_dict("records"),
-                    columns=[{"name": str(c), "id": str(c)} for c in content.columns],
-                    page_size=10, sort_action="native",
-                    style_table={"overflowX": "auto"},
+                # Note: dash_table.DataTable does not accept className (dash 4.3),
+                # so the class rides a wrapper Div instead.
+                return html.Div(
+                    dash_table.DataTable(
+                        data=content.to_dict("records"),
+                        columns=[{"name": str(c), "id": str(c)} for c in content.columns],
+                        page_size=10, sort_action="native",
+                        style_table={"overflowX": "auto"},
+                    ),
                     className="fd-chat-artifact",
                 )
         except Exception:
@@ -957,6 +967,280 @@ class ChatAppMixin:
             pass
         # Fallback: render as markdown text.
         return dcc.Markdown(str(content), className="fd-chat-text")
+
+    # ----- typed langstage events (extraction frames) -------------------- #
+
+    def _chat_extraction_block(self, block, streaming=False):
+        """Render one langstage typed-object event by its ``extracted_type``.
+
+        Dispatches on ``extracted_type`` to a per-type Mantine card (todos,
+        reflection, memory / skill / compression callouts, display_inline rich
+        content). An unknown type falls back to a compact JSON card, so a typed
+        event is NEVER dropped. During streaming a lightweight one-line status
+        stands in; the full card materializes at turn completion (RFC D2).
+        """
+        etype = block.get("extracted_type") or ""
+        data = block.get("data")
+        if streaming:
+            return self._chat_extraction_status(etype)
+        if etype == "reflection":
+            return self._chat_reasoning_block(self._as_reflection_text(data),
+                                              summary="Reflection")
+        if etype == "todos":
+            return self._chat_todos_card(data)
+        if etype == "memory_updated":
+            return self._chat_memory_callout(data)
+        if etype == "skill_loaded":
+            return self._chat_skill_callout(data, loaded=True)
+        if etype == "skill_event":
+            return self._chat_skill_callout(data, loaded=False)
+        if etype == "compression_summary":
+            return self._chat_compression_callout(data)
+        if etype == "display_inline":
+            return self._chat_display_inline_block(data)
+        return self._chat_extraction_fallback(etype, data)
+
+    @staticmethod
+    def _chat_extraction_status(etype):
+        """A one-line live-bubble status for a mid-stream typed event."""
+        from dash import html
+        label = {
+            "reflection": "thinking...",
+            "todos": "todos updated",
+            "memory_updated": "memory updated",
+            "skill_loaded": "skill loaded",
+            "skill_event": "skill updated",
+            "compression_summary": "context compressed",
+            "display_inline": "rendering...",
+        }.get(etype, (etype or "event").replace("_", " "))
+        return html.Div(label, className="fd-chat-extraction-status")
+
+    @staticmethod
+    def _as_reflection_text(data):
+        """A reflection payload is a string (or a dict/other, coerced)."""
+        if isinstance(data, str):
+            return data
+        if isinstance(data, dict):
+            return str(data.get("reflection", data))
+        return str(data) if data is not None else ""
+
+    def _chat_todos_card(self, data):
+        """A task-list card: one row per todo with a status icon + text.
+
+        Completed items are struck through; unknown statuses fall back to the
+        pending look. ``data`` is a list of ``{"content"/"title", "status"}``.
+        """
+        from dash import html
+
+        import dash_mantine_components as dmc
+        from dash_iconify import DashIconify
+
+        items = data if isinstance(data, list) else []
+        _ICON = {
+            "completed": ("tabler:circle-check-filled", "green"),
+            "done": ("tabler:circle-check-filled", "green"),
+            "in_progress": ("tabler:loader-2", "blue"),
+            "in-progress": ("tabler:loader-2", "blue"),
+            "pending": ("tabler:circle", "gray"),
+        }
+        rows = []
+        for it in items:
+            if isinstance(it, dict):
+                text = it.get("content") or it.get("title") or it.get("task") or ""
+                status = str(it.get("status", "pending")).lower()
+            else:
+                text, status = str(it), "pending"
+            icon, color = _ICON.get(status, ("tabler:circle", "gray"))
+            done = status in ("completed", "done")
+            spin = "fd-chat-tool-spin" if status in ("in_progress", "in-progress") else ""
+            rows.append(dmc.Group(
+                [
+                    DashIconify(icon=icon, width=16, color=self._accent_color(color),
+                                className=spin),
+                    html.Span(str(text),
+                              className="fd-chat-todo-text"
+                              + (" fd-chat-todo-done" if done else "")),
+                ],
+                gap="xs", wrap="nowrap", className="fd-chat-todo-row",
+            ))
+        header = dmc.Group(
+            [
+                DashIconify(icon="tabler:list-check", width=16),
+                html.Span("Tasks", className="fd-chat-extraction-title"),
+            ],
+            gap="xs", wrap="nowrap",
+        )
+        return dmc.Paper([header] + rows, withBorder=True, radius="sm", p="xs",
+                         className="fd-chat-extraction fd-chat-todos")
+
+    def _chat_memory_callout(self, data):
+        """A compact one-line callout: 'Memory updated' + a short summary."""
+        summary = ""
+        if isinstance(data, dict):
+            action = data.get("action")
+            target = data.get("target")
+            bits = [b for b in (action, target) if b]
+            summary = " ".join(str(b) for b in bits)
+        return self._chat_extraction_callout(
+            "tabler:brain", "Memory updated", summary)
+
+    def _chat_skill_callout(self, data, loaded=True):
+        """A compact callout for a skill_loaded / skill_event typed event."""
+        if loaded:
+            chars = ""
+            if isinstance(data, dict) and data.get("body_chars"):
+                chars = "%s chars" % data["body_chars"]
+            return self._chat_extraction_callout(
+                "tabler:book", "Skill loaded", chars)
+        # skill_event (create / update / delete).
+        name = summary = ""
+        if isinstance(data, dict):
+            name = data.get("name") or ""
+            action = data.get("action") or ""
+            summary = (str(name) + (" (" + str(action) + ")" if action else "")).strip()
+        title = "Skill " + (str(name) if name else "event")
+        return self._chat_extraction_callout("tabler:tool", title, summary)
+
+    def _chat_compression_callout(self, data):
+        """A subtle divider-style callout: 'Context compressed' (+ details)."""
+        from dash import dcc, html
+
+        import dash_mantine_components as dmc
+        from dash_iconify import DashIconify
+
+        head = dmc.Group(
+            [
+                DashIconify(icon="tabler:arrows-minimize", width=14),
+                html.Span("Context compressed", className="fd-chat-extraction-title"),
+            ],
+            gap="xs", wrap="nowrap",
+        )
+        detail = None
+        if isinstance(data, dict):
+            parts = []
+            if "before_tokens" in data and "after_tokens" in data:
+                parts.append("%s -> %s tokens" % (data["before_tokens"], data["after_tokens"]))
+            if data.get("ratio"):
+                parts.append("%sx" % data["ratio"])
+            if data.get("reason"):
+                parts.append(str(data["reason"]))
+            if parts:
+                detail = dcc.Markdown(", ".join(parts),
+                                      className="fd-chat-extraction-detail")
+        body = [dmc.Divider(className="fd-chat-compression-divider"), head]
+        if detail is not None:
+            body.append(detail)
+        return dmc.Paper(body, radius="sm", p="xs",
+                         className="fd-chat-extraction fd-chat-compression")
+
+    def _chat_extraction_callout(self, icon, title, summary=""):
+        """A shared compact one-line callout chip: icon + title (+ summary)."""
+        from dash import html
+
+        import dash_mantine_components as dmc
+        from dash_iconify import DashIconify
+
+        row = [
+            DashIconify(icon=icon, width=16),
+            html.Span(str(title), className="fd-chat-extraction-title"),
+        ]
+        if summary:
+            row.append(html.Span(str(summary), className="fd-chat-extraction-summary"))
+        return dmc.Paper(
+            dmc.Group(row, gap="xs", wrap="nowrap"),
+            withBorder=True, radius="sm", p="xs",
+            className="fd-chat-extraction fd-chat-callout",
+        )
+
+    def _chat_display_inline_block(self, data):
+        """Render a display_inline payload inline, like an artifact.
+
+        The DisplayInlineExtractor returns ``{"display_type", "data", "title",
+        "status"}``. ``markdown`` / ``html`` / ``text`` render as text; a
+        ``table`` (list of dicts or a DataFrame-able) and any figure-shaped
+        payload route through the same artifact renderer figures/frames use, so
+        rich content lands inline exactly like an ``artifact`` frame.
+        """
+        from dash import dcc, html
+
+        import dash_mantine_components as dmc
+
+        if not isinstance(data, dict):
+            # A raw value (not the {display_type, data} envelope): render it as
+            # an artifact (figure / frame / image / text fallback).
+            return self._chat_artifact_block(data, streaming=False)
+
+        dtype = str(data.get("display_type", "")).lower()
+        payload = data.get("data")
+        title = data.get("title")
+        header = ([html.Div(str(title), className="fd-chat-extraction-title")]
+                  if title else [])
+
+        if dtype in ("markdown", "md", "text", ""):
+            body = dcc.Markdown(str(payload if payload is not None else ""),
+                                className="fd-chat-text", link_target="_blank")
+        elif dtype in ("table", "dataframe"):
+            body = self._chat_display_table(payload)
+        elif dtype in ("figure", "plotly", "chart"):
+            body = self._chat_display_figure(payload)
+        else:
+            # json / image / html and anything else: hand the payload to the
+            # artifact renderer, which figures out the best component.
+            body = self._chat_artifact_block(payload, streaming=False)
+
+        return dmc.Paper(header + [body], radius="sm", p="xs",
+                         className="fd-chat-extraction fd-chat-display-inline")
+
+    def _chat_display_table(self, payload):
+        """Render a display_inline table payload as a DataTable (best-effort)."""
+        try:
+            import pandas as pd
+            if not isinstance(payload, pd.DataFrame):
+                payload = pd.DataFrame(payload)
+            return self._chat_artifact_block(payload, streaming=False)
+        except Exception:
+            return self._chat_artifact_block(payload, streaming=False)
+
+    def _chat_display_figure(self, payload):
+        """Render a display_inline figure payload as a dcc.Graph (best-effort).
+
+        The payload may be a live ``go.Figure`` (route to the artifact renderer)
+        or a plotly figure dict (``{"data": [...], "layout": {...}}``), which the
+        artifact renderer does not recognize -- wrap it in a Graph directly.
+        """
+        from dash import dcc
+        try:
+            import plotly.graph_objects as go
+            if isinstance(payload, go.Figure):
+                return self._chat_artifact_block(payload, streaming=False)
+            if isinstance(payload, dict) and ("data" in payload or "layout" in payload):
+                return dcc.Graph(figure=payload, className="fd-chat-artifact",
+                                 style={"width": "100%"})
+        except Exception:
+            pass
+        return self._chat_artifact_block(payload, streaming=False)
+
+    def _chat_extraction_fallback(self, etype, data):
+        """Unknown extracted_type -> a compact, collapsible JSON card.
+
+        The safety net that guarantees a typed event is never dropped: it shows
+        the raw payload in a collapsible pre block labeled by its type.
+        """
+        from dash import html
+        return html.Details(
+            [
+                html.Summary(str(etype or "event"),
+                             className="fd-chat-reasoning-summary"),
+                html.Pre(self._chat_short_json(data),
+                         className="fd-chat-tool-result"),
+            ],
+            className="fd-chat-reasoning fd-chat-extraction-fallback",
+        )
+
+    @staticmethod
+    def _accent_color(color):
+        """Pass a Mantine color name through (kept as a hook for theming)."""
+        return color
 
     def _chat_bubble_json(self, component):
         """Serialize a Dash component to the plotly-json the reducer inserts."""
@@ -1486,6 +1770,16 @@ class ChatAppMixin:
                 _flush(True)
             elif t == "artifact":
                 blocks.append({"kind": "artifact", "content": frame["content"]}); _flush(True)
+            elif t == "extraction":
+                # A langstage typed-object event (todos / reflection / display_inline
+                # / skill / memory / compression / unknown). Joins the block list
+                # and is rendered server-side by _chat_extraction_block, so both
+                # transports (Flask op + ASGI full-state) show the same typed card.
+                blocks.append({"kind": "extraction",
+                               "extracted_type": frame.get("extracted_type", ""),
+                               "tool_name": frame.get("tool_name", ""),
+                               "data": frame.get("data")})
+                _flush(True)
             elif t == "set_input" and self.has_chat_sidecar:
                 # Per-verb gating: set_input is honored only if it's in the
                 # chat_tools allowlist. A refusal appends an italic note.

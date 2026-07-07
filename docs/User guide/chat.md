@@ -129,6 +129,41 @@ from fast_dash import FastDash
 FastDash(callback_fn="my_pkg.agents:graph", chat=True).run()
 ```
 
+## Typed agent events
+
+A LangGraph agent's tool results are rendered as **typed cards** automatically.
+When the agent calls a common tool, Fast Dash extracts a structured object from
+the result and shows a purpose-built card instead of a raw tool blob: a
+`think_tool` reflection collapses into a thinking block, `write_todos` becomes a
+task list with status icons, and `display_inline` renders figures, tables, and
+markdown inline. This is on by default (no configuration) for any LangGraph chat
+agent; the seven built-ins cover `think_tool`, `write_todos`, `memory`,
+`skill_view`, `skill_manage`, context compression, and `display_inline`.
+
+```python
+import json
+from langchain_core.tools import tool
+
+@tool
+def write_todos(todos: list) -> str:
+    """Track the plan; renders as a task list with status icons."""
+    return json.dumps(todos)   # [{"content": "...", "status": "completed"}, ...]
+
+@tool
+def display_inline(display_type: str, data) -> str:
+    """Render rich content inline (markdown / table / figure)."""
+    return json.dumps({"display_type": "markdown", "data": "# Result\nDone."})
+
+# Bind these tools to your LangGraph agent; FastDash(callback_fn=graph, chat=True)
+# renders each write_todos call as a task list and each display_inline call inline.
+```
+
+To handle a tool the built-ins don't know, pass `chat_extractors=` -- an iterable
+of objects with a `tool_name`, an `extracted_type`, and an `extract(content)`
+method. They are appended to the defaults (an extractor whose `tool_name` matches
+a built-in overrides it). A plain `(query, ctx)` chat callable ignores
+`chat_extractors=`.
+
 ## The `ctx` object
 
 `query` and `history` are all the 5-line chatbot needs. Power features fold into

@@ -676,6 +676,366 @@ class TestLangstageAdapter:
         assert app.is_langstage is True
 
 
+class _DummyExtractor:
+    """A minimal ToolExtractor-protocol object for extractor-merge tests."""
+
+    def __init__(self, tool_name="my_tool", extracted_type="my_type"):
+        self.tool_name = tool_name
+        self.extracted_type = extracted_type
+
+    def extract(self, content):
+        return content
+
+
+class TestTypedExtractionBridge:
+    """The langstage bridge defaults to the built-in extractors (0.6.1)."""
+
+    @requires_langstage
+    def test_default_extractors_returns_the_seven_builtins(self):
+        from fast_dash.adapters.langstage import default_extractors
+        names = [e.tool_name for e in default_extractors()]
+        assert set(names) == {
+            "think_tool", "write_todos", "memory", "skill_view",
+            "skill_manage", "__compression__", "display_inline",
+        }
+        assert len(names) == 7
+
+    @requires_langstage
+    def test_build_chat_callback_passes_defaults_to_iter_event_frames(self):
+        # Patch iter_event_frames where the bridge imports it from and assert the
+        # seven defaults are passed on a turn.
+        from fast_dash.adapters.langstage import build_chat_callback
+        from fast_dash.chat import ChatContext
+        captured = {}
+
+        def fake_iter(agent, message, thread_id, **kwargs):
+            captured["extractors"] = kwargs.get("extractors")
+            async def _agen():
+                yield {"type": "content", "content": "ok"}
+            return _agen()
+
+        with mock.patch("langstage_core.agui.iter_event_frames", side_effect=fake_iter), \
+                mock.patch("langstage_core.agui.build_agent", return_value=object()):
+            cb = build_chat_callback("langstage_core.demo.stub:graph")
+            list(_drain(cb("hi", ChatContext(thread_id="t"))))
+        assert len(captured["extractors"]) == 7
+
+    @requires_langstage
+    def test_user_extractors_append_and_dedupe_user_wins(self):
+        from fast_dash.adapters.langstage import _merge_extractors
+        # A new tool_name appends.
+        merged = _merge_extractors([_DummyExtractor("my_tool", "my_type")])
+        assert len(merged) == 8
+        assert merged[-1].tool_name == "my_tool"
+        # A colliding tool_name replaces the built-in (user wins), no new slot.
+        override = _merge_extractors([_DummyExtractor("write_todos", "custom")])
+        assert len(override) == 7
+        by = {e.tool_name: e for e in override}
+        assert by["write_todos"].extracted_type == "custom"
+
+    def test_validate_rejects_non_protocol_entries_ascii(self):
+        from fast_dash.adapters.langstage import validate_extractors
+        assert validate_extractors(None) == []
+        with pytest.raises(TypeError) as ei:
+            validate_extractors([object()])
+        assert str(ei.value).isascii()
+        assert "extractor" in str(ei.value)
+
+    def test_chat_extractors_validated_at_construction(self):
+        # A non-protocol entry fails at FastDash construction, not mid-turn.
+        with pytest.raises(TypeError) as ei:
+            FastDash(callback_fn=lambda query: "x", chat=True,
+                     chat_extractors=[object()])
+        assert str(ei.value).isascii()
+
+    def test_non_langstage_chat_ignores_chat_extractors_silently(self):
+        # A plain (query, ctx) callable ignores chat_extractors (no error, still
+        # stored for a langstage target that never materializes here).
+        def bot(query):
+            yield "ok"
+        app = FastDash(callback_fn=bot, chat=True,
+                       chat_extractors=[_DummyExtractor()])
+        assert [e.tool_name for e in app.chat_extractors] == ["my_tool"]
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("hi", "s1", "sock", ())
+        assert app.chat_history.get("s1")[-1]["content"] == "ok"
+
+    @requires_langstage
+    def test_construction_threads_extractors_into_the_turn(self):
+        from fast_dash.chat import ChatContext  # noqa: F401
+        captured = {}
+
+        def fake_iter(agent, message, thread_id, **kwargs):
+            captured["extractors"] = kwargs.get("extractors")
+            async def _agen():
+                yield {"type": "content", "content": "ok"}
+            return _agen()
+
+        with mock.patch("langstage_core.agui.iter_event_frames", side_effect=fake_iter), \
+                mock.patch("langstage_core.agui.build_agent", return_value=object()):
+            app = FastDash(callback_fn="langstage_core.demo.stub:graph", chat=True,
+                           chat_extractors=[_DummyExtractor()])
+            with mock.patch("flask_socketio.emit"):
+                app._run_chat_turn("hi", "s1", "sock", ())
+        assert len(captured["extractors"]) == 8
+        assert captured["extractors"][-1].tool_name == "my_tool"
+
+
+class TestExtractionFrameGrammar:
+    """The 'extraction' frame joins the grammar (real langstage wire shape)."""
+
+    def test_extraction_frame_normalizes(self):
+        f = _normalize_frame({
+            "type": "extraction", "tool_name": "write_todos",
+            "extracted_type": "todos",
+            "data": [{"content": "a", "status": "completed"}],
+        })
+        assert f["type"] == "extraction"
+        assert f["extracted_type"] == "todos"
+        assert f["tool_name"] == "write_todos"
+        assert f["data"] == [{"content": "a", "status": "completed"}]
+
+    def test_extraction_requires_extracted_type(self):
+        with pytest.raises(ChatFrameError) as ei:
+            _normalize_frame({"type": "extraction", "tool_name": "x", "data": 1})
+        assert str(ei.value).isascii()
+
+    def test_extraction_data_is_made_json_safe(self):
+        class Weird:
+            def __repr__(self):
+                return "<weird>"
+        f = _normalize_frame({"type": "extraction", "extracted_type": "custom",
+                              "data": {"obj": Weird()}})
+        json.dumps(f)                                  # must not raise
+        assert f["data"] == {"obj": "<weird>"}
+
+    def test_unknown_frame_still_warns_and_skips(self):
+        # Sanity: the new type didn't break the warn+skip contract for others.
+        with pytest.warns(UserWarning, match="Unknown chat frame type"):
+            assert _normalize_frame({"type": "not_extraction", "x": 1}) is None
+
+
+class TestExtractionRenderers:
+    """One renderer per extracted_type; every render is JSON-safe (no browser)."""
+
+    def _app(self):
+        return FastDash(callback_fn=lambda query: iter(["x"]), chat=True)
+
+    def _render(self, app, etype, data, streaming=False):
+        block = {"kind": "extraction", "extracted_type": etype,
+                 "data": data, "tool_name": "t"}
+        comp = app._chat_extraction_block(block, streaming=streaming)
+        app._chat_bubble_json(comp)                    # must serialize cleanly
+        return comp
+
+    def test_reflection_reuses_reasoning_block(self):
+        app = self._app()
+        comp = self._render(app, "reflection", "I should check the data.")
+        js = app._chat_bubble_json(comp)
+        # A collapsible details block labeled Reflection.
+        assert "Reflection" in json.dumps(js)
+
+    def test_todos_card_has_status_icons_and_strikethrough(self):
+        app = self._app()
+        data = [{"content": "one", "status": "completed"},
+                {"content": "two", "status": "in_progress"},
+                {"content": "three", "status": "pending"},
+                {"content": "weird", "status": "bogus"}]
+        js = json.dumps(app._chat_bubble_json(self._render(app, "todos", data)))
+        # Completed item is struck through; distinct status icons are present.
+        assert "fd-chat-todo-done" in js
+        assert "tabler:circle-check-filled" in js       # completed
+        assert "tabler:loader-2" in js                   # in_progress
+        assert "tabler:circle" in js                     # pending / unknown
+        # Unknown status did not crash and rendered as a row.
+        assert "weird" in js
+
+    def test_memory_callout(self):
+        app = self._app()
+        js = json.dumps(app._chat_bubble_json(
+            self._render(app, "memory_updated", {"action": "add", "target": "MEMORY.md"})))
+        assert "Memory updated" in js
+
+    def test_skill_loaded_and_skill_event_callouts(self):
+        app = self._app()
+        loaded = json.dumps(app._chat_bubble_json(
+            self._render(app, "skill_loaded", {"loaded": True, "body_chars": 1234})))
+        assert "Skill loaded" in loaded
+        event = json.dumps(app._chat_bubble_json(
+            self._render(app, "skill_event",
+                         {"action": "create", "name": "pdf-merging"})))
+        assert "Skill" in event and "pdf-merging" in event
+
+    def test_compression_callout(self):
+        app = self._app()
+        js = json.dumps(app._chat_bubble_json(self._render(
+            app, "compression_summary",
+            {"before_tokens": 47000, "after_tokens": 9000, "ratio": 5})))
+        assert "Context compressed" in js
+
+    def test_display_inline_markdown_renders_text(self):
+        app = self._app()
+        comp = self._render(app, "display_inline",
+                            {"display_type": "markdown", "data": "# Result", "title": "R"})
+        js = json.dumps(app._chat_bubble_json(comp))
+        assert "Markdown" in js                         # dcc.Markdown component
+        assert "Result" in js
+
+    def test_display_inline_table_renders_a_datatable(self):
+        app = self._app()
+        # A table payload is coerced to a DataFrame and handed to the same
+        # artifact renderer figures/frames use, which renders a DataTable.
+        comp = self._render(app, "display_inline",
+                            {"display_type": "table",
+                             "data": [{"a": 1, "b": 2}, {"a": 3, "b": 4}]})
+        js = json.dumps(app._chat_bubble_json(comp))
+        assert "DataTable" in js
+        assert "fd-chat-display-inline" in js           # wrapped in the card
+
+    def test_display_inline_figure_routes_through_artifact(self):
+        import plotly.graph_objects as go
+        app = self._app()
+        # A raw figure value (no envelope) goes straight to the artifact renderer.
+        block = {"kind": "extraction", "extracted_type": "display_inline",
+                 "data": go.Figure(), "tool_name": "display_inline"}
+        js = json.dumps(app._chat_bubble_json(
+            app._chat_extraction_block(block, streaming=False)))
+        assert "Graph" in js                            # dcc.Graph
+
+    def test_display_inline_figure_dict_envelope_renders_a_graph(self):
+        app = self._app()
+        # A {display_type: figure, data: <plotly dict>} envelope renders a Graph.
+        comp = self._render(app, "display_inline",
+                            {"display_type": "figure",
+                             "data": {"data": [{"x": [1, 2], "y": [3, 4],
+                                                "type": "scatter"}],
+                                      "layout": {}}})
+        js = json.dumps(app._chat_bubble_json(comp))
+        assert "Graph" in js
+        assert "fd-chat-display-inline" in js
+
+    def test_unknown_extracted_type_falls_back_to_json_card(self):
+        app = self._app()
+        comp = self._render(app, "totally_unknown", {"anything": [1, 2, 3]})
+        js = json.dumps(app._chat_bubble_json(comp))
+        assert "totally_unknown" in js                  # labeled by its type
+        assert "fd-chat-extraction-fallback" in js
+
+    def test_streaming_shows_a_one_line_status(self):
+        app = self._app()
+        comp = self._render(app, "todos", [{"content": "x", "status": "pending"}],
+                            streaming=True)
+        js = json.dumps(app._chat_bubble_json(comp))
+        assert "fd-chat-extraction-status" in js
+        assert "todos updated" in js
+
+    def test_extraction_block_never_dropped_in_full_bubble(self):
+        app = self._app()
+        blocks = [
+            {"kind": "text", "text": "Working."},
+            {"kind": "extraction", "extracted_type": "todos",
+             "data": [{"content": "x", "status": "completed"}], "tool_name": "write_todos"},
+            {"kind": "extraction", "extracted_type": "display_inline",
+             "data": {"display_type": "markdown", "data": "**done**"},
+             "tool_name": "display_inline"},
+        ]
+        for streaming in (True, False):
+            app._chat_bubble_json(app._chat_assistant_bubble(blocks, streaming=streaming))
+
+
+def _tool_calling_graph():
+    """A keyless LangGraph whose tools return todos + display_inline content."""
+    import json as _json
+
+    from langchain_core.messages import AIMessage
+    from langchain_core.tools import tool
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.graph import END, START, MessagesState, StateGraph
+    from langgraph.prebuilt import ToolNode
+
+    @tool
+    def write_todos(todos: list) -> str:
+        """Write the current todo list."""
+        return _json.dumps([{"content": "one", "status": "completed"},
+                            {"content": "two", "status": "in_progress"}])
+
+    @tool
+    def display_inline(display_type: str, data: str) -> str:
+        """Render rich content inline."""
+        return _json.dumps({"display_type": "markdown", "data": "# Result",
+                            "title": "Report"})
+
+    step = {"n": 0}
+
+    def agent_node(state):
+        step["n"] += 1
+        if step["n"] == 1:
+            return {"messages": [AIMessage(content="", tool_calls=[
+                {"id": "c1", "name": "write_todos", "args": {"todos": []}},
+                {"id": "c2", "name": "display_inline",
+                 "args": {"display_type": "markdown", "data": "x"}},
+            ])]}
+        return {"messages": [AIMessage(content="All done.")]}
+
+    def route(state):
+        return "tools" if getattr(state["messages"][-1], "tool_calls", None) else END
+
+    g = StateGraph(MessagesState)
+    g.add_node("agent", agent_node)
+    g.add_node("tools", ToolNode([write_todos, display_inline]))
+    g.add_edge(START, "agent")
+    g.add_conditional_edges("agent", route, {"tools": "tools", END: END})
+    g.add_edge("tools", "agent")
+    return g.compile(checkpointer=InMemorySaver())
+
+
+class TestExtractionEndToEnd:
+    """A real tool-calling graph streams typed blocks into the transcript."""
+
+    @requires_langstage
+    def test_turn_yields_todos_and_display_inline_blocks(self):
+        app = FastDash(callback_fn=_tool_calling_graph(), chat=True)
+        assert app.is_langstage is True
+
+        seen = {}
+        orig = app._chat_assistant_bubble
+
+        def spy(blocks, streaming=False):
+            if not streaming:
+                seen["kinds"] = [b.get("kind") for b in blocks]
+                seen["etypes"] = [b.get("extracted_type") for b in blocks
+                                  if b.get("kind") == "extraction"]
+            return orig(blocks, streaming=streaming)
+        app._chat_assistant_bubble = spy
+
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("go", "s1", "sock", ())
+
+        assert "extraction" in seen["kinds"]
+        assert "todos" in seen["etypes"]
+        assert "display_inline" in seen["etypes"]
+        # History stores only the assistant text, not the typed-event noise.
+        assert app.chat_history.get("s1")[-1]["content"] == "All done."
+
+
+def _drain(gen):
+    """Drive a sync-or-async generator to a flat list (test helper)."""
+    if hasattr(gen, "__anext__"):
+        import asyncio as _asyncio
+        loop = _asyncio.new_event_loop()
+        out = []
+        try:
+            while True:
+                try:
+                    out.append(loop.run_until_complete(gen.__anext__()))
+                except StopAsyncIteration:
+                    break
+        finally:
+            loop.close()
+        return out
+    return list(gen)
+
+
 def _interrupt_graph():
     """A keyless LangGraph that interrupts once, then echoes the decision."""
     from langchain_core.messages import AIMessage

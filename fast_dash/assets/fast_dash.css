@@ -359,6 +359,28 @@
   color: var(--mantine-color-dimmed);
 }
 
+/* Typed agent events (langstage extraction frames, 0.6.1). */
+.fd-chat-extraction { margin-top: 6px; background: var(--mantine-color-body); }
+.fd-chat-extraction-title { font-weight: 600; font-size: 13px; }
+.fd-chat-extraction-summary { font-size: 13px; color: var(--mantine-color-dimmed); }
+.fd-chat-extraction-detail { font-size: 12px; color: var(--mantine-color-dimmed); }
+.fd-chat-extraction-status {
+  color: var(--mantine-color-dimmed); font-size: 13px; font-style: italic;
+  margin-top: 4px;
+}
+/* Task list (write_todos). */
+.fd-chat-todos { }
+.fd-chat-todo-row { margin-top: 4px; }
+.fd-chat-todo-text { font-size: 13px; }
+.fd-chat-todo-done { text-decoration: line-through; color: var(--mantine-color-dimmed); }
+/* Compact callouts (memory / skill). */
+.fd-chat-callout { background: var(--mantine-color-body); }
+/* Context-compression divider callout. */
+.fd-chat-compression { background: transparent; }
+.fd-chat-compression-divider { margin-bottom: 6px; }
+/* Inline rich content (display_inline). */
+.fd-chat-display-inline { }
+
 /* Developer-declared settings (model, temperature, upload) — static, on the
    chat side, above the composer. */
 .fd-chat-settings {

@@ -1,5 +1,50 @@
 # History
 
+# Release 0.6.1
+
+## 0.6.1 (2026-07-07)
+
+LangGraph chat agents now render their **typed agent events** as first-class
+cards by default. When an agent calls a common tool, Fast Dash's langstage
+bridge extracts a structured object from the tool result and shows a purpose-built
+card in the transcript instead of a raw tool blob -- a reflection collapses into a
+thinking block, a `write_todos` result becomes a task list with status icons, and
+`display_inline` renders figures / tables / markdown inline.
+
+### Added
+
+- **Typed agent-event rendering, on by default.** The langstage bridge now passes
+  the seven built-in extractors to `iter_event_frames`, so a LangGraph agent's
+  tool results stream as `extraction` frames that render as typed cards. No opt-in
+  is required; a plain `(query, ctx)` chat callable is unaffected.
+
+  | Tool | `extracted_type` | Rendered as |
+  |---|---|---|
+  | `think_tool` | `reflection` | a collapsible "Reflection" thinking block |
+  | `write_todos` | `todos` | a task list; per-item status icon, completed struck through |
+  | `memory` | `memory_updated` | a compact "Memory updated" callout |
+  | `skill_view` | `skill_loaded` | a "Skill loaded" callout |
+  | `skill_manage` | `skill_event` | a skill create / update / delete callout |
+  | `__compression__` | `compression_summary` | a subtle "Context compressed" divider callout |
+  | `display_inline` | `display_inline` | the flagship: figures / tables / markdown rendered inline (the same renderer artifacts use) |
+
+  An unknown `extracted_type` falls back to a compact collapsible JSON card, so a
+  typed event is never dropped.
+
+- **`chat_extractors=`** (new `FastDash` / `fastdash` parameter): an iterable of
+  extractor objects (each with a `tool_name`, an `extracted_type`, and a callable
+  `extract(content)`) appended to the built-in defaults, deduped by `tool_name`
+  with your extractor winning on a collision -- so you can override how any
+  built-in tool renders. Entries are duck-type validated at construction with a
+  friendly ASCII error. Only used for a LangGraph agent; a plain chat callable
+  ignores it silently.
+
+### Fixed
+
+- Inline artifact tables render as a real `DataTable` again (a `className` kwarg
+  unsupported by `dash_table.DataTable` on dash 4.3 had been silently falling back
+  to markdown text); the class now rides a wrapper div.
+
 # Release 0.6.0
 
 ## 0.6.0 (2026-07-07)
