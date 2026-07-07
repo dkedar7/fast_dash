@@ -34,6 +34,7 @@ import dash
 from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
+from fast_dash.agent_tools_config import RunPython
 from fast_dash.dynamic import DynamicDash, render_spec, COMPONENT_REGISTRY
 from fast_dash.chat import (
     ChatContext,
@@ -52,6 +53,7 @@ __all__ = [
     "Fastify",
     "depends_on",
     "from_step",
+    "RunPython",
     "Text",
     "TextArea",
     "Slider",

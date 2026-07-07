@@ -682,45 +682,9 @@ class TestChatMcp:
         out = _call(c, "invoke", {"query": "hello there"})
         assert out["ok"] is True and "hello there" in out["content"]
 
-    def test_describe_app_reports_disabled_canvas_by_default(self):
-        c = _client_for(_chat_app())
-        assert _call(c, "describe_app")["canvas"] == {"enabled": False}
-
-
-def _canvas_chat_app(**kw):
-    def bot(query: str):
-        """A canvas-building assistant, over MCP."""
-        if "build" in query.lower():
-            yield {"type": "canvas", "specs": [
-                {"name": "a", "type": "Markdown", "value": "## Report"},
-            ]}
-            yield "built"
-        else:
-            yield "nothing to build yet"
-    return FastDash(callback_fn=bot, chat=True, canvas=True, mcp_server=True, **kw)
-
-
-class TestChatCanvasMcp:
-    """A canvas chat app exposes and drives the canvas over MCP (agent parity)."""
-
-    def test_describe_app_reports_canvas_contract(self):
-        c = _client_for(_canvas_chat_app())
-        canvas = _call(c, "describe_app")["canvas"]
-        assert canvas["enabled"] is True
-        assert "Graph" in canvas["component_types"]     # display types available
-        assert canvas["specs"] == []                     # nothing built yet
-
-    def test_invoke_builds_canvas_and_reports_specs(self):
-        c = _client_for(_canvas_chat_app())
-        out = _call(c, "invoke", {"query": "build it"})
-        assert out["ok"] is True
-        assert out["canvas"]["specs"][0]["name"] == "a"  # canvas reflected back
-        # And a later describe_app sees the built canvas.
-        assert _call(c, "describe_app")["canvas"]["specs"][0]["name"] == "a"
-
 
 class TestSidecarMcp:
-    """A normal app can carry BOTH an MCP surface and a chat_agent sidecar."""
+    """A normal app can carry BOTH an MCP surface and a chat= agent sidecar."""
 
     def test_mcp_and_chat_agent_coexist_and_mirror_syncs(self):
         from unittest import mock
@@ -733,7 +697,7 @@ class TestSidecarMcp:
             yield {"type": "set_input", "name": "revenue", "value": 500}
             yield {"type": "run_app"}
 
-        app = FastDash(callback_fn=dashboard, chat_agent=agent, mcp_server=True)
+        app = FastDash(callback_fn=dashboard, chat=agent, mcp_server=True)
         assert app.has_chat_sidecar and app.mcp_server_enabled
         c = _client_for(app)
         # Both surfaces build; describe_app still reports the app contract.

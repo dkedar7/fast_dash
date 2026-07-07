@@ -547,13 +547,11 @@ class AppLayout:
         # (A position:sticky button inside dmc.ScrollArea does NOT stick — Radix
         # wraps the content in a way that breaks sticky — so it scrolled away
         # once the form was taller than the viewport.)
-        # In sidebar mode the chat panel lives under the inputs, so the inputs
-        # take their natural (capped) height and the chat gets the growing space;
-        # otherwise the inputs own the scroll and Run is pinned at the bottom.
-        for_sidebar = (
-            getattr(self.app, "has_chat_sidecar", False)
-            and getattr(self.app, "chat_agent_position", "aside") == "sidebar"
-        )
+        # With a chat sidecar the chat panel lives under the inputs, so the
+        # inputs take their natural (capped) height and the chat gets the growing
+        # space; otherwise the inputs own the scroll and Run is pinned at the
+        # bottom. (The sidebar is the only sidecar placement in 0.6.0.)
+        for_sidebar = getattr(self.app, "has_chat_sidecar", False)
         sections = [
             dmc.AppShellSection(
                 dmc.ScrollArea(
@@ -661,14 +659,16 @@ class AppLayout:
             id="footer5265971",
         )
 
-    def _chat_aside(self):
-        """The chat sidecar surface: a right AppShellAside with the chat panel.
+    def _chat_sidebar_panel(self):
+        """The sidecar chat as a collapsible panel stacked under the inputs.
 
-        Only built when the host app declares ``chat_agent=``. Reuses the shared
-        chat fragment (transcript + composer); a header carries the agent's
-        title and a close button.
+        In 0.6.0 the sidebar is the ONLY placement for a chat sidecar. The panel
+        header carries the assistant title and a chevron ActionIcon that
+        collapses the panel to just its header row (freeing the vertical space
+        for the inputs). The chevron is visually distinct from the navbar's own
+        Toggle-inputs burger (it lives inside the panel, not the header bar).
         """
-        title = getattr(self.app, "chat_agent_title", "Assistant")
+        title = getattr(self.app, "chat_title", "Assistant")
         header = html.Div(
             dmc.Group(
                 [
@@ -677,67 +677,35 @@ class AppLayout:
                          html.Span(title, style={"fontWeight": 600})],
                         gap="xs", wrap="nowrap",
                     ),
-                    dmc.ActionIcon(
-                        DashIconify(icon="tabler:x", width=18),
-                        id="chat-sidecar-close", variant="subtle", size="sm",
-                        n_clicks=0,
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="tabler:chevron-down", width=18,
+                                        id="chat-panel-collapse-icon"),
+                            id="chat-panel-collapse", variant="subtle", size="sm",
+                            n_clicks=0,
+                            **{"aria-label": "Collapse or expand the chat panel"},
+                        ),
+                        label="Collapse / expand chat",
                     ),
                 ],
                 justify="space-between", wrap="nowrap", style={"width": "100%"},
             ),
-            style={"flex": "0 0 auto", "padding": "10px 12px",
-                   "borderBottom": "1px solid var(--mantine-color-default-border)"},
-        )
-        body = html.Div(
-            [self._chat_message_list(), self._chat_composer()],
-            className="fd-chat-main",
-            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
-                   "flexDirection": "column"},
-        )
-        return dmc.AppShellAside(
-            html.Div(
-                [header, body],
-                style={"height": "calc(100vh - 56px)", "display": "flex",
-                       "flexDirection": "column"},
-            ),
-            id="chat-aside",
-        )
-
-    def _chat_sidebar_panel(self):
-        """The sidecar chat as a panel stacked under the inputs in the navbar.
-
-        Used when ``chat_agent_position="sidebar"``: the same transcript +
-        composer as the aside, but always visible in the left sidebar below the
-        inputs (no floating toggle, no right aside).
-        """
-        title = getattr(self.app, "chat_agent_title", "Assistant")
-        header = html.Div(
-            dmc.Group(
-                [DashIconify(icon="tabler:message-2", width=18),
-                 html.Span(title, style={"fontWeight": 600})],
-                gap="xs", wrap="nowrap",
-            ),
+            className="fd-chat-panel-header",
             style={"flex": "0 0 auto", "padding": "10px 2px 8px",
                    "borderTop": "1px solid var(--mantine-color-default-border)"},
         )
+        body = html.Div(
+            [self._chat_message_list(), self._chat_composer()],
+            className="fd-chat-panel-body",
+            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
+                   "flexDirection": "column"},
+        )
         return html.Div(
-            [header, self._chat_message_list(), self._chat_composer()],
-            className="fd-chat-main",
+            [header, body],
+            id="chat-sidebar-panel",
+            className="fd-chat-main fd-chat-panel",
             style={"flex": "1 1 auto", "minHeight": 0, "height": "100%",
                    "display": "flex", "flexDirection": "column"},
-        )
-
-    def _chat_sidecar_toggle_button(self):
-        """Floating button that opens/closes the chat sidecar aside."""
-        title = getattr(self.app, "chat_agent_title", "Assistant")
-        return dmc.Button(
-            title,
-            id="chat-sidecar-toggle",
-            n_clicks=0,
-            leftSection=DashIconify(icon="tabler:message-2", width=18),
-            radius="xl",
-            style={"position": "fixed", "bottom": "24px", "right": "24px",
-                   "zIndex": 1000, "boxShadow": "0 2px 12px rgba(0,0,0,0.2)"},
         )
 
     def generate_layout(self, stream_event_names=None):
@@ -749,11 +717,9 @@ class AppLayout:
         main_content = self.generate_output_component()
 
         has_sidecar = getattr(self.app, "has_chat_sidecar", False)
-        # Sidebar-positioned sidecar: the chat is stacked under the inputs in the
-        # navbar (built by generate_input_component), so there's no right aside
-        # and no floating toggle; the navbar is widened to give the chat room.
-        sidebar_chat = has_sidecar and (
-            getattr(self.app, "chat_agent_position", "aside") == "sidebar")
+        # A chat sidecar is stacked under the inputs in the navbar (built by
+        # generate_input_component) and is collapsible. The navbar is widened to
+        # give the chat room. This is the only sidecar placement in 0.6.0.
 
         appshell_children = [
             dmc.AppShellHeader(
@@ -785,23 +751,18 @@ class AppLayout:
         ]
         appshell_kwargs = dict(
             header={"height": 56},
-            navbar={"width": 420 if sidebar_chat else 300, "breakpoint": "sm",
+            # Navbar width must agree with the toggle_sidebar callback (v0.5.5 /
+            # #143): a chat sidecar widens it to 420; a plain app stays at 300.
+            navbar={"width": 420 if has_sidecar else 300, "breakpoint": "sm",
                     "collapsed": {"mobile": False}},
             padding=0,
             id="appshell",
         )
-        if sidebar_chat:
-            # The chat needs a wider sidebar than the default; a CSS var override
-            # (via this class) applies it reliably across dmc versions.
+        if has_sidecar:
+            # The chat needs a wider sidebar than the default; the class is a
+            # styling hook (see fast_dash.css) and the collapse callback toggles
+            # a second class on it to let the inputs reclaim space.
             appshell_kwargs["className"] = "fd-chat-sidebar"
-        if has_sidecar and not sidebar_chat:
-            appshell_children.append(self._chat_aside())
-            # Collapsed by default; the floating toggle opens it. Full-width
-            # sheet on small screens, fixed panel on desktop.
-            appshell_kwargs["aside"] = {
-                "width": {"base": "100%", "sm": 380}, "breakpoint": "sm",
-                "collapsed": {"desktop": True, "mobile": True},
-            }
 
         appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
@@ -821,14 +782,13 @@ class AppLayout:
 
         if has_sidecar:
             extra += self._chat_stores()
-            extra.append(dcc.Store(id="chat-sidecar-open", data=False))
+            # Collapse state for the chat panel (default expanded).
+            extra.append(dcc.Store(id="chat-panel-collapsed", data=False))
             # Drive-affordance plumbing: chat-drive-tick carries the flash signal
             # (bumped via set_props on ASGI); chat-drive-flash is a dummy sink for
             # the clientside flash callback.
             extra.append(dcc.Store(id="chat-drive-tick"))
             extra.append(dcc.Store(id="chat-drive-flash"))
-            if not sidebar_chat:   # sidebar chat is always shown; no floating toggle
-                extra.append(self._chat_sidecar_toggle_button())
 
         layout = dmc.MantineProvider(
             [appshell] + extra,
@@ -918,7 +878,7 @@ class AppLayout:
         ]
 
     def generate_chat_layout(self, has_settings=False, stream_event_names=None,
-                             native_stream=False, canvas=False, drawer=False):
+                             native_stream=False):
         """Build the native chat-mode layout (RFC #133).
 
         Reuses the shared chrome (header, theme toggle, About, notifications,
@@ -929,8 +889,7 @@ class AppLayout:
 
         Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
         an ASGI backend (``native_stream``) they are pushed with ``set_props``
-        into the ``chat-frames-store`` and the reducer listens on that store
-        instead of a socket event (no flask-socketio, which is WSGI-only).
+        into ``chat-messages.children`` (no flask-socketio, which is WSGI-only).
         """
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -940,22 +899,8 @@ class AppLayout:
         message_list = self._chat_message_list()
         composer = self._chat_composer()
 
-        # Developer-declared settings placement:
-        #  - drawer (app-first): the settings + a Run button go in the left
-        #    navbar; the chat is a collapsible alternative view.
-        #  - panel (chat-first canvas): the settings live in the chat panel,
-        #    above the composer.
-        # (The canvas itself is display-only — the assistant builds output there,
-        #  not input widgets — so there is no chat-side dynamic-input region.)
-        panel_children = [message_list]
-        if canvas and has_settings and not drawer:
-            panel_children.append(
-                html.Div(self.generate_input_component(), id="chat-settings",
-                         className="fd-chat-settings")
-            )
-        panel_children.append(composer)
         main = html.Div(
-            panel_children,
+            [message_list, composer],
             className="fd-chat-main",
             style={"height": "100%", "display": "flex", "flexDirection": "column"},
         )
@@ -974,97 +919,21 @@ class AppLayout:
             id="header1162572",
         )
 
-        canvas_region = None
-        if canvas:
-            canvas_region = html.Div(
-                html.Div([], id="chat-canvas", className="fd-chat-canvas"),
-                className="fd-chat-canvas-wrap",
-                style={"height": "calc(100vh - 56px)", "overflowY": "auto",
-                       "overflowX": "hidden", "padding": "18px 22px"},
-            )
-
         navbar_conf = None
-        if drawer:
-            # App-first: the left panel drives the output canvas (main area). It
-            # toggles between two views in the same container:
-            #   * inputs view (default): the developer settings + a Run button,
-            #     with an "expand" button at the bottom that brings up the chat;
-            #   * chat view: the assistant, as an alternative to those inputs,
-            #     with a Back button to return.
-            run_button = dmc.Button(
-                "Run", id="chat-run", n_clicks=0, fullWidth=True,
-                leftSection=DashIconify(icon="tabler:player-play", width=16),
-            )
-            open_chat_button = dmc.Button(
-                "Chat with the assistant", id="chat-open", n_clicks=0,
-                leftSection=DashIconify(icon="tabler:message-2", width=16),
-                variant="light", fullWidth=True,
-            )
-            inputs_view = html.Div(
-                [
-                    dmc.ScrollArea(
-                        dmc.Stack(list(self.inputs or []), gap="lg"),
-                        type="auto",
-                        style={"flex": "1 1 auto", "minHeight": 0},
-                    ),
-                    html.Div(
-                        [run_button, open_chat_button],
-                        style={"flex": "0 0 auto", "paddingTop": "12px",
-                               "display": "flex", "flexDirection": "column",
-                               "gap": "8px",
-                               "borderTop": "1px solid var(--mantine-color-default-border)"},
-                    ),
-                ],
-                id="chat-inputs-view",
-                style={"height": "calc(100vh - 56px)", "display": "flex",
-                       "flexDirection": "column", "padding": "12px"},
-            )
-            back_button = html.Div(
-                dmc.Button(
-                    "Back to inputs", id="chat-back", n_clicks=0,
-                    leftSection=DashIconify(icon="tabler:arrow-left", width=16),
-                    variant="subtle", size="xs",
+        appshell_children = [header, dmc.AppShellMain(chat_shell)]
+        if has_settings:
+            appshell_children.insert(
+                1,
+                dmc.AppShellNavbar(
+                    self.generate_input_component(),
+                    p="md",
+                    id="navbar3260780",
+                    style={"display": "flex", "flexDirection": "column",
+                           "overflow": "hidden"},
                 ),
-                style={"flex": "0 0 auto", "padding": "6px 8px",
-                       "borderBottom": "1px solid var(--mantine-color-default-border)"},
             )
-            chat_view = html.Div(
-                [back_button, html.Div(main, style={"flex": "1 1 auto", "minHeight": 0})],
-                id="chat-panel-view",
-                style={"height": "calc(100vh - 56px)", "display": "none",
-                       "flexDirection": "column"},
-            )
-            appshell_children = [
-                header,
-                dmc.AppShellNavbar([inputs_view, chat_view], id="navbar3260780"),
-                dmc.AppShellMain(canvas_region),
-            ]
-            navbar_conf = {"width": 380, "breakpoint": "sm",
+            navbar_conf = {"width": 300, "breakpoint": "sm",
                            "collapsed": {"mobile": False}}
-        elif canvas:
-            # Chat-first split view: chat panel on the left, canvas on the right.
-            appshell_children = [
-                header,
-                dmc.AppShellNavbar(chat_shell, id="navbar3260780"),
-                dmc.AppShellMain(canvas_region),
-            ]
-            navbar_conf = {"width": 460, "breakpoint": "sm",
-                           "collapsed": {"mobile": False}}
-        else:
-            appshell_children = [header, dmc.AppShellMain(chat_shell)]
-            if has_settings:
-                appshell_children.insert(
-                    1,
-                    dmc.AppShellNavbar(
-                        self.generate_input_component(),
-                        p="md",
-                        id="navbar3260780",
-                        style={"display": "flex", "flexDirection": "column",
-                               "overflow": "hidden"},
-                    ),
-                )
-                navbar_conf = {"width": 300, "breakpoint": "sm",
-                               "collapsed": {"mobile": False}}
 
         appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
         if navbar_conf:
@@ -1110,36 +979,26 @@ class AppLayout:
             Input("sidebar-button", "opened"),
         )
         def toggle_sidebar(opened):
-            if getattr(self.app, "is_chat_drawer", False):
-                # App-first (drawer) mode: the navbar holds the settings + Run;
-                # keep it open at its own width.
-                return {"width": 320, "breakpoint": "sm",
-                        "collapsed": {"desktop": False, "mobile": False}}
-            if getattr(self.app, "is_canvas", False):
-                # In canvas mode the navbar holds the chat panel (not a settings
-                # sidebar), so it must stay open and keep its wider width.
-                return {"width": 460, "breakpoint": "sm",
-                        "collapsed": {"desktop": False, "mobile": False}}
-
             user_agent = request.headers.get("User-Agent")
 
-            if not opened or self.app.inputs == [] or self.app.inputs is None:
+            # A chat sidecar stacks the chat under the inputs and needs the wider
+            # navbar; it must stay open (the chat is only reachable there).
+            has_sidecar = getattr(self.app, "has_chat_sidecar", False)
+            if has_sidecar:
+                collapsed = {"desktop": not opened, "mobile": not opened}
+            elif not opened or self.app.inputs == [] or self.app.inputs is None:
                 collapsed = {"desktop": True, "mobile": True}
             elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
                 collapsed = {"desktop": False, "mobile": True}
             else:
                 collapsed = {"desktop": False, "mobile": False}
 
-            # Sidebar-positioned chat stacks under the inputs and needs the wider
-            # navbar. Must match generate_layout's width, or dmc derives the main
-            # offset and collapse-transform from the wrong width -- leaving the
-            # output shifted under the sidebar and the sidebar unable to fully
-            # close. (Same reason canvas/drawer return their own widths above.)
-            sidebar_chat = getattr(self.app, "has_chat_sidecar", False) and (
-                getattr(self.app, "chat_agent_position", "aside") == "sidebar")
-
+            # The sidecar width (420) must match generate_layout's, or dmc
+            # derives the main offset and collapse-transform from the wrong width
+            # -- leaving the output shifted under the sidebar and the sidebar
+            # unable to fully close (v0.5.5 / #143).
             return {
-                "width": 420 if sidebar_chat else 300,
+                "width": 420 if has_sidecar else 300,
                 "breakpoint": "sm",
                 "collapsed": collapsed,
             }

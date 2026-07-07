@@ -21,8 +21,6 @@ Frame types:
     tool_end   {"type": "tool_end",  "name": str, "result": Any,   "id"?: str}
     artifact   {"type": "artifact",  "content": Figure|DataFrame|Image|str}
     interrupt  {"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}
-    canvas     {"type": "canvas",    "specs": [...]}         (chat canvas)
-    set_props  {"type": "set_props", "target": str, "props": dict}  (chat canvas)
     set_input  {"type": "set_input", "name": str, "value": Any}     (sidecar drive)
     run_app    {"type": "run_app"}                                   (sidecar drive)
     complete   {"type": "complete"}
@@ -81,9 +79,14 @@ RUN_APP = "run_app"        # sidecar: run the host app on its current inputs
 COMPLETE = "complete"
 ERROR = "error"
 
+# CANVAS / SET_PROPS were the 0.5.x chat-canvas frames. In 0.6.0 they are
+# removed from the app grammar: an unrecognized frame type warns and is
+# skipped (never crashes). The constants are kept so the LLM on-ramp helpers
+# (canvas_tool_specs / apply_tool_call) still build these frame dicts for code
+# that opts into the canvas explicitly.
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, CANVAS, SET_PROPS, SET_INPUT, RUN_APP, COMPLETE, ERROR}
+     INTERRUPT, SET_INPUT, RUN_APP, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -163,19 +166,6 @@ def _normalize_frame(frame):
             "review_configs": frame.get("review_configs", []),
             "allowed_decisions": frame.get("allowed_decisions", []),
         }
-    elif ftype == CANVAS:
-        specs = frame.get("specs")
-        if not isinstance(specs, (list, tuple)):
-            raise ChatFrameError(
-                "A 'canvas' frame must have a 'specs' list of UI-spec dicts.")
-        frame = {"type": CANVAS, "specs": list(specs)}
-    elif ftype == SET_PROPS:
-        if "target" not in frame:
-            raise ChatFrameError("A 'set_props' frame must have a 'target' key.")
-        props = frame.get("props", {})
-        if not isinstance(props, dict):
-            raise ChatFrameError("A 'set_props' frame's 'props' must be a dict.")
-        frame = {"type": SET_PROPS, "target": str(frame["target"]), "props": dict(props)}
     elif ftype == SET_INPUT:
         if "name" not in frame:
             raise ChatFrameError("A 'set_input' frame must have a 'name' key.")

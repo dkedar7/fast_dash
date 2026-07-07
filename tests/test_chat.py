@@ -294,11 +294,13 @@ class TestChatConstruction:
         app = FastDash(callback_fn=bot, chat=True)
         assert app._chat_setting_names == ["temperature"]
 
-    def test_missing_query_param_errors_ascii(self):
-        def bot(prompt):
+    def test_full_page_chat_agent_must_be_query_first(self):
+        # A full-page chat handler (agent supplied in chat= with no app callback)
+        # must be query-first; the error is ASCII.
+        def bot(prompt, ctx):
             yield "hi"
         with pytest.raises(TypeError) as ei:
-            FastDash(callback_fn=bot, chat=True)
+            FastDash(chat=bot)
         assert "query" in str(ei.value) and str(ei.value).isascii()
 
     def test_update_live_incompatible(self):
@@ -753,331 +755,6 @@ class TestChatHitl:
             assert app._resume_chat_turn("nosuch", "sock", "approve") is False
 
 
-class TestCanvasFrames:
-    """Frame grammar for the canvas hybrid (chat ⇄ DynamicDash)."""
-
-    def test_canvas_frame_normalizes(self):
-        from fast_dash.chat import _normalize_frame
-        f = _normalize_frame({"type": "canvas",
-                              "specs": [{"name": "a", "type": "Graph"}]})
-        assert f == {"type": "canvas", "specs": [{"name": "a", "type": "Graph"}]}
-
-    def test_canvas_frame_requires_specs_list(self):
-        from fast_dash.chat import ChatFrameError, _normalize_frame
-        for bad in ({"type": "canvas"}, {"type": "canvas", "specs": "no"}):
-            with pytest.raises(ChatFrameError):
-                _normalize_frame(bad)
-
-    def test_set_props_frame_normalizes_and_validates(self):
-        from fast_dash.chat import ChatFrameError, _normalize_frame
-        f = _normalize_frame({"type": "set_props", "target": "a", "props": {"max": 9}})
-        assert f == {"type": "set_props", "target": "a", "props": {"max": 9}}
-        with pytest.raises(ChatFrameError):
-            _normalize_frame({"type": "set_props"})            # missing target
-        with pytest.raises(ChatFrameError):
-            _normalize_frame({"type": "set_props", "target": "a", "props": "x"})
-
-
-class TestChatCanvas:
-    """The assistant-driven canvas end-to-end (RFC #133 follow-up)."""
-
-    def _ids(self, comp, out=None):
-        return _layout_ids(comp, out)
-
-    def _ops(self, app, query, sid="s1", **kw):
-        ops = []
-        with mock.patch("flask_socketio.emit",
-                        side_effect=lambda ev, payload=None, **k: ops.append(payload)):
-            app._run_chat_turn(query, sid, "sock", (), **kw)
-        return ops
-
-    def test_canvas_only_with_chat(self):
-        # canvas without chat warns and is a no-op.
-        with pytest.warns(UserWarning, match="have no effect without chat"):
-            app = FastDash(callback_fn=lambda x: "hi", canvas=True)
-        assert app.is_canvas is False
-
-    def test_canvas_layout_present_and_backward_compatible(self):
-        app = FastDash(callback_fn=lambda query: "hi", chat=True, canvas=True)
-        assert app.is_canvas is True
-        ids = self._ids(app.app.layout)
-        # Output canvas (main) + transcript.
-        assert {"chat-canvas", "chat-messages"} <= ids
-        # A plain chat app has no canvas region.
-        plain = FastDash(callback_fn=lambda query: "hi", chat=True)
-        plain_ids = self._ids(plain.app.layout)
-        assert "chat-canvas" not in plain_ids
-
-    def test_declared_settings_render_in_canvas_and_feed_callback(self):
-        # Developer-declared inputs (model/temperature) render on the chat side
-        # in canvas mode and their live values reach the callback each turn.
-        seen = {}
-        def bot(query, model: str = "sonnet", temperature: float = 0.7):
-            seen["model"], seen["temp"] = model, temperature
-            yield "ok"
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        assert app._chat_setting_names == ["model", "temperature"]
-        ids = self._ids(app.app.layout)
-        assert {"chat-settings", "model", "temperature"} <= ids   # rendered, not dropped
-        with mock.patch("flask_socketio.emit"):
-            app._run_chat_turn("hi", "s1", "sock", ("opus", 0.9))
-        assert seen == {"model": "opus", "temp": 0.9}
-
-    def test_canvas_frame_renders_and_stores_state(self):
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "note", "type": "Markdown", "value": "## Report"},
-            ]}
-            yield "done"
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "build")
-        canvas_ops = [p for p in ops if isinstance(p, dict) and p.get("op") == "canvas"]
-        assert canvas_ops, "no canvas op emitted"
-        assert app._session("s1").canvas_specs[0]["name"] == "note"
-        # The transcript is unaffected by canvas frames.
-        assert app.chat_history.get("s1")[-1]["content"] == "done"
-
-    def test_set_props_routes_value_and_props(self):
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "chart", "type": "Graph", "value": {"data": []},
-                 "props": {"style": {"height": "300px"}}}]}
-            yield {"type": "set_props", "target": "chart",
-                   "props": {"figure": {"data": [{"type": "bar"}]},
-                             "config": {"staticPlot": True}}}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "patch")
-        spec = app._session("s1").canvas_specs[0]
-        # 'figure' is Graph's value-prop, so it routes to spec['value'];
-        # 'config' is an ordinary prop and merges into spec['props'].
-        assert spec["value"] == {"data": [{"type": "bar"}]}
-        assert spec["props"]["config"] == {"staticPlot": True}
-        last = json.dumps([p for p in ops if isinstance(p, dict)
-                           and p.get("op") == "canvas"][-1]["value"])
-        assert '"bar"' in last
-
-    def test_canvas_renders_display_components(self):
-        # E1: the assistant can build dashboards (charts/tables), not just forms.
-        import plotly.graph_objects as go
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "chart", "type": "Graph",
-                 "value": go.Figure(go.Bar(x=[1, 2], y=[3, 4])), "label": "Sales"},
-                {"name": "tbl", "type": "Table",
-                 "value": [{"a": 1, "b": 2}], "label": ""},
-            ]}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "dashboard")
-        last = json.dumps([p for p in ops if isinstance(p, dict)
-                           and p.get("op") == "canvas"][-1]["value"])
-        assert '"bar"' in last                          # Graph rendered on the canvas
-        assert app._session("s1").canvas_specs[0]["type"] == "Graph"
-
-    def test_canvas_span_arranges_into_grid(self):
-        # The assistant controls arrangement via per-spec `span` (out of 12).
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "a", "type": "Markdown", "value": "left", "span": 8},
-                {"name": "b", "type": "Markdown", "value": "right", "span": 4},
-            ]}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "grid")
-        val = [p for p in ops if isinstance(p, dict)
-               and p.get("op") == "canvas"][-1]["value"]
-        assert val["type"] == "Grid"                     # laid out in a grid
-        cols = val["props"]["children"]
-        assert [c["props"]["span"] for c in cols] == [8, 4]   # side-by-side widths
-
-    def test_canvas_renders_image_component(self):
-        # Image is a display component too (src-based) — the last of the four.
-        def bot(query):
-            yield {"type": "canvas", "specs": [
-                {"name": "logo", "type": "Image", "label": "Logo",
-                 "value": "data:image/png;base64,iVBORw0KGgo="}]}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        ops = self._ops(app, "show image")
-        last = json.dumps([p for p in ops if isinstance(p, dict)
-                           and p.get("op") == "canvas"][-1]["value"])
-        assert "base64" in last                          # the src reached the canvas
-        assert app._session("s1").canvas_specs[0]["type"] == "Image"
-
-    def test_empty_specs_clears_the_canvas(self):
-        # Rebuilding from an empty spec list is how the assistant clears the
-        # canvas — both the stored state and the emitted output go empty.
-        def bot(query):
-            if "build" in query:
-                yield {"type": "canvas", "specs": [
-                    {"name": "n", "type": "Markdown", "value": "hi"}]}
-            else:
-                yield {"type": "canvas", "specs": []}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        self._ops(app, "build")
-        assert app._session("s1").canvas_specs             # built
-        ops = self._ops(app, "clear it")
-        assert app._session("s1").canvas_specs == []       # state cleared
-        last = [p for p in ops if isinstance(p, dict)
-                and p.get("op") == "canvas"][-1]["value"]
-        assert last == []                                  # emptied on the wire too
-
-    def test_set_props_patches_a_canvas_from_an_earlier_turn(self):
-        # The canvas is a surface the assistant maintains ACROSS turns: a later
-        # set_props patches specs built in an earlier turn (session-persisted).
-        def bot(query):
-            if "build" in query:
-                yield {"type": "canvas", "specs": [
-                    {"name": "chart", "type": "Graph", "value": {"data": []}}]}
-            else:
-                yield {"type": "set_props", "target": "chart",
-                       "props": {"figure": {"data": [{"type": "bar"}]}}}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        self._ops(app, "build")                            # turn 1 builds
-        ops = self._ops(app, "update it")                  # turn 2 patches turn 1's spec
-        assert app._session("s1").canvas_specs[0]["value"] == {"data": [{"type": "bar"}]}
-        last = json.dumps([p for p in ops if isinstance(p, dict)
-                           and p.get("op") == "canvas"][-1]["value"])
-        assert '"bar"' in last
-
-    def test_set_props_to_unknown_target_is_a_safe_noop(self):
-        # Patching a component that was never built must not crash the turn.
-        def bot(query):
-            yield {"type": "set_props", "target": "ghost", "props": {"figure": {}}}
-            yield "ok"
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        self._ops(app, "patch ghost")                      # must not raise
-        assert app._session("s1").canvas_specs == []       # nothing created
-        assert app.chat_history.get("s1")[-1]["content"] == "ok"
-
-    def test_unknown_component_type_is_surfaced_not_fatal(self):
-        # The canvas is display-only, so a non-display type (e.g. an input
-        # widget) is caught at render and surfaced as an error — the session
-        # survives and a later well-formed turn still works.
-        def bot(query):
-            if "bad" in query:
-                yield {"type": "canvas", "specs": [
-                    {"name": "x", "type": "Slider", "value": 1}]}
-            else:
-                yield {"type": "canvas", "specs": [
-                    {"name": "n", "type": "Markdown", "value": "ok"}]}
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        self._ops(app, "build bad")                        # must not raise
-        reply = app.chat_history.get("s1")[-1]["content"]
-        assert "Error" in reply and "Slider" in reply      # surfaced to the user
-        self._ops(app, "build good")                       # session not poisoned
-        assert app._session("s1").canvas_specs[0]["type"] == "Markdown"
-
-
-class TestCanvasLLMOnramp:
-    """canvas_tool_specs / apply_tool_call: wire an LLM to the canvas (E2)."""
-
-    def test_tool_specs_shape_and_types(self):
-        from fast_dash import canvas_tool_specs
-        specs = canvas_tool_specs()
-        names = {t["name"] for t in specs}
-        assert names == {"build_canvas", "set_canvas_props"}
-        build = next(t for t in specs if t["name"] == "build_canvas")
-        item = build["input_schema"]["properties"]["specs"]["items"]
-        # The canvas is display-only, so only display components are offered.
-        assert set(item["properties"]["type"]["enum"]) == {
-            "Graph", "Image", "Markdown", "Table"}
-        assert item["required"] == ["name", "type"]
-
-    def test_apply_build_canvas_tool_call(self):
-        from fast_dash import apply_tool_call
-        frame = apply_tool_call({"name": "build_canvas",
-                                 "input": {"specs": [{"name": "a", "type": "Graph"}]}})
-        assert frame == {"type": "canvas", "specs": [{"name": "a", "type": "Graph"}]}
-
-    def test_apply_set_props_tool_call(self):
-        from fast_dash import apply_tool_call
-        frame = apply_tool_call({"name": "set_canvas_props",
-                                 "input": {"target": "a", "props": {"max": 20}}})
-        assert frame == {"type": "set_props", "target": "a", "props": {"max": 20}}
-
-    def test_apply_handles_json_string_and_openai_shapes(self):
-        from fast_dash import apply_tool_call
-        # OpenAI-style: function.arguments as a JSON string.
-        frame = apply_tool_call({"function": {"name": "build_canvas",
-                                              "arguments": '{"specs": []}'}})
-        assert frame == {"type": "canvas", "specs": []}
-
-    def test_apply_object_form_and_unknown(self):
-        from fast_dash import apply_tool_call
-
-        class ToolUse:                                    # Anthropic-like block
-            name = "set_canvas_props"
-            input = {"target": "x", "props": {"value": 1}}
-        assert apply_tool_call(ToolUse())["type"] == "set_props"
-        assert apply_tool_call({"name": "some_other_tool", "input": {}}) is None
-
-    def test_frames_from_tool_calls_drive_the_canvas(self):
-        # End-to-end: an LLM's tool calls -> frames -> canvas render.
-        from fast_dash import apply_tool_call
-        calls = [
-            {"name": "build_canvas", "input": {"specs": [
-                {"name": "chart", "type": "Graph", "value": {"data": []}, "props": {}}]}},
-            {"name": "set_canvas_props",
-             "input": {"target": "chart", "props": {"config": {"staticPlot": True}}}},
-        ]
-        def bot(query):
-            for tc in calls:
-                yield apply_tool_call(tc)
-        app = FastDash(callback_fn=bot, chat=True, canvas=True)
-        with mock.patch("flask_socketio.emit"):
-            app._run_chat_turn("go", "s1", "sock", ())
-        assert app._session("s1").canvas_specs[0]["props"]["config"] == {"staticPlot": True}
-
-
-class TestChatDrawer:
-    """App-first layout: settings + Run drive the canvas; chat is a drawer add-on."""
-
-    def _ids(self, comp, out=None):
-        return _layout_ids(comp, out)
-
-    def test_drawer_implies_canvas_and_builds_layout(self):
-        from typing import Literal
-        def app(query, ctx, model: Literal["a", "b"] = "a", temperature: float = 0.5):
-            yield "ok"
-        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
-        assert fd.is_chat_drawer is True
-        assert fd.is_canvas is True                     # implied by chat_drawer
-        ids = self._ids(fd.app.layout)
-        # Left panel toggles between the inputs view (settings + Run + an expand
-        # button) and the chat view (with a Back button); output canvas in main.
-        assert {"chat-run", "chat-open", "chat-back", "chat-inputs-view",
-                "chat-panel-view", "chat-canvas", "model", "temperature"} <= ids
-
-    def test_drawer_without_chat_warns(self):
-        with pytest.warns(UserWarning, match="have no effect without chat"):
-            fd = FastDash(callback_fn=lambda x: "hi", chat_drawer=True)
-        assert fd.is_chat_drawer is False
-
-    def test_run_updates_canvas_without_transcript(self):
-        import plotly.graph_objects as go
-        def app(query, ctx, temperature: float = 0.5):
-            if query:
-                yield f"said {query}"                    # chat narration
-            yield {"type": "canvas", "specs": [
-                {"name": "c", "type": "Graph",
-                 "value": go.Figure(go.Bar(x=[1], y=[temperature])), "label": "Out"}]}
-        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
-        ops = []
-        with mock.patch("flask_socketio.emit",
-                        side_effect=lambda ev, p=None, **k: ops.append(p)):
-            fd._run_chat_turn("", "s1", "sock", (0.9,), to_transcript=False)
-        payloads = [p for p in ops if isinstance(p, dict)]
-        assert any(p.get("op") == "canvas" for p in payloads)          # canvas updated
-        assert not any(p.get("op") in ("start", "replace0") for p in payloads)  # no transcript
-        assert fd.chat_history.get("s1") == []                          # no history
-
-    def test_chat_turn_still_records_transcript(self):
-        def app(query, ctx):
-            yield "reply"
-        fd = FastDash(callback_fn=app, chat=True, chat_drawer=True)
-        with mock.patch("flask_socketio.emit"):
-            fd._run_chat_turn("hi", "s1", "sock", (), to_transcript=True)
-        assert fd.chat_history.get("s1")[-1]["content"] == "reply"
-
-
 class TestSidecarFrames:
     """set_input / run_app frame grammar (chat sidecar drive)."""
 
@@ -1116,7 +793,7 @@ class TestSidecarFrames:
 
 
 class TestChatSidecar:
-    """chat_agent=: an independent chat agent mounted on a normal app."""
+    """chat=<agent> on an app callback: an independent chat agent sidecar."""
 
     def _ops(self, app, query, sid="s1", app_inputs=None):
         ops = []
@@ -1130,13 +807,16 @@ class TestChatSidecar:
             return f"rev {revenue}"
         def agent(query, ctx):
             yield "hi"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent, chat_agent_title="Helper")
+        app = FastDash(callback_fn=dashboard, chat=agent, chat_title="Helper")
         assert app.has_chat_sidecar is True
+        assert app.chat_title == "Helper"
         ids = _layout_ids(app.app.layout)
-        # The normal output surface AND the chat panel both exist.
+        # The normal output surface AND the collapsible chat panel both exist.
         assert "output-group-col" in ids
-        assert {"chat-messages", "chat-input", "chat-send", "chat-aside",
-                "chat-sidecar-toggle", "chat-sidecar-close"} <= ids
+        assert {"chat-messages", "chat-input", "chat-send",
+                "chat-sidebar-panel", "chat-panel-collapse"} <= ids
+        # No floating aside / toggle in 0.6.0 (sidebar is the only placement).
+        assert "chat-aside" not in ids and "chat-sidecar-toggle" not in ids
 
     def test_chat_placeholder_default_and_override(self):
         # The empty-transcript hint (CSS reads data-placeholder) fits the mode:
@@ -1158,52 +838,67 @@ class TestChatSidecar:
 
         def dfn(a: int = 1) -> str:
             return str(a)
-        side = FastDash(callback_fn=dfn, chat_agent=lambda query, ctx: (yield "hi"))
+        side = FastDash(callback_fn=dfn, chat=lambda query, ctx: (yield "hi"))
         assert _placeholder(side) == "Ask the assistant to change the output."
 
         custom = FastDash(callback_fn=lambda query: query, chat=True,
                           chat_placeholder="Add a source, then ask.")
         assert _placeholder(custom) == "Add a source, then ask."
 
-    def test_chat_agent_position_sidebar_stacks_chat_in_navbar(self):
-        # chat_agent_position="sidebar" moves the chat under the inputs in the
-        # left navbar: no right aside, no floating toggle.
+    def test_sidecar_chat_is_stacked_in_navbar_with_collapse_affordance(self):
+        # The sidecar chat is stacked under the inputs in the left navbar and is
+        # collapsible (the panel + a collapse chevron live inside the navbar).
         def dashboard(a: int = 1) -> str:
             return str(a)
         app = FastDash(callback_fn=dashboard,
-                       chat_agent=lambda query, ctx: (yield "hi"),
-                       chat_agent_position="sidebar")
-        assert app.chat_agent_position == "sidebar"
+                       chat=lambda query, ctx: (yield "hi"))
         ids = _layout_ids(app.app.layout)
-        assert {"chat-messages", "chat-input", "chat-send"} <= ids   # chat exists
-        assert "chat-aside" not in ids                               # ...not as an aside
-        assert "chat-sidecar-toggle" not in ids                      # ...and no float toggle
-        # the transcript is actually inside the navbar container
+        assert {"chat-messages", "chat-input", "chat-send",
+                "chat-panel-collapse", "chat-panel-collapse-icon"} <= ids
+        assert "chat-aside" not in ids                               # no right aside
+        assert "chat-sidecar-toggle" not in ids                      # no float toggle
+        # the transcript + collapse affordance are inside the navbar container
         navbar = _find_by_id(app.app.layout, "navbar3260780")
-        assert "chat-messages" in _layout_ids(navbar)
+        navbar_ids = _layout_ids(navbar)
+        assert "chat-messages" in navbar_ids
+        assert "chat-panel-collapse" in navbar_ids
 
-    def test_chat_agent_position_defaults_to_aside(self):
-        app = FastDash(callback_fn=lambda a=1: str(a),
-                       chat_agent=lambda query, ctx: (yield "x"))
-        assert app.chat_agent_position == "aside"
-        assert {"chat-aside", "chat-sidecar-toggle"} <= _layout_ids(app.app.layout)
+    def test_collapse_callback_toggles_panel_and_navbar_classnames(self):
+        # The collapse affordance is wired to a clientside callback that flips a
+        # className on the panel section and the navbar root.
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat=lambda query, ctx: (yield "hi"))
+        wired = {"panel": False, "navbar": False}
+        for out_key, spec in app.app.callback_map.items():
+            inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
+            if not any("chat-panel-collapse.n_clicks" in x for x in inputs):
+                continue
+            if "chat-sidebar-panel.className" in out_key:
+                wired["panel"] = True
+            if "appshell.className" in out_key:
+                wired["navbar"] = True
+        assert wired["panel"], "collapse must toggle the panel section className"
+        assert wired["navbar"], "collapse must toggle the navbar root className"
 
     def test_plain_app_has_no_chat_dom(self):
         app = FastDash(callback_fn=lambda x: "hi")
         ids = _layout_ids(app.app.layout)
-        assert "chat-messages" not in ids and "chat-aside" not in ids
+        assert "chat-messages" not in ids and "chat-sidebar-panel" not in ids
 
-    def test_chat_and_chat_agent_are_rejected(self):
-        def agent(query):
+    def test_two_chat_handlers_are_rejected(self):
+        # A chat-shaped callback AND an agent in chat= is ambiguous.
+        def agent(query, ctx):
             yield "x"
-        with pytest.raises(TypeError, match="cannot be combined with chat=True"):
-            FastDash(callback_fn=lambda query: "hi", chat=True, chat_agent=agent)
+        with pytest.raises(TypeError, match="[Tt]wo chat handlers"):
+            FastDash(callback_fn=lambda query: "hi", chat=agent)
 
     def test_agent_must_be_query_first(self):
         def bad_agent(message, ctx):
             yield "x"
         with pytest.raises(TypeError, match="first parameter must be named 'query'"):
-            FastDash(callback_fn=lambda a: a, chat_agent=bad_agent)
+            FastDash(callback_fn=lambda a: a, chat=bad_agent)
 
     def test_turn_streams_and_records_history_independently(self):
         seen = {}
@@ -1212,7 +907,7 @@ class TestChatSidecar:
             return str(a)
         def agent(query, ctx):
             yield f"echo: {query}"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         self._ops(app, "hello")
         assert app.chat_history.get("s1")[-1]["content"] == "echo: hello"
         assert "ran" not in seen               # the host callback was untouched
@@ -1224,7 +919,7 @@ class TestChatSidecar:
         def agent(query, ctx):
             seen["inputs"] = dict(ctx.inputs)
             yield "ok"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         assert app._chat_input_mode == "ctx"
         self._ops(app, "hi", app_inputs={"revenue": 42, "region": "E"})
         assert seen["inputs"] == {"revenue": 42, "region": "E"}
@@ -1236,7 +931,7 @@ class TestChatSidecar:
             yield {"type": "set_input", "name": "a", "value": 10}
             yield {"type": "set_input", "name": "b", "value": 20}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         ops = self._ops(app, "go", app_inputs={"a": 1, "b": 2})
         drive = [p for ev, p in ops if ev == "chat_drive"]
         # set_input a -> [10, 2]; set_input b -> [10, 20]; run_app -> outputs.
@@ -1257,7 +952,7 @@ class TestChatSidecar:
             return str(a)
         def agent(query, ctx):
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         wired = False
         for out_key, spec in app.app.callback_map.items():
             if "output-group-col.className" not in out_key:
@@ -1274,7 +969,7 @@ class TestChatSidecar:
         def agent(query, ctx):
             yield {"type": "set_input", "name": "a", "value": 7}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         app._native_stream = True
         calls = []
         with mock.patch.object(dash, "set_props",
@@ -1295,11 +990,13 @@ class TestChatSidecar:
         def agent(query, ctx):
             yield {"type": "set_input", "name": "x", "value": 9}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=[f1, f2], chat_agent=agent)
+        app = FastDash(callback_fn=[f1, f2], chat=agent)
         assert app.has_chat_sidecar and app._chat_input_mode == "none"
         assert app._sidecar_can_drive is False
+        # A multi-surface app trims chat_tools to read_app only.
+        assert set(app.chat_tools_config) == {"read_app"}
         ids = _layout_ids(app.app.layout)
-        assert {"chat-aside", "multi-function-tabs"} <= ids
+        assert {"chat-messages", "multi-function-tabs"} <= ids
         self._ops(app, "go")
         reply = app.chat_history.get("s1")[-1]["content"]
         assert "multiple surfaces" in reply         # drive deflected, not fatal
@@ -1309,7 +1006,7 @@ class TestChatSidecar:
         def dashboard(a: int = 1) -> str:
             return str(a)
         app = FastDash(callback_fn=dashboard,
-                       chat_agent="langstage_core.demo.stub:graph")
+                       chat="langstage_core.demo.stub:graph")
         assert app.has_chat_sidecar and app.is_langstage
         self._ops(app, "hello there")
         assert "hello there" in app.chat_history.get("s1")[-1]["content"]
@@ -1323,7 +1020,7 @@ class TestChatSidecar:
         def agent(query, ctx):
             seen["specs"] = ctx.input_specs
             yield "ok"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         self._ops(app, "hi", app_inputs={"revenue": 1, "region": "N"})
         by_id = {s["id"]: s for s in seen["specs"]}
         assert by_id["revenue"]["type"] == "integer"
@@ -1336,23 +1033,25 @@ class TestChatSidecar:
         def agent(query, ctx):
             yield {"type": "set_input", "name": "a", "value": 5}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         assert app.app_initialized is False
         self._ops(app, "go", app_inputs={"a": 1, "b": 2})
         assert app.output_state == ["sum=7"]
         assert app.app_initialized is True
 
     def test_update_live_disables_drive_with_warning(self):
-        # A3: driving an update_live app would double-run, so drive is off there.
+        # A3: driving an update_live app would double-run, so chat_tools trims
+        # the drive verbs (with a warning) and the agent is read-only there.
         def dashboard(x: int = 1) -> str:
             return str(x)
         def agent(query, ctx):
             yield {"type": "set_input", "name": "x", "value": 9}
         with pytest.warns(UserWarning, match="double-run"):
-            app = FastDash(callback_fn=dashboard, chat_agent=agent, update_live=True)
+            app = FastDash(callback_fn=dashboard, chat=agent, update_live=True)
         assert app._sidecar_can_drive is False
+        assert "set_input" not in app.chat_tools_config
         self._ops(app, "go", app_inputs={"x": 1})
-        assert "recomputes live" in app.chat_history.get("s1")[-1]["content"]
+        assert "read-only" in app.chat_history.get("s1")[-1]["content"]
 
     def test_host_callback_lock_is_present(self):
         # A4: one lock serializes the user's Run and the agent's run_app.
@@ -1361,24 +1060,36 @@ class TestChatSidecar:
             return str(a)
         def agent(query, ctx):
             yield "ok"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         assert isinstance(app._host_callback_lock, type(_thread.allocate_lock()))
 
-    def test_chat_agent_drive_false_is_read_only(self):
-        # #5: read-only opt-out — the agent still reads ctx.inputs but its
-        # set_input / run_app are refused.
+    def test_read_only_tools_refuse_drive(self):
+        # #5: read-only opt-out via chat_tools — the agent still reads ctx.inputs
+        # but its set_input / run_app are refused (no drive verbs in allowlist).
         seen = {}
         def dashboard(a: int = 1) -> str:
             return str(a)
         def agent(query, ctx):
             seen["inputs"] = dict(ctx.inputs)
             yield {"type": "set_input", "name": "a", "value": 9}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent,
-                       chat_agent_drive=False)
+        app = FastDash(callback_fn=dashboard, chat=agent,
+                       chat_tools=("read_app",))
         assert app._sidecar_can_drive is False
         self._ops(app, "go", app_inputs={"a": 5})
         assert seen["inputs"] == {"a": 5}                  # read still works
         assert "read-only" in app.chat_history.get("s1")[-1]["content"]
+
+    def test_empty_tools_refuse_drive(self):
+        # chat_tools=() -> a do-nothing agent: no read/drive verbs at all.
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        def agent(query, ctx):
+            yield {"type": "run_app"}
+        app = FastDash(callback_fn=dashboard, chat=agent, chat_tools=())
+        assert app.chat_tools_config == {}
+        assert app._sidecar_can_drive is False
+        self._ops(app, "go", app_inputs={"a": 1})
+        assert app.app_initialized is False               # run_app was refused
 
     def test_input_names_come_from_inputs_with_ids(self):
         # #6: names are derived from inputs_with_ids (the same source as the
@@ -1388,7 +1099,7 @@ class TestChatSidecar:
             return "x"
         def agent(query, ctx):
             yield "x"
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         expected = [_stringify_id(i.id) for i in app.inputs_with_ids]
         assert app._chat_input_names == expected
         assert [s["id"] for s in app._sidecar_contract] == expected
@@ -1404,7 +1115,7 @@ class TestChatSidecar:
             yield {"type": "set_input", "name": "region", "value": "Central"}
             yield {"type": "set_input", "name": "ghost", "value": 1}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         self._ops(app, "go", app_inputs={"region": "All"})
         reply = app.chat_history.get("s1")[-1]["content"]
         assert "isn't a valid value for 'region'" in reply
@@ -1420,7 +1131,7 @@ class TestChatSidecar:
         def agent(query, ctx):
             yield {"type": "set_input", "name": "n", "value": "not-a-number"}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=dashboard, chat_agent=agent)
+        app = FastDash(callback_fn=dashboard, chat=agent)
         self._ops(app, "go", app_inputs={"n": 1})
         assert "isn't a valid integer for 'n'" in app.chat_history.get("s1")[-1]["content"]
         assert app.output_state == ["n=1"]
@@ -1433,7 +1144,7 @@ class TestChatSidecar:
         def bad_agent(query, ctx):
             yield "partial "
             yield {"type": "content"}                     # missing 'content' key
-        app = FastDash(callback_fn=lambda a=1: a, chat_agent=bad_agent)
+        app = FastDash(callback_fn=lambda a=1: a, chat=bad_agent)
         self._ops(app, "go", app_inputs={"a": 1})         # must not raise
         reply = app.chat_history.get("s1")[-1]["content"]
         assert reply.startswith("partial ")               # partial text kept
@@ -1456,7 +1167,7 @@ class TestChatSidecar:
             yield {"type": "set_input", "name": "pwd", "value": "leaked"}
             yield {"type": "set_input", "name": "n", "value": 9}
             yield {"type": "run_app"}
-        app = FastDash(callback_fn=app_fn, chat_agent=agent)
+        app = FastDash(callback_fn=app_fn, chat=agent)
         self._ops(app, "go", app_inputs={"pwd": "hunter2", "n": 5})
         assert seen["inputs"] == {"pwd": "***", "n": 5}   # value never reaches the agent
         assert "pwd" not in seen["spec_ids"]              # not advertised as a target
