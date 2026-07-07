@@ -86,7 +86,165 @@ def notify(data, action="show"):
             "message": data
         }]
         return handler(component, data, notification=True)
-    
+
+
+# --- chat= resolution helpers (0.6.0 unified chat API, RFC #145) ----------- #
+
+# The default chat toolkit (chat_tools=None). run_python carries approval=True.
+# set_output / set_layout are wired in later rounds; they are accepted here so
+# the allowlist is stable, and the frame dispatch skips any verb not yet
+# implemented.
+_DEFAULT_CHAT_TOOLS = (
+    "read_app", "set_input", "run_app", "set_output", "set_layout", "run_python",
+)
+
+
+def _is_chat_shaped(callback_fn):
+    """True if ``callback_fn``'s first parameter is named ``query``.
+
+    The signature tiebreak between a chat handler and an app callback: a
+    chat-shaped callback receives the composer text as its first argument. A
+    ``None`` callback is not chat-shaped (there is no callback at all).
+    """
+    if callback_fn is None or isinstance(callback_fn, list):
+        return False
+    try:
+        params = list(inspect.signature(callback_fn).parameters)
+    except (TypeError, ValueError):
+        return False
+    return bool(params) and params[0] == "query"
+
+
+def _is_model_instance(obj):
+    """Duck-type a chat model instance (LangChain BaseChatModel and friends).
+
+    A model has ``invoke`` + ``bind_tools`` and is NOT a compiled graph
+    (``is_langstage_target``) and NOT a plain ``(query, ctx)`` chat callable.
+    Kept deliberately conservative: both attrs must be present and callable.
+    """
+    if obj is None or isinstance(obj, (str, list)):
+        return False
+    from .adapters.langstage import is_langstage_target
+    if is_langstage_target(obj):
+        return False
+    return callable(getattr(obj, "invoke", None)) and callable(
+        getattr(obj, "bind_tools", None)
+    )
+
+
+def _resolve_chat_tools(chat_tools, *, update_live, multi_or_steps):
+    """Resolve ``chat_tools=`` into an allowlist ``{tool_name: config}``.
+
+    ``None`` -> the default toolkit. Entries are either str tool names or
+    ``RunPython(...)`` config objects. The value stored per tool is ``True``
+    for a plain-name entry, or the ``RunPython`` instance for run_python.
+
+    Applies the auto-trim rules from the SPEC (with ASCII warnings):
+
+    * ``update_live=True`` -> drop every drive verb (set_input / run_app /
+      set_output / set_layout). The app recomputes its outputs on any input
+      change, so an agent that drove inputs would double-run the callback, and
+      one that set outputs / relaid them out would be immediately overwritten by
+      that recompute -- so the assistant is read-only there. (Trimming here, not
+      only at frame dispatch, keeps agent_toolkit from advertising tools that
+      would always refuse.)
+    * a multi-function / steps app -> trim to ``read_app`` only (several
+      surfaces; driving one is ambiguous in v1).
+    """
+    from .agent_tools_config import RunPython
+
+    entries = _DEFAULT_CHAT_TOOLS if chat_tools is None else chat_tools
+    if isinstance(entries, (str, RunPython)):
+        entries = (entries,)
+
+    allowlist = {}
+    for entry in entries:
+        if isinstance(entry, RunPython):
+            allowlist[entry.name] = entry
+        elif isinstance(entry, str):
+            allowlist[entry] = True
+        else:
+            warnings.warn(
+                "chat_tools entries must be tool-name strings or RunPython(...) "
+                "configs; ignoring %r." % (type(entry).__name__,),
+                stacklevel=3,
+            )
+
+    if multi_or_steps:
+        trimmed = {k: v for k, v in allowlist.items() if k == "read_app"}
+        if set(trimmed) != set(allowlist):
+            warnings.warn(
+                "This app has multiple surfaces (multi-function / steps), so "
+                "the assistant is limited to read_app; other chat_tools are "
+                "disabled.", stacklevel=3,
+            )
+        allowlist = trimmed
+    elif update_live:
+        _drive_verbs = ("set_input", "run_app", "set_output", "set_layout")
+        dropped = [k for k in _drive_verbs if k in allowlist]
+        if dropped:
+            warnings.warn(
+                "chat_tools set_input / run_app / set_output / set_layout are "
+                "disabled on an update_live app: its inputs recompute on change, "
+                "so an agent that drove inputs would double-run the callback and "
+                "one that set outputs would be immediately overwritten. The "
+                "assistant is read-only there.",
+                stacklevel=3,
+            )
+        allowlist = {k: v for k, v in allowlist.items() if k not in _drive_verbs}
+
+    return allowlist
+
+
+class _AutoAgentPlaceholder:
+    """Deferred auto-agent (chat=True + app callback), built on first use.
+
+    Construction validates only that the [agent] extra could plausibly be
+    available and a model is configured; the real agent is built lazily by
+    ``fast_dash.agent_tools.build_auto_agent(app, model)`` the first time a
+    turn runs. Failing that import raises a friendly ASCII error then.
+
+    ``build_auto_agent`` returns a compiled LangGraph graph, which is a
+    langstage target -- not itself callable as ``(query, ctx)``. So the built
+    graph is bridged through the langstage adapter (``build_chat_callback``),
+    exactly the way an explicitly-supplied graph would be, before it can drive
+    a chat turn. Building lazily (not at construction) keeps app __init__ free
+    of a model round-trip and lets ``_check_auto_agent_prereqs`` own the early,
+    friendly failure for a missing extra / model.
+    """
+
+    # A name so title inference / introspection that reads ``__name__`` works.
+    __name__ = "assistant"
+
+    def __init__(self, app, model):
+        self._app = app
+        self._model = model
+        self._callback = None            # the bridged (query, ctx) chat callable
+
+    def _build(self):
+        try:
+            from .agent_tools import build_auto_agent
+        except ImportError as e:
+            raise ImportError(
+                "chat=True needs the optional agent extra (langchain + "
+                "langgraph). Install it with:\n"
+                '    pip install "fast-dash[agent]"'
+            ) from e
+        from .adapters.langstage import build_chat_callback, is_langstage_target
+
+        graph = build_auto_agent(self._app, self._model)
+        # The compiled graph is a langstage target; bridge it to the frame
+        # grammar so it streams as chat frames. (Guarded: if for some reason it
+        # is already a plain (query, ctx) callable, use it as-is.)
+        if is_langstage_target(graph):
+            return build_chat_callback(graph)
+        return graph
+
+    def __call__(self, query, ctx):
+        if self._callback is None:
+            self._callback = self._build()
+        return self._callback(query, ctx)
+
 
 class FastDash(ChatAppMixin):
     """
@@ -135,12 +293,9 @@ class FastDash(ChatAppMixin):
         steps=None,
         chat=False,
         chat_history_size=50,
-        canvas=False,
-        chat_drawer=False,
-        chat_agent=None,
-        chat_agent_title=None,
-        chat_agent_drive=True,
-        chat_agent_position="aside",
+        chat_tools=None,
+        chat_model=None,
+        chat_title="Assistant",
         chat_placeholder=None,
         mcp_server=False,
         mcp_port=8001,
@@ -245,11 +400,14 @@ class FastDash(ChatAppMixin):
                     stacklevel=2,
                 )
 
-        # callback_fn is required unless steps= is provided
-        if callback_fn is None and not self.is_steps:
+        # callback_fn is required unless steps= is provided, or chat= itself
+        # supplies the chat handler (an agent / graph / model / chat callable).
+        _chat_supplies_handler = chat not in (None, False, True)
+        if callback_fn is None and not self.is_steps and not _chat_supplies_handler:
             raise TypeError(
                 "FastDash requires either `callback_fn` (a function or list of "
-                "functions) or `steps` (a list of step functions). Got neither."
+                "functions), `steps` (a list of step functions), or an agent in "
+                "`chat=`. Got neither."
             )
 
         # Detect multi-function mode (suppressed if steps mode is active)
@@ -267,46 +425,128 @@ class FastDash(ChatAppMixin):
             self.callback_fns = [callback_fn]
             self.tab_titles = None
 
-        # --- Chat mode (RFC #133) --------------------------------------------
-        # Validate the D1 interaction matrix and normalize flags. Chat mode is
-        # a distinct interaction (a composer + a streaming transcript), so it
-        # forbids combinations that would only half-work and forces streaming
-        # on. All messages here are friendly and ASCII (Windows consoles).
-        self.is_chat = bool(chat)
+        # --- Unified chat= resolution (0.6.0, RFC #145) ----------------------
+        # `chat=` is polymorphic: False/None (no chat), True (chat-shaped
+        # callback IS the chat, or app-shaped callback -> auto-built agent
+        # sidecar), a compiled LangGraph graph / spec string, a plain
+        # (query, ctx) chat callable, or a model instance (auto-built agent).
+        # The signature tiebreak: a callback whose first param is `query` is a
+        # chat handler; otherwise it is an app callback. All errors are ASCII.
+        from .adapters.langstage import build_chat_callback, is_langstage_target
+
         self.chat_history_size = chat_history_size
-        # chat_drawer: app-first layout — developer settings + a Run button drive
-        # the output canvas standalone, and chat is a collapsible add-on drawer.
-        # It implies a canvas (the output surface).
-        self.is_chat_drawer = bool(chat_drawer) and self.is_chat
-        # canvas: an assistant-driven region for output (and dynamic controls).
-        # Only meaningful in chat mode; implied by chat_drawer.
-        self.is_canvas = (bool(canvas) or self.is_chat_drawer) and self.is_chat
-        if (canvas or chat_drawer) and not self.is_chat:
-            warnings.warn(
-                "canvas=True / chat_drawer=True have no effect without chat=True; "
-                "ignoring.", stacklevel=2,
-            )
+        self.chat_title = chat_title or "Assistant"
+        self.chat_model = chat_model
+        self.is_chat = False            # full-page chat mode
+        self.has_chat_sidecar = False   # app + agent sidecar
         self.is_langstage = False
-        if self.is_chat:
-            # A LangGraph graph or "module:attr" spec is bridged to the frame
-            # grammar by the langstage adapter; replace it with the generated
-            # (query, thread_id) callback before the signature checks below.
-            from .adapters.langstage import build_chat_callback, is_langstage_target
-            if is_langstage_target(callback_fn):
-                callback_fn = build_chat_callback(callback_fn)
-                self.callback_fns = [callback_fn]
-                self.is_langstage = True
+        self._needs_auto_agent = False
+        self._chat_agent = None
+        self.chat_tools_config = {}
+
+        # An app callback exists when there's a single non-chat-shaped callback,
+        # a multi-function list, or a steps pipeline. That is the surface a chat
+        # sidecar mounts onto. A chat-shaped single callback is not app-shaped.
+        chat_shaped_callback = _is_chat_shaped(callback_fn)
+        app_shaped_callback = (
+            self.is_multi or self.is_steps
+            or (callback_fn is not None and not chat_shaped_callback)
+        )
+
+        # Classify the chat= value.
+        _agent = None                   # the agent object routed into chat plumbing
+        _auto = False                   # chat=True + app callback (deferred agent)
+        if chat is False or chat is None:
+            pass
+        elif chat is True:
             if self.is_multi or self.is_steps:
                 raise TypeError(
                     "chat=True is not supported with multi-function or steps "
                     "apps. Use a single callback function."
                 )
+            if is_langstage_target(callback_fn) or chat_shaped_callback:
+                # A langstage graph / spec callback, or a chat-shaped callback:
+                # the callback itself is the chat handler (RFC #133 behavior).
+                self.is_chat = True
+            elif callback_fn is None:
+                raise TypeError(
+                    "chat=True needs something to chat with: pass an app "
+                    "callback (an assistant is auto-built around it), a chat "
+                    "callback (first parameter named 'query'), or an agent / "
+                    "model in chat=."
+                )
+            else:
+                # App-shaped callback: auto-build an assistant sidecar in Round 3.
+                _auto = True
+        elif is_langstage_target(chat) or _is_model_instance(chat) or callable(chat):
+            # A concrete agent supplied in chat=: a compiled graph / spec string,
+            # a model instance (auto-built agent), or a (query, ctx) callable.
+            if chat_shaped_callback:
+                raise TypeError(
+                    "Two chat handlers were given: callback_fn is chat-shaped "
+                    "(first parameter 'query') and chat= is also an agent. "
+                    "Provide only one."
+                )
+            _agent = chat
+        else:
+            raise TypeError(
+                "chat= must be False, True, a chat callable, a compiled "
+                "LangGraph agent, or a model instance. Got %r."
+                % (type(chat).__name__,)
+            )
+
+        # A model instance is turned into an auto-built agent (Round 3), around
+        # the model itself; a graph/callable is used as supplied.
+        if _agent is not None and _is_model_instance(_agent):
+            self.chat_model = _agent
+            _auto = True
+            _agent = None
+
+        # Resolve the mode from the callback shape.
+        #   * app-shaped callback + agent-ish chat=  -> sidecar
+        #   * agent-ish chat= without callback_fn    -> full-page chat
+        if _agent is not None or _auto:
+            if app_shaped_callback and callback_fn is not None:
+                self.has_chat_sidecar = True
+            else:
+                self.is_chat = True
+
+        # An auto-built agent is always a compiled LangGraph graph bridged through
+        # the langstage adapter (see _AutoAgentPlaceholder._build), so it speaks
+        # the langstage frame contract: mark it langstage now, before layout /
+        # callback registration, so the HITL decision buttons (run_python
+        # approval) are wired even though the graph itself is built lazily on the
+        # first turn.
+        if _auto:
+            self.is_langstage = True
+
+        # Full-page chat where the *callback itself* is the chat handler routes
+        # the callback through the chat-mode path (existing #133 behavior).
+        if self.is_chat and _agent is None and not _auto:
+            self._chat_target = callback_fn
+        elif self.is_chat:
+            # Agent supplied in chat= with no app callback: the agent IS the
+            # chat handler (callback_fn is optional here).
+            self._chat_target = _agent if _agent is not None else _AutoAgentPlaceholder(self, self.chat_model)
+        else:
+            self._chat_target = None
+
+        # Chat-mode normalization (streaming, outputs, langstage bridge, matrix).
+        if self.is_chat:
+            target = self._chat_target
+            if is_langstage_target(target):
+                target = build_chat_callback(target)
+                self.is_langstage = True
+            self._chat_target = target
+            self.callback_fn = callback_fn = target
+            self.callback_fns = [target]
+            self.is_multi = False
             if update_live:
                 raise TypeError(
-                    "chat=True and update_live=True are incompatible interaction "
+                    "chat and update_live=True are incompatible interaction "
                     "models. Chat streams on submit; drop update_live."
                 )
-            _params = list(inspect.signature(callback_fn).parameters)
+            _params = list(inspect.signature(target).parameters)
             if not _params or _params[0] != "query":
                 raise TypeError(
                     "A chat callback's first parameter must be named 'query' "
@@ -322,39 +562,31 @@ class FastDash(ChatAppMixin):
             if not stream:
                 # Chat is inherently streaming; stream is implied.
                 stream = True
-            # mcp_server=True is supported in chat mode: the MCP surface exposes
-            # the composer contract (describe_app) and a headless invoke(query=)
-            # that drives one turn and returns its frames (see fast_dash.mcp).
 
-        # --- Chat sidecar (chat_agent= on a normal app) ----------------------
-        # A *normal* Fast Dash app (typed inputs -> outputs, Run button) can
-        # mount an independent chat agent in a side drawer. The agent shares
-        # nothing with the app's own callback except the ability to read the
-        # app's live inputs (ctx.inputs) and drive it (set_input / run_app
-        # frames). This is the mirror of chat=True, which *is* the chat.
-        if chat_agent is not None and self.is_chat:
-            raise TypeError(
-                "chat_agent= cannot be combined with chat=True (that app is "
-                "already a chat). Use chat_agent= to add an assistant to a "
-                "normal app."
+        # Sidecar normalization (app + agent). The agent is stored where the
+        # sidecar plumbing expects it (self._chat_agent); resolve the allowlist
+        # and defer auto-agent construction to Round 3 via a placeholder.
+        if self.has_chat_sidecar:
+            if _auto:
+                self._needs_auto_agent = True
+                self._chat_agent = _AutoAgentPlaceholder(self, self.chat_model)
+                # Fail early with a friendly ASCII error if the [agent] extra is
+                # unavailable OR no model is configured (chat_model / env). The
+                # real agent is built lazily by Round 3's build_auto_agent.
+                self._check_auto_agent_prereqs()
+            else:
+                self._chat_agent = _agent
+            self.chat_tools_config = _resolve_chat_tools(
+                chat_tools,
+                update_live=bool(update_live),
+                multi_or_steps=(self.is_multi or self.is_steps),
             )
-        self.has_chat_sidecar = bool(chat_agent) and not self.is_chat
-        self._chat_agent = chat_agent
-        self.chat_agent_title = chat_agent_title or "Assistant"
-        # chat_agent_drive=False makes the sidecar read-only: the agent can read
-        # ctx.inputs and converse, but set_input / run_app are refused.
-        self.chat_agent_drive = bool(chat_agent_drive)
-        # Where the sidecar chat lives: "aside" (a toggled right panel, default)
-        # or "sidebar" (stacked under the inputs in the left navbar, always shown).
-        _pos = str(chat_agent_position or "aside").lower()
-        self.chat_agent_position = _pos if _pos in ("aside", "sidebar") else "aside"
 
-        # Empty-transcript hint. Defaults to the surface the assistant acts on:
-        # canvas/sidecar drive an *output*, so "change the output" fits; a pure
-        # chat is a conversation, so it shouldn't say that. Overridable.
+        # Empty-transcript hint. A sidecar drives an *output*, so "change the
+        # output" fits; a pure chat is a conversation. Overridable.
         if chat_placeholder is not None:
             self.chat_placeholder = chat_placeholder
-        elif self.is_canvas or self.is_chat_drawer or self.has_chat_sidecar:
+        elif self.has_chat_sidecar:
             self.chat_placeholder = "Ask the assistant to change the output."
         else:
             self.chat_placeholder = "Send a message to start the conversation."
@@ -461,6 +693,44 @@ class FastDash(ChatAppMixin):
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
 
+    def _check_auto_agent_prereqs(self):
+        """Fail fast (friendly, ASCII) when an auto-agent can't be built later.
+
+        chat=True on an app callback auto-builds an assistant via
+        ``fast_dash.agent_tools.build_auto_agent``. That needs the [agent] extra
+        (langchain + langgraph) to build the agent, the [langstage] extra to
+        bridge the compiled graph to chat frames, AND a configured model
+        (``chat_model=`` or the ``FASTDASH_MODEL`` env var). We validate all
+        three here so a misconfiguration surfaces at construction, not on the
+        first chat turn.
+        """
+        import importlib.util
+        import os
+
+        has_agent_extra = (
+            importlib.util.find_spec("langchain") is not None
+            and importlib.util.find_spec("langgraph") is not None
+        )
+        if not has_agent_extra:
+            raise ImportError(
+                "chat=True auto-builds an assistant, which needs the optional "
+                "agent extra (langchain + langgraph). Install it with:\n"
+                '    pip install "fast-dash[agent]"'
+            )
+        if importlib.util.find_spec("langstage_core") is None:
+            raise ImportError(
+                "chat=True auto-builds an assistant, whose LangGraph agent is "
+                "streamed through the langstage bridge. Install it with:\n"
+                '    pip install "fast-dash[langstage]"'
+            )
+        has_model = self.chat_model is not None or os.environ.get("FASTDASH_MODEL")
+        if not has_model:
+            raise ValueError(
+                "chat=True auto-builds an assistant but no model is configured. "
+                "Pass chat_model= (a model instance or a 'provider:model' "
+                "string) or set the FASTDASH_MODEL environment variable."
+            )
+
     def _init_single_function(self, callback_fn, inputs, outputs, output_labels, update_live):
         """Initialize a single-function Fast Dash app (original behavior)."""
 
@@ -528,7 +798,7 @@ class FastDash(ChatAppMixin):
         if self.mcp_server_enabled:
             self._register_mcp_mirror()
 
-        # Mount an independent chat agent in a side drawer (chat_agent=), after
+        # Mount an independent chat agent sidecar (chat= agent), after
         # the normal app's layout + callbacks are in place.
         if self.has_chat_sidecar:
             self._init_chat_sidecar()
@@ -537,6 +807,9 @@ class FastDash(ChatAppMixin):
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+        # True once the page-load render of the main callback has run; a later
+        # no-trigger fire is a re-mount re-fire and must not clobber (Bug 1b).
+        self._initial_render_done = False
 
 
     def _init_multi_function(self):
@@ -824,14 +1097,27 @@ class FastDash(ChatAppMixin):
         )
 
         # Subclass AppLayout to inject our pre-built sidebar / main content
-        # while keeping all the standard chrome.
+        # while keeping all the standard chrome. A chat sidecar's panel stacks
+        # under the inputs (the only 0.6.0 placement; conversational on steps).
         class _StepsLayout(AppLayout):
             def generate_input_component(self_inner):
-                return dmc.ScrollArea(
+                scroll = dmc.ScrollArea(
                     sidebar_payload,
                     style={"height": "100%"},
                     id="input-group-wrapper",
                 )
+                if getattr(self_inner.app, "has_chat_sidecar", False):
+                    return [
+                        dmc.AppShellSection(scroll,
+                                            style={"flex": "0 0 auto",
+                                                   "maxHeight": "38vh",
+                                                   "overflow": "hidden"}),
+                        dmc.AppShellSection(self_inner._chat_sidebar_panel(),
+                                            grow=True,
+                                            style={"minHeight": 0,
+                                                   "overflow": "hidden"}),
+                    ]
+                return scroll
 
             def generate_output_component(self_inner):
                 return main_payload
@@ -1430,8 +1716,21 @@ class FastDash(ChatAppMixin):
         )
 
         # Subclass AppLayout to inject our pre-built sidebar / main content.
+        # A chat sidecar's panel is stacked under the inputs (the only 0.6.0
+        # placement); on multi mode it's conversational (no host-input drive).
         class _MultiLayout(AppLayout):
             def generate_input_component(self_inner):
+                if getattr(self_inner.app, "has_chat_sidecar", False):
+                    return [
+                        dmc.AppShellSection(sidebar_payload,
+                                            style={"flex": "0 0 auto",
+                                                   "maxHeight": "38vh",
+                                                   "overflow": "hidden"}),
+                        dmc.AppShellSection(self_inner._chat_sidebar_panel(),
+                                            grow=True,
+                                            style={"minHeight": 0,
+                                                   "overflow": "hidden"}),
+                    ]
                 return sidebar_payload
 
             def generate_output_component(self_inner):
@@ -1494,6 +1793,24 @@ class FastDash(ChatAppMixin):
         # Native streaming makes the main callback a WebSocket callback so
         # set_props can stream partial updates mid-execution. The legacy Flask
         # path is unchanged (no websocket kwarg, socketId State present).
+        # A layout-enabled sidecar restores the default output layout ON THE RUN
+        # RESPONSE ITSELF (server-atomic), not via a separate clientside children
+        # swap. Doing the re-mosaic in the same response as the leaf fill removes
+        # the race where a standalone clientside swap to the (empty) default tree
+        # lands after the server fill and blanks the just-rendered output. The
+        # extra children Output carries the restored default tree with the Run's
+        # real outputs injected; the dirty flag is cleared in the same response.
+        # Use the layout-object's build-time-safe check (drivability derived
+        # from the chat_tools allowlist), which agrees with the store presence:
+        # process_input is built BEFORE _init_chat_sidecar sets _sidecar_can_drive,
+        # so _sidecar_layout_enabled() would be False here.
+        _run_reset_server = bool(
+            getattr(self, "has_chat_sidecar", False)
+            and hasattr(self, "layout_object")
+            and self.layout_object._sidecar_set_layout_allowed()
+        )
+        self._run_reset_server = _run_reset_server
+
         _proc_cb_kwargs = dict(
             running=[
                 (Output("submit_inputs", "disabled"), True, False),
@@ -1506,7 +1823,13 @@ class FastDash(ChatAppMixin):
                 # never collides with the pre-run placeholder class.
                 (Output("output-loading-wrap", "className"), "fd-loading", ""),
             ],
-            prevent_initial_call=False,
+            # The server-atomic Run-reset adds allow_duplicate Outputs
+            # (output-group-col.children / fd-layout-dirty), which Dash requires
+            # be paired with a prevent_initial_call that permits duplicates.
+            # 'initial_duplicate' still runs the initial page-load render (needed
+            # for the update_live default view) while allowing the duplicates.
+            prevent_initial_call=("initial_duplicate" if _run_reset_server
+                                  else False),
         )
         if self._native_stream:
             _proc_cb_kwargs["websocket"] = True
@@ -1519,7 +1842,12 @@ class FastDash(ChatAppMixin):
                 )
                 for output_ in self.outputs_with_ids
             ]
-            + [Output("notification-container", "sendNotifications"), Output("loading-overlay", "visible")],
+            + [Output("notification-container", "sendNotifications"), Output("loading-overlay", "visible")]
+            + (
+                [Output("output-group-col", "children", allow_duplicate=True),
+                 Output("fd-layout-dirty", "data", allow_duplicate=True)]
+                if _run_reset_server else []
+            ),
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
@@ -1530,28 +1858,109 @@ class FastDash(ChatAppMixin):
                 Input(component_id="reset_inputs", component_property="n_clicks"),
                 Input(component_id="submit_inputs", component_property="n_clicks")
             ]
-            + [
-                State("socketio", "socketId")
+            + (
+                [State("socketio", "socketId")]
                 if (self.stream == True and not self._native_stream)
                 else []
-            ],
+            )
+            + (
+                # Chat session id -- lets a manual Run mirror its outputs into the
+                # per-session store so a later set_layout keeps them (Bug 3).
+                [State("chat-session", "data")]
+                if getattr(self, "has_chat_sidecar", False)
+                else []
+            )
+            + (
+                # Layout-dirty gate: only reassert the default layout when the
+                # agent actually re-mosaiced (otherwise leave the live tree be).
+                [State("fd-layout-dirty", "data")]
+                if _run_reset_server else []
+            ),
             **_proc_cb_kwargs,
         )
         def process_input(*args):
-            if (
-                ctx.triggered_id not in ["submit_inputs", "reset_inputs"]
-                and self.update_live is False
-            ):
+            # The arg order is: inputs..., reset_n, submit_n, [socketId], [sid].
+            # Index from the FRONT (unambiguous) rather than the tail, which
+            # varies with the optional states. _transform_inputs zips against the
+            # input tags, so trailing args beyond the inputs are ignored anyway.
+            n_inputs = len(self.inputs_with_ids)
+            input_args = args[:n_inputs]
+            _reset_n = args[n_inputs] if len(args) > n_inputs else None
+            _submit_n = args[n_inputs + 1] if len(args) > n_inputs + 1 else None
+            _tail = list(args[n_inputs + 2:])           # states after reset/submit
+            # The tail states, in declared order: [socketId?, sid?, dirty?].
+            # Pop from the FRONT in that same order so each optional state is
+            # read unambiguously regardless of which others are present.
+            _has_socket = (self.stream == True and not self._native_stream)
+            _has_sid = getattr(self, "has_chat_sidecar", False)
+            _has_dirty = getattr(self, "_run_reset_server", False)
+            _socket_id = _tail.pop(0) if (_has_socket and _tail) else None
+            _sid = _tail.pop(0) if (_has_sid and _tail) else None
+            _layout_dirty = _tail.pop(0) if (_has_dirty and _tail) else None
+
+            # A submit_inputs / reset_inputs trigger is only GENUINE when its
+            # n_clicks is truthy (a real click is >= 1). A remount re-fire --
+            # the Run-reset swapping output-group-col.children re-creates the
+            # reset_inputs / submit_inputs buttons (they live inside that col),
+            # and Dash re-fires this callback reporting the freshly-mounted
+            # button as the trigger with its INITIAL n_clicks (0/None). Treating
+            # that phantom reset as genuine returned output_state_default and
+            # clobbered the just-computed Run output (verified: two responses,
+            # changed=[submit_inputs] then changed=[reset_inputs, n_clicks=0]).
+            # A phantom button trigger must fall through to the no-genuine-trigger
+            # path (no_update), never to the submit/reset branches below.
+            _tid = ctx.triggered_id
+            genuine_trigger = (
+                (_tid == "submit_inputs" and _submit_n)
+                or (_tid == "reset_inputs" and _reset_n)
+            )
+
+            # Trailing outputs for the server-atomic Run-reset (when enabled):
+            # output-group-col.children + fd-layout-dirty. Every return appends
+            # these; _extra() defaults them to no_update so only a genuine dirty
+            # Run reasserts the layout.
+            def _extra(children=dash.no_update, dirty=dash.no_update):
+                return [children, dirty] if _run_reset_server else []
+
+            def _no_update_all():
+                # no_update for every declared output (leaves + notification +
+                # overlay [+ children + dirty]); leaves a prior render untouched.
+                return ([dash.no_update] * (len(self.outputs_with_ids) + 2)) + _extra()
+
+            if not genuine_trigger and self.update_live is False:
+                # A phantom button re-fire (submit/reset reported as the trigger
+                # but with a falsy n_clicks -- a freshly remounted button) must
+                # yield no_update for every output, never defaults, so it cannot
+                # clobber the value a genuine Run just rendered. A true no-trigger
+                # fire (page load) still raises as before.
+                if _tid in ("submit_inputs", "reset_inputs"):
+                    self._initial_render_done = True
+                    return _no_update_all()
                 raise PreventUpdate
+
+            # No genuine trigger (update_live app): the FIRST such call is the
+            # real page-load render (it must establish the default output view);
+            # any later no-trigger call is a re-mount re-fire -- e.g. the
+            # Run-reset swapping output-group-col.children remounts the leaf
+            # outputs and re-fires this callback with an empty ctx. Returning the
+            # default output there would clobber the value the Run just rendered,
+            # so after the first render a no-trigger call yields no_update.
+            if not genuine_trigger:
+                if getattr(self, "_initial_render_done", False):
+                    # no_update for every output component (+ notification +
+                    # overlay), so this re-mount re-fire leaves the values a
+                    # genuine Run / drive already rendered untouched.
+                    return _no_update_all()
+                self._initial_render_done = True
 
             default_notification = []
             self.state_counter += 1
 
             try:
-                inputs = _transform_inputs(args[:-3], self.input_tags)
+                inputs = _transform_inputs(input_args, self.input_tags)
 
                 if ctx.triggered_id == "submit_inputs" or (
-                    self.update_live is True and None not in args
+                    self.update_live is True and None not in input_args
                 ):
                     self.app_initialized = True
 
@@ -1560,7 +1969,7 @@ class FastDash(ChatAppMixin):
                         stream_handler_func = self.stream_handler_native
                     else:
                         stream_handler_func = functools.partial(
-                            self.stream_handler, socket_id=args[-1]
+                            self.stream_handler, socket_id=_socket_id
                         )
                     # Serialize against a chat sidecar's run_app (A4): never run
                     # the host callback from two threads at once.
@@ -1582,23 +1991,52 @@ class FastDash(ChatAppMixin):
                         # Log the latest output state
                         self.latest_output_state = self.output_state
 
-                    return self.output_state + [default_notification, False]
+                    # Mirror this Run's outputs into the per-session store so a
+                    # later agent set_layout keeps them (Bug 3). Best-effort: a
+                    # missing sid or no layout plumbing makes this a no-op.
+                    if _sid and hasattr(self, "_mirror_outputs"):
+                        try:
+                            self._mirror_outputs(_sid, self.output_state)
+                        except Exception:                 # noqa: BLE001
+                            pass
+
+                    # Server-atomic Run-reset: if the agent re-mosaiced
+                    # (fd-layout-dirty) restore the DEFAULT layout in THIS SAME
+                    # response, with the freshly computed outputs injected into
+                    # the restored tree's leaves. Because structure and content
+                    # land together, no separate clientside swap can arrive later
+                    # and blank the output (the intermittent layout->Run clobber).
+                    if _run_reset_server and _layout_dirty:
+                        try:
+                            children = self._run_reset_children(self.output_state)
+                            return (self.output_state
+                                    + [default_notification, False]
+                                    + _extra(children=children, dirty=False))
+                        except Exception:                 # noqa: BLE001
+                            pass                          # fall back to no-restore
+
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 elif ctx.triggered_id == "reset_inputs":
                     self.output_state = self.output_state_default
-                    return self.output_state + [default_notification, False]
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 elif self.app_initialized:
-                    return self.output_state + [default_notification, False]
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 else:
-                    return self.output_state_default + [default_notification, False]
+                    return (self.output_state_default + [default_notification, False]
+                            + _extra())
 
             except Exception as e:
                 traceback.print_exc()
                 notification = _get_error_notification_component(str(e))
 
-                return self.output_state_default + [notification, False]
+                return (self.output_state_default + [notification, False]
+                        + _extra())
 
         @self.app.callback(
             [
@@ -2149,12 +2587,9 @@ def fastdash(
     run_kwargs=dict(),
     chat=False,
     chat_history_size=50,
-    canvas=False,
-    chat_drawer=False,
-    chat_agent=None,
-    chat_agent_title=None,
-    chat_agent_drive=True,
-    chat_agent_position="aside",
+    chat_tools=None,
+    chat_model=None,
+    chat_title="Assistant",
     chat_placeholder=None,
     mcp_server=False,
     mcp_port=8001,
@@ -2274,12 +2709,9 @@ def fastdash(
             run_kwargs=run_kwargs,
             chat=chat,
             chat_history_size=chat_history_size,
-            canvas=canvas,
-            chat_drawer=chat_drawer,
-            chat_agent=chat_agent,
-            chat_agent_title=chat_agent_title,
-            chat_agent_drive=chat_agent_drive,
-            chat_agent_position=chat_agent_position,
+            chat_tools=chat_tools,
+            chat_model=chat_model,
+            chat_title=chat_title,
             chat_placeholder=chat_placeholder,
             mcp_server=mcp_server,
             mcp_port=mcp_port,

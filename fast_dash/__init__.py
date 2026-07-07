@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.5.5"
+__version__ = "0.6.0"
 
 from fast_dash.Components import (
     Graph,
@@ -34,6 +34,7 @@ import dash
 from dash import Output, Input, State, callback, no_update
 from fast_dash.fast_dash import FastDash, fastdash, update, notify
 from fast_dash.utils import Fastify, depends_on, from_step
+from fast_dash.agent_tools_config import RunPython
 from fast_dash.dynamic import DynamicDash, render_spec, COMPONENT_REGISTRY
 from fast_dash.chat import (
     ChatContext,
@@ -42,6 +43,24 @@ from fast_dash.chat import (
     apply_tool_call,
 )
 
+
+# The chat-agent toolkit entry points (agent_toolkit / FastDashMiddleware /
+# app_prompt) live in fast_dash.agent_tools. That module is heavy-import-free at
+# its top (langchain / langgraph are imported *inside* the functions that need
+# them), so importing fast_dash never drags in the optional [agent] extra. We
+# still expose these names lazily via PEP 562 __getattr__ so the import graph of
+# `import fast_dash` stays minimal and the [agent] ImportError only surfaces when
+# a toolkit function actually runs -- not at package import.
+_LAZY_AGENT_EXPORTS = ("agent_toolkit", "FastDashMiddleware", "app_prompt")
+
+
+def __getattr__(name):
+    if name in _LAZY_AGENT_EXPORTS:
+        from fast_dash import agent_tools
+        return getattr(agent_tools, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
 __all__ = [
     "FastDash",
     "fastdash",
@@ -49,9 +68,13 @@ __all__ = [
     "canvas_tool_specs",
     "app_tool_specs",
     "apply_tool_call",
+    "agent_toolkit",
+    "FastDashMiddleware",
+    "app_prompt",
     "Fastify",
     "depends_on",
     "from_step",
+    "RunPython",
     "Text",
     "TextArea",
     "Slider",

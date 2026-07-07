@@ -21,8 +21,6 @@ Frame types:
     tool_end   {"type": "tool_end",  "name": str, "result": Any,   "id"?: str}
     artifact   {"type": "artifact",  "content": Figure|DataFrame|Image|str}
     interrupt  {"type": "interrupt", "action_requests": [...], "allowed_decisions": [...]}
-    canvas     {"type": "canvas",    "specs": [...]}         (chat canvas)
-    set_props  {"type": "set_props", "target": str, "props": dict}  (chat canvas)
     set_input  {"type": "set_input", "name": str, "value": Any}     (sidecar drive)
     run_app    {"type": "run_app"}                                   (sidecar drive)
     complete   {"type": "complete"}
@@ -78,12 +76,19 @@ CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
 SET_PROPS = "set_props"    # patch one canvas component's props/value
 SET_INPUT = "set_input"    # sidecar: set one host-app input value
 RUN_APP = "run_app"        # sidecar: run the host app on its current inputs
+SET_OUTPUT = "set_output"  # sidecar: render a value into one output slot
+SET_LAYOUT = "set_layout"  # sidecar: re-mosaic the existing output slots
 COMPLETE = "complete"
 ERROR = "error"
 
+# CANVAS / SET_PROPS were the 0.5.x chat-canvas frames. In 0.6.0 they are
+# removed from the app grammar: an unrecognized frame type warns and is
+# skipped (never crashes). The constants are kept so the LLM on-ramp helpers
+# (canvas_tool_specs / apply_tool_call) still build these frame dicts for code
+# that opts into the canvas explicitly.
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, CANVAS, SET_PROPS, SET_INPUT, RUN_APP, COMPLETE, ERROR}
+     INTERRUPT, SET_INPUT, RUN_APP, SET_OUTPUT, SET_LAYOUT, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -163,19 +168,6 @@ def _normalize_frame(frame):
             "review_configs": frame.get("review_configs", []),
             "allowed_decisions": frame.get("allowed_decisions", []),
         }
-    elif ftype == CANVAS:
-        specs = frame.get("specs")
-        if not isinstance(specs, (list, tuple)):
-            raise ChatFrameError(
-                "A 'canvas' frame must have a 'specs' list of UI-spec dicts.")
-        frame = {"type": CANVAS, "specs": list(specs)}
-    elif ftype == SET_PROPS:
-        if "target" not in frame:
-            raise ChatFrameError("A 'set_props' frame must have a 'target' key.")
-        props = frame.get("props", {})
-        if not isinstance(props, dict):
-            raise ChatFrameError("A 'set_props' frame's 'props' must be a dict.")
-        frame = {"type": SET_PROPS, "target": str(frame["target"]), "props": dict(props)}
     elif ftype == SET_INPUT:
         if "name" not in frame:
             raise ChatFrameError("A 'set_input' frame must have a 'name' key.")
@@ -183,6 +175,17 @@ def _normalize_frame(frame):
                  "value": frame.get("value")}
     elif ftype == RUN_APP:
         frame = {"type": RUN_APP}
+    elif ftype == SET_OUTPUT:
+        if "slot" not in frame:
+            raise ChatFrameError("A 'set_output' frame must have a 'slot' key.")
+        # The value may be a rich object (figure / DataFrame); it is transformed
+        # server-side by the same pipeline the Run button uses, so keep it raw.
+        frame = {"type": SET_OUTPUT, "slot": str(frame["slot"]),
+                 "value": frame.get("value")}
+    elif ftype == SET_LAYOUT:
+        if "mosaic" not in frame:
+            raise ChatFrameError("A 'set_layout' frame must have a 'mosaic' key.")
+        frame = {"type": SET_LAYOUT, "mosaic": str(frame["mosaic"])}
     elif ftype == ERROR:
         frame = {"type": ERROR, "message": _as_text(frame.get("message", ""))}
     elif ftype == COMPLETE:
@@ -423,6 +426,14 @@ class ChatHistory:
         # slowly-growing lock registry on a long-running server.
         with self._registry_lock:
             self._locks.pop(sid, None)
+        # Free any run_python exec state keyed by this session (the run_python
+        # thread_id IS the chat session id). Guarded/lazy: the [agent] extra may
+        # be absent, and this module must stay heavy-import-free at the top.
+        try:
+            from .agent_tools import clear_python_state
+            clear_python_state(sid)
+        except Exception:                                 # noqa: BLE001
+            pass                                          # best-effort cleanup
 
 
 @dataclasses.dataclass
@@ -439,6 +450,11 @@ class ChatSession:
     pending: Any = None               # HITL: paused turn awaiting a decision
     msgs: list = dataclasses.field(default_factory=list)          # ASGI transcript
     canvas_specs: list = dataclasses.field(default_factory=list)  # canvas UI specs
+    # Last-known transformed output values (per output slot), so a set_layout
+    # re-mosaic preserves surviving slots' contents instead of reverting them to
+    # the build-time defaults (Bug 3). Populated on manual Run, run_app, and
+    # set_output; consumed when rebuilding the pushed layout tree.
+    output_mirror: dict = dataclasses.field(default_factory=dict)
     last_seen: float = 0.0
 
 

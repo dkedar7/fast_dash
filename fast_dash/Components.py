@@ -2,6 +2,7 @@ import copy
 import datetime
 import enum
 import inspect
+import json
 import math
 import numbers
 import warnings
@@ -26,6 +27,7 @@ import pandas as pd
 import PIL
 from PIL import ImageFile
 import plotly.graph_objs as go
+from plotly.io.json import to_json_plotly
 
 from .utils import (
     Fastify,
@@ -335,21 +337,31 @@ class AppLayout:
 
         return copy.deepcopy(layout)
 
-    def _set_single_component(self, axis, width, n_rows=1, style=None, label=""):
+    def _set_single_component(self, axis, width, n_rows=1, style=None, label="",
+                              deepcopy_leaf=True):
         style = self.col_style if style is None else style
         component = self.output_component_mapper.get(label, label)
         style.update({"height": f"{n_rows * self.height_of_single_row}vh"})
+        # Each leaf output card sits in a wrapper Col carrying a STABLE id
+        # derived from its mosaic letter (``fd-slot-<letter>``). set_output /
+        # set_layout key on that slot id; the leaf component keeps its own id
+        # (registered callbacks target it), so re-mosaic re-parents the same
+        # leaf without breaking any wiring.
         layout = dbc.Col(
             [component],
             class_name="p-1 flex-fill d-flex flex-column",
             style=style,
             width=width,
+            id=f"fd-slot-{label}",
             # align="center",
         )
 
-        return copy.deepcopy(layout)
+        # At build time the leaf is a fresh deepcopy (the mapper is a template);
+        # at runtime re-mosaic (rebuild_output_layout) we re-parent the SAME leaf
+        # objects so their ids stay live for the registered callbacks.
+        return copy.deepcopy(layout) if deepcopy_leaf else layout
 
-    def _do_mosaic(self, mosaic_array, axis, layout):
+    def _do_mosaic(self, mosaic_array, axis, layout, deepcopy_leaf=True):
         n_unique = len(np.unique(mosaic_array))
 
         if n_unique == 1:
@@ -364,8 +376,9 @@ class AppLayout:
                 style=style,
                 label=label,
                 n_rows=mosaic_array.shape[0],
+                deepcopy_leaf=deepcopy_leaf,
             )
-            return copy.deepcopy(lo)
+            return copy.deepcopy(lo) if deepcopy_leaf else lo
 
         n_unique_axis = self._get_n_unique(arr=mosaic_array, axis=1 - axis)
         min_index = np.argmin(n_unique_axis)
@@ -379,7 +392,8 @@ class AppLayout:
 
         for array, width in zip(sub_arrays, widths):
             child_layout = self._do_mosaic(
-                array, 1 - axis, self._get_component(axis=1 - axis, width=width)
+                array, 1 - axis, self._get_component(axis=1 - axis, width=width),
+                deepcopy_leaf=deepcopy_leaf,
             )
             layout.children.append(child_layout)
 
@@ -547,13 +561,11 @@ class AppLayout:
         # (A position:sticky button inside dmc.ScrollArea does NOT stick — Radix
         # wraps the content in a way that breaks sticky — so it scrolled away
         # once the form was taller than the viewport.)
-        # In sidebar mode the chat panel lives under the inputs, so the inputs
-        # take their natural (capped) height and the chat gets the growing space;
-        # otherwise the inputs own the scroll and Run is pinned at the bottom.
-        for_sidebar = (
-            getattr(self.app, "has_chat_sidecar", False)
-            and getattr(self.app, "chat_agent_position", "aside") == "sidebar"
-        )
+        # With a chat sidecar the chat panel lives under the inputs, so the
+        # inputs take their natural (capped) height and the chat gets the growing
+        # space; otherwise the inputs own the scroll and Run is pinned at the
+        # bottom. (The sidebar is the only sidecar placement in 0.6.0.)
+        for_sidebar = getattr(self.app, "has_chat_sidecar", False)
         sections = [
             dmc.AppShellSection(
                 dmc.ScrollArea(
@@ -590,10 +602,19 @@ class AppLayout:
 
         return sections
 
-    def generate_output_component(self):
-        """Build the main content area with mosaic output grid."""
-        mosaic = self._normalize_grid_string(self.mosaic)
-        mosaic_arr = self._make_array(mosaic)
+    def _build_output_tree(self, mosaic, deepcopy_leaf=True):
+        """Run the mosaic engine for ``mosaic`` and return the loader-wrapped tree.
+
+        Shared by :meth:`generate_output_component` (build time) and
+        :meth:`rebuild_output_layout` (runtime set_layout re-mosaic). The tree is
+        ``output-loading-wrap`` (the loading overlay + the ``dbc.Col`` grid),
+        which is exactly what sits under ``output-group-col``. With
+        ``deepcopy_leaf=False`` the SAME leaf output cards are re-parented (their
+        ids stay live for the registered callbacks); the mapper is populated by
+        the first (build-time) call.
+        """
+        mosaic_grid = self._normalize_grid_string(mosaic)
+        mosaic_arr = self._make_array(mosaic_grid)
         mosaic_shape = mosaic_arr.shape
         # Approximate available height in vh for row distribution
         available_vh = 90 * self.scale_height
@@ -601,14 +622,17 @@ class AppLayout:
 
         self._check_if_rectangular(mosaic_arr)
 
-        if self.outputs == []:
-            self.output_component_mapper = {}
-        else:
-            unique_locations = np.unique(mosaic_arr)
-            unique_locations.sort()
-            self.output_component_mapper = {
-                m: o for m, o in zip(unique_locations, self.outputs[:-1])
-            }
+        # The letter -> output-card mapping is a stable template built once from
+        # the default mosaic; a runtime re-mosaic reuses it (only rearranges).
+        if not getattr(self, "output_component_mapper", None):
+            if self.outputs == []:
+                self.output_component_mapper = {}
+            else:
+                unique_locations = np.unique(mosaic_arr)
+                unique_locations.sort()
+                self.output_component_mapper = {
+                    m: o for m, o in zip(unique_locations, self.outputs[:-1])
+                }
 
         begin_axis = np.argmax(
             [
@@ -617,8 +641,10 @@ class AppLayout:
             ]
         )
 
+        self.unique_components = []
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
-        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
+        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin,
+                                 deepcopy_leaf=deepcopy_leaf)
         output_layout = dbc.Col(
             [layout] + [self.outputs[-1]],
             class_name="g-1 d-flex flex-fill flex-column",
@@ -634,10 +660,72 @@ class AppLayout:
             loaderProps=dict(type=self.loader),
             overlayProps={"backgroundOpacity": 0},
         )
-        output_layout = html.Div([loader_component, output_layout],
-                                 id="output-loading-wrap")
+        return html.Div([loader_component, output_layout], id="output-loading-wrap")
 
-        return output_layout
+    def generate_output_component(self):
+        """Build the main content area with mosaic output grid."""
+        return self._build_output_tree(self.mosaic, deepcopy_leaf=True)
+
+    @property
+    def output_slot_letters(self):
+        """The stable mosaic letters (slot ids) for the default layout."""
+        return sorted((getattr(self, "output_component_mapper", None) or {}).keys())
+
+    def _sidecar_set_layout_allowed(self):
+        """True when the host app should carry the set_layout plumbing.
+
+        Mirrors ChatAppMixin._sidecar_layout_enabled: a drivable chat sidecar
+        whose chat_tools allowlist includes set_layout and which has slots.
+        Drivability is derived from the allowlist here (``_sidecar_can_drive``
+        is only set later, in _init_chat_sidecar) so the store presence and the
+        Run-reset callback registration stay in agreement.
+        """
+        app = self.app
+        if not getattr(app, "has_chat_sidecar", False):
+            return False
+        allow = getattr(app, "chat_tools_config", {}) or {}
+        can_drive = "set_input" in allow or "run_app" in allow
+        return bool(
+            can_drive and "set_layout" in allow and self.output_slot_letters)
+
+    def rebuild_output_layout(self, mosaic):
+        """Re-mosaic the EXISTING output slots into ``mosaic`` (SPEC O2).
+
+        Validates that ``mosaic`` is rectangular and that its letters are a
+        SUBSET of the existing slot letters (set_layout v1 rearranges/resizes,
+        never invents slots), then re-runs the mosaic engine RE-PARENTING the
+        same leaf output cards (ids preserved). Returns
+        ``(tree, None)`` on success or ``(None, reason)`` with a friendly ASCII
+        reason string on failure -- never raises for a bad mosaic.
+        """
+        valid = self.output_slot_letters
+        try:
+            grid = self._normalize_grid_string(mosaic)
+            mosaic_arr = self._make_array(grid)
+        except ValueError as exc:
+            return None, self._ascii_reason(str(exc))
+        try:
+            self._check_if_rectangular(mosaic_arr)
+        except ValueError:
+            return None, ("That layout has a non-rectangular or non-contiguous "
+                          "region. Each slot must cover a filled rectangle.")
+
+        used = sorted({str(c) for c in np.unique(mosaic_arr)})
+        extra = [c for c in used if c not in valid]
+        if extra:
+            return None, (
+                "Unknown slot(s): %s. set_layout can only rearrange existing "
+                "slots. Valid slots: %s." % (
+                    ", ".join(extra), ", ".join(valid) or "none"))
+
+        tree = self._build_output_tree(mosaic, deepcopy_leaf=False)
+        return tree, None
+
+    @staticmethod
+    def _ascii_reason(text):
+        """Coerce an engine error string to a short, ASCII, friendly reason."""
+        text = "".join(ch if ord(ch) < 128 else "?" for ch in str(text))
+        return "That layout is invalid: " + text.strip().splitlines()[0][:200]
 
     def generate_footer_container(self):
         return dmc.Affix(
@@ -661,14 +749,16 @@ class AppLayout:
             id="footer5265971",
         )
 
-    def _chat_aside(self):
-        """The chat sidecar surface: a right AppShellAside with the chat panel.
+    def _chat_sidebar_panel(self):
+        """The sidecar chat as a collapsible panel stacked under the inputs.
 
-        Only built when the host app declares ``chat_agent=``. Reuses the shared
-        chat fragment (transcript + composer); a header carries the agent's
-        title and a close button.
+        In 0.6.0 the sidebar is the ONLY placement for a chat sidecar. The panel
+        header carries the assistant title and a chevron ActionIcon that
+        collapses the panel to just its header row (freeing the vertical space
+        for the inputs). The chevron is visually distinct from the navbar's own
+        Toggle-inputs burger (it lives inside the panel, not the header bar).
         """
-        title = getattr(self.app, "chat_agent_title", "Assistant")
+        title = getattr(self.app, "chat_title", "Assistant")
         header = html.Div(
             dmc.Group(
                 [
@@ -677,67 +767,35 @@ class AppLayout:
                          html.Span(title, style={"fontWeight": 600})],
                         gap="xs", wrap="nowrap",
                     ),
-                    dmc.ActionIcon(
-                        DashIconify(icon="tabler:x", width=18),
-                        id="chat-sidecar-close", variant="subtle", size="sm",
-                        n_clicks=0,
+                    dmc.Tooltip(
+                        dmc.ActionIcon(
+                            DashIconify(icon="tabler:chevron-down", width=18,
+                                        id="chat-panel-collapse-icon"),
+                            id="chat-panel-collapse", variant="subtle", size="sm",
+                            n_clicks=0,
+                            **{"aria-label": "Collapse or expand the chat panel"},
+                        ),
+                        label="Collapse / expand chat",
                     ),
                 ],
                 justify="space-between", wrap="nowrap", style={"width": "100%"},
             ),
-            style={"flex": "0 0 auto", "padding": "10px 12px",
-                   "borderBottom": "1px solid var(--mantine-color-default-border)"},
-        )
-        body = html.Div(
-            [self._chat_message_list(), self._chat_composer()],
-            className="fd-chat-main",
-            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
-                   "flexDirection": "column"},
-        )
-        return dmc.AppShellAside(
-            html.Div(
-                [header, body],
-                style={"height": "calc(100vh - 56px)", "display": "flex",
-                       "flexDirection": "column"},
-            ),
-            id="chat-aside",
-        )
-
-    def _chat_sidebar_panel(self):
-        """The sidecar chat as a panel stacked under the inputs in the navbar.
-
-        Used when ``chat_agent_position="sidebar"``: the same transcript +
-        composer as the aside, but always visible in the left sidebar below the
-        inputs (no floating toggle, no right aside).
-        """
-        title = getattr(self.app, "chat_agent_title", "Assistant")
-        header = html.Div(
-            dmc.Group(
-                [DashIconify(icon="tabler:message-2", width=18),
-                 html.Span(title, style={"fontWeight": 600})],
-                gap="xs", wrap="nowrap",
-            ),
+            className="fd-chat-panel-header",
             style={"flex": "0 0 auto", "padding": "10px 2px 8px",
                    "borderTop": "1px solid var(--mantine-color-default-border)"},
         )
+        body = html.Div(
+            [self._chat_message_list(), self._chat_composer()],
+            className="fd-chat-panel-body",
+            style={"flex": "1 1 auto", "minHeight": 0, "display": "flex",
+                   "flexDirection": "column"},
+        )
         return html.Div(
-            [header, self._chat_message_list(), self._chat_composer()],
-            className="fd-chat-main",
+            [header, body],
+            id="chat-sidebar-panel",
+            className="fd-chat-main fd-chat-panel",
             style={"flex": "1 1 auto", "minHeight": 0, "height": "100%",
                    "display": "flex", "flexDirection": "column"},
-        )
-
-    def _chat_sidecar_toggle_button(self):
-        """Floating button that opens/closes the chat sidecar aside."""
-        title = getattr(self.app, "chat_agent_title", "Assistant")
-        return dmc.Button(
-            title,
-            id="chat-sidecar-toggle",
-            n_clicks=0,
-            leftSection=DashIconify(icon="tabler:message-2", width=18),
-            radius="xl",
-            style={"position": "fixed", "bottom": "24px", "right": "24px",
-                   "zIndex": 1000, "boxShadow": "0 2px 12px rgba(0,0,0,0.2)"},
         )
 
     def generate_layout(self, stream_event_names=None):
@@ -749,11 +807,9 @@ class AppLayout:
         main_content = self.generate_output_component()
 
         has_sidecar = getattr(self.app, "has_chat_sidecar", False)
-        # Sidebar-positioned sidecar: the chat is stacked under the inputs in the
-        # navbar (built by generate_input_component), so there's no right aside
-        # and no floating toggle; the navbar is widened to give the chat room.
-        sidebar_chat = has_sidecar and (
-            getattr(self.app, "chat_agent_position", "aside") == "sidebar")
+        # A chat sidecar is stacked under the inputs in the navbar (built by
+        # generate_input_component) and is collapsible. The navbar is widened to
+        # give the chat room. This is the only sidecar placement in 0.6.0.
 
         appshell_children = [
             dmc.AppShellHeader(
@@ -785,23 +841,18 @@ class AppLayout:
         ]
         appshell_kwargs = dict(
             header={"height": 56},
-            navbar={"width": 420 if sidebar_chat else 300, "breakpoint": "sm",
+            # Navbar width must agree with the toggle_sidebar callback (v0.5.5 /
+            # #143): a chat sidecar widens it to 420; a plain app stays at 300.
+            navbar={"width": 420 if has_sidecar else 300, "breakpoint": "sm",
                     "collapsed": {"mobile": False}},
             padding=0,
             id="appshell",
         )
-        if sidebar_chat:
-            # The chat needs a wider sidebar than the default; a CSS var override
-            # (via this class) applies it reliably across dmc versions.
+        if has_sidecar:
+            # The chat needs a wider sidebar than the default; the class is a
+            # styling hook (see fast_dash.css) and the collapse callback toggles
+            # a second class on it to let the inputs reclaim space.
             appshell_kwargs["className"] = "fd-chat-sidebar"
-        if has_sidecar and not sidebar_chat:
-            appshell_children.append(self._chat_aside())
-            # Collapsed by default; the floating toggle opens it. Full-width
-            # sheet on small screens, fixed panel on desktop.
-            appshell_kwargs["aside"] = {
-                "width": {"base": "100%", "sm": 380}, "breakpoint": "sm",
-                "collapsed": {"desktop": True, "mobile": True},
-            }
 
         appshell = dmc.AppShell(appshell_children, **appshell_kwargs)
 
@@ -821,14 +872,39 @@ class AppLayout:
 
         if has_sidecar:
             extra += self._chat_stores()
-            extra.append(dcc.Store(id="chat-sidecar-open", data=False))
+            # Collapse state for the chat panel (default expanded).
+            extra.append(dcc.Store(id="chat-panel-collapsed", data=False))
             # Drive-affordance plumbing: chat-drive-tick carries the flash signal
             # (bumped via set_props on ASGI); chat-drive-flash is a dummy sink for
             # the clientside flash callback.
             extra.append(dcc.Store(id="chat-drive-tick"))
             extra.append(dcc.Store(id="chat-drive-flash"))
-            if not sidebar_chat:   # sidebar chat is always shown; no floating toggle
-                extra.append(self._chat_sidecar_toggle_button())
+            # Last-applied drive sequence number (RFC #133 D3 ordering on the
+            # drive channel). Every drive payload carries a monotonically
+            # increasing seq; the Flask reducers apply a payload only when its
+            # seq exceeds this store's value, then bump it. A remount re-fire
+            # replays the LAST (stale) data-chat_drive value -- its seq is <=
+            # the stored one, so it is skipped, killing the stale-refire class.
+            extra.append(dcc.Store(id="fd-drive-seq", data=0))
+            # Sink for the set_output / set_layout clientside reducer (which
+            # applies its effects via dash_clientside.set_props, not Outputs).
+            extra.append(dcc.Store(id="chat-content-sink"))
+            # Run-always-wins: only apps that allow set_layout carry the default
+            # layout snapshot (and the Run-reset callback that restores it), so a
+            # plain sidecar app isn't bloated. The snapshot is the serialized
+            # default output tree; the Run-reset callback re-parents it (leaf ids
+            # preserved) so the Run response fills the same leaves by id.
+            if self._sidecar_set_layout_allowed():
+                extra.append(dcc.Store(
+                    id="fd-default-layout",
+                    data=json.loads(to_json_plotly(main_content)),
+                ))
+                # Dirty flag for the conditional Run-reset (Bug 1): the layout
+                # apply path (both transports) sets this true when the agent
+                # actually re-mosaics; the Run-reset restores the default tree
+                # ONLY when dirty, then clears it. Starts clean so a Run before
+                # any set_layout leaves the live output untouched.
+                extra.append(dcc.Store(id="fd-layout-dirty", data=False))
 
         layout = dmc.MantineProvider(
             [appshell] + extra,
@@ -918,7 +994,7 @@ class AppLayout:
         ]
 
     def generate_chat_layout(self, has_settings=False, stream_event_names=None,
-                             native_stream=False, canvas=False, drawer=False):
+                             native_stream=False):
         """Build the native chat-mode layout (RFC #133).
 
         Reuses the shared chrome (header, theme toggle, About, notifications,
@@ -929,8 +1005,7 @@ class AppLayout:
 
         Transport: on the Flask backend, frames stream over ``DashSocketIO``; on
         an ASGI backend (``native_stream``) they are pushed with ``set_props``
-        into the ``chat-frames-store`` and the reducer listens on that store
-        instead of a socket event (no flask-socketio, which is WSGI-only).
+        into ``chat-messages.children`` (no flask-socketio, which is WSGI-only).
         """
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -940,22 +1015,8 @@ class AppLayout:
         message_list = self._chat_message_list()
         composer = self._chat_composer()
 
-        # Developer-declared settings placement:
-        #  - drawer (app-first): the settings + a Run button go in the left
-        #    navbar; the chat is a collapsible alternative view.
-        #  - panel (chat-first canvas): the settings live in the chat panel,
-        #    above the composer.
-        # (The canvas itself is display-only — the assistant builds output there,
-        #  not input widgets — so there is no chat-side dynamic-input region.)
-        panel_children = [message_list]
-        if canvas and has_settings and not drawer:
-            panel_children.append(
-                html.Div(self.generate_input_component(), id="chat-settings",
-                         className="fd-chat-settings")
-            )
-        panel_children.append(composer)
         main = html.Div(
-            panel_children,
+            [message_list, composer],
             className="fd-chat-main",
             style={"height": "100%", "display": "flex", "flexDirection": "column"},
         )
@@ -974,97 +1035,21 @@ class AppLayout:
             id="header1162572",
         )
 
-        canvas_region = None
-        if canvas:
-            canvas_region = html.Div(
-                html.Div([], id="chat-canvas", className="fd-chat-canvas"),
-                className="fd-chat-canvas-wrap",
-                style={"height": "calc(100vh - 56px)", "overflowY": "auto",
-                       "overflowX": "hidden", "padding": "18px 22px"},
-            )
-
         navbar_conf = None
-        if drawer:
-            # App-first: the left panel drives the output canvas (main area). It
-            # toggles between two views in the same container:
-            #   * inputs view (default): the developer settings + a Run button,
-            #     with an "expand" button at the bottom that brings up the chat;
-            #   * chat view: the assistant, as an alternative to those inputs,
-            #     with a Back button to return.
-            run_button = dmc.Button(
-                "Run", id="chat-run", n_clicks=0, fullWidth=True,
-                leftSection=DashIconify(icon="tabler:player-play", width=16),
-            )
-            open_chat_button = dmc.Button(
-                "Chat with the assistant", id="chat-open", n_clicks=0,
-                leftSection=DashIconify(icon="tabler:message-2", width=16),
-                variant="light", fullWidth=True,
-            )
-            inputs_view = html.Div(
-                [
-                    dmc.ScrollArea(
-                        dmc.Stack(list(self.inputs or []), gap="lg"),
-                        type="auto",
-                        style={"flex": "1 1 auto", "minHeight": 0},
-                    ),
-                    html.Div(
-                        [run_button, open_chat_button],
-                        style={"flex": "0 0 auto", "paddingTop": "12px",
-                               "display": "flex", "flexDirection": "column",
-                               "gap": "8px",
-                               "borderTop": "1px solid var(--mantine-color-default-border)"},
-                    ),
-                ],
-                id="chat-inputs-view",
-                style={"height": "calc(100vh - 56px)", "display": "flex",
-                       "flexDirection": "column", "padding": "12px"},
-            )
-            back_button = html.Div(
-                dmc.Button(
-                    "Back to inputs", id="chat-back", n_clicks=0,
-                    leftSection=DashIconify(icon="tabler:arrow-left", width=16),
-                    variant="subtle", size="xs",
+        appshell_children = [header, dmc.AppShellMain(chat_shell)]
+        if has_settings:
+            appshell_children.insert(
+                1,
+                dmc.AppShellNavbar(
+                    self.generate_input_component(),
+                    p="md",
+                    id="navbar3260780",
+                    style={"display": "flex", "flexDirection": "column",
+                           "overflow": "hidden"},
                 ),
-                style={"flex": "0 0 auto", "padding": "6px 8px",
-                       "borderBottom": "1px solid var(--mantine-color-default-border)"},
             )
-            chat_view = html.Div(
-                [back_button, html.Div(main, style={"flex": "1 1 auto", "minHeight": 0})],
-                id="chat-panel-view",
-                style={"height": "calc(100vh - 56px)", "display": "none",
-                       "flexDirection": "column"},
-            )
-            appshell_children = [
-                header,
-                dmc.AppShellNavbar([inputs_view, chat_view], id="navbar3260780"),
-                dmc.AppShellMain(canvas_region),
-            ]
-            navbar_conf = {"width": 380, "breakpoint": "sm",
+            navbar_conf = {"width": 300, "breakpoint": "sm",
                            "collapsed": {"mobile": False}}
-        elif canvas:
-            # Chat-first split view: chat panel on the left, canvas on the right.
-            appshell_children = [
-                header,
-                dmc.AppShellNavbar(chat_shell, id="navbar3260780"),
-                dmc.AppShellMain(canvas_region),
-            ]
-            navbar_conf = {"width": 460, "breakpoint": "sm",
-                           "collapsed": {"mobile": False}}
-        else:
-            appshell_children = [header, dmc.AppShellMain(chat_shell)]
-            if has_settings:
-                appshell_children.insert(
-                    1,
-                    dmc.AppShellNavbar(
-                        self.generate_input_component(),
-                        p="md",
-                        id="navbar3260780",
-                        style={"display": "flex", "flexDirection": "column",
-                               "overflow": "hidden"},
-                    ),
-                )
-                navbar_conf = {"width": 300, "breakpoint": "sm",
-                               "collapsed": {"mobile": False}}
 
         appshell_kwargs = dict(header={"height": 56}, padding=0, id="appshell")
         if navbar_conf:
@@ -1110,36 +1095,26 @@ class AppLayout:
             Input("sidebar-button", "opened"),
         )
         def toggle_sidebar(opened):
-            if getattr(self.app, "is_chat_drawer", False):
-                # App-first (drawer) mode: the navbar holds the settings + Run;
-                # keep it open at its own width.
-                return {"width": 320, "breakpoint": "sm",
-                        "collapsed": {"desktop": False, "mobile": False}}
-            if getattr(self.app, "is_canvas", False):
-                # In canvas mode the navbar holds the chat panel (not a settings
-                # sidebar), so it must stay open and keep its wider width.
-                return {"width": 460, "breakpoint": "sm",
-                        "collapsed": {"desktop": False, "mobile": False}}
-
             user_agent = request.headers.get("User-Agent")
 
-            if not opened or self.app.inputs == [] or self.app.inputs is None:
+            # A chat sidecar stacks the chat under the inputs and needs the wider
+            # navbar; it must stay open (the chat is only reachable there).
+            has_sidecar = getattr(self.app, "has_chat_sidecar", False)
+            if has_sidecar:
+                collapsed = {"desktop": not opened, "mobile": not opened}
+            elif not opened or self.app.inputs == [] or self.app.inputs is None:
                 collapsed = {"desktop": True, "mobile": True}
             elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
                 collapsed = {"desktop": False, "mobile": True}
             else:
                 collapsed = {"desktop": False, "mobile": False}
 
-            # Sidebar-positioned chat stacks under the inputs and needs the wider
-            # navbar. Must match generate_layout's width, or dmc derives the main
-            # offset and collapse-transform from the wrong width -- leaving the
-            # output shifted under the sidebar and the sidebar unable to fully
-            # close. (Same reason canvas/drawer return their own widths above.)
-            sidebar_chat = getattr(self.app, "has_chat_sidecar", False) and (
-                getattr(self.app, "chat_agent_position", "aside") == "sidebar")
-
+            # The sidecar width (420) must match generate_layout's, or dmc
+            # derives the main offset and collapse-transform from the wrong width
+            # -- leaving the output shifted under the sidebar and the sidebar
+            # unable to fully close (v0.5.5 / #143).
             return {
-                "width": 420 if sidebar_chat else 300,
+                "width": 420 if has_sidecar else 300,
                 "breakpoint": "sm",
                 "collapsed": collapsed,
             }

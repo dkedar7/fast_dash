@@ -91,7 +91,7 @@ files = [
     {file = "anyio-4.13.0-py3-none-any.whl", hash = "sha256:08b310f9e24a9594186fd75b4f73f4a4152069e3853f1ed8bfbf58369f4ad708"},
     {file = "anyio-4.13.0.tar.gz", hash = "sha256:334b70e641fd2221c1505b3890c69882fe4a2df910cba14d97019b90b24439dc"},
 ]
-markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"fastapi\")", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
+markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\" or extra == \"fastapi\")", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
 
 [package.dependencies]
 idna = ">=2.8"
@@ -1074,7 +1074,7 @@ description = "Distro - an OS platform information API"
 optional = true
 python-versions = ">=3.6"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "distro-1.9.0-py3-none-any.whl", hash = "sha256:7bffd925d65168f85027d8da9af6bddab658135b840670a223589bc0c8ef02b2"},
     {file = "distro-1.9.0.tar.gz", hash = "sha256:2fa77c6fd8940f116ee1d6b94a2f90b13b5ea8d019b98bc8bafdcabcdd9bdbed"},
@@ -1402,7 +1402,7 @@ files = [
     {file = "httpcore-1.0.9-py3-none-any.whl", hash = "sha256:2d400746a40668fc9dec9810239072b40b4484b640a8c38fd654a024c7a1bf55"},
     {file = "httpcore-1.0.9.tar.gz", hash = "sha256:6e34463af53fd2ab5d807f399a9b45ea31c3dfa2276f15a2c3f00afff6e176e8"},
 ]
-markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\"", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
+markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
 
 [package.dependencies]
 certifi = "*"
@@ -1486,7 +1486,7 @@ files = [
     {file = "httpx-0.28.1-py3-none-any.whl", hash = "sha256:d909fcccc110f8c7faf814ca82a9a4d816bc5a6dbfea25d6591d6985b8ba59ad"},
     {file = "httpx-0.28.1.tar.gz", hash = "sha256:75e98c5f16b0f35b567856f597f06ff2270a374470a5c2392242528e3e3e42fc"},
 ]
-markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\"", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
+markers = {main = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")", test = "sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\""}
 
 [package.dependencies]
 anyio = "*"
@@ -1860,7 +1860,7 @@ description = "Apply JSON-Patches (RFC 6902)"
 optional = true
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*, !=3.5.*, !=3.6.*"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "jsonpatch-1.33-py2.py3-none-any.whl", hash = "sha256:0ae28c0cd062bbd8b8ecc26d7d164fbbea9652a1a3693f3b956c1eae5145dade"},
     {file = "jsonpatch-1.33.tar.gz", hash = "sha256:9fcd4009c41e6d12348b4a0ff2563ba56a2923a7dfee731d004e212e1ee5030c"},
@@ -1876,7 +1876,7 @@ description = "Identify specific nodes in a JSON document (RFC 6901) "
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "jsonpointer-3.1.1-py3-none-any.whl", hash = "sha256:8ff8b95779d071ba472cf5bc913028df06031797532f08a7d5b602d8b2a488ca"},
     {file = "jsonpointer-3.1.1.tar.gz", hash = "sha256:0b801c7db33a904024f6004d526dcc53bbb8a4a0f4e32bfd10beadf60adf1900"},
@@ -2160,7 +2160,7 @@ description = "Building applications with LLMs through composability"
 optional = true
 python-versions = "<4.0.0,>=3.10.0"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langchain-1.3.2-py3-none-any.whl", hash = "sha256:900f6b3f4ee08b9ba3cdbe667dbf42525bd6f66a4a07a7f1db26262673e41ed6"},
     {file = "langchain-1.3.2.tar.gz", hash = "sha256:ffd5f204a46b5fa1a38bf89ba3b45ca0902c02d18fa7d2a2eaeaeb1f5bf19d0a"},
@@ -2197,7 +2197,7 @@ description = "Building applications with LLMs through composability"
 optional = true
 python-versions = "<4.0.0,>=3.10.0"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langchain_core-1.4.8-py3-none-any.whl", hash = "sha256:d84c28b05e3ba8d4271d0827aad5b592ccdaaf986e76768c23503f0a2045e8aa"},
     {file = "langchain_core-1.4.8.tar.gz", hash = "sha256:5bf1f8411077c904182ad8f975943d36adcbf579c4e017b3a118b719229ebf9a"},
@@ -2221,7 +2221,7 @@ description = "Python bindings for the LangChain agent streaming protocol"
 optional = true
 python-versions = "<4.0.0,>=3.10.0"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langchain_protocol-0.0.18-py3-none-any.whl", hash = "sha256:70b53a86fbf9cedc863555effe44da192ab02d556ddbf2cf95b8873adcf41b5a"},
     {file = "langchain_protocol-0.0.18.tar.gz", hash = "sha256:ec3e11782f1ed0c9db38e5a9ed01b0e7a0d3fba406faa8aef6594b73c56a63e6"},
@@ -2237,7 +2237,7 @@ description = "Building stateful, multi-actor applications with LLMs"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langgraph-1.2.2-py3-none-any.whl", hash = "sha256:0a851bf4ba5939c5474a2fd57e6b439b5315283e254e42943bd392c2d71a5e03"},
     {file = "langgraph-1.2.2.tar.gz", hash = "sha256:f54a98458976b3ff0774683867df125fb52d8dbedeb2441d0b0656a51331cee5"},
@@ -2258,7 +2258,7 @@ description = "Library with base interfaces for LangGraph checkpoint savers."
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langgraph_checkpoint-4.1.1-py3-none-any.whl", hash = "sha256:25d29144b082827218e7bc3f1e9b0566a4bb007895cd6cc26f66a8428739f56e"},
     {file = "langgraph_checkpoint-4.1.1.tar.gz", hash = "sha256:6c2bdb530c91f91d7d9c1bd100925d0fc4f498d418c17f3587d1526279482a25"},
@@ -2275,7 +2275,7 @@ description = "Library with high-level APIs for creating and executing LangGraph
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langgraph_prebuilt-1.1.0-py3-none-any.whl", hash = "sha256:51e311747d755b751d5c6b39b0c1446124d3a7643d2515017e6714b323508fc9"},
     {file = "langgraph_prebuilt-1.1.0.tar.gz", hash = "sha256:3c579cf6eed2d17f9c157c2d0fcaddcd8688524e7022d3b22b37a3bf4589d528"},
@@ -2292,7 +2292,7 @@ description = "SDK for interacting with LangGraph API"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langgraph_sdk-0.3.15-py3-none-any.whl", hash = "sha256:3838773acf7456d158165385d49f48f1e856f28b56ccd99ea139a8f27004815d"},
     {file = "langgraph_sdk-0.3.15.tar.gz", hash = "sha256:29e805003d2c6e296823dd71992610976fd0428cefaa8b3304fd91f2247037de"},
@@ -2309,7 +2309,7 @@ description = "Client library to connect to the LangSmith Observability and Eval
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "langsmith-0.9.7-py3-none-any.whl", hash = "sha256:a5ff9179b77eb0c3a0129294d30924eab13e51e2720f374372dbbc014c892911"},
     {file = "langsmith-0.9.7.tar.gz", hash = "sha256:40f8a66a466a7abd991a9df1b50de0a9d30c48ee0d3da46ce00516b68e41c9d7"},
@@ -3365,7 +3365,7 @@ description = "Fast, correct Python JSON library supporting dataclasses, datetim
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "orjson-3.11.9-cp310-cp310-macosx_10_15_x86_64.macosx_11_0_arm64.macosx_10_15_universal2.whl", hash = "sha256:135869ef917b8704ea0a94e01620e0c05021c15c52036e4663baffe75e72f8ce"},
     {file = "orjson-3.11.9-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:115ab5f5f4a0f203cc2a5f0fb09aee503a3f771aa08392949ab5ca230c4fbdbd"},
@@ -3450,7 +3450,7 @@ description = "Fast, correct Python msgpack library supporting dataclasses, date
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "ormsgpack-1.12.2-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:c1429217f8f4d7fcb053523bbbac6bed5e981af0b85ba616e6df7cce53c19657"},
     {file = "ormsgpack-1.12.2-cp310-cp310-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:5f13034dc6c84a6280c6c33db7ac420253852ea233fc3ee27c8875f8dd651163"},
@@ -5359,7 +5359,7 @@ description = "Retry code until it succeeds"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "tenacity-9.1.4-py3-none-any.whl", hash = "sha256:6095a360c919085f28c6527de529e76a06ad89b23659fa881ae0649b867a9d55"},
     {file = "tenacity-9.1.4.tar.gz", hash = "sha256:adb31d4c263f2bd041081ab33b498309a57c77f9acf2db65aadf0898179cf93a"},
@@ -5622,7 +5622,7 @@ description = "Fast, drop-in replacement for Python's uuid module, powered by Ru
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "uuid_utils-0.16.2-cp310-cp310-macosx_10_12_x86_64.macosx_11_0_arm64.macosx_10_12_universal2.whl", hash = "sha256:89a627f74cb55aa508809592ab9149806649e4ee37f4bc91b60c7ec10929f0eb"},
     {file = "uuid_utils-0.16.2-cp310-cp310-macosx_10_12_x86_64.whl", hash = "sha256:e92875a315f3cc4fe7a2324c17b3c7ac5e3fd0e24b14fc4deb28370431fe6a2b"},
@@ -6048,7 +6048,7 @@ description = "An implementation of the WebSocket Protocol (RFC 6455 & 7692)"
 optional = true
 python-versions = ">=3.10"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"fastapi\" or extra == \"langstage\")"
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"fastapi\" or extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "websockets-16.0-cp310-cp310-macosx_10_9_universal2.whl", hash = "sha256:04cdd5d2d1dacbad0a7bf36ccbcd3ccd5a30ee188f2560b7a62a30d14107b31a"},
     {file = "websockets-16.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:8ff32bb86522a9e5e31439a58addbb0166f0204d64066fb955265c4e214160f0"},
@@ -6155,7 +6155,7 @@ description = "Python binding for xxHash"
 optional = true
 python-versions = ">=3.8"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "xxhash-3.8.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:a2289857ab90ebb2408d4ac2b7cf7e9ff29bba9d2cb21020c9d11fbbaef78eea"},
     {file = "xxhash-3.8.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:d211cfa927a107df09359d1f31070883a11121ddc88fd6dd27eda3a497a88f3d"},
@@ -6374,7 +6374,7 @@ description = "Zstandard bindings for Python"
 optional = true
 python-versions = ">=3.9"
 groups = ["main"]
-markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and extra == \"langstage\""
+markers = "(sys_platform == \"win32\" or sys_platform == \"emscripten\" or sys_platform != \"win32\" and sys_platform != \"emscripten\") and (extra == \"langstage\" or extra == \"agent\")"
 files = [
     {file = "zstandard-0.25.0-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:e59fdc271772f6686e01e1b3b74537259800f57e24280be3f29c8a0deb1904dd"},
     {file = "zstandard-0.25.0-cp310-cp310-macosx_11_0_arm64.whl", hash = "sha256:4d441506e9b372386a5271c64125f72d5df6d2a8e8a2a45a0ae09b03cb781ef7"},
@@ -6481,6 +6481,7 @@ files = [
 cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and python_version < \"3.14\"", "cffi (>=2.0.0b) ; platform_python_implementation != \"PyPy\" and python_version >= \"3.14\""]
 
 [extras]
+agent = ["langchain", "langgraph"]
 dev = ["pre-commit", "toml", "tox", "twine", "virtualenv"]
 doc = ["griffe", "livereload", "mkdocs", "mkdocs-autorefs", "mkdocs-include-markdown-plugin", "mkdocs-jupyter", "mkdocs-material", "mkdocstrings-python"]
 fastapi = ["dash"]
@@ -6490,4 +6491,4 @@ test = ["black", "flake8", "flake8-docstrings", "isort", "pytest", "pytest-cov",
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.11,<3.15"
-content-hash = "27392dd8ef3ceffc067b050b600d54492421f34ca281436d942d53aad0ac7025"
+content-hash = "a9fa94e4fa145a1c8cc4f4b8f528beb706280a75976feb3ea7c373322d3cc19b"
