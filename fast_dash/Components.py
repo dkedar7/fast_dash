@@ -2,6 +2,7 @@ import copy
 import datetime
 import enum
 import inspect
+import json
 import math
 import numbers
 import warnings
@@ -26,6 +27,7 @@ import pandas as pd
 import PIL
 from PIL import ImageFile
 import plotly.graph_objs as go
+from plotly.io.json import to_json_plotly
 
 from .utils import (
     Fastify,
@@ -335,21 +337,31 @@ class AppLayout:
 
         return copy.deepcopy(layout)
 
-    def _set_single_component(self, axis, width, n_rows=1, style=None, label=""):
+    def _set_single_component(self, axis, width, n_rows=1, style=None, label="",
+                              deepcopy_leaf=True):
         style = self.col_style if style is None else style
         component = self.output_component_mapper.get(label, label)
         style.update({"height": f"{n_rows * self.height_of_single_row}vh"})
+        # Each leaf output card sits in a wrapper Col carrying a STABLE id
+        # derived from its mosaic letter (``fd-slot-<letter>``). set_output /
+        # set_layout key on that slot id; the leaf component keeps its own id
+        # (registered callbacks target it), so re-mosaic re-parents the same
+        # leaf without breaking any wiring.
         layout = dbc.Col(
             [component],
             class_name="p-1 flex-fill d-flex flex-column",
             style=style,
             width=width,
+            id=f"fd-slot-{label}",
             # align="center",
         )
 
-        return copy.deepcopy(layout)
+        # At build time the leaf is a fresh deepcopy (the mapper is a template);
+        # at runtime re-mosaic (rebuild_output_layout) we re-parent the SAME leaf
+        # objects so their ids stay live for the registered callbacks.
+        return copy.deepcopy(layout) if deepcopy_leaf else layout
 
-    def _do_mosaic(self, mosaic_array, axis, layout):
+    def _do_mosaic(self, mosaic_array, axis, layout, deepcopy_leaf=True):
         n_unique = len(np.unique(mosaic_array))
 
         if n_unique == 1:
@@ -364,8 +376,9 @@ class AppLayout:
                 style=style,
                 label=label,
                 n_rows=mosaic_array.shape[0],
+                deepcopy_leaf=deepcopy_leaf,
             )
-            return copy.deepcopy(lo)
+            return copy.deepcopy(lo) if deepcopy_leaf else lo
 
         n_unique_axis = self._get_n_unique(arr=mosaic_array, axis=1 - axis)
         min_index = np.argmin(n_unique_axis)
@@ -379,7 +392,8 @@ class AppLayout:
 
         for array, width in zip(sub_arrays, widths):
             child_layout = self._do_mosaic(
-                array, 1 - axis, self._get_component(axis=1 - axis, width=width)
+                array, 1 - axis, self._get_component(axis=1 - axis, width=width),
+                deepcopy_leaf=deepcopy_leaf,
             )
             layout.children.append(child_layout)
 
@@ -588,10 +602,19 @@ class AppLayout:
 
         return sections
 
-    def generate_output_component(self):
-        """Build the main content area with mosaic output grid."""
-        mosaic = self._normalize_grid_string(self.mosaic)
-        mosaic_arr = self._make_array(mosaic)
+    def _build_output_tree(self, mosaic, deepcopy_leaf=True):
+        """Run the mosaic engine for ``mosaic`` and return the loader-wrapped tree.
+
+        Shared by :meth:`generate_output_component` (build time) and
+        :meth:`rebuild_output_layout` (runtime set_layout re-mosaic). The tree is
+        ``output-loading-wrap`` (the loading overlay + the ``dbc.Col`` grid),
+        which is exactly what sits under ``output-group-col``. With
+        ``deepcopy_leaf=False`` the SAME leaf output cards are re-parented (their
+        ids stay live for the registered callbacks); the mapper is populated by
+        the first (build-time) call.
+        """
+        mosaic_grid = self._normalize_grid_string(mosaic)
+        mosaic_arr = self._make_array(mosaic_grid)
         mosaic_shape = mosaic_arr.shape
         # Approximate available height in vh for row distribution
         available_vh = 90 * self.scale_height
@@ -599,14 +622,17 @@ class AppLayout:
 
         self._check_if_rectangular(mosaic_arr)
 
-        if self.outputs == []:
-            self.output_component_mapper = {}
-        else:
-            unique_locations = np.unique(mosaic_arr)
-            unique_locations.sort()
-            self.output_component_mapper = {
-                m: o for m, o in zip(unique_locations, self.outputs[:-1])
-            }
+        # The letter -> output-card mapping is a stable template built once from
+        # the default mosaic; a runtime re-mosaic reuses it (only rearranges).
+        if not getattr(self, "output_component_mapper", None):
+            if self.outputs == []:
+                self.output_component_mapper = {}
+            else:
+                unique_locations = np.unique(mosaic_arr)
+                unique_locations.sort()
+                self.output_component_mapper = {
+                    m: o for m, o in zip(unique_locations, self.outputs[:-1])
+                }
 
         begin_axis = np.argmax(
             [
@@ -615,8 +641,10 @@ class AppLayout:
             ]
         )
 
+        self.unique_components = []
         begin = dbc.Row([], justify=True, class_name="g-1 d-flex")
-        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin)
+        layout = self._do_mosaic(mosaic_arr, axis=1 - begin_axis, layout=begin,
+                                 deepcopy_leaf=deepcopy_leaf)
         output_layout = dbc.Col(
             [layout] + [self.outputs[-1]],
             class_name="g-1 d-flex flex-fill flex-column",
@@ -632,10 +660,72 @@ class AppLayout:
             loaderProps=dict(type=self.loader),
             overlayProps={"backgroundOpacity": 0},
         )
-        output_layout = html.Div([loader_component, output_layout],
-                                 id="output-loading-wrap")
+        return html.Div([loader_component, output_layout], id="output-loading-wrap")
 
-        return output_layout
+    def generate_output_component(self):
+        """Build the main content area with mosaic output grid."""
+        return self._build_output_tree(self.mosaic, deepcopy_leaf=True)
+
+    @property
+    def output_slot_letters(self):
+        """The stable mosaic letters (slot ids) for the default layout."""
+        return sorted((getattr(self, "output_component_mapper", None) or {}).keys())
+
+    def _sidecar_set_layout_allowed(self):
+        """True when the host app should carry the set_layout plumbing.
+
+        Mirrors ChatAppMixin._sidecar_layout_enabled: a drivable chat sidecar
+        whose chat_tools allowlist includes set_layout and which has slots.
+        Drivability is derived from the allowlist here (``_sidecar_can_drive``
+        is only set later, in _init_chat_sidecar) so the store presence and the
+        Run-reset callback registration stay in agreement.
+        """
+        app = self.app
+        if not getattr(app, "has_chat_sidecar", False):
+            return False
+        allow = getattr(app, "chat_tools_config", {}) or {}
+        can_drive = "set_input" in allow or "run_app" in allow
+        return bool(
+            can_drive and "set_layout" in allow and self.output_slot_letters)
+
+    def rebuild_output_layout(self, mosaic):
+        """Re-mosaic the EXISTING output slots into ``mosaic`` (SPEC O2).
+
+        Validates that ``mosaic`` is rectangular and that its letters are a
+        SUBSET of the existing slot letters (set_layout v1 rearranges/resizes,
+        never invents slots), then re-runs the mosaic engine RE-PARENTING the
+        same leaf output cards (ids preserved). Returns
+        ``(tree, None)`` on success or ``(None, reason)`` with a friendly ASCII
+        reason string on failure -- never raises for a bad mosaic.
+        """
+        valid = self.output_slot_letters
+        try:
+            grid = self._normalize_grid_string(mosaic)
+            mosaic_arr = self._make_array(grid)
+        except ValueError as exc:
+            return None, self._ascii_reason(str(exc))
+        try:
+            self._check_if_rectangular(mosaic_arr)
+        except ValueError:
+            return None, ("That layout has a non-rectangular or non-contiguous "
+                          "region. Each slot must cover a filled rectangle.")
+
+        used = sorted({str(c) for c in np.unique(mosaic_arr)})
+        extra = [c for c in used if c not in valid]
+        if extra:
+            return None, (
+                "Unknown slot(s): %s. set_layout can only rearrange existing "
+                "slots. Valid slots: %s." % (
+                    ", ".join(extra), ", ".join(valid) or "none"))
+
+        tree = self._build_output_tree(mosaic, deepcopy_leaf=False)
+        return tree, None
+
+    @staticmethod
+    def _ascii_reason(text):
+        """Coerce an engine error string to a short, ASCII, friendly reason."""
+        text = "".join(ch if ord(ch) < 128 else "?" for ch in str(text))
+        return "That layout is invalid: " + text.strip().splitlines()[0][:200]
 
     def generate_footer_container(self):
         return dmc.Affix(
@@ -789,6 +879,19 @@ class AppLayout:
             # the clientside flash callback.
             extra.append(dcc.Store(id="chat-drive-tick"))
             extra.append(dcc.Store(id="chat-drive-flash"))
+            # Sink for the set_output / set_layout clientside reducer (which
+            # applies its effects via dash_clientside.set_props, not Outputs).
+            extra.append(dcc.Store(id="chat-content-sink"))
+            # Run-always-wins: only apps that allow set_layout carry the default
+            # layout snapshot (and the Run-reset callback that restores it), so a
+            # plain sidecar app isn't bloated. The snapshot is the serialized
+            # default output tree; the Run-reset callback re-parents it (leaf ids
+            # preserved) so the Run response fills the same leaves by id.
+            if self._sidecar_set_layout_allowed():
+                extra.append(dcc.Store(
+                    id="fd-default-layout",
+                    data=json.loads(to_json_plotly(main_content)),
+                ))
 
         layout = dmc.MantineProvider(
             [appshell] + extra,

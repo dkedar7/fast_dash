@@ -197,7 +197,9 @@ class ChatAppMixin:
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_panel_collapse()          # collapse/expand affordance
         self._register_chat_drive_reducer()
+        self._register_chat_content_reducer()         # set_output / set_layout ops
         self._register_chat_drive_flash()
+        self._register_run_reset()                    # Run-always-wins reconcile
 
     def _register_chat_panel_collapse(self):
         """Wire the sidebar chat panel's collapse/expand affordance.
@@ -330,6 +332,46 @@ class ChatAppMixin:
         self._sidecar_sync_mcp_mirror(drive_inputs)
         return outputs
 
+    def _output_slot_letters(self):
+        """The stable mosaic slot letters for this app's outputs (sorted)."""
+        lo = getattr(self, "layout_object", None)
+        return list(getattr(lo, "output_slot_letters", []) or [])
+
+    def _resolve_slot(self, slot):
+        """Map a mosaic slot letter to its output index, or None if unknown.
+
+        Case-insensitive (the mosaic engine uses uppercase letters, but an agent
+        may say "a"); the letter position in the sorted slot list is the output
+        index (outputs_with_ids / output_tags share that order).
+        """
+        letters = self._output_slot_letters()
+        s = str(slot)
+        for i, letter in enumerate(letters):
+            if str(letter) == s or str(letter).lower() == s.lower():
+                return i
+        return None
+
+    def _sidecar_set_output(self, index, value):
+        """Transform ``value`` for output slot ``index`` the way a Run would.
+
+        Returns ``(leaf_id, component_property, transformed_value)`` for the
+        slot's leaf component, using the SAME per-output transform pipeline as
+        _sidecar_run_app (figures/DataFrames/images converted server-side).
+        """
+        from .utils import _transform_outputs
+        leaf = self.outputs_with_ids[index]
+        tag = self.output_tags[index]
+        self.state_counter += 1
+        transformed = _transform_outputs(
+            [value], [tag], [leaf], self.state_counter)[0]
+        # Mirror a manual Run's server-side effect for this one slot, so
+        # describe_app / state replay reflect what the agent produced.
+        if isinstance(self.output_state, list) and index < len(self.output_state):
+            self.output_state[index] = transformed
+            self.latest_output_state = self.output_state
+            self.app_initialized = True
+        return leaf.id, leaf.component_property, transformed
+
     def _sidecar_sync_mcp_mirror(self, drive_inputs):
         """Reflect the agent's driven inputs into the MCP input mirror.
 
@@ -412,6 +454,89 @@ class ChatAppMixin:
             drive_outputs,
             Input("socketio", "data-chat_drive"),
             prevent_initial_call=True,
+        )
+
+    def _register_chat_content_reducer(self):
+        """Flask: apply set_output / set_layout pushes to the output surface.
+
+        These ops target components not known at callback-registration time (a
+        specific leaf id, or a fresh children tree), so instead of declaring
+        fixed Outputs the reducer applies them with ``dash_clientside.set_props``
+        (arbitrary targets). ASGI calls ``set_props`` server-side, so this is a
+        no-op there. Sinks into a dummy store so the callback has an Output.
+        """
+        if self._native_stream or not getattr(self, "_sidecar_can_drive", True):
+            return
+        from dash import Input, Output
+        app = self.app
+
+        app.clientside_callback(
+            """
+            function(payload) {
+                var no = dash_clientside.no_update;
+                if (!payload) { return no; }
+                if (payload.op === 'set_output') {
+                    var p = {};
+                    p[payload.prop] = payload.value;
+                    dash_clientside.set_props(payload.id, p);
+                    dash_clientside.set_props('output-group-col', {className: ''});
+                } else if (payload.op === 'layout') {
+                    dash_clientside.set_props('output-group-col',
+                                             {children: payload.tree});
+                    dash_clientside.set_props('output-group-col', {className: ''});
+                }
+                return no;
+            }
+            """,
+            Output("chat-content-sink", "data"),
+            Input("socketio", "data-chat_drive"),
+            prevent_initial_call=True,
+        )
+
+    def _register_run_reset(self):
+        """Run-always-wins: restore the default output layout on a manual Run.
+
+        The agent may have re-mosaiced (set_layout) or set individual slots; a
+        user's Run must always reassert the default output layout. A clientside
+        callback on ``submit_inputs.n_clicks`` restores ``output-group-col``'s
+        children from the ``fd-default-layout`` store BEFORE the server response
+        lands (the response then fills leaf values by id as usual). Idempotent
+        (always-restore, no dirty flag). It sets *children only* -- never the
+        className -- so it never fights the existing fd-not-run machinery, which
+        owns output-group-col.className on the same trigger.
+
+        Registered only when set_layout is allowed (the store is built then),
+        so a plain sidecar app carries no extra callback.
+        """
+        if not self._sidecar_layout_enabled():
+            return
+        from dash import Input, Output, State
+        app = self.app
+        app.clientside_callback(
+            """
+            function(n, tree) {
+                if (!n || !tree) { return dash_clientside.no_update; }
+                return tree;   // restore default layout; leaf ids preserved
+            }
+            """,
+            Output("output-group-col", "children", allow_duplicate=True),
+            Input("submit_inputs", "n_clicks"),
+            State("fd-default-layout", "data"),
+            prevent_initial_call=True,
+        )
+
+    def _sidecar_layout_enabled(self):
+        """True when this app should carry set_layout plumbing (store + reset).
+
+        Gated on: a drivable chat sidecar whose allowlist includes set_layout
+        and which actually has output slots to rearrange.
+        """
+        allow = getattr(self, "chat_tools_config", {}) or {}
+        return bool(
+            getattr(self, "has_chat_sidecar", False)
+            and getattr(self, "_sidecar_can_drive", False)
+            and "set_layout" in allow
+            and self._output_slot_letters()
         )
 
     def _register_chat_drive_flash(self):
@@ -1064,6 +1189,23 @@ class ChatAppMixin:
                 set_props("chat-drive-tick", {"data": {
                     "changed": list(changed or []), "ran": bool(ran),
                     "n": self._drive_tick}})
+
+            def _emit_set_output(leaf_id, prop, value):
+                # ASGI: push the single slot's transformed value straight onto
+                # the leaf component, then flash the output.
+                set_props(leaf_id, {prop: value})
+                set_props("output-group-col", {"className": ""})
+                self._drive_tick += 1
+                set_props("chat-drive-tick", {"data": {
+                    "changed": [], "ran": True, "n": self._drive_tick}})
+
+            def _emit_layout(tree):
+                # ASGI: full-state push of the re-mosaiced output tree
+                # (established pattern: replace output-group-col.children).
+                set_props("output-group-col", {"children": tree})
+                self._drive_tick += 1
+                set_props("chat-drive-tick", {"data": {
+                    "changed": [], "ran": True, "n": self._drive_tick}})
         else:
             # Flask op protocol (or a caller-supplied capture emit).
             _sio_emit = None
@@ -1102,6 +1244,26 @@ class ChatAppMixin:
                 else:
                     emit(payload)
 
+            def _emit_set_output(leaf_id, prop, value):
+                # Flask: a 'set_output' op the drive reducer applies to the leaf
+                # via dash_clientside.set_props (arbitrary target, no declared
+                # Output). The value is JSON-safe (figures/frames converted).
+                payload = {"op": "set_output", "id": leaf_id, "prop": prop,
+                           "value": self._json_safe(value), "ran": True}
+                if _sio_emit is not None:
+                    _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
+                else:
+                    emit(payload)
+
+            def _emit_layout(tree):
+                # Flask: a 'layout' op carrying the re-mosaiced tree as Dash
+                # component JSON; the reducer sets output-group-col.children.
+                payload = {"op": "layout", "tree": tree, "ran": True}
+                if _sio_emit is not None:
+                    _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
+                else:
+                    emit(payload)
+
         def _append_text(text):
             if blocks and blocks[-1].get("kind") == "text":
                 blocks[-1]["text"] += text
@@ -1117,7 +1279,7 @@ class ChatAppMixin:
                 state["last"] = now
                 state["n"] = 0
 
-        def _on_frame(frame):
+        def _dispatch_frame(frame):
             t = frame["type"]
             if t == "content":
                 _append_text(frame["content"]); state["n"] += 1; _flush()
@@ -1185,6 +1347,48 @@ class ChatAppMixin:
                         _append_text(("\n\n" if _has_text(blocks) else "")
                                      + "**Error running the app:** " + str(exc))
                         _flush(True)
+            elif t == "set_output" and self.has_chat_sidecar:
+                # Render one value into a slot through the Run transform pipeline
+                # and push it per-client. Gated by the chat_tools allowlist.
+                if "set_output" not in (getattr(self, "chat_tools_config", {}) or {}) \
+                        or not self._sidecar_can_drive:
+                    _append_text(("\n\n" if _has_text(blocks) else "")
+                                 + self._tool_refusal_note("set_output"))
+                    _flush(True)
+                else:
+                    idx = self._resolve_slot(frame.get("slot"))
+                    if idx is None:
+                        valid = ", ".join(self._output_slot_letters()) or "none"
+                        _append_text(("\n\n" if _has_text(blocks) else "")
+                                     + "_( No output slot '%s'. Valid slots: %s. )_"
+                                     % (frame.get("slot"), valid))
+                        _flush(True)
+                    else:
+                        try:
+                            leaf_id, prop, val = self._sidecar_set_output(
+                                idx, frame.get("value"))
+                            _emit_set_output(leaf_id, prop, val)
+                        except Exception as exc:              # noqa: BLE001
+                            _append_text(("\n\n" if _has_text(blocks) else "")
+                                         + "**Error setting the output:** " + str(exc))
+                            _flush(True)
+            elif t == "set_layout" and self.has_chat_sidecar:
+                # Re-mosaic the existing output slots. Gated by the allowlist;
+                # an invalid mosaic appends the friendly reason as a refusal note.
+                if "set_layout" not in (getattr(self, "chat_tools_config", {}) or {}) \
+                        or not self._sidecar_can_drive:
+                    _append_text(("\n\n" if _has_text(blocks) else "")
+                                 + self._tool_refusal_note("set_layout"))
+                    _flush(True)
+                else:
+                    tree, reason = self.layout_object.rebuild_output_layout(
+                        frame.get("mosaic"))
+                    if reason is not None:
+                        _append_text(("\n\n" if _has_text(blocks) else "")
+                                     + "_(" + reason + ")_")
+                        _flush(True)
+                    else:
+                        _emit_layout(self._chat_bubble_json(tree))
             elif t == "interrupt":
                 blocks.append({
                     "kind": "interrupt",
@@ -1197,6 +1401,24 @@ class ChatAppMixin:
                 _append_text(("\n\n" if _has_text(blocks) else "")
                              + "**Error:** " + frame["message"])
                 _flush(True)
+
+        def _on_frame(frame):
+            # Dispatch the agent's own frame, then drain any frames buffered by
+            # fast_dash.agent_tools during graph execution. langchain @tool
+            # functions run *inside* the graph (not on the frame stream), so
+            # their set_input / set_output / set_layout effects are queued in a
+            # per-turn contextvar buffer and surfaced here (RFC #145 Phase C).
+            # The module lands in Round 2b; guard ImportError until then.
+            _dispatch_frame(frame)
+            try:
+                from .agent_tools import drain_frames
+            except ImportError:
+                return
+            try:
+                for buffered in (drain_frames() or []):
+                    _dispatch_frame(buffered)
+            except Exception:                             # noqa: BLE001
+                pass                                      # a drain error never kills the turn
 
         if not to_transcript:
             pass                              # a Run: no user/assistant bubbles

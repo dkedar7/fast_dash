@@ -65,6 +65,11 @@ langstage = [
     "langstage-core[agui]>=1.0.0"
     ]
 
+agent = [
+    "langchain>=1.0",
+    "langgraph"
+    ]
+
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
 
 doc = [

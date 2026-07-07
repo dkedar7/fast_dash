@@ -1173,3 +1173,291 @@ class TestChatSidecar:
         assert "pwd" not in seen["spec_ids"]              # not advertised as a target
         assert "can't set the 'pwd' field" in app.chat_history.get("s1")[-1]["content"]
         assert app.output_state == ["pwd=hunter2 n=9"]    # run_app used the real value
+
+
+class TestSetOutputSetLayoutFrames:
+    """set_output / set_layout frame normalization (RFC #145 Phase C)."""
+
+    def test_set_output_frame_normalizes(self):
+        f = _normalize_frame({"type": "set_output", "slot": "a", "value": 5})
+        assert f == {"type": "set_output", "slot": "a", "value": 5}
+
+    def test_set_output_requires_slot(self):
+        with pytest.raises(ChatFrameError):
+            _normalize_frame({"type": "set_output", "value": 5})
+
+    def test_set_output_keeps_rich_value_raw(self):
+        # A rich payload survives normalization untouched (transformed later
+        # server-side), unlike an artifact which becomes a placeholder.
+        import plotly.graph_objects as go
+        fig = go.Figure()
+        f = _normalize_frame({"type": "set_output", "slot": "a", "value": fig})
+        assert f["value"] is fig
+
+    def test_set_layout_frame_normalizes(self):
+        f = _normalize_frame({"type": "set_layout", "mosaic": "AB"})
+        assert f == {"type": "set_layout", "mosaic": "AB"}
+
+    def test_set_layout_requires_mosaic(self):
+        with pytest.raises(ChatFrameError):
+            _normalize_frame({"type": "set_layout"})
+
+
+def _two_output_sidecar(agent, **kw):
+    """A two-output dashboard with a sidecar agent (stable slots A and B)."""
+    from fast_dash import Text
+
+    def dashboard(a: int = 1, b: int = 2):
+        return f"x{a}", f"y{b}"
+    return FastDash(callback_fn=dashboard, chat=agent, outputs=[Text, Text], **kw)
+
+
+class TestStableSlotIdentity:
+    """Each leaf output card sits in a stable fd-slot-<letter> wrapper."""
+
+    def test_default_layout_has_slot_ids_and_preserves_leaf_ids(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        ids = _layout_ids(app.app.layout)
+        assert {"fd-slot-A", "fd-slot-B"} <= ids
+        # The leaf component ids (which registered callbacks target) are intact.
+        leaf_ids = {c.id for c in app.outputs_with_ids}
+        assert leaf_ids <= ids
+
+    def test_slot_letters_are_reported(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        assert app.layout_object.output_slot_letters == ["A", "B"]
+
+
+class TestRebuildOutputLayout:
+    """rebuild_output_layout re-parents the same leaves and validates (SPEC O2)."""
+
+    def _find_slot_leaf(self, comp, letter):
+        if getattr(comp, "id", None) == f"fd-slot-{letter}":
+            return comp.children[0]
+        ch = getattr(comp, "children", None)
+        if ch is not None:
+            for c in (ch if isinstance(ch, (list, tuple)) else [ch]):
+                if c is not None:
+                    r = self._find_slot_leaf(c, letter)
+                    if r is not None:
+                        return r
+        return None
+
+    def test_valid_mosaic_reparents_same_leaf_objects(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        lo = app.layout_object
+        tree, reason = lo.rebuild_output_layout("A\nB")   # stack vertically
+        assert reason is None
+        # The SAME leaf card objects (from the mapper) are re-parented.
+        assert self._find_slot_leaf(tree, "A") is lo.output_component_mapper["A"]
+        assert self._find_slot_leaf(tree, "B") is lo.output_component_mapper["B"]
+        ids = _layout_ids(tree)
+        assert {"fd-slot-A", "fd-slot-B"} <= ids           # structure matches mosaic
+
+    def test_superset_letter_is_refused(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        tree, reason = app.layout_object.rebuild_output_layout("ABC")
+        assert tree is None
+        assert reason is not None and reason.isascii()
+        assert "Unknown slot" in reason and "C" in reason
+
+    def test_non_rectangular_is_refused(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        tree, reason = app.layout_object.rebuild_output_layout("AB\nBA")
+        assert tree is None
+        assert reason is not None and reason.isascii()
+        assert "rectangular" in reason or "contiguous" in reason
+
+
+class TestSetOutputDispatch:
+    """set_output frame renders through the transform + pushes per-client."""
+
+    def _drive_ops(self, app, agent_frames, sid="s1", app_inputs=None):
+        def agent(query, ctx):
+            for f in agent_frames:
+                yield f
+        app._chat_fn = agent
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append((ev, payload))):
+            app._run_chat_turn("go", sid, "sock", (), app_inputs=app_inputs)
+        return [p for ev, p in ops if ev == "chat_drive"]
+
+    def test_set_output_transforms_and_pushes_flask(self):
+        # A DataFrame value must be transformed (records) the way a Run would,
+        # then pushed to the target leaf via a 'set_output' op with a flash.
+        import pandas as pd
+        from fast_dash import Table
+
+        def dashboard(a: int = 1):
+            return pd.DataFrame({"x": [1]})
+        app = FastDash(callback_fn=dashboard, chat=lambda query, ctx: (yield "hi"),
+                       outputs=Table)
+        drive = self._drive_ops(app, [
+            {"type": "set_output", "slot": "a",
+             "value": pd.DataFrame({"x": [1, 2]})}])
+        assert len(drive) == 1
+        op = drive[0]
+        assert op["op"] == "set_output"
+        assert op["prop"] == "data"                     # Table -> data prop
+        assert op["value"] == [{"x": 1}, {"x": 2}]      # transformed to records
+        assert op["id"] == app.outputs_with_ids[0].id
+        assert op["ran"] is True                        # fires the drive flash
+
+    def test_set_output_invalid_slot_refuses_with_valid_list(self):
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard, chat=lambda query, ctx: (yield "hi"))
+        self._drive_ops(app, [
+            {"type": "set_output", "slot": "z", "value": "x"}])
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "No output slot 'z'" in reply
+        assert "Valid slots: A" in reply
+
+    def test_set_output_on_asgi_uses_set_props(self):
+        import dash
+        from fast_dash import Text
+
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard, chat=lambda query, ctx: (yield "hi"),
+                       outputs=Text)
+        app._native_stream = True
+        calls = []
+
+        def agent(query, ctx):
+            yield {"type": "set_output", "slot": "a", "value": "hello"}
+        app._chat_fn = agent
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("go", "s1", None, (), app_inputs={"a": 1})
+        non_transcript = [(c, p) for c, p in calls if c != "chat-messages"]
+        leaf_id = app.outputs_with_ids[0].id
+        assert (leaf_id, {app.outputs_with_ids[0].component_property: "hello"}) \
+            in non_transcript
+        assert ("output-group-col", {"className": ""}) in non_transcript
+
+
+class TestSetLayoutDispatch:
+    """set_layout frame re-mosaics and pushes new children per-client."""
+
+    def _drive_ops(self, app, agent, sid="s1", app_inputs=None):
+        app._chat_fn = agent
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append((ev, payload))):
+            app._run_chat_turn("go", sid, "sock", (), app_inputs=app_inputs)
+        return [p for ev, p in ops if ev == "chat_drive"]
+
+    def test_valid_layout_pushes_tree_flask(self):
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        drive = self._drive_ops(app, agent)
+        assert len(drive) == 1 and drive[0]["op"] == "layout"
+        tree = drive[0]["tree"]
+        # Serialized Dash component JSON (JSON-safe); wraps the mosaic.
+        assert json.dumps(tree)                          # JSON-safe on the wire
+        assert tree["props"]["id"] == "output-loading-wrap"
+
+    def test_invalid_layout_refuses_with_reason(self):
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "ABC"}
+        app = _two_output_sidecar(agent)
+        drive = self._drive_ops(app, agent)
+        assert drive == []                               # nothing pushed
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "Unknown slot" in reply
+
+    def test_set_layout_on_asgi_pushes_children(self):
+        import dash
+
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        app._native_stream = True
+        calls = []
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("go", "s1", None, (), app_inputs={"a": 1, "b": 2})
+        pushes = [(c, p) for c, p in calls if c == "output-group-col"]
+        assert any("children" in p for _, p in pushes)   # full-state children push
+
+
+class TestChatToolsGatingForLayout:
+    """set_output / set_layout honor the chat_tools allowlist."""
+
+    def _run(self, app, agent, sid="s1", app_inputs=None):
+        app._chat_fn = agent
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("go", sid, "sock", (), app_inputs=app_inputs)
+
+    def test_set_layout_disabled_by_chat_tools_refuses(self):
+        # chat_tools without set_layout -> the frame is refused with the SPEC
+        # per-verb note (the app is otherwise drivable via run_app).
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent, chat_tools=("read_app", "run_app"))
+        self._run(app, agent, app_inputs={"a": 1, "b": 2})
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "set_layout capability is disabled" in reply
+
+    def test_set_output_disabled_by_chat_tools_refuses(self):
+        def agent(query, ctx):
+            yield {"type": "set_output", "slot": "a", "value": "x"}
+        app = _two_output_sidecar(agent, chat_tools=("read_app", "run_app"))
+        self._run(app, agent, app_inputs={"a": 1, "b": 2})
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "set_output capability is disabled" in reply
+
+
+class TestRunAlwaysWins:
+    """Default-layout store + Run-reset clientside callback (SPEC)."""
+
+    def test_default_layout_store_present_when_sidecar_and_set_layout_allowed(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        ids = _layout_ids(app.app.layout)
+        assert "fd-default-layout" in ids
+        # It carries the serialized default tree (JSON-safe, the loader wrap).
+        store = _find_by_id(app.app.layout, "fd-default-layout")
+        data = store.to_plotly_json()["props"]["data"]
+        assert data["props"]["id"] == "output-loading-wrap"
+        assert json.dumps(data)                          # JSON-safe
+
+    def test_default_layout_store_absent_without_set_layout(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"),
+                                  chat_tools=("read_app", "run_app"))
+        ids = _layout_ids(app.app.layout)
+        assert "fd-default-layout" not in ids
+
+    def test_default_layout_store_absent_on_plain_app(self):
+        app = FastDash(callback_fn=lambda a=1: str(a))
+        ids = _layout_ids(app.app.layout)
+        assert "fd-default-layout" not in ids
+
+    def test_run_reset_callback_is_registered(self):
+        # A clientside callback on submit_inputs.n_clicks restores
+        # output-group-col.children from the store (children only, not className).
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        wired = False
+        for out_key, spec in app.app.callback_map.items():
+            if "output-group-col.children" not in out_key:
+                continue
+            inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
+            states = [f"{s['id']}.{s['property']}" for s in spec.get("state", [])]
+            if any("submit_inputs.n_clicks" in x for x in inputs) \
+                    and any("fd-default-layout.data" in x for x in states):
+                wired = True
+        assert wired, "Run-reset must restore output-group-col.children from the store"
+
+    def test_run_reset_never_touches_classname(self):
+        # The restore sets children only; the fd-not-run machinery owns
+        # output-group-col.className on the same submit_inputs trigger.
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        for out_key, spec in app.app.callback_map.items():
+            inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
+            if not any("submit_inputs.n_clicks" in x for x in inputs):
+                continue
+            # No single callback both restores children AND sets className.
+            if "output-group-col.children" in out_key:
+                assert "output-group-col.className" not in out_key

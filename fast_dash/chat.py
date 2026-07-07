@@ -76,6 +76,8 @@ CANVAS = "canvas"          # rebuild the output canvas from a UI-spec list
 SET_PROPS = "set_props"    # patch one canvas component's props/value
 SET_INPUT = "set_input"    # sidecar: set one host-app input value
 RUN_APP = "run_app"        # sidecar: run the host app on its current inputs
+SET_OUTPUT = "set_output"  # sidecar: render a value into one output slot
+SET_LAYOUT = "set_layout"  # sidecar: re-mosaic the existing output slots
 COMPLETE = "complete"
 ERROR = "error"
 
@@ -86,7 +88,7 @@ ERROR = "error"
 # that opts into the canvas explicitly.
 _KNOWN_FRAME_TYPES = frozenset(
     {CONTENT, REASONING, TOOL_START, TOOL_END, ARTIFACT,
-     INTERRUPT, SET_INPUT, RUN_APP, COMPLETE, ERROR}
+     INTERRUPT, SET_INPUT, RUN_APP, SET_OUTPUT, SET_LAYOUT, COMPLETE, ERROR}
 )
 
 # Frame types whose payload never crosses the socket raw (rendered server-side
@@ -173,6 +175,17 @@ def _normalize_frame(frame):
                  "value": frame.get("value")}
     elif ftype == RUN_APP:
         frame = {"type": RUN_APP}
+    elif ftype == SET_OUTPUT:
+        if "slot" not in frame:
+            raise ChatFrameError("A 'set_output' frame must have a 'slot' key.")
+        # The value may be a rich object (figure / DataFrame); it is transformed
+        # server-side by the same pipeline the Run button uses, so keep it raw.
+        frame = {"type": SET_OUTPUT, "slot": str(frame["slot"]),
+                 "value": frame.get("value")}
+    elif ftype == SET_LAYOUT:
+        if "mosaic" not in frame:
+            raise ChatFrameError("A 'set_layout' frame must have a 'mosaic' key.")
+        frame = {"type": SET_LAYOUT, "mosaic": str(frame["mosaic"])}
     elif ftype == ERROR:
         frame = {"type": ERROR, "message": _as_text(frame.get("message", ""))}
     elif ftype == COMPLETE:
