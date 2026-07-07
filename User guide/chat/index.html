@@ -463,6 +463,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#typed-agent-events" class="md-nav__link">
+    Typed agent events
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-ctx-object" class="md-nav__link">
     The ctx object
   </a>
@@ -808,6 +815,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#typed-agent-events" class="md-nav__link">
+    Typed agent events
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#the-ctx-object" class="md-nav__link">
     The ctx object
   </a>
@@ -1020,6 +1034,36 @@ and multi-turn memory rides the graph's checkpointer keyed by the chat session:<
 <span class="c1"># a compiled LangGraph graph, or &quot;my_pkg.agents:graph&quot;</span>
 <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="s2">&quot;my_pkg.agents:graph&quot;</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">run</span><span class="p">()</span>
 </code></pre></div>
+<h2 id="typed-agent-events">Typed agent events</h2>
+<p>A LangGraph agent's tool results are rendered as <strong>typed cards</strong> automatically.
+When the agent calls a common tool, Fast Dash extracts a structured object from
+the result and shows a purpose-built card instead of a raw tool blob: a
+<code>think_tool</code> reflection collapses into a thinking block, <code>write_todos</code> becomes a
+task list with status icons, and <code>display_inline</code> renders figures, tables, and
+markdown inline. This is on by default (no configuration) for any LangGraph chat
+agent; the seven built-ins cover <code>think_tool</code>, <code>write_todos</code>, <code>memory</code>,
+<code>skill_view</code>, <code>skill_manage</code>, context compression, and <code>display_inline</code>.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">langchain_core.tools</span><span class="w"> </span><span class="kn">import</span> <span class="n">tool</span>
+
+<span class="nd">@tool</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">write_todos</span><span class="p">(</span><span class="n">todos</span><span class="p">:</span> <span class="nb">list</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Track the plan; renders as a task list with status icons.&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">(</span><span class="n">todos</span><span class="p">)</span>   <span class="c1"># [{&quot;content&quot;: &quot;...&quot;, &quot;status&quot;: &quot;completed&quot;}, ...]</span>
+
+<span class="nd">@tool</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">display_inline</span><span class="p">(</span><span class="n">display_type</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">data</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Render rich content inline (markdown / table / figure).&quot;&quot;&quot;</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">dumps</span><span class="p">({</span><span class="s2">&quot;display_type&quot;</span><span class="p">:</span> <span class="s2">&quot;markdown&quot;</span><span class="p">,</span> <span class="s2">&quot;data&quot;</span><span class="p">:</span> <span class="s2">&quot;# Result</span><span class="se">\n</span><span class="s2">Done.&quot;</span><span class="p">})</span>
+
+<span class="c1"># Bind these tools to your LangGraph agent; FastDash(callback_fn=graph, chat=True)</span>
+<span class="c1"># renders each write_todos call as a task list and each display_inline call inline.</span>
+</code></pre></div>
+<p>To handle a tool the built-ins don't know, pass <code>chat_extractors=</code> -- an iterable
+of objects with a <code>tool_name</code>, an <code>extracted_type</code>, and an <code>extract(content)</code>
+method. They are appended to the defaults (an extractor whose <code>tool_name</code> matches
+a built-in overrides it). A plain <code>(query, ctx)</code> chat callable ignores
+<code>chat_extractors=</code>.</p>
 <h2 id="the-ctx-object">The <code>ctx</code> object</h2>
 <p><code>query</code> and <code>history</code> are all the 5-line chatbot needs. Power features fold into
 one optional <code>ctx</code> parameter (a <code>ChatContext</code>) instead of a growing list of magic

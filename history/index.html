@@ -651,6 +651,84 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-061">Release 0.6.1</h1>
+<h2 id="061-2026-07-07">0.6.1 (2026-07-07)</h2>
+<p>LangGraph chat agents now render their <strong>typed agent events</strong> as first-class
+cards by default. When an agent calls a common tool, Fast Dash's langstage
+bridge extracts a structured object from the tool result and shows a purpose-built
+card in the transcript instead of a raw tool blob -- a reflection collapses into a
+thinking block, a <code>write_todos</code> result becomes a task list with status icons, and
+<code>display_inline</code> renders figures / tables / markdown inline.</p>
+<h3 id="added">Added</h3>
+<ul>
+<li><strong>Typed agent-event rendering, on by default.</strong> The langstage bridge now passes
+  the seven built-in extractors to <code>iter_event_frames</code>, so a LangGraph agent's
+  tool results stream as <code>extraction</code> frames that render as typed cards. No opt-in
+  is required; a plain <code>(query, ctx)</code> chat callable is unaffected.</li>
+</ul>
+<table>
+<thead>
+<tr>
+<th>Tool</th>
+<th><code>extracted_type</code></th>
+<th>Rendered as</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>think_tool</code></td>
+<td><code>reflection</code></td>
+<td>a collapsible "Reflection" thinking block</td>
+</tr>
+<tr>
+<td><code>write_todos</code></td>
+<td><code>todos</code></td>
+<td>a task list; per-item status icon, completed struck through</td>
+</tr>
+<tr>
+<td><code>memory</code></td>
+<td><code>memory_updated</code></td>
+<td>a compact "Memory updated" callout</td>
+</tr>
+<tr>
+<td><code>skill_view</code></td>
+<td><code>skill_loaded</code></td>
+<td>a "Skill loaded" callout</td>
+</tr>
+<tr>
+<td><code>skill_manage</code></td>
+<td><code>skill_event</code></td>
+<td>a skill create / update / delete callout</td>
+</tr>
+<tr>
+<td><code>__compression__</code></td>
+<td><code>compression_summary</code></td>
+<td>a subtle "Context compressed" divider callout</td>
+</tr>
+<tr>
+<td><code>display_inline</code></td>
+<td><code>display_inline</code></td>
+<td>the flagship: figures / tables / markdown rendered inline (the same renderer artifacts use)</td>
+</tr>
+</tbody>
+</table>
+<p>An unknown <code>extracted_type</code> falls back to a compact collapsible JSON card, so a
+  typed event is never dropped.</p>
+<ul>
+<li><strong><code>chat_extractors=</code></strong> (new <code>FastDash</code> / <code>fastdash</code> parameter): an iterable of
+  extractor objects (each with a <code>tool_name</code>, an <code>extracted_type</code>, and a callable
+  <code>extract(content)</code>) appended to the built-in defaults, deduped by <code>tool_name</code>
+  with your extractor winning on a collision -- so you can override how any
+  built-in tool renders. Entries are duck-type validated at construction with a
+  friendly ASCII error. Only used for a LangGraph agent; a plain chat callable
+  ignores it silently.</li>
+</ul>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li>Inline artifact tables render as a real <code>DataTable</code> again (a <code>className</code> kwarg
+  unsupported by <code>dash_table.DataTable</code> on dash 4.3 had been silently falling back
+  to markdown text); the class now rides a wrapper div.</li>
+</ul>
 <h1 id="release-060">Release 0.6.0</h1>
 <h2 id="060-2026-07-07">0.6.0 (2026-07-07)</h2>
 <p>A single unified <code>chat=</code> argument replaces the family of <code>chat_*</code> knobs, and the
@@ -731,7 +809,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
   sidebar (even with zero inputs); no app callback (or a chat-shaped one) -&gt;
   full-page chat.</li>
 </ul>
-<h3 id="added">Added</h3>
+<h3 id="added_1">Added</h3>
 <ul>
 <li><strong>A chat-agent toolkit</strong> (<code>fast_dash.agent_toolkit(app)</code>) — the list of
   LangChain <code>@tool</code> functions the assistant uses, trimmed to the app's
@@ -793,7 +871,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </table>
 <h1 id="release-055">Release 0.5.5</h1>
 <h2 id="055-2026-07-05">0.5.5 (2026-07-05)</h2>
-<h3 id="fixed">Fixed</h3>
+<h3 id="fixed_1">Fixed</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code> layout.</strong> The wider (420px) sidebar wasn't
   reaching Mantine's AppShell: the <code>toggle_sidebar</code> callback reset the navbar to
@@ -808,7 +886,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </ul>
 <h1 id="release-054">Release 0.5.4</h1>
 <h2 id="054-2026-07-05">0.5.4 (2026-07-05)</h2>
-<h3 id="added_1">Added</h3>
+<h3 id="added_2">Added</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code></strong> places the chat sidecar <em>inside the left
   inputs sidebar</em> — stacked under the inputs, always visible — instead of the
