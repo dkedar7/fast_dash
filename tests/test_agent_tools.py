@@ -59,6 +59,16 @@ class TestFrameBuffer:
             AT.emit_frame({"type": "set_layout", "mosaic": "A"})
             assert AT.drain_frames() == [{"type": "set_layout", "mosaic": "A"}]
 
+    def test_clear_python_state_frees_namespace_and_result(self):
+        # The run_python exec state (per-thread namespace + stashed result) is
+        # freed on demand; unknown thread ids are a safe no-op. Needs no extra.
+        AT._PY_NAMESPACES["t-clear"] = {"x": 1}
+        AT._LAST_RESULT["t-clear"] = "obj"
+        AT.clear_python_state("t-clear")
+        assert "t-clear" not in AT._PY_NAMESPACES
+        assert "t-clear" not in AT._LAST_RESULT
+        AT.clear_python_state("never-seen")             # no raise
+
     def test_no_heavy_imports_at_module_top(self):
         # Importing agent_tools must not drag in langchain/langgraph (the buffer
         # side runs in every chat session; the extra is lazy). agent_tools is
@@ -68,6 +78,24 @@ class TestFrameBuffer:
         # The module's own globals must not bind the heavy names at import time.
         assert not hasattr(AT, "create_react_agent")
         assert not hasattr(AT, "init_chat_model")
+
+    def test_top_level_lazy_exports_resolve(self):
+        # The public toolkit entry points are exported from fast_dash (lazily via
+        # PEP 562), alongside RunPython. Resolving them must not raise even when
+        # only the buffer side of agent_tools has been touched.
+        import fast_dash
+        from fast_dash import (  # noqa: F401
+            FastDashMiddleware,
+            RunPython,
+            agent_toolkit,
+            app_prompt,
+        )
+        for name in ("agent_toolkit", "FastDashMiddleware", "app_prompt"):
+            assert name in fast_dash.__all__
+            assert callable(getattr(fast_dash, name))
+        # An unknown attribute still raises a normal AttributeError (PEP 562).
+        with pytest.raises(AttributeError):
+            fast_dash.definitely_not_an_export
 
 
 # --------------------------------------------------------------------------- #

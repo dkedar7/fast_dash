@@ -1402,23 +1402,28 @@ class ChatAppMixin:
                              + "**Error:** " + frame["message"])
                 _flush(True)
 
+        def _drain_tail():
+            # Drain the agent_tools per-turn buffer (a list of frame dicts a
+            # @tool emitted while running inside the graph). Returns [] when the
+            # [agent] extra is absent or nothing was buffered; never raises.
+            try:
+                from .agent_tools import drain_frames
+            except ImportError:
+                return []
+            try:
+                return drain_frames() or []
+            except Exception:                             # noqa: BLE001
+                return []                                 # a drain error never kills the turn
+
         def _on_frame(frame):
             # Dispatch the agent's own frame, then drain any frames buffered by
             # fast_dash.agent_tools during graph execution. langchain @tool
             # functions run *inside* the graph (not on the frame stream), so
             # their set_input / set_output / set_layout effects are queued in a
             # per-turn contextvar buffer and surfaced here (RFC #145 Phase C).
-            # The module lands in Round 2b; guard ImportError until then.
             _dispatch_frame(frame)
-            try:
-                from .agent_tools import drain_frames
-            except ImportError:
-                return
-            try:
-                for buffered in (drain_frames() or []):
-                    _dispatch_frame(buffered)
-            except Exception:                             # noqa: BLE001
-                pass                                      # a drain error never kills the turn
+            for buffered in _drain_tail():
+                _dispatch_frame(buffered)
 
         if not to_transcript:
             pass                              # a Run: no user/assistant bubbles
@@ -1434,16 +1439,39 @@ class ChatAppMixin:
                     b["decision"] = resume_decision
             _emit_replace0(streaming=True)
 
+        # Open a per-turn frame buffer so any set_input / run_app / set_output /
+        # set_layout / artifact frame an agent_tools @tool emits while it runs
+        # *inside* the agent graph lands somewhere the drain hook can pick up
+        # (the tools don't sit on the frame stream -- they run in the graph's
+        # executor). A ContextVar buffer propagates into the tasks langgraph
+        # spawns, so a tool call writes to the turn that opened it. No-op when
+        # agent_tools isn't importable (the [agent] extra is absent) -- a plain
+        # (query, ctx) chat agent never calls emit_frame anyway.
+        try:
+            from .agent_tools import turn_buffer as _turn_buffer
+        except ImportError:
+            import contextlib
+            _turn_buffer = contextlib.nullcontext
+
         from .chat import ChatFrameError
         try:
-            result = run_turn(
-                self._chat_fn, query,
-                history=history, settings=settings, emit=_on_frame,
-                friendly_error=lambda m: m,
-                cancelled=lambda: self._chat_cancelled(sid),
-                thread_id=sid, resume=resume, app_inputs=ctx_inputs,
-                app_input_specs=getattr(self, "_sidecar_contract", None),
-            )
+            with _turn_buffer():
+                result = run_turn(
+                    self._chat_fn, query,
+                    history=history, settings=settings, emit=_on_frame,
+                    friendly_error=lambda m: m,
+                    cancelled=lambda: self._chat_cancelled(sid),
+                    thread_id=sid, resume=resume, app_inputs=ctx_inputs,
+                    app_input_specs=getattr(self, "_sidecar_contract", None),
+                )
+                # Drain any frames the final agent step emitted after its last
+                # streamed frame (e.g. a tool that ran with no trailing agent
+                # event to trigger the per-frame drain in _on_frame).
+                try:
+                    for _buffered in (_drain_tail() or []):
+                        _dispatch_frame(_buffered)
+                except Exception:                         # noqa: BLE001
+                    pass
         except ChatFrameError as e:
             # A malformed frame is a developer bug worth surfacing loudly — but
             # it must not abort the turn mid-stream (that would strand the

@@ -1,5 +1,94 @@
 # History
 
+# Release 0.6.0
+
+## 0.6.0 (2026-07-07)
+
+A single unified `chat=` argument replaces the family of `chat_*` knobs, and the
+in-app assistant gains a real tool surface: it can read the app, drive its
+inputs, set individual outputs, rearrange the output layout, and run Python
+(with human-in-the-loop approval). This is a clean break — the old canvas /
+drawer / `chat_agent_*` API is removed outright (no deprecation aliases).
+
+### Breaking changes
+
+- **Six parameters removed** (no aliases): `canvas`, `chat_drawer`, `chat_agent`,
+  `chat_agent_title`, `chat_agent_drive`, `chat_agent_position`. Everything an
+  agent-on-an-app used to configure now flows through `chat=` and its companions.
+- **The canvas surface is gone.** The canvas component registry
+  (`CANVAS_COMPONENT_REGISTRY` app plumbing), the drawer layout branches, the
+  floating right-hand aside, and its toggle button are all removed. A chat
+  assistant now lives in the left sidebar (stacked under the inputs), the only
+  placement. The `canvas` / `set_props` chat frames are no longer part of the app
+  grammar — an unrecognized frame warns and is skipped rather than building a
+  canvas. (The provider-neutral `canvas_tool_specs` on-ramp helper stays for code
+  that opts into a canvas explicitly.)
+- **`chat=` is now polymorphic.** One argument accepts several kinds of value,
+  and the mode is resolved from it together with the shape of `callback_fn`:
+
+  | `chat=` value | `callback_fn` | Result |
+  |---|---|---|
+  | `False` / `None` | any | a normal app, no chat |
+  | `True` | chat-shaped (first param `query`) | full-page chat; the callback is the handler |
+  | `True` | app-shaped | the app **plus an auto-built assistant** sidecar (needs the `[agent]` + `[langstage]` extras and a `chat_model=` / `FASTDASH_MODEL`) |
+  | a model instance | app-shaped / `None` | an assistant auto-built around that model (sidecar, or full-page if no app callback) |
+  | a `(query, ctx)` callable | app-shaped / `None` | your agent as supplied, as a sidecar or full-page chat |
+  | a compiled LangGraph graph | app-shaped / `None` | driven through the langstage bridge |
+
+- **`chat_tools=`** replaces `chat_agent_drive=`. It is the server-side allowlist
+  of what the assistant may do: `None` -> the default full toolkit (`read_app`,
+  `set_input`, `run_app`, `set_output`, `set_layout`, and `run_python` with
+  approval); a tuple of tool-name strings and/or `RunPython(...)` configs to
+  narrow it; `()` for a read-nothing/do-nothing chat. A frame whose verb is not
+  in the allowlist appends a legible refusal note to the transcript instead of
+  acting. The old auto-trim rules survive as allowlist trims (with warnings):
+  `update_live=True` drops every app-driving verb (the app recomputes on change,
+  so driving would double-run or be overwritten); a multi-function / steps app
+  trims to `read_app` only.
+- **Placement is inferred, not configured.** The rule keys on whether an app
+  callback exists: an app-shaped callback -> a collapsible chat panel in the left
+  sidebar (even with zero inputs); no app callback (or a chat-shaped one) ->
+  full-page chat.
+
+### Added
+
+- **A chat-agent toolkit** (`fast_dash.agent_toolkit(app)`) — the list of
+  LangChain `@tool` functions the assistant uses, trimmed to the app's
+  `chat_tools` allowlist: `read_app`, `set_input`, `run_app`, `set_output`,
+  `set_layout`, `run_python` (+ `push_result`). Wire it into your own agent
+  yourself, or attach `FastDashMiddleware(app)` to a `create_agent`, or let
+  `chat=True` build one for you.
+- **`set_output` and `set_layout`** frames/tools. `set_output(slot, value)`
+  renders a value into one output slot through the same transform pipeline the
+  Run button uses (addressed by mosaic letter, e.g. `"A"`). `set_layout(mosaic)`
+  rearranges/resizes the *existing* slots by re-parenting their leaf components
+  (leaf ids stay stable, so registered callbacks keep working). A user's Run
+  always wins: it restores the default output layout before the response lands.
+- **`run_python`** — the assistant can execute Python in the app process against
+  a per-conversation namespace, with **human-in-the-loop approval** by default
+  (approve / edit / reject). Produced figures / DataFrames show inline and can be
+  placed into an output slot with `push_result`. A sandboxed variant
+  (`run_python_sandboxed`) runs code in a scrubbed, network-blocked subprocess.
+- **The `[agent]` extra** (`pip install "fast-dash[agent]"`) — LangChain 1.x +
+  LangGraph. Auto-building an assistant with `chat=True` also uses `[langstage]`
+  to stream it as chat frames.
+- **New top-level exports**: `agent_toolkit`, `FastDashMiddleware`, `app_prompt`
+  (lazy — importing `fast_dash` never drags in the optional extra), alongside the
+  existing `RunPython`.
+- **`chat_model=`** accepts a model instance or a `"provider:model"` string
+  (resolved via `langchain.chat_models.init_chat_model`); env fallback
+  `FASTDASH_MODEL`. **`chat_title=`** sets the sidebar panel header.
+
+### Migrating from 0.5.x
+
+| 0.5.x | 0.6.0 |
+|---|---|
+| `chat_agent=my_agent` | `chat=my_agent` |
+| `chat_agent_drive=False` | `chat_tools=("read_app",)` (read-only) |
+| `chat_agent_title="Helper"` | `chat_title="Helper"` |
+| `chat_agent_position="sidebar"` / `"aside"` | removed — the sidebar is the placement |
+| `canvas=True` | `chat=` an agent (or `chat=True`) with the `set_layout` / `set_output` tools |
+
 # Release 0.5.5
 
 ## 0.5.5 (2026-07-05)

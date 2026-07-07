@@ -27,9 +27,17 @@ def is_langstage_target(obj) -> bool:
     Recognizes a spec string (``"module:attr"``) or a compiled LangGraph graph,
     duck-typed (``get_graph`` + ``astream``) so this stays import-free — it must
     work even when ``langstage-core`` / ``langgraph`` is not installed.
+
+    A chat *model* is also a LangChain Runnable, so it too carries ``get_graph``
+    + ``astream`` — but it additionally has ``bind_tools`` (a compiled graph does
+    not). Excluding objects with ``bind_tools`` keeps a model instance out of the
+    graph path so it is routed to the auto-agent builder instead (SPEC O1 /
+    model-instance detection).
     """
     if isinstance(obj, str):
         return True
+    if callable(getattr(obj, "bind_tools", None)):
+        return False
     return hasattr(obj, "get_graph") and hasattr(obj, "astream")
 
 

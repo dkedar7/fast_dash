@@ -239,6 +239,16 @@ _HAS_LANGSTAGE = importlib.util.find_spec("langstage_core") is not None
 requires_langstage = pytest.mark.skipif(
     not _HAS_LANGSTAGE, reason="langstage extra not installed"
 )
+_HAS_AGENT = (
+    importlib.util.find_spec("langchain") is not None
+    and importlib.util.find_spec("langgraph") is not None
+)
+# The auto-built assistant needs [agent] (build) AND [langstage] (bridge to
+# chat frames), so its end-to-end tests require both extras.
+requires_auto_agent = pytest.mark.skipif(
+    not (_HAS_AGENT and _HAS_LANGSTAGE),
+    reason="auto-agent needs the agent + langstage extras",
+)
 
 
 def _layout_ids(comp, out=None):
@@ -1461,3 +1471,321 @@ class TestRunAlwaysWins:
             # No single callback both restores children AND sets className.
             if "output-group-col.children" in out_key:
                 assert "output-group-col.className" not in out_key
+
+
+# --------------------------------------------------------------------------- #
+# Round 3: auto-agent end-to-end (chat=True + app-shaped callback)
+# --------------------------------------------------------------------------- #
+
+def _scripted_tool_model(responses):
+    """A streaming, tool-binding fake chat model that replays ``responses``.
+
+    Each item is an ``AIMessage`` (plain content, or ``tool_calls=[...]``). The
+    ``_stream`` path emits ``tool_call_chunks`` so ``create_react_agent`` +
+    the langstage AG-UI bridge consume tool calls the way a real model would --
+    GenericFakeChatModel cannot stream tool-call-only (empty-content) messages,
+    which is exactly what the drive path needs, so this fake fills that gap.
+    """
+    import json as _json
+
+    from langchain_core.language_models import BaseChatModel
+    from langchain_core.messages import AIMessageChunk
+    from langchain_core.outputs import ChatGeneration, ChatGenerationChunk, ChatResult
+
+    class _ScriptedToolFake(BaseChatModel):
+        responses: list
+        i: int = 0
+
+        @property
+        def _llm_type(self):
+            return "scripted-tool-fake"
+
+        def bind_tools(self, tools, **kwargs):
+            return self                                 # tools drive via the toolkit
+
+        def _next(self):
+            msg = self.responses[min(self.i, len(self.responses) - 1)]
+            self.i += 1
+            return msg
+
+        def _generate(self, messages, stop=None, run_manager=None, **kwargs):
+            return ChatResult(generations=[ChatGeneration(message=self._next())])
+
+        def _stream(self, messages, stop=None, run_manager=None, **kwargs):
+            msg = self._next()
+            if msg.tool_calls:
+                for idx, tc in enumerate(msg.tool_calls):
+                    yield ChatGenerationChunk(message=AIMessageChunk(
+                        content="", tool_call_chunks=[{
+                            "name": tc["name"], "args": _json.dumps(tc["args"]),
+                            "id": tc["id"], "index": idx}]))
+            else:
+                yield ChatGenerationChunk(message=AIMessageChunk(content=msg.content))
+
+    return _ScriptedToolFake(responses=list(responses))
+
+
+@requires_auto_agent
+class TestAutoAgentEndToEnd:
+    """chat=True on an app-shaped callback auto-builds an assistant and streams
+    a full turn through the sidecar loop (build_auto_agent -> langstage bridge).
+    """
+
+    def _ops(self, app, query, sid="s1", app_inputs=None):
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, p=None, **k: ops.append((ev, p))):
+            app._run_chat_turn(query, sid, "sock", (), app_inputs=app_inputs)
+        return ops
+
+    def test_plain_text_turn_completes(self):
+        # A fake model that just answers with text: the auto-agent is built on
+        # first use, bridged through langstage, and the reply reaches history.
+        from langchain_core.messages import AIMessage
+        def dashboard(revenue: int = 100) -> str:
+            """A revenue dashboard."""
+            return f"rev {revenue}"
+        model = _scripted_tool_model([AIMessage(content="Here is your answer.")])
+        app = FastDash(callback_fn=dashboard, chat=True, chat_model=model)
+        assert app.has_chat_sidecar is True
+        assert app.is_langstage is True               # bridged, so HITL wires
+        # The placeholder is built lazily -- not until the first turn runs.
+        assert app._chat_fn.__class__.__name__ == "_AutoAgentPlaceholder"
+        self._ops(app, "hi", app_inputs={"revenue": 100})
+        assert app.chat_history.get("s1")[-1]["content"] == "Here is your answer."
+
+    def test_tool_call_set_input_then_run_app_drives_the_app(self):
+        # The model emits a set_input tool call then a run_app tool call; the
+        # toolkit executes them, their frames drain to the sidecar, the host
+        # callback runs, and the output is pushed -- a full agentic drive.
+        from langchain_core.messages import AIMessage
+        def dashboard(a: int = 1, b: int = 2) -> str:
+            return f"sum={a + b}"
+        model = _scripted_tool_model([
+            AIMessage(content="", tool_calls=[
+                {"name": "set_input", "args": {"name": "a", "value": 10}, "id": "c1"}]),
+            AIMessage(content="", tool_calls=[
+                {"name": "run_app", "args": {}, "id": "c2"}]),
+            AIMessage(content="I set a to 10 and ran the app."),
+        ])
+        app = FastDash(callback_fn=dashboard, chat=True, chat_model=model)
+        ops = self._ops(app, "set a to 10 and run", app_inputs={"a": 1, "b": 2})
+        drive = [p for ev, p in ops if ev == "chat_drive"]
+        # set_input -> inputs [10, 2]; run_app -> outputs computed with a=10.
+        assert any(d.get("inputs") == [10, 2] for d in drive)
+        assert any(d.get("outputs") == ["sum=12"] and d.get("ran") for d in drive)
+        assert app.output_state == ["sum=12"]         # server state mirrored
+        assert app.chat_history.get("s1")[-1]["content"].startswith("I set a to 10")
+
+    def test_model_instance_is_not_mistaken_for_a_graph(self):
+        # A chat model is a LangChain Runnable, so it carries get_graph +
+        # astream just like a compiled graph -- but it also has bind_tools. It
+        # must route to the auto-agent builder, NOT the langstage graph path
+        # (which would crash trying to read the model's non-existent .nodes).
+        from langchain_core.messages import AIMessage
+        model = _scripted_tool_model([AIMessage(content="via model instance")])
+        # Full-page: model in chat=, no app callback.
+        full = FastDash(chat=model)
+        assert full.is_chat and not full.has_chat_sidecar
+        self._ops(full, "hi")
+        assert full.chat_history.get("s1")[-1]["content"] == "via model instance"
+        # Sidecar: model in chat= alongside an app callback.
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        side = FastDash(callback_fn=dashboard,
+                        chat=_scripted_tool_model([AIMessage(content="beside the app")]))
+        assert side.has_chat_sidecar
+        self._ops(side, "hi", sid="s2", app_inputs={"a": 1})
+        assert side.chat_history.get("s2")[-1]["content"] == "beside the app"
+
+    def test_tool_call_respects_chat_tools_refusal(self):
+        # With run_app trimmed from chat_tools, the toolkit doesn't even expose
+        # it -- so a model that (somehow) tried to drive is limited to reading.
+        # The server-side allowlist is the choke point; here we prove the
+        # toolkit surface itself is trimmed for the auto-agent's app.
+        import fast_dash.agent_tools as AT
+        from langchain_core.messages import AIMessage
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        model = _scripted_tool_model([AIMessage(content="read-only here")])
+        app = FastDash(callback_fn=dashboard, chat=True, chat_model=model,
+                       chat_tools=("read_app",))
+        assert app._sidecar_can_drive is False
+        names = {t.name for t in AT.agent_toolkit(app)}
+        assert names == {"read_app"}                  # no drive verbs advertised
+        self._ops(app, "hi", app_inputs={"a": 1})
+        assert app.chat_history.get("s1")[-1]["content"] == "read-only here"
+
+
+def _run_python_hitl_graph(code):
+    """A langstage sidecar graph that interrupts for run_python approval, then
+    executes (or edits / rejects) the code via the real agent_tools engine.
+
+    Mirrors ``_interrupt_graph`` but exercises the run_python HITL contract at
+    the frame level: the interrupt payload is the toolkit's own payload, and the
+    decision drives the toolkit's own exec/read helpers -- so approve executes,
+    reject denies, edit runs the replacement.
+    """
+    import fast_dash.agent_tools as AT
+    from langchain_core.messages import AIMessage
+    from langgraph.checkpoint.memory import InMemorySaver
+    from langgraph.graph import END, START, MessagesState, StateGraph
+    from langgraph.types import interrupt
+
+    def gate(state):
+        decision = interrupt(AT._run_python_interrupt_payload(code))
+        verdict, edited = AT._read_decision(decision, code)
+        if verdict == "reject":
+            return {"messages": [AIMessage(content="User denied execution.")]}
+        res = AT._exec_python(edited, "hitl-thread")
+        return {"messages": [AIMessage(content=AT._summarize_py_result(res))]}
+
+    g = StateGraph(MessagesState)
+    g.add_node("gate", gate)
+    g.add_edge(START, "gate")
+    g.add_edge("gate", END)
+    return g.compile(checkpointer=InMemorySaver())
+
+
+@requires_auto_agent
+class TestSidecarRunPythonHitl:
+    """run_python approval, at the frame level, in SIDECAR mode.
+
+    TestChatHitl covers the pause/resume mechanics in full-page chat mode; this
+    extends it to a chat sidecar on a normal app, and asserts the observable
+    exec side effect of each decision (approve / reject / edit).
+    """
+
+    def _pause(self, app, sid="s1"):
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn("run it", sid, "sock", (), app_inputs={"a": 1})
+
+    def test_approve_executes_the_code(self):
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat=_run_python_hitl_graph("print('EXECUTED'); 21 * 2"))
+        assert app.has_chat_sidecar and app.is_langstage
+        self._pause(app)
+        assert app._session("s1").pending is not None
+        with mock.patch("flask_socketio.emit"):
+            app._resume_chat_turn("s1", "sock", "approve")
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "EXECUTED" in reply and "42" in reply   # code ran, result captured
+        assert app._session("s1").pending is None
+
+    def test_reject_denies_without_executing(self):
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat=_run_python_hitl_graph("print('SHOULD_NOT_RUN')"))
+        self._pause(app)
+        with mock.patch("flask_socketio.emit"):
+            app._resume_chat_turn("s1", "sock", "reject")
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "denied" in reply.lower()
+        assert "SHOULD_NOT_RUN" not in reply           # never executed
+
+    def test_edit_executes_replacement_code(self):
+        from fast_dash.adapters.langstage import make_resume_input
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat=_run_python_hitl_graph("print('ORIGINAL')"))
+        self._pause(app)
+        pending = app._session("s1").pending
+        # An edit decision carries the replacement code (the UI would supply it).
+        resume = make_resume_input(
+            [{"type": "edit", "args": {"code": "print('EDITED')"}}])
+        with mock.patch("flask_socketio.emit"):
+            app._run_chat_turn(pending["query"], "s1", "sock", (), resume=resume,
+                               resume_decision="edit", resume_blocks=pending["blocks"])
+        reply = app.chat_history.get("s1")[-1]["content"]
+        assert "EDITED" in reply and "ORIGINAL" not in reply
+
+
+class TestRunPythonNamespaceLifecycle:
+    """run_python exec state is freed when a session's history is cleared."""
+
+    def test_clearing_history_frees_python_state(self):
+        import fast_dash.agent_tools as AT
+        from fast_dash.chat import ChatHistory
+        AT._PY_NAMESPACES["sess-x"] = {"counter": 5}
+        AT._LAST_RESULT["sess-x"] = "a-figure"
+        hist = ChatHistory(size=5)
+        hist.append_turn("sess-x", "hi", "there")
+        hist.clear("sess-x")
+        assert "sess-x" not in AT._PY_NAMESPACES     # namespace freed
+        assert "sess-x" not in AT._LAST_RESULT       # stashed result freed
+
+    def test_clear_python_state_is_safe_for_unknown_thread(self):
+        import fast_dash.agent_tools as AT
+        AT.clear_python_state("no-such-thread")      # must not raise
+
+
+class TestUpdateLiveTrimsAllDriveVerbs:
+    """update_live trims every drive verb (set_input/run_app/set_output/set_layout)."""
+
+    def test_all_drive_verbs_dropped_with_warning(self):
+        def dashboard(x: int = 1) -> str:
+            return str(x)
+        with pytest.warns(UserWarning, match="read-only"):
+            app = FastDash(callback_fn=dashboard,
+                           chat=lambda query, ctx: (yield "hi"),
+                           update_live=True)
+        # None of the four drive verbs survive; read_app remains.
+        for verb in ("set_input", "run_app", "set_output", "set_layout"):
+            assert verb not in app.chat_tools_config
+        assert "read_app" in app.chat_tools_config
+        assert app._sidecar_can_drive is False
+
+    @requires_auto_agent
+    def test_toolkit_does_not_advertise_trimmed_verbs(self):
+        # The point of trimming the allowlist (not only refusing at dispatch):
+        # agent_toolkit must not advertise the app-driving verbs on update_live.
+        # (run_python survives -- executing code doesn't double-run the callback.)
+        import fast_dash.agent_tools as AT
+        def dashboard(x: int = 1) -> str:
+            return str(x)
+        with pytest.warns(UserWarning):
+            app = FastDash(callback_fn=dashboard,
+                           chat=lambda query, ctx: (yield "hi"),
+                           update_live=True)
+        names = {t.name for t in AT.agent_toolkit(app)}
+        assert names.isdisjoint(
+            {"set_input", "run_app", "set_output", "set_layout"})
+        assert "read_app" in names
+
+
+@requires_auto_agent
+class TestReadAppAgreesWithSlots:
+    """The read_app tool's output slots agree with output_slot_letters (MCP)."""
+
+    def test_read_app_slots_match_output_slot_letters(self):
+        import fast_dash.agent_tools as AT
+        from fast_dash import Text
+        def dashboard(a: int = 1, b: int = 2):
+            return f"x{a}", f"y{b}"
+        app = FastDash(callback_fn=dashboard,
+                       chat=lambda query, ctx: (yield "hi"), outputs=[Text, Text])
+        read = next(t for t in AT.agent_toolkit(app) if t.name == "read_app")
+        contract = read.invoke({})
+        slots = [s["slot"] for s in contract["outputs"]]
+        assert slots == app.layout_object.output_slot_letters == ["A", "B"]
+
+    def test_sidecar_mcp_describe_has_no_removed_concepts(self):
+        # A 0.6.0 sidecar app's MCP describe reports title/doc/inputs only -- no
+        # canvas / drawer / chat_agent leftovers from the removed 0.5.x surface.
+        from fast_dash import Text
+        def dashboard(a: int = 1) -> str:
+            return str(a)
+        app = FastDash(callback_fn=dashboard,
+                       chat=lambda query, ctx: (yield "hi"), outputs=[Text],
+                       mcp_server=True)
+        # The describe machinery the agent reads (read_app) is the same source
+        # of truth as MCP; assert it carries none of the removed vocabulary.
+        import fast_dash.agent_tools as AT
+        contract = AT._read_app_contract(app)
+        blob = json.dumps(contract).lower()
+        for removed in ("canvas", "drawer", "chat_agent"):
+            assert removed not in blob

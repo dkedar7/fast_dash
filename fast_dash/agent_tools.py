@@ -107,6 +107,19 @@ _PY_NAMESPACES: dict[str, dict] = {}
 _LAST_RESULT: dict[str, Any] = {}
 
 
+def clear_python_state(thread_id: str) -> None:
+    """Drop the persistent run_python namespace + stashed result for a thread.
+
+    Called when a chat session's history is cleared or the session is evicted
+    (the run_python thread_id IS the chat session id), so a long-running server
+    doesn't accumulate per-session exec namespaces (which can hold large frames
+    / figures) after the conversation they belonged to is gone. Never raises for
+    an unknown thread_id -- it is a plain best-effort cleanup.
+    """
+    _PY_NAMESPACES.pop(thread_id, None)
+    _LAST_RESULT.pop(thread_id, None)
+
+
 def _thread_id_from_config(config) -> str:
     """The langgraph thread id carried on a tool's RunnableConfig, or a default.
 
@@ -460,8 +473,16 @@ def _read_decision(decision, original_code: str):
     decision may carry replacement code under ``args.code`` / ``code`` / ``value``.
     Anything unrecognized is treated as approval of the original code (the
     conservative default when a surface resumes without detail).
+
+    A ``langgraph.types.Command`` (or any object carrying a ``resume`` attr) is
+    unwrapped first: some bridges (ag-ui-langgraph) hand the whole ``Command``
+    to ``interrupt()``'s return rather than its ``.resume`` payload, so peel it
+    off before matching the decisions shape.
     """
     d = decision
+    resume_attr = getattr(d, "resume", None)
+    if resume_attr is not None and not isinstance(d, (dict, str)):
+        d = resume_attr
     if isinstance(d, dict) and "decisions" in d:
         decisions = d.get("decisions") or []
         d = decisions[0] if decisions else {}

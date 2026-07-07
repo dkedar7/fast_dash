@@ -75,13 +75,52 @@ def assistant(query: str):
 ```
 
 `yield` strings to stream the reply as markdown; add a `history` parameter for
-multi-turn memory, and any other parameter becomes a sidebar setting. `chat=True`
-also accepts a LangGraph graph, and `canvas=True` gives the assistant a live
-output region it builds and mutates.
+multi-turn memory, and any other parameter becomes a sidebar setting. `chat=`
+also accepts a LangGraph graph, a `(query, ctx)` callable, or a chat-model
+instance.
 
-Or keep a **normal** app and add an assistant beside it with `chat_agent=`: the
-agent reads your app's live inputs (`ctx.inputs`) and can drive it (`set_input` /
-`run_app`) — anything a user can do, the agent can do. See the
+Or keep a **normal** app and add an assistant beside it — pass your agent as
+`chat=`: the agent reads your app's live inputs (`ctx.inputs`) and can drive it
+(`set_input` / `run_app`) — anything a user can do, the agent can do.
+
+```python
+from fast_dash import FastDash
+
+def dashboard(revenue: int = 100, region: str = "West") -> str:
+    return f"{region}: ${revenue}"
+
+def assistant(query, ctx):        # ctx.inputs holds the app's live values
+    yield {"type": "set_input", "name": "revenue", "value": 250}
+    yield {"type": "run_app"}
+    yield "Bumped revenue to 250 and re-ran."
+
+FastDash(callback_fn=dashboard, chat=assistant, chat_title="Helper").run()
+```
+
+### Give the agent tools
+
+Pass a chat model (or `chat=True` with `chat_model=`) and Fast Dash auto-builds
+a LangChain assistant wired to your app. Its tools — read the app, set inputs,
+run it, set individual outputs, rearrange the layout, run Python — come from
+`agent_toolkit(app)`, trimmed to the `chat_tools` allowlist you choose:
+
+```python
+from fast_dash import FastDash
+
+def dashboard(revenue: int = 100, region: str = "West") -> str:
+    return f"{region}: ${revenue}"
+
+# The default toolkit lets the agent drive inputs, set outputs, re-mosaic the
+# layout, and run Python (with approval). Narrow it with chat_tools=.
+FastDash(
+    callback_fn=dashboard,
+    chat=True,
+    chat_model="openai:gpt-4o-mini",            # or a model instance / FASTDASH_MODEL
+    chat_tools=("read_app", "set_input", "run_app"),   # read-only + drive, no code exec
+).run()
+```
+
+Install the extra with `pip install "fast-dash[agent]"`. See the
 [chat guide](https://docs.fastdash.app/User%20guide/chat/).
 
 ## How it works

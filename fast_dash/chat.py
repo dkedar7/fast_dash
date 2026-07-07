@@ -426,6 +426,14 @@ class ChatHistory:
         # slowly-growing lock registry on a long-running server.
         with self._registry_lock:
             self._locks.pop(sid, None)
+        # Free any run_python exec state keyed by this session (the run_python
+        # thread_id IS the chat session id). Guarded/lazy: the [agent] extra may
+        # be absent, and this module must stay heavy-import-free at the top.
+        try:
+            from .agent_tools import clear_python_state
+            clear_python_state(sid)
+        except Exception:                                 # noqa: BLE001
+            pass                                          # best-effort cleanup
 
 
 @dataclasses.dataclass

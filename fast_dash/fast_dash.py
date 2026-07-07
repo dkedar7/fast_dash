@@ -141,8 +141,13 @@ def _resolve_chat_tools(chat_tools, *, update_live, multi_or_steps):
 
     Applies the auto-trim rules from the SPEC (with ASCII warnings):
 
-    * ``update_live=True`` -> drop set_input / run_app (they would double-run
-      the app's own reactive callback).
+    * ``update_live=True`` -> drop every drive verb (set_input / run_app /
+      set_output / set_layout). The app recomputes its outputs on any input
+      change, so an agent that drove inputs would double-run the callback, and
+      one that set outputs / relaid them out would be immediately overwritten by
+      that recompute -- so the assistant is read-only there. (Trimming here, not
+      only at frame dispatch, keeps agent_toolkit from advertising tools that
+      would always refuse.)
     * a multi-function / steps app -> trim to ``read_app`` only (several
       surfaces; driving one is ambiguous in v1).
     """
@@ -175,26 +180,37 @@ def _resolve_chat_tools(chat_tools, *, update_live, multi_or_steps):
             )
         allowlist = trimmed
     elif update_live:
-        dropped = [k for k in ("set_input", "run_app") if k in allowlist]
+        _drive_verbs = ("set_input", "run_app", "set_output", "set_layout")
+        dropped = [k for k in _drive_verbs if k in allowlist]
         if dropped:
             warnings.warn(
-                "chat_tools set_input / run_app are disabled on an update_live "
-                "app: its inputs recompute on change, so driving would "
-                "double-run the callback. The assistant is read-only there.",
+                "chat_tools set_input / run_app / set_output / set_layout are "
+                "disabled on an update_live app: its inputs recompute on change, "
+                "so an agent that drove inputs would double-run the callback and "
+                "one that set outputs would be immediately overwritten. The "
+                "assistant is read-only there.",
                 stacklevel=3,
             )
-        allowlist = {k: v for k, v in allowlist.items() if k not in ("set_input", "run_app")}
+        allowlist = {k: v for k, v in allowlist.items() if k not in _drive_verbs}
 
     return allowlist
 
 
 class _AutoAgentPlaceholder:
-    """Deferred auto-agent (chat=True + app callback), built in Round 3.
+    """Deferred auto-agent (chat=True + app callback), built on first use.
 
     Construction validates only that the [agent] extra could plausibly be
     available and a model is configured; the real agent is built lazily by
     ``fast_dash.agent_tools.build_auto_agent(app, model)`` the first time a
     turn runs. Failing that import raises a friendly ASCII error then.
+
+    ``build_auto_agent`` returns a compiled LangGraph graph, which is a
+    langstage target -- not itself callable as ``(query, ctx)``. So the built
+    graph is bridged through the langstage adapter (``build_chat_callback``),
+    exactly the way an explicitly-supplied graph would be, before it can drive
+    a chat turn. Building lazily (not at construction) keeps app __init__ free
+    of a model round-trip and lets ``_check_auto_agent_prereqs`` own the early,
+    friendly failure for a missing extra / model.
     """
 
     # A name so title inference / introspection that reads ``__name__`` works.
@@ -203,7 +219,7 @@ class _AutoAgentPlaceholder:
     def __init__(self, app, model):
         self._app = app
         self._model = model
-        self._agent = None
+        self._callback = None            # the bridged (query, ctx) chat callable
 
     def _build(self):
         try:
@@ -214,12 +230,20 @@ class _AutoAgentPlaceholder:
                 "langgraph). Install it with:\n"
                 '    pip install "fast-dash[agent]"'
             ) from e
-        return build_auto_agent(self._app, self._model)
+        from .adapters.langstage import build_chat_callback, is_langstage_target
+
+        graph = build_auto_agent(self._app, self._model)
+        # The compiled graph is a langstage target; bridge it to the frame
+        # grammar so it streams as chat frames. (Guarded: if for some reason it
+        # is already a plain (query, ctx) callable, use it as-is.)
+        if is_langstage_target(graph):
+            return build_chat_callback(graph)
+        return graph
 
     def __call__(self, query, ctx):
-        if self._agent is None:
-            self._agent = self._build()
-        return self._agent(query, ctx)
+        if self._callback is None:
+            self._callback = self._build()
+        return self._callback(query, ctx)
 
 
 class FastDash(ChatAppMixin):
@@ -487,6 +511,15 @@ class FastDash(ChatAppMixin):
             else:
                 self.is_chat = True
 
+        # An auto-built agent is always a compiled LangGraph graph bridged through
+        # the langstage adapter (see _AutoAgentPlaceholder._build), so it speaks
+        # the langstage frame contract: mark it langstage now, before layout /
+        # callback registration, so the HITL decision buttons (run_python
+        # approval) are wired even though the graph itself is built lazily on the
+        # first turn.
+        if _auto:
+            self.is_langstage = True
+
         # Full-page chat where the *callback itself* is the chat handler routes
         # the callback through the chat-mode path (existing #133 behavior).
         if self.is_chat and _agent is None and not _auto:
@@ -663,11 +696,13 @@ class FastDash(ChatAppMixin):
     def _check_auto_agent_prereqs(self):
         """Fail fast (friendly, ASCII) when an auto-agent can't be built later.
 
-        chat=True on an app callback auto-builds an assistant in Round 3 via
+        chat=True on an app callback auto-builds an assistant via
         ``fast_dash.agent_tools.build_auto_agent``. That needs the [agent] extra
-        (langchain + langgraph) AND a configured model (``chat_model=`` or the
-        ``FASTDASH_MODEL`` env var). We validate both here so a misconfiguration
-        surfaces at construction, not on the first chat turn.
+        (langchain + langgraph) to build the agent, the [langstage] extra to
+        bridge the compiled graph to chat frames, AND a configured model
+        (``chat_model=`` or the ``FASTDASH_MODEL`` env var). We validate all
+        three here so a misconfiguration surfaces at construction, not on the
+        first chat turn.
         """
         import importlib.util
         import os
@@ -681,6 +716,12 @@ class FastDash(ChatAppMixin):
                 "chat=True auto-builds an assistant, which needs the optional "
                 "agent extra (langchain + langgraph). Install it with:\n"
                 '    pip install "fast-dash[agent]"'
+            )
+        if importlib.util.find_spec("langstage_core") is None:
+            raise ImportError(
+                "chat=True auto-builds an assistant, whose LangGraph agent is "
+                "streamed through the langstage bridge. Install it with:\n"
+                '    pip install "fast-dash[langstage]"'
             )
         has_model = self.chat_model is not None or os.environ.get("FASTDASH_MODEL")
         if not has_model:

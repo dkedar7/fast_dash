@@ -67,9 +67,8 @@ def assistant(
 ```
 
 `model` becomes a dropdown, `temperature` a number input, `dataset` an upload
-box. Their live values are passed to the callback each turn. Without a canvas
-they render in a **sidebar**; with `canvas=True` they render in the **chat panel**
-above the composer.
+box. Their live values are passed to the callback each turn, rendered in the
+**sidebar** above (or beside) the transcript.
 
 ## The frame grammar
 
@@ -144,115 +143,15 @@ def bot(query, history, ctx):
 - `ctx.thread_id` — the session id (the LangGraph checkpointer thread).
 - `ctx.resume` — a decision answering a pending interrupt (HITL), else `None`.
 
-## The canvas (assistant-built output)
-
-`canvas=True` adds a live **output** region beside the transcript that the
-assistant **builds and mutates** — a conversational DynamicDash.
-The chat becomes a left panel; the canvas is the main area. It is a display
-surface — charts, tables, images, and text the assistant maintains across turns
-(a slider the user has to talk to would be inert, so the canvas holds output, not
-input widgets). Two frames drive it, using the same UI-spec grammar as
-DynamicDash (`{name, type, props, value, label, span}`):
-
-- `{"type": "canvas", "specs": [...]}` — (re)build the canvas from a spec list of
-  display components (`Graph`, `Table`, `Image`, `Markdown`).
-- `{"type": "set_props", "target": "<name>", "props": {...}}` — patch one
-  component in place (e.g. swap a chart's `figure`).
-
-Each spec's optional **`span`** (out of 12, default 12 = full-width row) arranges
-components into a responsive grid — two `span: 6` panels sit side by side, so the
-assistant lays out real multi-column dashboards, not just a single column.
-
-The user drives the app by *talking*; the assistant reads the request and rebuilds
-or patches the canvas in response:
-
-```python
-import numpy as np
-import plotly.graph_objects as go
-from fast_dash import FastDash
-
-def assistant(query, ctx):
-    n = 200 if "more" in query.lower() else 50
-    x = np.linspace(0, 12, n)
-    fig = go.Figure(go.Scatter(x=x, y=np.sin(x)))
-    yield f"Plotted {n} points."
-    yield {"type": "canvas", "specs": [
-        {"name": "plot", "type": "Graph", "value": fig, "span": 12},
-    ]}
-
-FastDash(callback_fn=assistant, chat=True, canvas=True).run()
-```
-
-The canvas is a separate surface from the transcript: `content` frames still
-stream into the chat, while `canvas`/`set_props` frames target the canvas. For
-fixed, user-set controls (model, temperature, an upload), declare them as
-[settings](#developer-declared-settings) — they render on the chat side and their
-live values reach the callback each turn.
-
-### Driving the canvas with an LLM
-
-In practice an LLM emits the canvas mutations. `canvas_tool_specs()` returns
-provider-neutral JSON-Schema tool definitions; `apply_tool_call()` turns a
-returned tool call into a frame — no LLM SDK is bundled:
-
-```python
-import anthropic
-from fast_dash import FastDash, canvas_tool_specs, apply_tool_call
-
-client = anthropic.Anthropic()
-TOOLS = canvas_tool_specs()          # build_canvas, set_canvas_props
-
-def assistant(query, history, ctx):
-    msg = client.messages.create(
-        model="claude-sonnet-4-6", max_tokens=1024, tools=TOOLS,
-        messages=[{"role": "user", "content": query}],
-    )
-    for block in msg.content:
-        if block.type == "text":
-            yield block.text
-        elif block.type == "tool_use":
-            frame = apply_tool_call(block)   # -> canvas / set_props frame
-            if frame:
-                yield frame
-
-FastDash(callback_fn=assistant, chat=True, canvas=True).run()
-```
-
-### App-first: chat as an add-on (`chat_drawer=True`)
-
-By default the chat is the primary surface. With `chat_drawer=True` the app comes
-first: the developer-declared settings and a **Run** button fill a left panel, the
-output canvas is the main area, and the chat tucks behind a **Chat with the
-assistant** button at the bottom of that panel. Clicking it swaps the panel in
-place — the settings give way to the chat, with a **Back to inputs** link to
-return. The user can drive the whole app with settings + Run and never open the
-chat; the assistant is one click away when they want it to change the layout or
-plots.
-
-```python
-from typing import Literal
-from fast_dash import FastDash
-
-def studio(query, ctx, points: int = 40,
-           color: Literal["indigo", "teal", "red"] = "indigo"):
-    fig = make_plot(points, color)          # from the settings
-    if query:                                # a chat message (not a Run)
-        yield f"Updated. You asked: {query}"
-    yield {"type": "canvas", "specs": [{"name": "plot", "type": "Graph", "value": fig}]}
-
-FastDash(callback_fn=studio, chat=True, chat_drawer=True).run()
-```
-
-`chat_drawer=True` implies a canvas (the output surface). Clicking **Run** invokes
-the callback with an empty `query` (check `if query:` to tell a Run from a chat
-message) and updates the canvas without adding a transcript entry.
-
-## Add an assistant to a normal app (`chat_agent=`)
+## Add an assistant to a normal app (a chat sidecar)
 
 The sections above make the chat *the* app. The mirror image: keep a **normal**
 Fast Dash app — typed inputs, real outputs, a Run button — and mount an
-**independent** chat agent in a side drawer with `chat_agent=`. The agent is a
-chat callback or a LangGraph graph, exactly as for `chat=True`:
+**independent** chat assistant beside it by passing your agent as `chat=`. The
+assistant lives in the left sidebar, stacked under the inputs and collapsible;
+the app keeps working on its own (set inputs, Run, read outputs). The agent is a
+chat callback, a LangGraph graph, or a chat-model instance — exactly as for
+full-page chat:
 
 ```python
 from fast_dash import FastDash
@@ -263,64 +162,70 @@ def dashboard(revenue: int = 100, region: str = "West") -> str:
 
 FastDash(
     callback_fn=dashboard,                 # your app, unchanged
-    chat_agent=my_langgraph_agent,         # graph | "module:attr" | (query, ...) callback
-    chat_agent_title="Assistant",
+    chat=my_langgraph_agent,               # graph | "module:attr" | (query, ctx) callback | model
+    chat_title="Assistant",
 ).run()
 ```
 
-A floating **Assistant** button opens the chat aside; the app keeps working on
-its own (set inputs, Run, read outputs). The agent shares nothing with the app's
-callback except two capabilities, both through `ctx`:
+The agent shares nothing with the app's callback except the capabilities the
+toolkit grants, all reached through `ctx` and drive frames:
 
 - **Read** — declare `ctx` and `ctx.inputs` gives the agent the app's live input
-  values `{name: value}` each turn, so it can answer questions about what the
-  user set. `ctx.input_specs` gives the app's input *contract* (types, options,
-  bounds) — the same one an MCP agent sees.
+  values `{name: value}` each turn. `ctx.input_specs` gives the app's input
+  *contract* (types, options, bounds) — the same one an MCP agent sees.
 - **Drive** — the agent can `yield {"type": "set_input", "name": ..., "value": ...}`
-  to set a control and `yield {"type": "run_app"}` to run the app on the current
-  inputs and refresh its outputs. Anything a user can do, the agent can do.
+  to set a control, `yield {"type": "run_app"}` to run the app and refresh its
+  outputs, `yield {"type": "set_output", "slot": "A", "value": ...}` to render a
+  value into one output slot directly, and `yield {"type": "set_layout", "mosaic": "AB"}`
+  to rearrange the existing output slots. Anything a user can do, the agent can do.
 
-`app_tool_specs(ctx.input_specs)` returns provider-neutral tool defs for
-`set_input` and `run_app` — the `set_input` schema enumerates the valid inputs
-and describes each one's type and allowed options, so the model sends valid
-values. `apply_tool_call` maps a returned tool call to the frame — the same
-on-ramp as the canvas:
+### Let Fast Dash build the agent (`agent_toolkit`)
+
+Pass a chat model (a model instance, a `"provider:model"` string, or `chat=True`
+with `chat_model=`) and Fast Dash **auto-builds** a LangChain assistant wired to
+your app. Its tools come from `agent_toolkit(app)` — `read_app`, `set_input`,
+`run_app`, `set_output`, `set_layout`, and `run_python` — trimmed to the
+`chat_tools` allowlist you pass (needs `pip install "fast-dash[agent]"`):
 
 ```python
-from fast_dash import app_tool_specs, apply_tool_call
+from fast_dash import FastDash
 
-def assistant(query, ctx):
-    tools = app_tool_specs(ctx.input_specs)           # typed set_input / run_app
-    msg = client.messages.create(model="claude-sonnet-4-6", tools=tools,
-                                 messages=[{"role": "user", "content": query}])
-    for block in msg.content:
-        if block.type == "text":
-            yield block.text
-        elif block.type == "tool_use":
-            frame = apply_tool_call(block)
-            if frame:
-                yield frame
+def dashboard(revenue: int = 100, region: str = "West") -> str:
+    return f"{region}: ${revenue}"
+
+FastDash(
+    callback_fn=dashboard,
+    chat=True,
+    chat_model="openai:gpt-4o-mini",       # or a model instance / FASTDASH_MODEL
+    chat_tools=("read_app", "set_input", "run_app"),  # read + drive, no code exec
+).run()
 ```
 
-Pass **`chat_agent_drive=False`** for a **read-only** assistant: it still reads
-`ctx.inputs` / `ctx.input_specs` and converses, but `set_input` / `run_app` are
-refused (useful when you want an explainer, not a co-pilot).
+`chat_tools=None` (the default) enables the full toolkit — including
+`run_python`, which runs Python in the app process with human-in-the-loop
+approval. Narrow it to a tuple of tool-name strings (and/or `RunPython(...)`
+configs). `chat_tools=("read_app",)` gives a **read-only** assistant that
+converses and reads `ctx.inputs` but can't drive the app; `chat_tools=()` is a
+chat with no app access at all.
 
-`chat_agent=` also mounts on **multi-function** and **steps** apps — the
-assistant appears as a conversational drawer on every surface. Reading and
-driving the host inputs (`ctx.inputs`, `set_input`, `run_app`) is supported on
-**single-function** apps; on multi-function / steps apps the drawer is
-conversational only for now (those apps have several surfaces, so active-surface
-drive is a separate feature). Drive is also off on `update_live` apps (their
-inputs recompute on change, so an explicit `run_app` would run the callback
-twice). `chat_agent=` and `chat=True` are mutually exclusive — one adds a chat
-*to* an app, the other *is* the chat.
+To wire the toolkit into an agent you build yourself, call `agent_toolkit(app)`
+for the tools and `app_prompt(app)` for a system prompt, or attach
+`FastDashMiddleware(app)` to a LangChain `create_agent`.
+
+The auto-trim rules keep the assistant safe by default: on an `update_live` app
+every app-driving verb is dropped (its inputs recompute on change, so driving
+would double-run the callback or be immediately overwritten — the assistant is
+read-only there), and on a multi-function / steps app the toolkit trims to
+`read_app` only. A chat-shaped `callback_fn` **and** an agent in `chat=` is
+rejected — one adds a chat *to* an app, the other *is* the chat.
 
 Bad inputs are handled: `set_input` is validated against the app's contract, so
 an unknown input, a value outside an input's options, or a wrong-typed value is
 refused with a message (and fed back to the model) rather than reaching the
-callback. Pressing **Stop** mid-turn stops immediately — any input the agent had
-already set stays set (Stop means "stop now", not "undo").
+callback. A user's **Run** always wins — it restores the default output layout,
+so `set_layout` / `set_output` changes never outlive a manual Run. Pressing
+**Stop** mid-turn stops immediately — any input the agent had already set stays
+set (Stop means "stop now", not "undo").
 
 !!! warning "Password inputs are never exposed"
     A `PasswordInput`'s value is **redacted** from `ctx.inputs`, omitted from
@@ -357,12 +262,10 @@ generator that yields an `interrupt` frame renders the card as informational.)
 
 `mcp_server=True` exposes the chat app to agents at `/mcp`:
 
-- `describe_app()` reports the composer contract (the `query` string), any
-  sidebar `settings`, and — with a canvas — its current specs and component types.
+- `describe_app()` reports the composer contract (the `query` string) and any
+  sidebar `settings`.
 - `invoke(query=..., settings=...)` runs one turn headlessly and returns its
-  frames (JSON-safe) plus the post-turn `canvas` specs (the display output the
-  assistant built); history and thread state advance across calls. So a headless
-  agent sees the canvas exactly as a browser user does.
+  frames (JSON-safe); history and thread state advance across calls.
 
 ## What chat mode does and doesn't allow
 
