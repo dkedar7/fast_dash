@@ -8,6 +8,7 @@ that :class:`fast_dash.FastDash` inherits. It is split out to keep
 ``fast_dash.py`` focused on the general app; behavior is unchanged.
 """
 
+import copy
 import inspect
 import json
 import threading
@@ -194,6 +195,12 @@ class ChatAppMixin:
                 else "_(The assistant is read-only for this app.)_")
 
         self._drive_tick = 0                          # bumped per drive (ASGI flash)
+        # Monotonic drive-payload sequence (RFC #133 D3 ordering on the drive
+        # channel). Stamped on every payload the Flask reducers key on; the
+        # fd-drive-seq store carries the last-applied value so a remount re-fire
+        # of a stale data-chat_drive payload (seq <= stored) is skipped.
+        self._drive_seq = 0
+        self._drive_seq_lock = threading.Lock()
         self._register_chat_callbacks(register_chrome=False)
         self._register_chat_panel_collapse()          # collapse/expand affordance
         self._register_chat_drive_reducer()
@@ -405,6 +412,133 @@ class ChatAppMixin:
     def _json_safe_list(self, values):
         return [self._json_safe(v) for v in values]
 
+    # ----- per-session output mirror (Bug 3: set_layout preserves content) --- #
+
+    def _mirror_outputs(self, sid, values):
+        """Stash the full transformed output list for ``sid`` (manual Run / run_app).
+
+        ``values`` is position-matched to ``outputs_with_ids``. Stored so a later
+        set_layout re-mosaic can re-inject surviving slots' contents rather than
+        reverting them to the build-time defaults.
+        """
+        if not sid or not self._sidecar_layout_enabled():
+            return
+        mirror = self._session(sid).output_mirror
+        for i, val in enumerate(values):
+            mirror[i] = val
+
+    def _mirror_output_slot(self, sid, index, value):
+        """Stash a single slot's transformed value for ``sid`` (set_output)."""
+        if not sid or not self._sidecar_layout_enabled():
+            return
+        self._session(sid).output_mirror[index] = value
+
+    def _mirrored_layout_tree(self, sid, tree):
+        """Return ``tree`` with each surviving leaf carrying its mirrored value.
+
+        ``rebuild_output_layout`` re-parents the canonical server leaf objects,
+        whose props are the build-time defaults (empty figure/table). Pushing
+        that as-is wipes whatever Run / set_output had rendered. This injects the
+        per-session last-known value into each leaf in the SERIALIZED tree (a
+        deep copy -- the canonical server objects are never mutated), keyed by
+        leaf id. Missing entries are left at their default.
+        """
+        mirror = None
+        if sid:
+            mirror = self._session(sid).output_mirror
+        if not mirror:
+            return tree
+        # index -> (leaf_id, component_property) for this app's outputs.
+        by_index = {i: (o.id, o.component_property)
+                    for i, o in enumerate(self.outputs_with_ids)}
+        overrides = {}
+        for index, value in mirror.items():
+            spec = by_index.get(index)
+            if spec is None:
+                continue
+            leaf_id, prop = spec
+            overrides[leaf_id] = (prop, self._json_safe(value))
+        if not overrides:
+            return tree
+        tree = copy.deepcopy(tree)     # never mutate the serialized canonical tree
+
+        def _inject(node):
+            if isinstance(node, dict):
+                props = node.get("props")
+                if isinstance(props, dict):
+                    ov = overrides.get(props.get("id"))
+                    if ov is not None:
+                        props[ov[0]] = ov[1]
+                    for v in props.values():
+                        _inject(v)
+            elif isinstance(node, list):
+                for x in node:
+                    _inject(x)
+
+        _inject(tree)
+        return tree
+
+    def _run_reset_children(self, output_values):
+        """The DEFAULT output layout tree with ``output_values`` in its leaves.
+
+        Used by the server-atomic Run-reset (process_input): a manual Run on an
+        agent-remosaiced app reasserts the DEFAULT layout, and this returns that
+        default tree already carrying the Run's freshly computed outputs so the
+        structure and content land in ONE response (no clientside swap can arrive
+        later and blank the leaves). ``output_values`` is position-matched to
+        ``outputs_with_ids``. Reuses rebuild_output_layout(default_mosaic) so the
+        same leaf ids are re-parented, then injects the values into the
+        serialized tree (a deep copy; canonical objects are never mutated).
+        """
+        lo = self.layout_object
+        default_mosaic = getattr(self, "mosaic", None) or getattr(lo, "mosaic", None)
+        tree, reason = lo.rebuild_output_layout(default_mosaic)
+        if reason is not None:
+            # Should not happen for the app's own default mosaic; leave the live
+            # tree untouched rather than push a broken layout.
+            raise ValueError(reason)
+        serialized = self._chat_bubble_json(tree)
+        by_index = {i: (o.id, o.component_property)
+                    for i, o in enumerate(self.outputs_with_ids)}
+        overrides = {}
+        for index, value in enumerate(output_values or []):
+            spec = by_index.get(index)
+            if spec is None:
+                continue
+            leaf_id, prop = spec
+            overrides[leaf_id] = (prop, self._json_safe(value))
+        if not overrides:
+            return serialized
+        serialized = copy.deepcopy(serialized)
+
+        def _inject(node):
+            if isinstance(node, dict):
+                props = node.get("props")
+                if isinstance(props, dict):
+                    ov = overrides.get(props.get("id"))
+                    if ov is not None:
+                        props[ov[0]] = ov[1]
+                    for v in props.values():
+                        _inject(v)
+            elif isinstance(node, list):
+                for x in node:
+                    _inject(x)
+
+        _inject(serialized)
+        return serialized
+
+    def _next_drive_seq(self):
+        """Allocate the next monotonically increasing drive-payload sequence.
+
+        Stamped onto every payload the Flask drive/content reducers key on so a
+        replayed (stale) payload from a remount re-fire is skipped by the
+        seq gate (RFC #133 D3 ordering on the drive channel). Thread-safe: a
+        chat turn thread and a manual Run may both drive.
+        """
+        with self._drive_seq_lock:
+            self._drive_seq += 1
+            return self._drive_seq
+
     def _register_chat_drive_reducer(self):
         """Flask: write set_input/run_app pushes into the live components.
 
@@ -414,7 +548,7 @@ class ChatAppMixin:
         """
         if self._native_stream or not getattr(self, "_sidecar_can_drive", True):
             return
-        from dash import Input, Output
+        from dash import Input, Output, State
         app = self.app
 
         in_outputs = [Output(inp.id, inp.component_property, allow_duplicate=True)
@@ -429,101 +563,144 @@ class ChatAppMixin:
         # agent's run refreshes the *view*, not just the inputs. The placeholder
         # is otherwise only cleared by a manual Run (submit_inputs.n_clicks),
         # which the sidecar never fires -- so outputs were written but stayed
-        # hidden behind "Run to see results".
+        # hidden behind "Run to see results". The trailing output is the drive
+        # seq store: bumped to the applied payload's seq so a later stale
+        # re-fire (remount) is gated out (RFC #133 D3).
         drive_outputs = value_outputs + [
-            Output("output-group-col", "className", allow_duplicate=True)
+            Output("output-group-col", "className", allow_duplicate=True),
+            Output("fd-drive-seq", "data", allow_duplicate=True),
         ]
+        # tail = className + seq store; body values precede it.
         app.clientside_callback(
             """
-            function(payload) {
+            function(payload, appliedSeq) {
                 var no = dash_clientside.no_update;
                 var res = [];
                 var i;
-                if (!payload || payload.op !== 'drive') {
+                // Ordering gate: skip a payload whose seq is not newer than the
+                // last one applied on this channel. A remount re-fire replays
+                // the last (stale) payload -- its seq is <= appliedSeq, so every
+                // output stays no_update and the just-rendered values survive.
+                var seq = (payload && typeof payload.seq === 'number') ? payload.seq : null;
+                var stale = (seq !== null && appliedSeq !== null
+                             && appliedSeq !== undefined && seq <= appliedSeq);
+                if (!payload || payload.op !== 'drive' || stale) {
                     for (i = 0; i < %d; i++) { res.push(no); }
-                    res.push(no);
+                    res.push(no);   // className
+                    res.push(no);   // seq store
                     return res;
                 }
                 var inv = payload.inputs, ov = payload.outputs;
                 for (i = 0; i < %d; i++) { res.push(inv ? inv[i] : no); }
                 for (i = 0; i < %d; i++) { res.push(ov ? ov[i] : no); }
                 res.push(payload.ran ? '' : no);   // reveal outputs on a run
+                res.push(seq !== null ? seq : no); // record the applied seq
                 return res;
             }
             """ % (n_in + n_out, n_in, n_out),
             drive_outputs,
             Input("socketio", "data-chat_drive"),
+            State("fd-drive-seq", "data"),
             prevent_initial_call=True,
         )
 
     def _register_chat_content_reducer(self):
         """Flask: apply set_output / set_layout pushes to the output surface.
 
-        These ops target components not known at callback-registration time (a
-        specific leaf id, or a fresh children tree), so instead of declaring
-        fixed Outputs the reducer applies them with ``dash_clientside.set_props``
-        (arbitrary targets). ASGI calls ``set_props`` server-side, so this is a
-        no-op there. Sinks into a dummy store so the callback has an Output.
+        A ``set_output`` op targets one leaf id known only at push time, so it is
+        applied with ``dash_clientside.set_props`` (an arbitrary target) -- a
+        single leaf *prop* hydrates fine that way.
+
+        A ``layout`` op replaces the whole ``output-group-col.children`` with a
+        fresh component tree. ``set_props`` does NOT hydrate a raw component-JSON
+        children payload in this Dash version (Bug 2: the op arrived but the new
+        mosaic never mounted), so the tree is returned as a real callback
+        ``Output`` instead -- callback responses DO hydrate component JSON. The
+        same op marks ``fd-layout-dirty`` true so the Run-reset knows to restore
+        the default layout on the next manual Run (Bug 1).
+
+        ASGI applies both ops server-side via ``set_props`` (its transcript
+        children push is the proven precedent), so this reducer is Flask-only.
         """
         if self._native_stream or not getattr(self, "_sidecar_can_drive", True):
             return
-        from dash import Input, Output
+        from dash import Input, Output, State
         app = self.app
+
+        # A layout op returns real children (hydrates) + sets the dirty flag;
+        # everything else is applied via set_props or left untouched. When the
+        # app carries no layout plumbing there is no dirty store, so that Output
+        # is omitted. The trailing output is the drive seq store, bumped to the
+        # applied payload's seq so a stale re-fire is gated out (RFC #133 D3).
+        layout_enabled = self._sidecar_layout_enabled()
+        outputs = [Output("chat-content-sink", "data"),
+                   Output("output-group-col", "children", allow_duplicate=True)]
+        if layout_enabled:
+            outputs.append(Output("fd-layout-dirty", "data", allow_duplicate=True))
+        seq_idx = len(outputs)                     # index of the seq store output
+        outputs.append(Output("fd-drive-seq", "data", allow_duplicate=True))
+        n_out = len(outputs)
 
         app.clientside_callback(
             """
-            function(payload) {
+            function(payload, appliedSeq) {
                 var no = dash_clientside.no_update;
-                if (!payload) { return no; }
+                var res = [];
+                var i;
+                for (i = 0; i < %d; i++) { res.push(no); }
+                if (!payload) { return res; }
+                // Only set_output / layout ops belong to this reducer; a 'drive'
+                // op is owned by the drive reducer (it bumps the seq there).
+                var mine = (payload.op === 'set_output' || payload.op === 'layout');
+                if (!mine) { return res; }
+                // Ordering gate: skip a payload not newer than the last applied
+                // on this channel (a remount re-fire replays the stale value).
+                var seq = (typeof payload.seq === 'number') ? payload.seq : null;
+                if (seq !== null && appliedSeq !== null && appliedSeq !== undefined
+                        && seq <= appliedSeq) {
+                    return res;
+                }
                 if (payload.op === 'set_output') {
                     var p = {};
                     p[payload.prop] = payload.value;
                     dash_clientside.set_props(payload.id, p);
                     dash_clientside.set_props('output-group-col', {className: ''});
                 } else if (payload.op === 'layout') {
-                    dash_clientside.set_props('output-group-col',
-                                             {children: payload.tree});
+                    // Return the tree as a real Output so Dash hydrates it
+                    // (set_props does not hydrate a component-JSON children
+                    // payload). Reveal the outputs, and mark the layout dirty.
+                    res[1] = payload.tree;
+                    if (%s) { res[2] = true; }
                     dash_clientside.set_props('output-group-col', {className: ''});
                 }
-                return no;
+                if (seq !== null) { res[%d] = seq; }   // record the applied seq
+                return res;
             }
-            """,
-            Output("chat-content-sink", "data"),
+            """ % (n_out, "true" if layout_enabled else "false", seq_idx),
+            outputs,
             Input("socketio", "data-chat_drive"),
+            State("fd-drive-seq", "data"),
             prevent_initial_call=True,
         )
 
     def _register_run_reset(self):
-        """Run-always-wins: restore the default output layout on a manual Run.
+        """Run-reset: restore the default output layout on a manual Run -- but
+        ONLY when the agent has actually re-mosaiced (Bug 1).
 
-        The agent may have re-mosaiced (set_layout) or set individual slots; a
-        user's Run must always reassert the default output layout. A clientside
-        callback on ``submit_inputs.n_clicks`` restores ``output-group-col``'s
-        children from the ``fd-default-layout`` store BEFORE the server response
-        lands (the response then fills leaf values by id as usual). Idempotent
-        (always-restore, no dirty flag). It sets *children only* -- never the
-        className -- so it never fights the existing fd-not-run machinery, which
-        owns output-group-col.className on the same trigger.
+        This is now done SERVER-ATOMICALLY inside ``process_input``: a genuine
+        Run on a layout-dirty app returns the restored default tree (with the
+        Run's freshly computed outputs already injected into the leaves) AND the
+        leaf values AND the cleared dirty flag in ONE response. The earlier
+        standalone clientside children-swap raced the server leaf fill -- when
+        the swap (which pushed the build-time *empty* default tree) landed after
+        the fill, it blanked the just-rendered output (intermittent layout->Run
+        clobber). Folding the restore into the Run response removes that race,
+        because structure and content can no longer arrive out of order.
 
-        Registered only when set_layout is allowed (the store is built then),
-        so a plain sidecar app carries no extra callback.
+        Kept as a no-op hook (see :meth:`fast_dash.FastDash.register_callback_fn`
+        for the server path) so the sidecar init sequence is unchanged.
         """
-        if not self._sidecar_layout_enabled():
-            return
-        from dash import Input, Output, State
-        app = self.app
-        app.clientside_callback(
-            """
-            function(n, tree) {
-                if (!n || !tree) { return dash_clientside.no_update; }
-                return tree;   // restore default layout; leaf ids preserved
-            }
-            """,
-            Output("output-group-col", "children", allow_duplicate=True),
-            Input("submit_inputs", "n_clicks"),
-            State("fd-default-layout", "data"),
-            prevent_initial_call=True,
-        )
+        return
 
     def _sidecar_layout_enabled(self):
         """True when this app should carry set_layout plumbing (store + reset).
@@ -1201,8 +1378,15 @@ class ChatAppMixin:
 
             def _emit_layout(tree):
                 # ASGI: full-state push of the re-mosaiced output tree
-                # (established pattern: replace output-group-col.children).
+                # (established pattern: replace output-group-col.children, the
+                # same set_props children push proven for chat-messages).
                 set_props("output-group-col", {"children": tree})
+                set_props("output-group-col", {"className": ""})
+                # Mark the layout dirty so a subsequent manual Run reasserts the
+                # default layout (Bug 1); the store exists only when set_layout
+                # plumbing is enabled.
+                if self._sidecar_layout_enabled():
+                    set_props("fd-layout-dirty", {"data": True})
                 self._drive_tick += 1
                 set_props("chat-drive-tick", {"data": {
                     "changed": [], "ran": True, "n": self._drive_tick}})
@@ -1238,6 +1422,7 @@ class ChatAppMixin:
                                 if outputs is not None else None),
                     "changed": list(changed or []),
                     "ran": bool(ran),
+                    "seq": self._next_drive_seq(),
                 }
                 if _sio_emit is not None:
                     _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
@@ -1249,7 +1434,8 @@ class ChatAppMixin:
                 # via dash_clientside.set_props (arbitrary target, no declared
                 # Output). The value is JSON-safe (figures/frames converted).
                 payload = {"op": "set_output", "id": leaf_id, "prop": prop,
-                           "value": self._json_safe(value), "ran": True}
+                           "value": self._json_safe(value), "ran": True,
+                           "seq": self._next_drive_seq()}
                 if _sio_emit is not None:
                     _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
                 else:
@@ -1258,7 +1444,8 @@ class ChatAppMixin:
             def _emit_layout(tree):
                 # Flask: a 'layout' op carrying the re-mosaiced tree as Dash
                 # component JSON; the reducer sets output-group-col.children.
-                payload = {"op": "layout", "tree": tree, "ran": True}
+                payload = {"op": "layout", "tree": tree, "ran": True,
+                           "seq": self._next_drive_seq()}
                 if _sio_emit is not None:
                     _sio_emit("chat_drive", payload, namespace="/", to=socket_id)
                 else:
@@ -1338,6 +1525,9 @@ class ChatAppMixin:
                     # inputs set earlier this turn or they'd be clobbered.
                     try:
                         outputs = self._sidecar_run_app(drive_inputs)
+                        # Mirror the run's outputs so a later set_layout keeps
+                        # them (Bug 3).
+                        self._mirror_outputs(sid, outputs)
                         _emit_drive(
                             inputs=[drive_inputs.get(n)
                                     for n in self._chat_input_names],
@@ -1367,6 +1557,9 @@ class ChatAppMixin:
                         try:
                             leaf_id, prop, val = self._sidecar_set_output(
                                 idx, frame.get("value"))
+                            # Mirror this slot so a later set_layout keeps it
+                            # (Bug 3).
+                            self._mirror_output_slot(sid, idx, val)
                             _emit_set_output(leaf_id, prop, val)
                         except Exception as exc:              # noqa: BLE001
                             _append_text(("\n\n" if _has_text(blocks) else "")
@@ -1388,7 +1581,13 @@ class ChatAppMixin:
                                      + "_(" + reason + ")_")
                         _flush(True)
                     else:
-                        _emit_layout(self._chat_bubble_json(tree))
+                        # Inject the per-session last-known output values into the
+                        # serialized tree so surviving slots keep their content
+                        # (Bug 3) -- the rebuilt tree re-parents build-time-default
+                        # leaves, which would otherwise wipe the current output.
+                        pushed = self._mirrored_layout_tree(
+                            sid, self._chat_bubble_json(tree))
+                        _emit_layout(pushed)
             elif t == "interrupt":
                 blocks.append({
                     "kind": "interrupt",

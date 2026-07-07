@@ -879,6 +879,13 @@ class AppLayout:
             # the clientside flash callback.
             extra.append(dcc.Store(id="chat-drive-tick"))
             extra.append(dcc.Store(id="chat-drive-flash"))
+            # Last-applied drive sequence number (RFC #133 D3 ordering on the
+            # drive channel). Every drive payload carries a monotonically
+            # increasing seq; the Flask reducers apply a payload only when its
+            # seq exceeds this store's value, then bump it. A remount re-fire
+            # replays the LAST (stale) data-chat_drive value -- its seq is <=
+            # the stored one, so it is skipped, killing the stale-refire class.
+            extra.append(dcc.Store(id="fd-drive-seq", data=0))
             # Sink for the set_output / set_layout clientside reducer (which
             # applies its effects via dash_clientside.set_props, not Outputs).
             extra.append(dcc.Store(id="chat-content-sink"))
@@ -892,6 +899,12 @@ class AppLayout:
                     id="fd-default-layout",
                     data=json.loads(to_json_plotly(main_content)),
                 ))
+                # Dirty flag for the conditional Run-reset (Bug 1): the layout
+                # apply path (both transports) sets this true when the agent
+                # actually re-mosaics; the Run-reset restores the default tree
+                # ONLY when dirty, then clears it. Starts clean so a Run before
+                # any set_layout leaves the live output untouched.
+                extra.append(dcc.Store(id="fd-layout-dirty", data=False))
 
         layout = dmc.MantineProvider(
             [appshell] + extra,

@@ -807,6 +807,9 @@ class FastDash(ChatAppMixin):
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
+        # True once the page-load render of the main callback has run; a later
+        # no-trigger fire is a re-mount re-fire and must not clobber (Bug 1b).
+        self._initial_render_done = False
 
 
     def _init_multi_function(self):
@@ -1790,6 +1793,24 @@ class FastDash(ChatAppMixin):
         # Native streaming makes the main callback a WebSocket callback so
         # set_props can stream partial updates mid-execution. The legacy Flask
         # path is unchanged (no websocket kwarg, socketId State present).
+        # A layout-enabled sidecar restores the default output layout ON THE RUN
+        # RESPONSE ITSELF (server-atomic), not via a separate clientside children
+        # swap. Doing the re-mosaic in the same response as the leaf fill removes
+        # the race where a standalone clientside swap to the (empty) default tree
+        # lands after the server fill and blanks the just-rendered output. The
+        # extra children Output carries the restored default tree with the Run's
+        # real outputs injected; the dirty flag is cleared in the same response.
+        # Use the layout-object's build-time-safe check (drivability derived
+        # from the chat_tools allowlist), which agrees with the store presence:
+        # process_input is built BEFORE _init_chat_sidecar sets _sidecar_can_drive,
+        # so _sidecar_layout_enabled() would be False here.
+        _run_reset_server = bool(
+            getattr(self, "has_chat_sidecar", False)
+            and hasattr(self, "layout_object")
+            and self.layout_object._sidecar_set_layout_allowed()
+        )
+        self._run_reset_server = _run_reset_server
+
         _proc_cb_kwargs = dict(
             running=[
                 (Output("submit_inputs", "disabled"), True, False),
@@ -1802,7 +1823,13 @@ class FastDash(ChatAppMixin):
                 # never collides with the pre-run placeholder class.
                 (Output("output-loading-wrap", "className"), "fd-loading", ""),
             ],
-            prevent_initial_call=False,
+            # The server-atomic Run-reset adds allow_duplicate Outputs
+            # (output-group-col.children / fd-layout-dirty), which Dash requires
+            # be paired with a prevent_initial_call that permits duplicates.
+            # 'initial_duplicate' still runs the initial page-load render (needed
+            # for the update_live default view) while allowing the duplicates.
+            prevent_initial_call=("initial_duplicate" if _run_reset_server
+                                  else False),
         )
         if self._native_stream:
             _proc_cb_kwargs["websocket"] = True
@@ -1815,7 +1842,12 @@ class FastDash(ChatAppMixin):
                 )
                 for output_ in self.outputs_with_ids
             ]
-            + [Output("notification-container", "sendNotifications"), Output("loading-overlay", "visible")],
+            + [Output("notification-container", "sendNotifications"), Output("loading-overlay", "visible")]
+            + (
+                [Output("output-group-col", "children", allow_duplicate=True),
+                 Output("fd-layout-dirty", "data", allow_duplicate=True)]
+                if _run_reset_server else []
+            ),
             [
                 Input(
                     component_id=input_.id, component_property=input_.component_property
@@ -1826,28 +1858,109 @@ class FastDash(ChatAppMixin):
                 Input(component_id="reset_inputs", component_property="n_clicks"),
                 Input(component_id="submit_inputs", component_property="n_clicks")
             ]
-            + [
-                State("socketio", "socketId")
+            + (
+                [State("socketio", "socketId")]
                 if (self.stream == True and not self._native_stream)
                 else []
-            ],
+            )
+            + (
+                # Chat session id -- lets a manual Run mirror its outputs into the
+                # per-session store so a later set_layout keeps them (Bug 3).
+                [State("chat-session", "data")]
+                if getattr(self, "has_chat_sidecar", False)
+                else []
+            )
+            + (
+                # Layout-dirty gate: only reassert the default layout when the
+                # agent actually re-mosaiced (otherwise leave the live tree be).
+                [State("fd-layout-dirty", "data")]
+                if _run_reset_server else []
+            ),
             **_proc_cb_kwargs,
         )
         def process_input(*args):
-            if (
-                ctx.triggered_id not in ["submit_inputs", "reset_inputs"]
-                and self.update_live is False
-            ):
+            # The arg order is: inputs..., reset_n, submit_n, [socketId], [sid].
+            # Index from the FRONT (unambiguous) rather than the tail, which
+            # varies with the optional states. _transform_inputs zips against the
+            # input tags, so trailing args beyond the inputs are ignored anyway.
+            n_inputs = len(self.inputs_with_ids)
+            input_args = args[:n_inputs]
+            _reset_n = args[n_inputs] if len(args) > n_inputs else None
+            _submit_n = args[n_inputs + 1] if len(args) > n_inputs + 1 else None
+            _tail = list(args[n_inputs + 2:])           # states after reset/submit
+            # The tail states, in declared order: [socketId?, sid?, dirty?].
+            # Pop from the FRONT in that same order so each optional state is
+            # read unambiguously regardless of which others are present.
+            _has_socket = (self.stream == True and not self._native_stream)
+            _has_sid = getattr(self, "has_chat_sidecar", False)
+            _has_dirty = getattr(self, "_run_reset_server", False)
+            _socket_id = _tail.pop(0) if (_has_socket and _tail) else None
+            _sid = _tail.pop(0) if (_has_sid and _tail) else None
+            _layout_dirty = _tail.pop(0) if (_has_dirty and _tail) else None
+
+            # A submit_inputs / reset_inputs trigger is only GENUINE when its
+            # n_clicks is truthy (a real click is >= 1). A remount re-fire --
+            # the Run-reset swapping output-group-col.children re-creates the
+            # reset_inputs / submit_inputs buttons (they live inside that col),
+            # and Dash re-fires this callback reporting the freshly-mounted
+            # button as the trigger with its INITIAL n_clicks (0/None). Treating
+            # that phantom reset as genuine returned output_state_default and
+            # clobbered the just-computed Run output (verified: two responses,
+            # changed=[submit_inputs] then changed=[reset_inputs, n_clicks=0]).
+            # A phantom button trigger must fall through to the no-genuine-trigger
+            # path (no_update), never to the submit/reset branches below.
+            _tid = ctx.triggered_id
+            genuine_trigger = (
+                (_tid == "submit_inputs" and _submit_n)
+                or (_tid == "reset_inputs" and _reset_n)
+            )
+
+            # Trailing outputs for the server-atomic Run-reset (when enabled):
+            # output-group-col.children + fd-layout-dirty. Every return appends
+            # these; _extra() defaults them to no_update so only a genuine dirty
+            # Run reasserts the layout.
+            def _extra(children=dash.no_update, dirty=dash.no_update):
+                return [children, dirty] if _run_reset_server else []
+
+            def _no_update_all():
+                # no_update for every declared output (leaves + notification +
+                # overlay [+ children + dirty]); leaves a prior render untouched.
+                return ([dash.no_update] * (len(self.outputs_with_ids) + 2)) + _extra()
+
+            if not genuine_trigger and self.update_live is False:
+                # A phantom button re-fire (submit/reset reported as the trigger
+                # but with a falsy n_clicks -- a freshly remounted button) must
+                # yield no_update for every output, never defaults, so it cannot
+                # clobber the value a genuine Run just rendered. A true no-trigger
+                # fire (page load) still raises as before.
+                if _tid in ("submit_inputs", "reset_inputs"):
+                    self._initial_render_done = True
+                    return _no_update_all()
                 raise PreventUpdate
+
+            # No genuine trigger (update_live app): the FIRST such call is the
+            # real page-load render (it must establish the default output view);
+            # any later no-trigger call is a re-mount re-fire -- e.g. the
+            # Run-reset swapping output-group-col.children remounts the leaf
+            # outputs and re-fires this callback with an empty ctx. Returning the
+            # default output there would clobber the value the Run just rendered,
+            # so after the first render a no-trigger call yields no_update.
+            if not genuine_trigger:
+                if getattr(self, "_initial_render_done", False):
+                    # no_update for every output component (+ notification +
+                    # overlay), so this re-mount re-fire leaves the values a
+                    # genuine Run / drive already rendered untouched.
+                    return _no_update_all()
+                self._initial_render_done = True
 
             default_notification = []
             self.state_counter += 1
 
             try:
-                inputs = _transform_inputs(args[:-3], self.input_tags)
+                inputs = _transform_inputs(input_args, self.input_tags)
 
                 if ctx.triggered_id == "submit_inputs" or (
-                    self.update_live is True and None not in args
+                    self.update_live is True and None not in input_args
                 ):
                     self.app_initialized = True
 
@@ -1856,7 +1969,7 @@ class FastDash(ChatAppMixin):
                         stream_handler_func = self.stream_handler_native
                     else:
                         stream_handler_func = functools.partial(
-                            self.stream_handler, socket_id=args[-1]
+                            self.stream_handler, socket_id=_socket_id
                         )
                     # Serialize against a chat sidecar's run_app (A4): never run
                     # the host callback from two threads at once.
@@ -1878,23 +1991,52 @@ class FastDash(ChatAppMixin):
                         # Log the latest output state
                         self.latest_output_state = self.output_state
 
-                    return self.output_state + [default_notification, False]
+                    # Mirror this Run's outputs into the per-session store so a
+                    # later agent set_layout keeps them (Bug 3). Best-effort: a
+                    # missing sid or no layout plumbing makes this a no-op.
+                    if _sid and hasattr(self, "_mirror_outputs"):
+                        try:
+                            self._mirror_outputs(_sid, self.output_state)
+                        except Exception:                 # noqa: BLE001
+                            pass
+
+                    # Server-atomic Run-reset: if the agent re-mosaiced
+                    # (fd-layout-dirty) restore the DEFAULT layout in THIS SAME
+                    # response, with the freshly computed outputs injected into
+                    # the restored tree's leaves. Because structure and content
+                    # land together, no separate clientside swap can arrive later
+                    # and blank the output (the intermittent layout->Run clobber).
+                    if _run_reset_server and _layout_dirty:
+                        try:
+                            children = self._run_reset_children(self.output_state)
+                            return (self.output_state
+                                    + [default_notification, False]
+                                    + _extra(children=children, dirty=False))
+                        except Exception:                 # noqa: BLE001
+                            pass                          # fall back to no-restore
+
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 elif ctx.triggered_id == "reset_inputs":
                     self.output_state = self.output_state_default
-                    return self.output_state + [default_notification, False]
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 elif self.app_initialized:
-                    return self.output_state + [default_notification, False]
+                    return (self.output_state + [default_notification, False]
+                            + _extra())
 
                 else:
-                    return self.output_state_default + [default_notification, False]
+                    return (self.output_state_default + [default_notification, False]
+                            + _extra())
 
             except Exception as e:
                 traceback.print_exc()
                 notification = _get_error_notification_component(str(e))
 
-                return self.output_state_default + [notification, False]
+                return (self.output_state_default + [notification, False]
+                        + _extra())
 
         @self.app.callback(
             [

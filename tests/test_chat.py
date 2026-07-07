@@ -1393,6 +1393,133 @@ class TestSetLayoutDispatch:
         pushes = [(c, p) for c, p in calls if c == "output-group-col"]
         assert any("children" in p for _, p in pushes)   # full-state children push
 
+    def test_set_layout_on_asgi_marks_dirty(self):
+        # Bug 1: the ASGI layout push also sets fd-layout-dirty so a later manual
+        # Run reasserts the default layout.
+        import dash
+
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        app._native_stream = True
+        calls = []
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("go", "s1", None, (), app_inputs={"a": 1, "b": 2})
+        assert ("fd-layout-dirty", {"data": True}) in calls
+
+
+class TestLayoutHydration:
+    """Bug 2: the Flask layout op must hydrate (real Output, hydratable JSON)."""
+
+    def test_content_reducer_wires_children_output_to_drive_channel(self):
+        # The set_layout children application must go through a real callback
+        # Output (set_props does not hydrate a component-JSON children payload),
+        # driven by the chat_drive socket event.
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        wired = False
+        for cb in app.app._callback_list:
+            out = str(cb.get("output", ""))
+            if "output-group-col.children" not in out:
+                continue
+            inputs = [f"{i['id']}.{i['property']}" for i in cb["inputs"]]
+            if any("socketio.data-chat_drive" in x for x in inputs):
+                wired = True
+        assert wired, ("a callback Output(output-group-col.children) must be "
+                       "wired to the chat_drive channel")
+
+    def test_flask_layout_op_payload_is_hydratable_component_json(self):
+        # The pushed tree must be Dash component JSON ({namespace,type,props} at
+        # the root) so a callback response hydrates it into live components.
+        def agent(query, ctx):
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        app._chat_fn = agent
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append((ev, payload))):
+            app._run_chat_turn("go", "s1", "sock", (), app_inputs={"a": 1, "b": 2})
+        layout = [p for ev, p in ops if ev == "chat_drive" and p.get("op") == "layout"]
+        assert len(layout) == 1
+        tree = layout[0]["tree"]
+        assert {"namespace", "type", "props"} <= set(tree)   # hydratable root
+        assert tree["props"]["id"] == "output-loading-wrap"
+
+
+class TestSetLayoutPreservesContent:
+    """Bug 3: a set_layout re-mosaic keeps surviving slots' rendered content."""
+
+    def _leaf_props(self, tree, leaf_id):
+        if isinstance(tree, dict):
+            props = tree.get("props", {})
+            if isinstance(props, dict):
+                if props.get("id") == leaf_id:
+                    return props
+                for v in props.values():
+                    r = self._leaf_props(v, leaf_id)
+                    if r is not None:
+                        return r
+        elif isinstance(tree, list):
+            for x in tree:
+                r = self._leaf_props(x, leaf_id)
+                if r is not None:
+                    return r
+        return None
+
+    def _emit_layout_tree(self, app, agent):
+        app._chat_fn = agent
+        ops = []
+        with mock.patch("flask_socketio.emit",
+                        side_effect=lambda ev, payload=None, **k: ops.append((ev, payload))):
+            app._run_chat_turn("go", "s1", "sock", (), app_inputs={"a": 1, "b": 2})
+        layout = [p for ev, p in ops if ev == "chat_drive" and p.get("op") == "layout"]
+        return layout[0]["tree"] if layout else None
+
+    def test_set_output_then_set_layout_keeps_slot_value_flask(self):
+        def agent(query, ctx):
+            yield {"type": "set_output", "slot": "A", "value": "KEEP-ME"}
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        tree = self._emit_layout_tree(app, agent)
+        leaf = app.outputs_with_ids[0]
+        props = self._leaf_props(tree, leaf.id)
+        assert props is not None
+        assert props.get(leaf.component_property) == "KEEP-ME"
+
+    def test_set_layout_does_not_mutate_canonical_leaf(self):
+        def agent(query, ctx):
+            yield {"type": "set_output", "slot": "A", "value": "KEEP-ME"}
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        self._emit_layout_tree(app, agent)
+        # The mirror injection deep-copies leaves; the canonical server object
+        # keeps its build-time default (never "KEEP-ME").
+        canonical = app.layout_object.output_component_mapper["A"]
+        leaf = app.outputs_with_ids[0]
+        found = _find_by_id(canonical, leaf.id)
+        assert getattr(found, leaf.component_property, None) != "KEEP-ME"
+
+    def test_set_layout_on_asgi_injects_mirror(self):
+        import dash
+
+        def agent(query, ctx):
+            yield {"type": "set_output", "slot": "A", "value": "KEEP-ME"}
+            yield {"type": "set_layout", "mosaic": "A\nB"}
+        app = _two_output_sidecar(agent)
+        app._native_stream = True
+        app._chat_fn = agent
+        calls = []
+        with mock.patch.object(dash, "set_props",
+                               lambda cid, props: calls.append((cid, props))):
+            app._run_chat_turn("go", "s1", None, (), app_inputs={"a": 1, "b": 2})
+        child_pushes = [p["children"] for c, p in calls
+                        if c == "output-group-col" and "children" in p]
+        assert child_pushes
+        leaf = app.outputs_with_ids[0]
+        props = self._leaf_props(child_pushes[-1], leaf.id)
+        assert props is not None
+        assert props.get(leaf.component_property) == "KEEP-ME"
+
 
 class TestChatToolsGatingForLayout:
     """set_output / set_layout honor the chat_tools allowlist."""
@@ -1446,19 +1573,25 @@ class TestRunAlwaysWins:
         assert "fd-default-layout" not in ids
 
     def test_run_reset_callback_is_registered(self):
-        # A clientside callback on submit_inputs.n_clicks restores
-        # output-group-col.children from the store (children only, not className).
+        # The Run-reset is SERVER-ATOMIC: the main process_input callback (keyed
+        # on submit_inputs.n_clicks) outputs output-group-col.children and gates
+        # on fd-layout-dirty (State). Restoring the layout in the SAME response
+        # as the leaf fill removes the race a standalone clientside swap had.
         app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
         wired = False
         for out_key, spec in app.app.callback_map.items():
             if "output-group-col.children" not in out_key:
                 continue
+            leaf_out = any(o.id in out_key for o in app.outputs_with_ids)
             inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
             states = [f"{s['id']}.{s['property']}" for s in spec.get("state", [])]
-            if any("submit_inputs.n_clicks" in x for x in inputs) \
-                    and any("fd-default-layout.data" in x for x in states):
+            # The main callback co-outputs the leaves AND the restored children,
+            # takes submit_inputs as an Input, and reads the dirty flag as State.
+            if (leaf_out
+                    and any("submit_inputs.n_clicks" in x for x in inputs)
+                    and any("fd-layout-dirty.data" in x for x in states)):
                 wired = True
-        assert wired, "Run-reset must restore output-group-col.children from the store"
+        assert wired, "Run-reset must be server-atomic on process_input"
 
     def test_run_reset_never_touches_classname(self):
         # The restore sets children only; the fd-not-run machinery owns
@@ -1471,6 +1604,320 @@ class TestRunAlwaysWins:
             # No single callback both restores children AND sets className.
             if "output-group-col.children" in out_key:
                 assert "output-group-col.className" not in out_key
+
+
+def _find_process_input(app):
+    """Dig the raw ``process_input`` closure out of the wrapped main callback.
+
+    The wire-level tests need to drive the callback with a synthetic ctx to
+    exercise the trigger / re-mount-re-fire branches without a browser.
+    """
+    am = app.app.callback_map
+    leaf_id = app.outputs_with_ids[0].id
+    key = next(
+        o for o, s in am.items()
+        if f"{leaf_id}." in o
+        and any(i["id"] == "submit_inputs" for i in s["inputs"])
+        and not any(i["id"] == "socketio" for i in s["inputs"])
+    )
+    wrapped = am[key]["callback"]
+    seen, stack = set(), [wrapped]
+    while stack:
+        fn = stack.pop()
+        if id(fn) in seen:
+            continue
+        seen.add(id(fn))
+        for cell in (getattr(fn, "__closure__", None) or ()):
+            try:
+                val = cell.cell_contents
+            except ValueError:
+                continue
+            if callable(val) and getattr(val, "__name__", "") == "process_input":
+                return val
+            if callable(val) and getattr(val, "__closure__", None):
+                stack.append(val)
+    raise AssertionError("process_input closure not found")
+
+
+class _FakeCtx:
+    def __init__(self, triggered_id):
+        self.triggered_id = triggered_id
+
+
+class TestRunResetIsConditional:
+    """Bug 1a: the Run-reset is server-atomic AND gated on the dirty flag."""
+
+    def test_run_reset_is_server_atomic_and_gated_on_dirty(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        # The restore is folded into the SERVER process_input callback: it
+        # co-outputs the leaves + output-group-col.children + fd-layout-dirty,
+        # gates on fd-layout-dirty (State), and clears it (Output). Being one
+        # response with the leaf fill removes the earlier clientside-swap race.
+        gate_key = None
+        for out_key, spec in app.app.callback_map.items():
+            if "output-group-col.children" not in out_key:
+                continue
+            if not any(o.id in out_key for o in app.outputs_with_ids):
+                continue                               # not the main callback
+            states = [f"{s['id']}.{s['property']}" for s in spec.get("state", [])]
+            if "fd-layout-dirty.data" in states:
+                gate_key = out_key
+                # Not clientside: process_input is a Python server callback.
+                assert not spec.get("clientside_function")
+        assert gate_key is not None, "Run-reset must gate on fd-layout-dirty.data"
+        assert "fd-layout-dirty.data" in gate_key      # cleared as an Output too
+
+    def test_run_reset_children_carries_the_run_outputs(self):
+        # The restored default tree carries the Run's freshly computed outputs
+        # in its leaves (so structure + content land together, no blank flash).
+        from fast_dash.utils import _transform_outputs
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        vals = _transform_outputs(["MARK-A", "MARK-B"],
+                                  app.output_tags, app.outputs_with_ids, 1)
+        tree = app._run_reset_children(vals)
+        s = json.dumps(tree)
+        # Both leaf ids present, and the injected content is in the tree.
+        for o in app.outputs_with_ids:
+            assert o.id in s
+        assert "MARK-A" in s and "MARK-B" in s         # both leaves' values
+
+    def test_dirty_store_present_when_layout_allowed(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        assert "fd-layout-dirty" in _layout_ids(app.app.layout)
+
+    def test_dirty_store_absent_without_layout(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"),
+                                  chat_tools=("read_app", "run_app"))
+        assert "fd-layout-dirty" not in _layout_ids(app.app.layout)
+
+
+class TestMainCallbackNoTriggerNeutralized:
+    """Bug 1b: a re-mount re-fire (no genuine trigger) must not clobber."""
+
+    def test_no_trigger_prevents_update_when_not_update_live(self):
+        # A typed (non-update_live) app: any no-trigger fire (page load OR a
+        # re-mount re-fire) raises PreventUpdate -- it never returns defaults.
+        from dash.exceptions import PreventUpdate
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx(None)
+        try:
+            with pytest.raises(PreventUpdate):
+                raw(1, 2, 0, 1, "sid-a")     # a, b, reset, submit, sid
+        finally:
+            fdmod.ctx = orig
+
+    def test_remount_refire_returns_no_update_for_update_live(self):
+        # An update_live app renders defaults ONCE (page load) then yields
+        # no_update on every later no-trigger fire, so a Run-reset re-mount
+        # cannot revert the value the Run just rendered.
+        import dash
+        import fast_dash.fast_dash as fdmod
+        from fast_dash import Text
+
+        def dashboard(a: int = 1, b: int = 2):
+            return f"x{a}", f"y{b}"
+        app = FastDash(callback_fn=dashboard, chat=lambda query, ctx: (yield "hi"),
+                       outputs=[Text, Text], update_live=True)
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx(None)
+        try:
+            app._initial_render_done = False
+            first = raw(1, 2, 0, 0, "sid-a")           # page-load render
+            assert not all(x is dash.no_update for x in first)
+            second = raw(1, 2, 0, 0, "sid-a")          # re-mount re-fire
+            assert all(x is dash.no_update for x in second)
+        finally:
+            fdmod.ctx = orig
+
+    def test_genuine_submit_still_runs_the_callback(self):
+        # The neutralization must not touch a genuine Run: a submit trigger runs
+        # the callback and returns the real output (not defaults).
+        import fast_dash.fast_dash as fdmod
+        from fast_dash import Text
+
+        def dashboard(a: int = 1) -> str:
+            return f"value-{a}"
+        app = FastDash(callback_fn=dashboard, chat=lambda query, ctx: (yield "hi"),
+                       outputs=Text)
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("submit_inputs")
+        try:
+            app._initial_render_done = True            # past page load
+            out = raw(7, 0, 1, "sid-a")                # a, reset, submit, sid
+            assert out[0] == "value-7"
+        finally:
+            fdmod.ctx = orig
+
+    def test_phantom_reset_refire_returns_no_update(self):
+        # THE clobber (browser-verified): the Run-reset swaps
+        # output-group-col.children, which re-creates the reset_inputs button
+        # (it lives in that col). Dash re-fires this callback with
+        # triggered_id="reset_inputs" but the freshly-mounted button's INITIAL
+        # n_clicks (0). That phantom reset must yield no_update for EVERY output
+        # -- never output_state_default -- so it cannot clobber the Run output
+        # that landed microseconds earlier.
+        import dash
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("reset_inputs")
+        try:
+            app._initial_render_done = True
+            # a, b, reset_n=0 (phantom -- remounted), submit_n=4, sid.
+            out = raw(1, 2, 0, 4, "sid-a")
+            assert all(x is dash.no_update for x in out)
+        finally:
+            fdmod.ctx = orig
+
+    def test_phantom_submit_refire_returns_no_update(self):
+        # Symmetric guard: a submit trigger with a falsy n_clicks is also a
+        # remount re-fire, not a real Run, and must yield no_update.
+        import dash
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("submit_inputs")
+        try:
+            app._initial_render_done = True
+            out = raw(1, 2, 0, 0, "sid-a")             # submit_n=0 -> phantom
+            assert all(x is dash.no_update for x in out)
+        finally:
+            fdmod.ctx = orig
+
+    def test_genuine_reset_still_resets(self):
+        # A genuine reset (n_clicks >= 1) must still clear the outputs to their
+        # defaults -- the phantom guard keys on n_clicks, so a real click passes.
+        import dash
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("reset_inputs")
+        try:
+            app._initial_render_done = True
+            out = raw(1, 2, 1, 0, "sid-a")             # reset_n=1 -> genuine
+            # Not a no_update sweep: the reset branch returned real defaults.
+            assert not all(x is dash.no_update for x in out)
+            assert out[:2] == app.output_state_default
+        finally:
+            fdmod.ctx = orig
+
+
+class TestManualRunMirror:
+    """Bug 3: a manual Run stashes its outputs into the per-session mirror."""
+
+    def test_manual_run_populates_session_mirror(self):
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("submit_inputs")
+        try:
+            app._initial_render_done = True
+            raw(3, 4, 0, 1, "sid-run")                 # a, b, reset, submit, sid
+        finally:
+            fdmod.ctx = orig
+        mirror = app._session("sid-run").output_mirror
+        assert set(mirror.keys()) == {0, 1}
+        assert mirror[0] == "x3" and mirror[1] == "y4"
+
+    def test_manual_run_without_sid_is_a_noop(self):
+        # No session id (store empty) must not raise and must not create a
+        # phantom mirror entry.
+        import fast_dash.fast_dash as fdmod
+
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        raw = _find_process_input(app)
+        orig = fdmod.ctx
+        fdmod.ctx = _FakeCtx("submit_inputs")
+        try:
+            app._initial_render_done = True
+            raw(3, 4, 0, 1, None)                      # sid is None
+        finally:
+            fdmod.ctx = orig
+        # No session was created for a None sid.
+        assert None not in app._sessions
+
+    def test_session_id_store_is_set_at_page_load(self):
+        # The manual-Run mirror reads State("chat-session","data"); that store
+        # must be populated at page load (not only after the first chat turn),
+        # so a Run BEFORE any chat message still mirrors. The sid-setting
+        # clientside callback fires on load -- it has no prevent_initial_call.
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        sid_cb = None
+        for cb in app.app._callback_list:
+            out = str(cb.get("output", ""))
+            if "chat-session.data" in out and cb.get("clientside_function"):
+                sid_cb = cb
+                break
+        assert sid_cb is not None, "a clientside callback must set chat-session.data"
+        # Not gated behind a chat message: it runs on the initial page load.
+        assert not sid_cb.get("prevent_initial_call", False)
+        # Its trigger is a component that always exists on load (chat-messages).
+        inputs = [f"{i['id']}.{i['property']}" for i in sid_cb.get("inputs", [])]
+        assert "chat-messages.id" in inputs
+
+
+class TestDriveSeqOrdering:
+    """RFC #133 D3: a monotonic seq on the drive channel skips stale re-fires."""
+
+    def test_drive_seq_store_present_when_drivable(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        assert "fd-drive-seq" in _layout_ids(app.app.layout)
+
+    def test_drive_seq_is_monotonic(self):
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        seqs = [app._next_drive_seq() for _ in range(5)]
+        assert seqs == sorted(seqs)                    # strictly increasing
+        assert len(set(seqs)) == len(seqs)             # all distinct
+
+    def test_flask_reducers_gate_and_bump_the_seq_store(self):
+        # Both Flask reducers keyed on data-chat_drive must read the seq store
+        # (State) and write it (Output) so a stale re-fire is gated out.
+        app = _two_output_sidecar(lambda query, ctx: (yield "hi"))
+        drive_reducers = []
+        for out_key, spec in app.app.callback_map.items():
+            inputs = [f"{i['id']}.{i['property']}" for i in spec.get("inputs", [])]
+            if "socketio.data-chat_drive" not in inputs:
+                continue
+            states = [f"{s['id']}.{s['property']}" for s in spec.get("state", [])]
+            # The flash callback also keys on data-chat_drive but does not gate.
+            if "fd-drive-seq.data" in states:
+                assert "fd-drive-seq.data" in out_key   # bumped as an Output too
+                drive_reducers.append(out_key)
+        # The drive reducer and the content reducer both gate on the seq store.
+        assert len(drive_reducers) >= 2, drive_reducers
+
+    def test_drive_payloads_carry_a_seq(self):
+        # Every Flask drive payload the reducers key on carries a seq so the
+        # clientside gate has something to compare. Capture the emitted payloads.
+        app = _two_output_sidecar(
+            lambda query, ctx: (yield {"type": "set_input", "name": "a", "value": 9}))
+        captured = []
+
+        def _emit(payload):
+            captured.append(payload)
+
+        # Drive the turn with a capture emit (Flask op protocol path).
+        app._run_chat_turn("go", "sid-seq", None, (), emit=_emit,
+                           app_inputs={"a": 1, "b": 2})
+        drive_ops = [p for p in captured if p.get("op") == "drive"]
+        assert drive_ops, "a set_input turn must emit a drive op"
+        for p in drive_ops:
+            assert isinstance(p.get("seq"), int)
 
 
 # --------------------------------------------------------------------------- #

@@ -450,6 +450,11 @@ class ChatSession:
     pending: Any = None               # HITL: paused turn awaiting a decision
     msgs: list = dataclasses.field(default_factory=list)          # ASGI transcript
     canvas_specs: list = dataclasses.field(default_factory=list)  # canvas UI specs
+    # Last-known transformed output values (per output slot), so a set_layout
+    # re-mosaic preserves surviving slots' contents instead of reverting them to
+    # the build-time defaults (Bug 3). Populated on manual Run, run_app, and
+    # set_output; consumed when rebuilding the pushed layout tree.
+    output_mirror: dict = dataclasses.field(default_factory=dict)
     last_seen: float = 0.0
 
 
