@@ -961,9 +961,9 @@ scrolling transcript, and per-session history — with no LLM provider baked in:
         <span class="k">yield</span> <span class="n">token</span>
 </code></pre></div>
 <p><code>yield</code> strings to stream the reply as markdown; add a <code>history</code> parameter for
-multi-turn memory, and any other parameter becomes a sidebar setting. <code>chat=</code>
-also accepts a LangGraph graph, a <code>(query, ctx)</code> callable, or a chat-model
-instance.</p>
+multi-turn memory, and any other parameter becomes a sidebar setting (tucked
+into a collapsible accordion when there are many). <code>chat=</code> also accepts a
+LangGraph graph, a <code>(query, ctx)</code> callable, or a chat-model instance.</p>
 <p>Or keep a <strong>normal</strong> app and add an assistant beside it — pass your agent as
 <code>chat=</code>: the agent reads your app's live inputs (<code>ctx.inputs</code>) and can drive it
 (<code>set_input</code> / <code>run_app</code>) — anything a user can do, the agent can do.</p>

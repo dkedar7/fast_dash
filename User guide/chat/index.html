@@ -950,6 +950,16 @@ app — dropdowns, number inputs, switches, even a dataset upload:</p>
 <p><code>model</code> becomes a dropdown, <code>temperature</code> a number input, <code>dataset</code> an upload
 box. Their live values are passed to the callback each turn, rendered in the
 <strong>sidebar</strong> above (or beside) the transcript.</p>
+<div class="admonition tip">
+<p class="admonition-title">Collapsible settings (0.6.2+)</p>
+<p>Settings render inside a <strong>fully-collapsible accordion</strong> so a long list
+doesn't crowd the conversation. In full-page chat mode it's a
+"Settings (N)" panel that defaults collapsed when there are many settings
+(open when there are only a few). In a <a href="#add-an-assistant-to-a-normal-app-a-chat-sidecar">sidecar</a>
+the app's own inputs are the primary interface, so the "Inputs (N)" panel
+defaults <strong>open</strong> and can be tucked to a header to give the chat more room —
+and collapsing the chat panel expands the inputs to full height.</p>
+</div>
 <h2 id="the-frame-grammar">The frame grammar</h2>
 <p>Yielding a <code>str</code> is sugar for a text frame. For richer replies, <code>yield</code> frame
 dicts — every type below renders natively:</p>

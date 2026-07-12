@@ -651,6 +651,29 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-062">Release 0.6.2</h1>
+<h2 id="062-2026-07-12">0.6.2 (2026-07-12)</h2>
+<p>Chat sidebars get a <strong>collapsible input accordion</strong>, so a long list of settings
+(or, in a sidecar, the app's own inputs) can tuck to a header instead of
+crowding the conversation.</p>
+<h3 id="added">Added</h3>
+<ul>
+<li><strong>Collapsible "Settings" / "Inputs" accordion in chat sidebars.</strong> The sidebar
+  inputs are wrapped in a fully-collapsible <code>dmc.Accordion</code> — a single-mode item
+  that closes completely on click — scoped to chat surfaces; a normal (non-chat)
+  form app is unchanged.<ul>
+<li><strong>Full-page chat (<code>chat=True</code>)</strong>: the inputs are secondary settings, shown
+  as a <strong>"Settings (N)"</strong> panel that defaults <em>collapsed</em> when there are
+  several (and open when there are only a few), keeping the transcript roomy.</li>
+<li><strong>Sidecar (<code>chat=&lt;agent&gt;</code>)</strong>: the app's own inputs are the primary
+  interface, shown as an <strong>"Inputs (N)"</strong> panel that defaults <em>open</em>; it only
+  adds a way to tuck them so the chat panel can reclaim the space. The
+  accordion stays inside the input container and never touches the chat
+  panel — collapsing the chat panel still lifts the height cap so the inputs
+  show in full.</li>
+</ul>
+</li>
+</ul>
 <h1 id="release-061">Release 0.6.1</h1>
 <h2 id="061-2026-07-07">0.6.1 (2026-07-07)</h2>
 <p>LangGraph chat agents now render their <strong>typed agent events</strong> as first-class
@@ -659,7 +682,7 @@ bridge extracts a structured object from the tool result and shows a purpose-bui
 card in the transcript instead of a raw tool blob -- a reflection collapses into a
 thinking block, a <code>write_todos</code> result becomes a task list with status icons, and
 <code>display_inline</code> renders figures / tables / markdown inline.</p>
-<h3 id="added">Added</h3>
+<h3 id="added_1">Added</h3>
 <ul>
 <li><strong>Typed agent-event rendering, on by default.</strong> The langstage bridge now passes
   the seven built-in extractors to <code>iter_event_frames</code>, so a LangGraph agent's
@@ -809,7 +832,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
   sidebar (even with zero inputs); no app callback (or a chat-shaped one) -&gt;
   full-page chat.</li>
 </ul>
-<h3 id="added_1">Added</h3>
+<h3 id="added_2">Added</h3>
 <ul>
 <li><strong>A chat-agent toolkit</strong> (<code>fast_dash.agent_toolkit(app)</code>) — the list of
   LangChain <code>@tool</code> functions the assistant uses, trimmed to the app's
@@ -886,7 +909,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </ul>
 <h1 id="release-054">Release 0.5.4</h1>
 <h2 id="054-2026-07-05">0.5.4 (2026-07-05)</h2>
-<h3 id="added_2">Added</h3>
+<h3 id="added_3">Added</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code></strong> places the chat sidecar <em>inside the left
   inputs sidebar</em> — stacked under the inputs, always visible — instead of the
