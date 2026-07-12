@@ -1,5 +1,29 @@
 # History
 
+# Release 0.6.2
+
+## 0.6.2 (2026-07-12)
+
+Chat sidebars get a **collapsible input accordion**, so a long list of settings
+(or, in a sidecar, the app's own inputs) can tuck to a header instead of
+crowding the conversation.
+
+### Added
+
+- **Collapsible "Settings" / "Inputs" accordion in chat sidebars.** The sidebar
+  inputs are wrapped in a fully-collapsible `dmc.Accordion` — a single-mode item
+  that closes completely on click — scoped to chat surfaces; a normal (non-chat)
+  form app is unchanged.
+    - **Full-page chat (`chat=True`)**: the inputs are secondary settings, shown
+      as a **"Settings (N)"** panel that defaults *collapsed* when there are
+      several (and open when there are only a few), keeping the transcript roomy.
+    - **Sidecar (`chat=<agent>`)**: the app's own inputs are the primary
+      interface, shown as an **"Inputs (N)"** panel that defaults *open*; it only
+      adds a way to tuck them so the chat panel can reclaim the space. The
+      accordion stays inside the input container and never touches the chat
+      panel — collapsing the chat panel still lifts the height cap so the inputs
+      show in full.
+
 # Release 0.6.1
 
 ## 0.6.1 (2026-07-07)

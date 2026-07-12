@@ -1,4 +1,72 @@
-# Release 0.4.1
+# Release 0.6.2
+
+## 0.6.2 (2026-07-12)
+
+### Added
+- **Collapsible input accordion for chat sidebars.** A long input list can now
+  tuck to a header instead of crowding the conversation. In full-page chat the
+  inputs are secondary "Settings (N)" (collapsed by default when there are
+  many); in a sidecar they are the primary "Inputs (N)" (open by default).
+  Normal (non-chat) form apps are unchanged.
+
+## 0.6.1 (2026-07-07)
+
+### Changed
+- **Typed agent events by default.** langstage extractors and chat renderers
+  emit typed frames, so chat surfaces render structured agent events out of the
+  box.
+
+## 0.6.0 (2026-07-07)
+
+### Added
+- **Unified `chat=` API (RFC #145).** `chat=` is now polymorphic — pass `True`,
+  a compiled agent graph, a spec string, or an agent callable — with a
+  `chat_tools` allowlist and a collapsible sidebar panel.
+- **Agent app toolkit + runtime layout/content engine**, with sandboxed
+  execution, an auto-agent bridge, and human-in-the-loop (HITL) execution.
+
+### Changed
+- **Breaking:** the unified `chat=` argument supersedes the earlier per-mode
+  chat flags. Update code that used the pre-0.6 chat parameters to pass the
+  agent (or `True`) directly via `chat=`.
+
+## 0.5.5 (2026-07-05)
+
+### Bug fixes
+- Correct the sidebar-chat navbar width so the output area and the collapse
+  affordance align.
+
+## 0.5.4 (2026-07-05)
+
+### Added
+- **`chat_agent_position="sidebar"`** — render the chat panel inside the inputs
+  sidebar (the sidecar placement) rather than as a separate surface.
+
+## 0.5.3 (2026-07-05)
+
+### Added
+- Mode-aware, customizable empty-transcript placeholder for chat apps.
+
+## 0.5.2 (2026-07-04)
+
+### Bug fixes
+- The chat sidecar's `run_app` now renders outputs, not just inputs.
+
+## 0.5.1 (2026-07-04)
+
+### Bug fixes
+- Make the `describe_app()` MCP contract consistent and surface date defaults.
+
+## 0.5.0 (2026-07-03)
+
+### Added
+- **Chat mode (`chat=True`) and the agent sidecar (`chat=<agent>`).** Turn a
+  `query`-first callback into a full-page chat app, or attach a chat assistant
+  to a normal form app that can read and drive its inputs.
+- **UI refresh.** A Mantine-based design foundation (accent-color API, richer
+  theme), polished chrome/inputs/outputs, motion + accessibility + mobile
+  support, skeleton loaders and a pre-run empty state, and input help captions
+  inferred from the callback docstring. FontAwesome dropped.
 
 ## 0.4.1 (2026-07-01)
 

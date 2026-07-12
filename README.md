@@ -75,9 +75,9 @@ def assistant(query: str):
 ```
 
 `yield` strings to stream the reply as markdown; add a `history` parameter for
-multi-turn memory, and any other parameter becomes a sidebar setting. `chat=`
-also accepts a LangGraph graph, a `(query, ctx)` callable, or a chat-model
-instance.
+multi-turn memory, and any other parameter becomes a sidebar setting (tucked
+into a collapsible accordion when there are many). `chat=` also accepts a
+LangGraph graph, a `(query, ctx)` callable, or a chat-model instance.
 
 Or keep a **normal** app and add an assistant beside it — pass your agent as
 `chat=`: the agent reads your app's live inputs (`ctx.inputs`) and can drive it

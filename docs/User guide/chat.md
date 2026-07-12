@@ -70,6 +70,15 @@ def assistant(
 box. Their live values are passed to the callback each turn, rendered in the
 **sidebar** above (or beside) the transcript.
 
+!!! tip "Collapsible settings (0.6.2+)"
+    Settings render inside a **fully-collapsible accordion** so a long list
+    doesn't crowd the conversation. In full-page chat mode it's a
+    "Settings (N)" panel that defaults collapsed when there are many settings
+    (open when there are only a few). In a [sidecar](#add-an-assistant-to-a-normal-app-a-chat-sidecar)
+    the app's own inputs are the primary interface, so the "Inputs (N)" panel
+    defaults **open** and can be tucked to a header to give the chat more room —
+    and collapsing the chat panel expands the inputs to full height.
+
 ## The frame grammar
 
 Yielding a `str` is sugar for a text frame. For richer replies, `yield` frame
