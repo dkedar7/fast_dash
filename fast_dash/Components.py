@@ -523,8 +523,13 @@ class AppLayout:
 
         return header_children
 
-    def generate_input_component(self):
-        """Build the sidebar navbar content with inputs."""
+    def generate_input_component(self, collapsible=False):
+        """Build the sidebar navbar content with inputs.
+
+        When ``collapsible`` is set (native chat mode), the settings inputs are
+        wrapped in a fully-collapsible accordion so a long list of settings
+        doesn't crowd the transcript. It defaults open only for a few inputs.
+        """
         sidebar_children = []
 
         # Subtitle under inputs
@@ -547,13 +552,45 @@ class AppLayout:
         if inputs and isinstance(inputs[-1], html.Div):
             submit_row = inputs.pop()
 
-        sidebar_children.append(
-            dmc.Stack(
-                children=inputs,
-                gap="lg",
-                id="input-group",
+        input_stack = dmc.Stack(children=inputs, gap="lg", id="input-group")
+
+        # Wrap the inputs in a fully-collapsible accordion on chat surfaces so a
+        # long input list can tuck to a header instead of crowding the chat.
+        # dmc's single-mode Accordion deselects on click, so it closes fully.
+        #   * full-page chat (collapsible): inputs are secondary *settings* —
+        #     default collapsed unless there are only a few.
+        #   * sidecar (for_sidebar): inputs are the *primary* interface —
+        #     default open; the accordion only gives a way to tuck them so the
+        #     chat panel below can reclaim the space. It stays inside the input
+        #     container (the capped ScrollArea), never touching the chat panel.
+        # One item for now; per-group items can slot in once inputs carry a key.
+        for_sidebar = getattr(self.app, "has_chat_sidecar", False)
+        if (collapsible or for_sidebar) and inputs:
+            if for_sidebar:
+                open_default, label_word = True, "Inputs"
+            else:
+                open_default, label_word = len(inputs) <= 3, "Settings"
+            label = label_word + (f" ({len(inputs)})" if len(inputs) > 1 else "")
+            sidebar_children.append(
+                dmc.Accordion(
+                    dmc.AccordionItem(
+                        [
+                            dmc.AccordionControl(
+                                label,
+                                icon=DashIconify(icon="mdi:tune-variant", width=18),
+                            ),
+                            dmc.AccordionPanel(input_stack),
+                        ],
+                        value="settings",
+                    ),
+                    value="settings" if open_default else None,
+                    chevronPosition="right",
+                    variant="separated",
+                    id="chat-settings-accordion",
+                )
             )
-        )
+        else:
+            sidebar_children.append(input_stack)
 
         # Mantine's scrollable-navbar pattern: a `grow` section that *is* the
         # scroll area holds the inputs, and the Run button lives in a fixed
@@ -565,7 +602,6 @@ class AppLayout:
         # inputs take their natural (capped) height and the chat gets the growing
         # space; otherwise the inputs own the scroll and Run is pinned at the
         # bottom. (The sidebar is the only sidecar placement in 0.6.0.)
-        for_sidebar = getattr(self.app, "has_chat_sidecar", False)
         sections = [
             dmc.AppShellSection(
                 dmc.ScrollArea(
@@ -1041,7 +1077,7 @@ class AppLayout:
             appshell_children.insert(
                 1,
                 dmc.AppShellNavbar(
-                    self.generate_input_component(),
+                    self.generate_input_component(collapsible=True),
                     p="md",
                     id="navbar3260780",
                     style={"display": "flex", "flexDirection": "column",
