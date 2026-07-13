@@ -1,5 +1,77 @@
 # History
 
+# Release 0.6.3
+
+## 0.6.3 (2026-07-13)
+
+An **agent-contract** release: the MCP surface now describes what an app really
+is, and refuses what its UI could never produce. Every open bug at the time of
+writing is fixed.
+
+### Fixed
+
+- **`Tuple[int, str]` return hints silently dropped outputs** ([#156]). Only the
+  bare parenthesized spelling `-> (int, str)` produced two outputs; the
+  idiomatic `Tuple[int, str]` / `tuple[int, str]` are generic *aliases*, not
+  tuple objects, so they collapsed to a single output and every return value
+  after the first was discarded. Both spellings now expand, including under
+  `from __future__ import annotations` (where the hint arrives as a string), and
+  a variadic `tuple[int, ...]` correctly stays a single output.
+- **Apps shared one `run_kwargs` dict** ([#153]). `run_kwargs=dict()` was a
+  mutable default that the constructor then mutated with its own port, so
+  building a second app silently rewrote the first app's port (and any other
+  `run_kwargs`, including the security-relevant `host`) — `app.run()` bound the
+  wrong port. `run_kwargs` is now copied, never aliased, and the caller's dict is
+  left untouched.
+- **`PasswordInput` values leaked over the no-auth MCP route** ([#151]). The chat
+  surface redacted secrets; the MCP surface handed them out in plain text via
+  `describe_app`, the `set_input` echo, and `get_invocation`. A password's value
+  now goes *in* (an agent can still fill the field) but never comes back out:
+  the contract marks the input `"secret": true` and every value it reports is
+  masked — including a secret carried in a spec's `props`, and one whose form
+  has since been replaced (its value is dropped from the mirror with it).
+- **Value validation was type-blind** ([#150]). The range check only fired for
+  numbers, so a *string* sailed straight past a Slider's `min`/`max` — `"9999"`
+  is not an `int`, so nothing compared it to the maximum — and reached the
+  callback as a value no drag of the slider could produce. Numeric and boolean
+  inputs now reject values of the wrong JSON type.
+- **`DynamicDash` forms skipped all validation** ([#144]). Every guard keyed off
+  the *static* input list, which a `DynamicDash` doesn't have, so unknown ids,
+  out-of-options values and out-of-range slider values were all accepted in
+  silence. The specs of the form **currently on screen** are now the contract
+  that `set_input` / `set_inputs` / `invoke` enforce against — whether that form
+  came from `initial_specs`, a `parent_control` cascade, or an agent's
+  `set_form` (including `[{"label": ..., "value": ...}]` style `Select` options).
+  The parent control is part of the contract too: the UI passes it to the
+  callback, so an agent can discover and drive it.
+- **The MCP no-auth warning watched the wrong knob** ([#149]). It warned on
+  `mcp_host`, which stopped binding anything when MCP moved onto the app's own
+  port, and stayed silent on the setting that actually exposes an
+  unauthenticated tool endpoint: serving on `0.0.0.0`. It now fires at `run()`,
+  keyed off the host the server really binds.
+- **All `str` widgets reported the same tag** ([#147]). A colour picker, a
+  textarea and a text box all described themselves as `"Text"`, so a headless
+  agent reading `describe_app` couldn't tell them apart. Each now reports the
+  widget it actually became (`ColorInput` / `TextArea` / `Text`).
+
+### Added
+
+- **Output contract in `describe_app`** ([#152]). It reported inputs only, so the
+  one way for a headless agent to learn what an app returns was to *call* it —
+  discovery by side effect. `describe_app` now also lists each output's `id`,
+  the component `tag` it renders into (`Graph` / `Table` / `Markdown` / …), its
+  JSON `type` and `label`, plus a summary of the value currently on screen once
+  something has run.
+
+[#144]: https://github.com/dkedar7/fast_dash/issues/144
+[#147]: https://github.com/dkedar7/fast_dash/issues/147
+[#149]: https://github.com/dkedar7/fast_dash/issues/149
+[#150]: https://github.com/dkedar7/fast_dash/issues/150
+[#151]: https://github.com/dkedar7/fast_dash/issues/151
+[#152]: https://github.com/dkedar7/fast_dash/issues/152
+[#153]: https://github.com/dkedar7/fast_dash/issues/153
+[#156]: https://github.com/dkedar7/fast_dash/issues/156
+
 # Release 0.6.2
 
 ## 0.6.2 (2026-07-12)

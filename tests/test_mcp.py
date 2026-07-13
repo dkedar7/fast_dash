@@ -16,13 +16,14 @@ import datetime  # module-level so get_type_hints resolves date/datetime hints (
 import enum
 import importlib.util
 import json
-from typing import Annotated, Optional  # module-level for get_type_hints (#119, #132)
+import warnings
+from typing import Annotated, Optional, Tuple  # module-level for get_type_hints (#119, #132)
 
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
 import pytest
 
-from fast_dash import DynamicDash, FastDash, Graph, Markdown
+from fast_dash import DynamicDash, FastDash, Graph, Markdown, PasswordInput
 from fast_dash.mcp import MCPState, enable_mcp
 
 
@@ -113,6 +114,14 @@ def _call(client, name, args=None):
     return r
 
 
+def _exposure_warnings(fn):
+    """The MCP no-auth warnings raised by ``fn`` (ignoring library noise)."""
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        fn()
+    return [w for w in caught if "no authentication" in str(w.message)]
+
+
 def _plain_app():
     def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
         """Bar chart with n bars."""
@@ -120,12 +129,13 @@ def _plain_app():
     return FastDash(callback_fn=plot_bars, mcp_server=True)
 
 
-def _dynamic_app():
+def _dynamic_app(**kw):
     def score(**fields):
         """Radar of submitted fields."""
         return go.Figure(), "ok"
+    kw.setdefault("placeholder", "hi")
     return DynamicDash(callback_fn=score, output_components=[Graph, Markdown],
-                       placeholder="hi", mcp_server=True)
+                       mcp_server=True, **kw)
 
 
 # --- MCPState -------------------------------------------------------------- #
@@ -605,6 +615,310 @@ class TestTools:
         out = _call(c, "set_form", {"specs": [{"name": "x", "type": "NotReal"}]})
         assert out["ok"] is False
         assert "Unknown component type" in out["error"]
+
+    def test_describe_app_reports_the_output_contract(self):
+        # #152: describe_app reported inputs only, so the one way for a headless
+        # agent to learn what an app returns was to *call* it — discovery by side
+        # effect. Outputs are now part of the contract.
+        def report(n: int = 3) -> Tuple[go.Figure, str]:
+            """Chart n and summarize it."""
+            return go.Figure(go.Bar(x=[n], y=[n])), f"{n} bars"
+
+        app = FastDash(callback_fn=report, mcp_server=True,
+                       output_labels=["Chart", "Summary"])
+        c = _client_for(app)
+
+        outs = _call(c, "describe_app")["outputs"]
+        assert [o["tag"] for o in outs] == ["Graph", "Text"]
+        assert [o["label"] for o in outs] == ["Chart", "Summary"]
+        assert [o["type"] for o in outs] == ["object", "string"]
+        # Nothing has run yet — no values claimed.
+        assert all("current_value" not in o for o in outs)
+
+        run = _call(c, "invoke", {"inputs": {"n": 4}})
+        assert run["ok"] is True
+        after = _call(c, "describe_app")["outputs"]
+        assert after[1]["current_value"] == "4 bars"   # live value, still typed
+
+    def test_str_hint_widgets_report_the_widget_they_became(self):
+        # #147: a colour picker, a textarea and a text box are three different
+        # widgets, but all three reported tag "Text" (the `str` hint), so a
+        # headless agent reading describe_app could not tell them apart — it had
+        # no way to know `color` wants a hex string the UI can actually render.
+        def style(color: str = "#1c7ed6",
+                  bio: str = "line one\nline two",
+                  name: str = "kedar") -> str:
+            """Style a profile."""
+            return f"{color}{bio}{name}"
+
+        c = _client_for(FastDash(callback_fn=style, mcp_server=True))
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert by_id["color"]["tag"] == "ColorInput"
+        assert by_id["bio"]["tag"] == "TextArea"
+        assert by_id["name"]["tag"] == "Text"
+
+    def test_password_value_goes_in_but_never_comes_back(self):
+        # #151: the browser masks a PasswordInput; the unauthenticated /mcp route
+        # must not undo that by reading the credential back out in plain text.
+        # (PasswordInput is imported at module level so get_type_hints can
+        # resolve this annotation under the file's future annotations — #119.)
+        def login(pwd: PasswordInput = "hunter2", user: str = "kedar") -> str:
+            """Log in."""
+            return f"{user}:{pwd}"
+
+        app = FastDash(callback_fn=login, mcp_server=True)
+        c = _client_for(app)
+
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert by_id["pwd"]["secret"] is True
+        assert by_id["pwd"]["default"] == "********"      # seeded default masked
+        assert by_id["user"]["secret"] is False
+        assert by_id["user"]["default"] == "kedar"        # non-secrets unchanged
+
+        # The value is settable (an agent must be able to fill it) but the echo
+        # is masked, and the mirror really did take the value.
+        out = _call(c, "set_input", {"component_id": "pwd", "value": "s3cret"})
+        assert out["ok"] is True and out["value"] == "********"
+        assert app._mcp_state.inputs["pwd"] == "s3cret"
+
+        cur = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert cur["pwd"]["current_value"] == "********"
+
+        # ...and it does not leak through invoke's history either.
+        run = _call(c, "invoke")
+        assert run["ok"] is True
+        hist = _call(c, "get_invocation", {"index": run["history_index"]})
+        assert hist["kwargs_summary"]["pwd"] == "********"
+        assert hist["kwargs_summary"]["user"] == "kedar"
+
+    def test_wrong_type_rejected_so_bounds_cannot_be_bypassed(self):
+        # #150: the bounds check only fires for numbers, so a *string* used to
+        # sail straight past a Slider's min/max ("9999" is not an int, so nothing
+        # compared it to the maximum) and reach the callback as a value no drag
+        # of the slider could produce.
+        from tests._slider_app import slider_demo
+
+        app = FastDash(callback_fn=slider_demo, mcp_server=True)
+        c = _client_for(app)
+
+        bad = _call(c, "set_input", {"component_id": "via_annot", "value": "9999"})
+        assert bad["ok"] is False and "expected an integer" in bad["error"]
+        assert "via_annot" not in app._mcp_state.pending_inputs
+        # ...including the unbounded number box, which has a type but no range.
+        bad2 = _call(c, "set_input", {"component_id": "plain_num", "value": "lots"})
+        assert bad2["ok"] is False and "expected an integer" in bad2["error"]
+        # Numbers still pass.
+        assert _call(c, "set_input", {"component_id": "via_annot", "value": 42})["ok"]
+
+    def test_boolean_input_rejects_non_boolean(self):
+        # #150: a Switch can only ever emit True/False.
+        def flag(on: bool = False, note: str = "") -> str:
+            """Toggle."""
+            return f"{on}{note}"
+
+        c = _client_for(FastDash(callback_fn=flag, mcp_server=True))
+        bad = _call(c, "set_input", {"component_id": "on", "value": "yes"})
+        assert bad["ok"] is False and "expected a boolean" in bad["error"]
+        assert _call(c, "set_input", {"component_id": "on", "value": True})["ok"]
+        # A free-text input stays permissive — nothing is advertised about it.
+        assert _call(c, "set_input", {"component_id": "note", "value": "anything"})["ok"]
+
+    def test_agent_built_form_is_validated_against_its_own_specs(self):
+        # #144: DynamicDash has no static inputs, so every guard keyed off
+        # _enumerate_inputs short-circuited and an agent-built form skipped ALL
+        # validation — unknown ids, out-of-options and out-of-range values all
+        # landed in the mirror. The specs the agent declared ARE the contract.
+        app = _dynamic_app()
+        c = _client_for(app)
+        _call(c, "set_form", {"specs": [
+            {"name": "skill", "type": "Slider", "props": {"min": 0, "max": 10}},
+            {"name": "team", "type": "Select",
+             "props": {"data": ["red", "blue"]}},
+        ]})
+
+        unknown = _call(c, "set_input", {"component_id": "nope", "value": 1})
+        assert unknown["ok"] is False and unknown["known_ids"] == ["skill", "team"]
+
+        hi = _call(c, "set_input", {"component_id": "skill", "value": 99})
+        assert hi["ok"] is False and "maximum" in hi["error"]
+
+        off = _call(c, "set_input", {"component_id": "team", "value": "green"})
+        assert off["ok"] is False and "allowed options" in off["error"]
+
+        # Nothing invalid reached the mirror; valid values still do.
+        assert app._mcp_state.inputs.get("skill") is None
+        assert _call(c, "set_input", {"component_id": "skill", "value": 7})["ok"]
+        assert _call(c, "set_input", {"component_id": "team", "value": "red"})["ok"]
+        assert app._mcp_state.inputs["skill"] == 7
+
+    def test_agent_built_select_accepts_label_value_options(self):
+        # A DynamicDash Select may declare data as [{label, value}, ...]; only the
+        # value half is ever emitted, so that is what membership checks.
+        app = _dynamic_app()
+        c = _client_for(app)
+        _call(c, "set_form", {"specs": [
+            {"name": "team", "type": "Select", "props": {
+                "data": [{"label": "Red team", "value": "red"},
+                         {"label": "Blue team", "value": "blue"}]}},
+        ]})
+        assert _call(c, "set_input", {"component_id": "team", "value": "red"})["ok"]
+        bad = _call(c, "set_input", {"component_id": "team", "value": "Red team"})
+        assert bad["ok"] is False and "allowed options" in bad["error"]
+
+
+class TestSecretsNeverLeave:
+    """#151, hardened: the secret must not appear ANYWHERE in a payload.
+
+    Asserting that `current_value` is masked is not the same as asserting the
+    credential didn't ride out in a sibling field — `props`, the plain-mirror
+    tail of describe_app, an error string. These tests search the serialized
+    payload for the string itself, which is the only assertion that can't be
+    satisfied by masking the one field the author happened to think of.
+    """
+
+    SECRET = "sk-live-DO-NOT-LEAK"
+
+    def _assert_clean(self, payload):
+        assert self.SECRET not in json.dumps(payload, default=str)
+
+    def test_app_authored_dynamic_password_is_masked(self):
+        # An `initial_specs` form is authored by the app, not the agent — so its
+        # PasswordInput was invisible to a secret list built from set_form specs.
+        app = _dynamic_app(placeholder=None, initial_specs=[
+            {"name": "api_key", "type": "PasswordInput"},
+            {"name": "q", "type": "Text"},
+        ])
+        c = _client_for(app)
+        assert _call(c, "set_input", {"component_id": "api_key", "value": self.SECRET})["ok"]
+
+        self._assert_clean(_call(c, "describe_app"))
+        run = _call(c, "invoke")
+        self._assert_clean(run)
+        self._assert_clean(_call(c, "get_invocation", {"index": run["history_index"]}))
+        # ...but the callback really did receive it.
+        assert app._mcp_state.inputs["api_key"] == self.SECRET
+
+    def test_secret_in_spec_props_is_masked(self):
+        # A spec may carry its value in props; props were echoed verbatim, so the
+        # credential rode out beside the very entry stamped "secret": true.
+        app = _dynamic_app()
+        c = _client_for(app)
+        _call(c, "set_form", {"specs": [
+            {"name": "api_key", "type": "PasswordInput",
+             "props": {"value": self.SECRET}},
+        ]})
+        desc = _call(c, "describe_app")
+        entry = desc["inputs"][0]
+        assert entry["secret"] is True and entry["current_value"] == "********"
+        self._assert_clean(desc)
+
+    def test_secret_survives_a_form_swap(self):
+        # Replacing the form must not strand the old password's value in the
+        # mirror, where describe_app's plain tail would print it in the clear.
+        app = _dynamic_app()
+        c = _client_for(app)
+        _call(c, "set_form", {"specs": [
+            {"name": "api_key", "type": "PasswordInput"},
+            {"name": "q", "type": "Text"},
+        ]})
+        _call(c, "set_input", {"component_id": "api_key", "value": self.SECRET})
+
+        _call(c, "set_form", {"specs": [{"name": "q", "type": "Text"}]})
+        self._assert_clean(_call(c, "describe_app"))
+        # The field is gone from the form, so its value is gone from the mirror —
+        # invoke must not keep passing it to the callback either.
+        assert "api_key" not in app._mcp_state.inputs
+
+
+class TestDynamicFormContract:
+    """#144, hardened: the contract follows the form on screen, whoever built it."""
+
+    def test_app_authored_form_is_validated(self):
+        # initial_specs never touched current_specs, so an app-authored form had
+        # no contract at all: unknown ids, out-of-range and wrong-typed values
+        # were all accepted in silence.
+        app = _dynamic_app(placeholder=None, initial_specs=[
+            {"name": "n", "type": "Slider", "props": {"min": 1, "max": 10}},
+        ])
+        c = _client_for(app)
+
+        assert _call(c, "set_input", {"component_id": "n", "value": 9999})["ok"] is False
+        assert _call(c, "set_input", {"component_id": "n", "value": "lots"})["ok"] is False
+        assert _call(c, "set_input", {"component_id": "bogus", "value": 1})["ok"] is False
+        assert _call(c, "set_input", {"component_id": "n", "value": 4})["ok"] is True
+
+    def test_parent_cascade_form_replaces_the_contract(self):
+        # A parent_control app's form is built server-side by the resolver. One
+        # set_form used to pin the contract forever: describe_app kept reporting
+        # the agent's form while the browser showed the cascade's, and set_input
+        # rejected the ids that were actually on screen.
+        app = _dynamic_app(
+            placeholder=None,
+            parent_control={"name": "dataset", "type": "Select",
+                            "props": {"data": ["sales", "traffic"]}},
+            spec_resolver=lambda v: [{"name": f"{v}_col", "type": "Text"}],
+        )
+        c = _client_for(app)
+
+        # The parent control is itself part of the contract — the UI passes it to
+        # the callback, so an agent must be able to discover and drive it.
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+        assert by_id["dataset"]["options"] == ["sales", "traffic"]
+        assert _call(c, "set_input", {"component_id": "dataset", "value": "nope"})["ok"] is False
+
+        _call(c, "set_form", {"specs": [{"name": "agent_field", "type": "Text"}]})
+        # The human now picks a dataset; the cascade rebuilds the form (this is
+        # what the reshape_from_parent callback does on every parent change).
+        app._sync_form_contract(app.spec_resolver("sales"), "sales")
+        ids = {i["id"] for i in _call(c, "describe_app")["inputs"]}
+        assert ids == {"dataset", "sales_col"}      # not the stale agent_field
+        assert _call(c, "set_input", {"component_id": "sales_col", "value": "x"})["ok"]
+
+
+class TestMcpExposureWarning:
+    """#149: warn about the host we actually bind, not the defunct mcp_host."""
+
+    def test_warns_when_bound_to_all_interfaces(self, monkeypatch):
+        app = _plain_app()
+        monkeypatch.setattr(app.app, "run", lambda **kw: None)
+        app.run_kwargs["host"] = "0.0.0.0"
+        with pytest.warns(UserWarning, match="no authentication"):
+            app.run()
+
+    def test_silent_on_loopback(self, monkeypatch):
+        app = _plain_app()
+        monkeypatch.setattr(app.app, "run", lambda **kw: None)
+        assert not _exposure_warnings(app.run)
+
+    def test_no_warning_when_no_mcp_route_is_mounted(self, monkeypatch):
+        # Multi-function mode ignores mcp_server=True, so there is no
+        # unauthenticated endpoint to warn about — warning anyway is the kind of
+        # false alarm that teaches people to ignore the real one.
+        def f(n: int = 1) -> str:
+            """f."""
+            return str(n)
+
+        def g(n: int = 2) -> str:
+            """g."""
+            return str(n)
+
+        app = FastDash(callback_fn=[f, g], mcp_server=True,
+                       run_kwargs={"host": "0.0.0.0"})
+        monkeypatch.setattr(app.app, "run", lambda **kw: None)
+        assert not _exposure_warnings(app.run)
+
+    def test_mcp_host_alone_does_not_warn(self):
+        # The legacy kwarg binds nothing now that MCP shares the app's port, so
+        # warning on it was a false alarm — and worse, its silence on a
+        # 0.0.0.0 run_kwargs host was a false all-clear.
+        def f(n: int = 1) -> str:
+            """f."""
+            return str(n)
+
+        warned = _exposure_warnings(
+            lambda: FastDash(callback_fn=f, mcp_server=True, mcp_host="0.0.0.0")
+        )
+        assert not warned
 
 
 # --- chat-mode MCP contract (RFC #133 Phase 3) ----------------------------- #

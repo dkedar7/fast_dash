@@ -234,15 +234,25 @@ def test_dynamicdash_run_skips_mcp_when_disabled(monkeypatch):
     assert called["enabled"] is False
 
 
-def test_dynamicdash_warns_on_non_loopback_mcp_host():
-    with pytest.warns(UserWarning, match="non-loopback"):
-        DynamicDash(
-            callback_fn=lambda x=1: x,
-            initial_specs=[{"name": "x", "type": "Text"}],
-            output_components=[Markdown],
-            mcp_server=True,
-            mcp_host="0.0.0.0",
-        )
+def test_dynamicdash_warns_when_serving_mcp_off_loopback(monkeypatch):
+    # #149: the warning must key off the host the server actually binds
+    # (run's host=), not the legacy mcp_host kwarg, which stopped binding
+    # anything when MCP moved onto the app's own port. Warning on mcp_host gave
+    # a false all-clear to exactly the setup that exposes an unauthenticated
+    # tool endpoint: mcp_server=True served on 0.0.0.0.
+    app = DynamicDash(
+        callback_fn=lambda x=1: x,
+        initial_specs=[{"name": "x", "type": "Text"}],
+        output_components=[Markdown],
+        mcp_server=True,
+        mcp_host="0.0.0.0",           # binds nothing -> not the thing to warn on
+    )
+    monkeypatch.setattr(app.app, "run", lambda **kw: None)
+    # Don't actually mount MCP: registration writes to Dash's process-global
+    # tool registry, which the tests in test_mcp.py own.
+    monkeypatch.setattr("fast_dash.mcp.enable_mcp", lambda fd, **kw: None)
+    with pytest.warns(UserWarning, match="no authentication"):
+        app.run(host="0.0.0.0")
 
 
 def test_dynamicdash_placeholder_builds_hint_spec():

@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Tests for modern Python typing hints support in fast_dash."""
 
-from typing import Optional, Literal, Annotated, Union
+from typing import Optional, Literal, Annotated, Union, Tuple
 from enum import Enum
 
 from fast_dash import FastDash, dcc, dbc, dmc, html
@@ -292,3 +292,74 @@ def test_mixed_modern_hints():
 
     assert app.inputs_with_ids[2].__doc__ == dmc.TextInput().__doc__, "Third input should be a TextInput"
     assert app.inputs_with_ids[2].value == "Hello", "Optional[str] default should be preserved"
+
+
+########### Tuple return hints (#156) ###########
+
+
+def test_typing_tuple_return_hint_expands_to_multiple_outputs():
+    """`-> Tuple[str, str]` must produce one output per element.
+
+    A bare parenthesized `-> (str, str)` is a real tuple object, but the
+    idiomatic PEP 484 spelling is a generic *alias* — `isinstance(ann, tuple)`
+    is False for it — so it used to collapse to a single output and silently
+    drop every return value after the first (#156).
+    """
+    from typing import Tuple
+
+    def func(text: str = "hi") -> Tuple[str, str]:
+        return text, text.upper()
+
+    app = FastDash(callback_fn=func)
+    assert len(app.outputs_with_ids) == 2
+
+
+def test_pep585_tuple_return_hint_expands_to_multiple_outputs():
+    "The builtin-generic spelling `-> tuple[str, str]` behaves the same (#156)."
+
+    def func(text: str = "hi") -> tuple[str, str]:
+        return text, text.upper()
+
+    app = FastDash(callback_fn=func)
+    assert len(app.outputs_with_ids) == 2
+
+
+def test_bare_tuple_return_hint_still_single_output():
+    "A variadic `tuple[str, ...]` has no fixed arity — infer one output (#156)."
+
+    def func(text: str = "hi") -> tuple[str, ...]:
+        return (text,)
+
+    app = FastDash(callback_fn=func)
+    assert len(app.outputs_with_ids) == 1
+
+
+def test_mixed_tuple_return_hint_infers_each_component():
+    "Each element of the tuple hint drives its own component (#156)."
+    import plotly.graph_objects as go
+
+    def func(n: int = 3) -> Tuple[go.Figure, str]:
+        return go.Figure(), str(n)
+
+    app = FastDash(callback_fn=func)
+    assert len(app.outputs_with_ids) == 2
+    assert app.outputs_with_ids[0].__doc__ == dcc.Graph().__doc__
+
+
+def test_tuple_return_hint_under_future_annotations():
+    "A stringified `Tuple[...]` hint must still expand to multiple outputs (#156)."
+    from tests._tuple_hint_app import chart_and_caption
+
+    app = FastDash(callback_fn=chart_and_caption)
+    assert len(app.outputs_with_ids) == 2
+    assert app.outputs_with_ids[0].__doc__ == dcc.Graph().__doc__
+
+
+def test_module_named_return_annotation_keeps_by_name_fallback():
+    "`-> Image` (a PIL *module*) must still render an image, not an H1 (#156)."
+    from tests._pil_hint_app import make_thumb
+
+    app = FastDash(callback_fn=make_thumb)
+    assert len(app.outputs_with_ids) == 1
+    assert app.outputs_with_ids[0].tag == "Image"
+    assert app.outputs_with_ids[0].component_property == "src"

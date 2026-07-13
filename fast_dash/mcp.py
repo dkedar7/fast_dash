@@ -60,11 +60,48 @@ from __future__ import annotations
 import collections
 import datetime
 import inspect
+import os
 import time
+import warnings
 from typing import Any
 
 # Holder kept for backwards compatibility with older imports/tests.
 _active_mcp_thread = None
+
+# Addresses that keep the (unauthenticated) /mcp route on this machine.
+LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
+
+
+def effective_bind_host(run_kwargs: dict | None) -> str:
+    """The address the server will actually bind to.
+
+    Mirrors Dash's own default (``HOST`` env var, else loopback), so callers
+    see the same host the dev server will use.
+    """
+    host = (run_kwargs or {}).get("host")
+    return host or os.getenv("HOST") or "127.0.0.1"
+
+
+def warn_if_exposed(run_kwargs: dict | None, *, stacklevel: int = 3) -> None:
+    """Warn when MCP is enabled on a socket reachable from off-box.
+
+    The MCP route is mounted on the Dash app itself, so what decides who can
+    reach it is the *server's* bind address -- ``run_kwargs["host"]`` (or the
+    ``HOST`` env var). The legacy ``mcp_host`` kwarg has not bound anything
+    since MCP moved onto the shared port, so warning on it gave a false
+    all-clear to ``mcp_server=True, run_kwargs={"host": "0.0.0.0"}`` -- the one
+    configuration that actually exposes an unauthenticated tool endpoint (#149).
+    """
+    host = effective_bind_host(run_kwargs)
+    if host in LOOPBACK_HOSTS:
+        return
+    warnings.warn(
+        f"mcp_server=True with host={host!r} serves the /mcp endpoint on a "
+        "non-loopback address. That endpoint has no authentication: anyone who "
+        "can reach this port can read your app's state and invoke your callback. "
+        "Bind to 127.0.0.1 unless you have put an authenticating proxy in front.",
+        stacklevel=stacklevel,
+    )
 
 
 class MCPState:
@@ -88,11 +125,40 @@ class MCPState:
         self.pending_inputs: dict[str, Any] = {}
         self.pending_specs: list[dict] | None = None
         self.pending_outputs: dict[str, Any] = {}
-        # The last form a set_form built. Unlike pending_specs (popped by the
-        # browser drain), this persists so describe_app can report the
-        # agent-generated form's contract — even after a browser renders it or
-        # a different agent reconnects.
+        # The form currently on screen (DynamicDash). Unlike pending_specs
+        # (popped by the browser drain), this persists so describe_app can report
+        # the form's contract — even after a browser renders it or a different
+        # agent reconnects. Always write it through set_current_specs.
         self.current_specs: list[dict] | None = None
+        # Every field ever declared a PasswordInput on this app. Accumulates and
+        # never shrinks: a credential that was in the mirror must stay masked
+        # even after the form that declared it is replaced.
+        self.secret_ids: set = set()
+
+    def set_current_specs(self, specs, keep=()) -> None:
+        """Point the contract at the form that is now on screen.
+
+        *Every* path that builds or replaces a DynamicDash form must call this —
+        ``initial_specs``, a ``parent_control`` cascade, and an agent's
+        ``set_form`` alike. The contract, the validators and the secret list are
+        all derived from it, so a form the agent didn't build itself would
+        otherwise have no contract at all: no ids to check, no options to
+        enforce, no secrets to mask.
+
+        Values belonging to fields the new form doesn't have are dropped, or
+        describe_app would go on reporting them (in the clear, if one of them was
+        a password) and ``invoke`` would go on passing them to the callback.
+        """
+        self.current_specs = [s for s in (specs or []) if isinstance(s, dict)]
+        live = {s.get("name") for s in self.current_specs}
+        live.update(keep)
+        self.secret_ids.update(
+            s["name"] for s in self.current_specs
+            if s.get("type") == "PasswordInput" and s.get("name")
+        )
+        for key in [k for k in self.inputs if k not in live]:
+            del self.inputs[key]
+            self.pending_inputs.pop(key, None)
 
     def append_history(self, entry_summary: dict, entry_full: dict) -> int:
         self.history.append(entry_summary)
@@ -336,6 +402,160 @@ def _component_bounds(comp):
     return props
 
 
+# What an agent sees instead of a secret's value. Not a valid value for any
+# widget, so a round-trip of describe_app -> set_input can't silently re-send it.
+REDACTED = "********"
+
+
+def _is_password_component(comp) -> bool:
+    return type(getattr(comp, "component", comp)).__name__ == "PasswordInput"
+
+
+def _secret_ids(fd, state=None) -> set:
+    """Ids whose value must never be echoed back over MCP.
+
+    A PasswordInput is the one widget whose value the browser deliberately
+    masks. Echoing it in ``describe_app`` / ``get_invocation`` would turn the
+    unauthenticated /mcp route into a plaintext read-out of a credential the UI
+    hides (#151), so the value goes in but never comes back out.
+
+    Static apps declare their inputs up front. A DynamicDash's fields come and
+    go, so its secrets are read from ``state.secret_ids``, which accumulates
+    every field ever declared a PasswordInput — including one whose form has
+    since been replaced, whose value would otherwise fall out of the contract's
+    mask and into describe_app's plain-mirror tail.
+    """
+    ids = set()
+    for c in (getattr(fd, "inputs_with_ids", None) or []):
+        if _is_password_component(c) or getattr(c, "tag", None) == "PasswordInput":
+            ids.add(_stringify_id(c.id))
+    parent = getattr(fd, "parent_control", None)
+    if isinstance(parent, dict) and parent.get("type") == "PasswordInput" and parent.get("name"):
+        ids.add(parent["name"])
+    if state is not None:
+        ids.update(getattr(state, "secret_ids", None) or set())
+    return ids
+
+
+def _redact(entry, value):
+    """The value ``entry`` may reveal: itself, or a mask for a secret input."""
+    if not entry.get("secret"):
+        return value
+    return REDACTED if value not in (None, "") else value
+
+
+def _redact_props(entry, props):
+    """Props minus anything that carries the widget's value.
+
+    ``default`` and ``current_value`` are masked for a secret input, but a spec
+    is free to carry its value in ``props`` (``_describe_dynamic_inputs`` reads
+    ``props["value"]`` as a fallback default) — and props were echoed verbatim,
+    so the credential rode out in a sibling field of the very entry stamped
+    ``"secret": true``.
+    """
+    if not entry.get("secret") or not isinstance(props, dict):
+        return props
+    return {k: v for k, v in props.items() if k not in ("value", "defaultValue")}
+
+
+def _normalize_options(options):
+    """Flatten dropdown options to the plain values a widget can emit.
+
+    A DynamicDash ``Select``/``MultiSelect`` may declare its ``data`` as
+    ``[{"label": ..., "value": ...}, ...]``; only the ``value`` half is ever
+    emitted, so that is what membership must be checked against.
+    """
+    if not isinstance(options, (list, tuple)):
+        return None
+    out = []
+    for o in options:
+        out.append(o["value"] if isinstance(o, dict) and "value" in o else o)
+    return out
+
+
+def _type_error(entry, value):
+    """Reject a value whose JSON type the widget could never emit, else None.
+
+    The bounds check below only fires for numbers, so before #150 a *string*
+    sailed past a Slider's ``min``/``max`` untouched (``"9999"`` is not an
+    ``int``, so nothing compared it to the maximum) and reached the callback as
+    a string — a value no drag of the slider could produce. Types with more than
+    one legal wire shape (dates, uploads, and anything with ``options``, which
+    is membership-checked instead) stay permissive.
+    """
+    jtype = entry.get("type")
+    if jtype in ("integer", "number"):
+        # bool is an int subclass in Python; a Switch value is not a number.
+        if isinstance(value, bool) or not isinstance(value, (int, float)):
+            article = "an" if jtype == "integer" else "a"
+            return f"expected {article} {jtype}, got {type(value).__name__} ({value!r})"
+        if jtype == "integer" and isinstance(value, float) and not value.is_integer():
+            return f"expected an integer, got {value!r}"
+    elif jtype == "boolean" and not isinstance(value, bool):
+        return f"expected a boolean, got {type(value).__name__} ({value!r})"
+    return None
+
+
+def _describe_dynamic_inputs(fd, snapshot, specs, state=None):
+    """Per-input contract for a DynamicDash form, whoever built it.
+
+    Same shape as the static contract, derived from the live specs instead of a
+    callback signature — so the options and bounds the form declares are the ones
+    ``set_input`` / ``invoke`` then enforce against it (#144), whether those
+    specs came from ``initial_specs``, a ``parent_control`` cascade, or an
+    agent's ``set_form``. The parent control is part of the contract too: the UI
+    passes it to the callback like any other field, so an agent must be able to
+    discover and drive it.
+    """
+    from fast_dash.utils import _jsonify_for_mcp
+
+    secrets = _secret_ids(fd, state)
+    parent = getattr(fd, "parent_control", None)
+    all_specs = list(specs)
+    if isinstance(parent, dict) and parent.get("name"):
+        all_specs = [parent] + all_specs
+
+    contract = []
+    for spec in all_specs:
+        name = spec.get("name")
+        if not name:
+            continue
+        props = spec.get("props") or {}
+        default = spec.get("value", props.get("value"))
+        cur = snapshot.get(name, default)
+        entry = {
+            "id": name,
+            # tag = the DynamicDash component name (e.g. "Slider"); type = its
+            # JSON type, so ``type`` means the same thing here as on a static
+            # app's contract (issue #131).
+            "tag": spec.get("type"),
+            "type": _spec_json_type(spec.get("type")),
+            "label": spec.get("label"),
+            "options": _jsonify_for_mcp(_normalize_options(props.get("data"))),
+            "secret": name in secrets,
+        }
+        entry["props"] = _jsonify_for_mcp(_redact_props(entry, props))
+        entry["default"] = _jsonify_for_mcp(_redact(entry, default))
+        entry["current_value"] = _jsonify_for_mcp(_redact(entry, cur))
+        contract.append(entry)
+    return contract
+
+
+def _input_contract(fd, snapshot, state=None):
+    """The app's input contract, static or dynamic — one source of truth.
+
+    ``describe_app`` reports it and the validators enforce it, so an agent can
+    never set a value the app doesn't advertise, whichever kind of app it is.
+    """
+    if _enumerate_inputs(fd):
+        return _describe_static_inputs(fd, snapshot)
+    state = state if state is not None else getattr(fd, "_mcp_state", None)
+    specs = getattr(state, "current_specs", None) if state is not None else None
+    if specs or (specs is not None and getattr(fd, "parent_control", None)):
+        return _describe_dynamic_inputs(fd, snapshot, specs or [], state)
+    return []
+
+
 def _describe_static_inputs(fd, snapshot):
     """Per-input contract for a static FastDash app.
 
@@ -368,6 +588,7 @@ def _describe_static_inputs(fd, snapshot):
     except Exception:
         hints = {}
 
+    secrets = _secret_ids(fd)
     contract = []
     for d in descriptors:
         cid = d["id"]
@@ -415,10 +636,11 @@ def _describe_static_inputs(fd, snapshot):
             "id": cid,
             "tag": d["tag"],
             "type": jtype,
-            "default": _jsonify_for_mcp(default),
             "options": _jsonify_for_mcp(options),
-            "current_value": _jsonify_for_mcp(cur),
+            "secret": cid in secrets,          # PasswordInput: value never echoed (#151)
         }
+        entry["default"] = _jsonify_for_mcp(_redact(entry, default))
+        entry["current_value"] = _jsonify_for_mcp(_redact(entry, cur))
         bounds = _component_bounds(components.get(cid))
         if bounds:
             entry["props"] = bounds                   # Slider min/max/step (issue #120)
@@ -426,17 +648,96 @@ def _describe_static_inputs(fd, snapshot):
     return contract
 
 
-def _option_error(fd, component_id, value, snapshot):
+# (tag, JSON type) per rendered output component. An output's Python annotation
+# is often a rich object (``go.Figure``, ``pd.DataFrame``, ``PIL.Image``) with no
+# JSON scalar equivalent, so the component it was rendered into is the honest
+# description of what an agent gets back from ``invoke``.
+_OUTPUT_KIND = {
+    "Graph": ("Graph", "object"),
+    "DataTable": ("Table", "array"),
+    "Markdown": ("Markdown", "string"),
+    "Textarea": ("Text", "string"),
+    "TextInput": ("Text", "string"),
+    "H1": ("Text", "string"),
+    "Div": ("Text", "string"),
+    "Img": ("Image", "string"),
+    "Download": ("Download", "string"),
+}
+
+
+def _output_kind(comp):
+    """(tag, JSON type) for one output component.
+
+    ``FastComponent.tag`` is unusable here: an inferred ``-> str`` output carries
+    the raw annotation *object* (``<class 'str'>``) and an explicit ``Table``
+    carries ``None``. Nothing serialized it before #152, so nobody noticed. The
+    rendered component is always present and always honest.
+    """
+    name = type(getattr(comp, "component", comp)).__name__
+    return _OUTPUT_KIND.get(name, (name, "object"))
+
+
+def _describe_outputs(fd, state=None):
+    """Per-output contract: what ``invoke`` will produce, without running it.
+
+    ``describe_app`` used to report inputs only, so the sole way for a headless
+    agent to learn what an app returns was to *call* it — discovery by side
+    effect (#152). Each entry is ``{id, tag, type, label}``, plus a summary of
+    the value currently on screen once something has run.
+    """
+    from fast_dash.Components import expand_return_annotation
+    from fast_dash.utils import _summarize_for_history
+
+    components = list(getattr(fd, "outputs_with_ids", None) or [])
+    anns = []
+    # Only consult the annotation when the outputs were built *from* it. An
+    # explicit `outputs=[Graph]` wins over a `-> str` hint, and the contract has
+    # to describe the figure that is really rendered.
+    if getattr(fd, "_outputs_inferred", True):
+        try:
+            import typing
+            ret = typing.get_type_hints(fd.callback_fn).get("return")
+        except Exception:
+            ret = inspect.signature(fd.callback_fn).return_annotation
+        if ret is not None and ret is not inspect.Signature.empty:
+            anns = expand_return_annotation(ret)
+
+    outputs = []
+    for i, comp in enumerate(components):
+        tag, jtype = _output_kind(comp)
+        # A scalar annotation is more specific than the component (an int and a
+        # string both render as text) — prefer it when it maps to a JSON type.
+        if i < len(anns) and anns[i] in (str, int, float, bool, list, dict):
+            jtype = _json_type_name(anns[i])
+        cid = _stringify_id(comp.id)
+        entry = {"id": cid, "tag": tag, "type": jtype}
+        # label_ is the label the UI actually renders: _infer_output_components
+        # normalizes a wrong-length output_labels list to OUTPUT_1/OUTPUT_2 and
+        # stamps it on the component, while fd.output_labels keeps the original.
+        label = getattr(comp, "label_", None)
+        if label:
+            entry["label"] = label
+        if state is not None and cid in state.outputs:
+            entry["current_value"] = _summarize_for_history(state.outputs[cid])
+        outputs.append(entry)
+    return outputs
+
+
+def _option_error(fd, component_id, value, snapshot, state=None):
     """Reject a value the UI could never produce, else None.
 
     Validates against the very contract ``describe_app`` reports (parity), so an
     agent can never set a value the UI widget couldn't: a value outside a
-    dropdown's ``options`` (issue #116) or outside a Slider's ``min``/``max``
-    bounds (issue #120). Permissive by design: an input with neither advertised
-    options nor bounds accepts any value, and ``None`` always clears a
-    selection. For a MultiSelect (list value) every element must be a legal key.
+    dropdown's ``options`` (issue #116), of the wrong JSON ``type`` (issue
+    #150), or outside a Slider's ``min``/``max`` bounds (issue #120). The
+    contract comes from :func:`_input_contract`, so a DynamicDash form an agent
+    built with ``set_form`` is validated against *its own* declared options and
+    bounds rather than skipped (issue #144). Permissive by design: an input with
+    no advertised options, type or bounds accepts any value, and ``None`` always
+    clears a selection. For a MultiSelect (list value) every element must be a
+    legal key.
     """
-    for entry in _describe_static_inputs(fd, snapshot):
+    for entry in _input_contract(fd, snapshot, state):
         if entry["id"] != component_id:
             continue
         if value is None:
@@ -451,6 +752,9 @@ def _option_error(fd, component_id, value, snapshot):
             if value not in options:
                 return f"value {value!r} not in allowed options {options}"
             return None
+        bad_type = _type_error(entry, value)
+        if bad_type:
+            return bad_type
         # Numeric Slider bounds (no options): reject out-of-range, like the UI.
         props = entry.get("props") or {}
         lo, hi = props.get("min"), props.get("max")
@@ -610,25 +914,39 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
 
     # ----- fast_dash value-add tools (stateful: drive the live app) --------- #
 
+    def _contract_index(snapshot):
+        """{id: entry} for whichever contract this app has (static or set_form).
+
+        Keying the guards off this instead of ``_enumerate_inputs`` is what lets
+        a DynamicDash form -- which has no static inputs at all -- be validated
+        against the specs the agent itself declared (#144).
+        """
+        return {e["id"]: e for e in _input_contract(fd, snapshot, state)}
+
+    def _echo(entries, cid, value):
+        """The value to report back: masked for a PasswordInput (#151)."""
+        return _jsonify_for_mcp(_redact(entries.get(cid) or {}, value))
+
     @mcp_enabled(name="set_input", expose_docstring=True)
     def set_input(component_id: str, value: Any) -> dict:
         """Update one input's value, server-side and live in the browser.
 
         Browser update lands within ~500ms (Dash ``Interval`` drain).
         """
-        ids = {d["id"] for d in _enumerate_inputs(fd)}
-        if ids and component_id not in ids:
+        snapshot = dict(state.inputs)
+        entries = _contract_index(snapshot)
+        if entries and component_id not in entries:
             return {
                 "ok": False,
                 "error": f"Unknown input id {component_id!r}",
-                "known_ids": sorted(ids),
+                "known_ids": sorted(entries),
             }
-        bad = _option_error(fd, component_id, value, dict(state.inputs))
+        bad = _option_error(fd, component_id, value, snapshot, state)
         if bad:
             return {"ok": False, "error": bad, "id": component_id}
         state.inputs[component_id] = value
         state.pending_inputs[component_id] = value
-        return {"ok": True, "id": component_id, "value": _jsonify_for_mcp(value)}
+        return {"ok": True, "id": component_id, "value": _echo(entries, component_id, value)}
 
     @mcp_enabled(name="set_inputs", expose_docstring=True)
     def set_inputs(inputs: dict) -> dict:
@@ -636,21 +954,21 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
 
         The argument is named ``inputs`` to match ``invoke(inputs=...)``.
         """
-        ids = {d["id"] for d in _enumerate_inputs(fd)}
         snapshot = dict(state.inputs)
+        entries = _contract_index(snapshot)
         applied, errors = {}, {}
         for k, v in (inputs or {}).items():
-            if ids and k not in ids:
+            if entries and k not in entries:
                 errors[k] = "unknown id"
                 continue
-            bad = _option_error(fd, k, v, snapshot)
+            bad = _option_error(fd, k, v, snapshot, state)
             if bad:
                 errors[k] = bad
                 continue
             state.inputs[k] = v
             state.pending_inputs[k] = v
             snapshot[k] = v
-            applied[k] = _jsonify_for_mcp(v)
+            applied[k] = _echo(entries, k, v)
         return {"ok": not errors, "applied": applied, "errors": errors}
 
     @mcp_enabled(name="invoke", expose_docstring=True)
@@ -667,21 +985,21 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             }
 
         if inputs:
-            ids = {d["id"] for d in _enumerate_inputs(fd)}
-            if ids:
-                unknown = sorted(k for k in inputs if k not in ids)
+            snapshot = dict(state.inputs)
+            entries = _contract_index(snapshot)
+            if entries:
+                unknown = sorted(k for k in inputs if k not in entries)
                 if unknown:
                     return {
                         "ok": False,
                         "error": f"unknown input id(s): {unknown}",
-                        "known_ids": sorted(ids),
+                        "known_ids": sorted(entries),
                     }
             # Validate against advertised options before mutating (atomic: a
             # bad value rejects the whole call without touching the mirror).
-            snapshot = dict(state.inputs)
             option_errors = {}
             for k, v in inputs.items():
-                bad = _option_error(fd, k, v, snapshot)
+                bad = _option_error(fd, k, v, snapshot, state)
                 if bad:
                     option_errors[k] = bad
                 else:
@@ -706,6 +1024,21 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         else:
             kwargs = dict(snapshot)
 
+        # Secrets go into the callback but never come back out — not in the
+        # error echo, and not in the history a later get_invocation reads (#151).
+        entries = _contract_index(snapshot)
+
+        def _kwargs_summary():
+            out = {}
+            for k, v in kwargs.items():
+                entry = entries.get(k) or entries.get(f"input_{k}") or {}
+                out[k] = (
+                    REDACTED
+                    if entry.get("secret") and v not in (None, "")
+                    else _summarize_for_history(v)
+                )
+            return out
+
         t0 = time.time()
         try:
             result = fd.callback_fn(**kwargs)
@@ -713,9 +1046,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             return {
                 "ok": False,
                 "error": f"{type(e).__name__}: {e}",
-                "kwargs_summary": {
-                    k: _summarize_for_history(v) for k, v in kwargs.items()
-                },
+                "kwargs_summary": _kwargs_summary(),
             }
         dt_ms = round((time.time() - t0) * 1000, 1)
 
@@ -729,7 +1060,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         entry_summary = {
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
             "duration_ms": dt_ms,
-            "kwargs": {k: _summarize_for_history(v) for k, v in kwargs.items()},
+            "kwargs": _kwargs_summary(),
             "outputs": out_summary,
         }
         entry_full = {**entry_summary, "_full_kwargs": kwargs, "_full_result": result}
@@ -761,8 +1092,11 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                 return {"ok": False, "error": f"invalid spec: {e}", "spec": spec}
         state.pending_specs = specs
         # Keep a persistent copy so describe_app can report the form contract
-        # (pending_specs is popped by the browser drain).
-        state.current_specs = specs
+        # (pending_specs is popped by the browser drain), and drop mirror values
+        # for fields this form no longer has — the parent control survives, it
+        # isn't part of the form.
+        parent = getattr(fd, "parent_control", None) or {}
+        state.set_current_specs(specs, keep={parent.get("name")} - {None})
         return {"ok": True, "count": len(specs)}
 
     @mcp_enabled(name="get_invocation", expose_docstring=True)
@@ -790,65 +1124,44 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
 
     @mcp_enabled(name="describe_app", expose_docstring=True)
     def describe_app() -> dict:
-        """Describe the app's inputs: id, type, default, options, and CURRENT value.
+        """Describe the app's inputs and outputs, plus their CURRENT values.
 
         This is the reliable way for a headless agent (no browser) to read the
-        app's input contract *and* its live state before calling ``invoke``:
-        each input reports its parameter ``id``, JSON ``type``, ``default``,
-        any allowed ``options`` (for dropdowns / ``Literal`` / ``Enum``), and
-        its ``current_value`` — including values you set via ``set_input`` /
-        ``set_inputs``. (The native ``dash://components`` resource lists ids and
-        Dash *widget* types only, and ``get_dash_component`` reflects the
-        browser, not the agent's mirror, so neither shows agent-set values
-        headlessly.)
+        app's contract *and* its live state before calling ``invoke``: each
+        input reports its parameter ``id``, JSON ``type``, ``default``, any
+        allowed ``options`` (for dropdowns / ``Literal`` / ``Enum``), and its
+        ``current_value`` — including values you set via ``set_input`` /
+        ``set_inputs``. Each output reports its ``id``, the component ``tag`` it
+        renders into, its JSON ``type`` and ``label``, so you can see what a run
+        will produce without having to run it. (The native ``dash://components``
+        resource lists ids and Dash *widget* types only, and
+        ``get_dash_component`` reflects the browser, not the agent's mirror, so
+        neither shows agent-set values headlessly.)
         """
         snapshot = dict(state.inputs)
-        descriptors = _enumerate_inputs(fd)
-
-        inputs = []
-        if descriptors:
-            inputs = _describe_static_inputs(fd, snapshot)
-        elif state.current_specs:
-            # DynamicDash: report the agent-built form's contract from the specs
-            # set_form materialized, merged with any current values.
-            seen = set()
-            for spec in state.current_specs:
-                name = spec.get("name")
-                if not name:
-                    continue
-                seen.add(name)
-                props = spec.get("props") or {}
-                # Slider/number bounds, Select/MultiSelect options, etc. live in
-                # props; expose them so the contract is fully discoverable.
-                options = props.get("data")
-                default = spec.get("value", props.get("value"))
-                cur = snapshot.get(name, default)
-                inputs.append({
-                    "id": name,
-                    # tag = the DynamicDash component name (e.g. "Slider");
-                    # type = its JSON type, so ``type`` means the same thing here
-                    # as on a static app's contract (issue #131).
-                    "tag": spec.get("type"),
-                    "type": _spec_json_type(spec.get("type")),
-                    "label": spec.get("label"),
-                    "default": _jsonify_for_mcp(default),
-                    "options": _jsonify_for_mcp(options),
-                    "props": _jsonify_for_mcp(props),
-                    "current_value": _jsonify_for_mcp(cur),
-                })
-            # Any extra mirror keys not in the form (defensive).
-            for k, v in snapshot.items():
-                if k not in seen:
-                    inputs.append({"id": k, "current_value": _jsonify_for_mcp(v)})
-        else:
-            # No form built yet — reflect whatever the mirror holds.
-            for k, v in snapshot.items():
-                inputs.append({"id": k, "current_value": _jsonify_for_mcp(v)})
+        # The same contract the validators enforce — static signature, or the
+        # form an agent built with set_form (#144).
+        inputs = _input_contract(fd, snapshot, state)
+        seen = {e["id"] for e in inputs}
+        # Any extra mirror keys not in the contract (defensive; also the only
+        # thing to report on a DynamicDash app with no form built yet). These
+        # have no contract entry to carry a "secret" flag, so consult the
+        # persistent secret list directly — a value that fell out of the contract
+        # must not fall out of the mask with it.
+        secrets = _secret_ids(fd, state)
+        for k, v in snapshot.items():
+            if k not in seen:
+                entry = {"id": k, "secret": k in secrets}
+                entry["current_value"] = _jsonify_for_mcp(_redact(entry, v))
+                inputs.append(entry)
 
         return {
             "title": getattr(fd, "title", None) or "",
             "doc": (getattr(fd.callback_fn, "__doc__", "") or "").strip(),
             "inputs": inputs,
+            # What a run produces — discoverable without side-effectingly
+            # calling invoke() to find out (#152).
+            "outputs": _describe_outputs(fd, state),
         }
 
     # Mount the MCP routes on the Dash app (same port).
