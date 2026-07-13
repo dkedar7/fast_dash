@@ -651,12 +651,72 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-063">Release 0.6.3</h1>
+<h2 id="063-2026-07-13">0.6.3 (2026-07-13)</h2>
+<p>An <strong>agent-contract</strong> release: the MCP surface now describes what an app really
+is, and refuses what its UI could never produce. Every open bug at the time of
+writing is fixed.</p>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><strong><code>Tuple[int, str]</code> return hints silently dropped outputs</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/156">#156</a>). Only the
+  bare parenthesized spelling <code>-&gt; (int, str)</code> produced two outputs; the
+  idiomatic <code>Tuple[int, str]</code> / <code>tuple[int, str]</code> are generic <em>aliases</em>, not
+  tuple objects, so they collapsed to a single output and every return value
+  after the first was discarded. Both spellings now expand, including under
+  <code>from __future__ import annotations</code> (where the hint arrives as a string), and
+  a variadic <code>tuple[int, ...]</code> correctly stays a single output.</li>
+<li><strong>Apps shared one <code>run_kwargs</code> dict</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/153">#153</a>). <code>run_kwargs=dict()</code> was a
+  mutable default that the constructor then mutated with its own port, so
+  building a second app silently rewrote the first app's port (and any other
+  <code>run_kwargs</code>, including the security-relevant <code>host</code>) — <code>app.run()</code> bound the
+  wrong port. <code>run_kwargs</code> is now copied, never aliased, and the caller's dict is
+  left untouched.</li>
+<li><strong><code>PasswordInput</code> values leaked over the no-auth MCP route</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/151">#151</a>). The chat
+  surface redacted secrets; the MCP surface handed them out in plain text via
+  <code>describe_app</code>, the <code>set_input</code> echo, and <code>get_invocation</code>. A password's value
+  now goes <em>in</em> (an agent can still fill the field) but never comes back out:
+  the contract marks the input <code>"secret": true</code> and every value it reports is
+  masked — including a secret carried in a spec's <code>props</code>, and one whose form
+  has since been replaced (its value is dropped from the mirror with it).</li>
+<li><strong>Value validation was type-blind</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/150">#150</a>). The range check only fired for
+  numbers, so a <em>string</em> sailed straight past a Slider's <code>min</code>/<code>max</code> — <code>"9999"</code>
+  is not an <code>int</code>, so nothing compared it to the maximum — and reached the
+  callback as a value no drag of the slider could produce. Numeric and boolean
+  inputs now reject values of the wrong JSON type.</li>
+<li><strong><code>DynamicDash</code> forms skipped all validation</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/144">#144</a>). Every guard keyed off
+  the <em>static</em> input list, which a <code>DynamicDash</code> doesn't have, so unknown ids,
+  out-of-options values and out-of-range slider values were all accepted in
+  silence. The specs of the form <strong>currently on screen</strong> are now the contract
+  that <code>set_input</code> / <code>set_inputs</code> / <code>invoke</code> enforce against — whether that form
+  came from <code>initial_specs</code>, a <code>parent_control</code> cascade, or an agent's
+  <code>set_form</code> (including <code>[{"label": ..., "value": ...}]</code> style <code>Select</code> options).
+  The parent control is part of the contract too: the UI passes it to the
+  callback, so an agent can discover and drive it.</li>
+<li><strong>The MCP no-auth warning watched the wrong knob</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/149">#149</a>). It warned on
+  <code>mcp_host</code>, which stopped binding anything when MCP moved onto the app's own
+  port, and stayed silent on the setting that actually exposes an
+  unauthenticated tool endpoint: serving on <code>0.0.0.0</code>. It now fires at <code>run()</code>,
+  keyed off the host the server really binds.</li>
+<li><strong>All <code>str</code> widgets reported the same tag</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/147">#147</a>). A colour picker, a
+  textarea and a text box all described themselves as <code>"Text"</code>, so a headless
+  agent reading <code>describe_app</code> couldn't tell them apart. Each now reports the
+  widget it actually became (<code>ColorInput</code> / <code>TextArea</code> / <code>Text</code>).</li>
+</ul>
+<h3 id="added">Added</h3>
+<ul>
+<li><strong>Output contract in <code>describe_app</code></strong> (<a href="https://github.com/dkedar7/fast_dash/issues/152">#152</a>). It reported inputs only, so the
+  one way for a headless agent to learn what an app returns was to <em>call</em> it —
+  discovery by side effect. <code>describe_app</code> now also lists each output's <code>id</code>,
+  the component <code>tag</code> it renders into (<code>Graph</code> / <code>Table</code> / <code>Markdown</code> / …), its
+  JSON <code>type</code> and <code>label</code>, plus a summary of the value currently on screen once
+  something has run.</li>
+</ul>
 <h1 id="release-062">Release 0.6.2</h1>
 <h2 id="062-2026-07-12">0.6.2 (2026-07-12)</h2>
 <p>Chat sidebars get a <strong>collapsible input accordion</strong>, so a long list of settings
 (or, in a sidecar, the app's own inputs) can tuck to a header instead of
 crowding the conversation.</p>
-<h3 id="added">Added</h3>
+<h3 id="added_1">Added</h3>
 <ul>
 <li><strong>Collapsible "Settings" / "Inputs" accordion in chat sidebars.</strong> The sidebar
   inputs are wrapped in a fully-collapsible <code>dmc.Accordion</code> — a single-mode item
@@ -682,7 +742,7 @@ bridge extracts a structured object from the tool result and shows a purpose-bui
 card in the transcript instead of a raw tool blob -- a reflection collapses into a
 thinking block, a <code>write_todos</code> result becomes a task list with status icons, and
 <code>display_inline</code> renders figures / tables / markdown inline.</p>
-<h3 id="added_1">Added</h3>
+<h3 id="added_2">Added</h3>
 <ul>
 <li><strong>Typed agent-event rendering, on by default.</strong> The langstage bridge now passes
   the seven built-in extractors to <code>iter_event_frames</code>, so a LangGraph agent's
@@ -746,7 +806,7 @@ thinking block, a <code>write_todos</code> result becomes a task list with statu
   friendly ASCII error. Only used for a LangGraph agent; a plain chat callable
   ignores it silently.</li>
 </ul>
-<h3 id="fixed">Fixed</h3>
+<h3 id="fixed_1">Fixed</h3>
 <ul>
 <li>Inline artifact tables render as a real <code>DataTable</code> again (a <code>className</code> kwarg
   unsupported by <code>dash_table.DataTable</code> on dash 4.3 had been silently falling back
@@ -832,7 +892,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
   sidebar (even with zero inputs); no app callback (or a chat-shaped one) -&gt;
   full-page chat.</li>
 </ul>
-<h3 id="added_2">Added</h3>
+<h3 id="added_3">Added</h3>
 <ul>
 <li><strong>A chat-agent toolkit</strong> (<code>fast_dash.agent_toolkit(app)</code>) — the list of
   LangChain <code>@tool</code> functions the assistant uses, trimmed to the app's
@@ -894,7 +954,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </table>
 <h1 id="release-055">Release 0.5.5</h1>
 <h2 id="055-2026-07-05">0.5.5 (2026-07-05)</h2>
-<h3 id="fixed_1">Fixed</h3>
+<h3 id="fixed_2">Fixed</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code> layout.</strong> The wider (420px) sidebar wasn't
   reaching Mantine's AppShell: the <code>toggle_sidebar</code> callback reset the navbar to
@@ -909,7 +969,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </ul>
 <h1 id="release-054">Release 0.5.4</h1>
 <h2 id="054-2026-07-05">0.5.4 (2026-07-05)</h2>
-<h3 id="added_3">Added</h3>
+<h3 id="added_4">Added</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code></strong> places the chat sidecar <em>inside the left
   inputs sidebar</em> — stacked under the inputs, always visible — instead of the

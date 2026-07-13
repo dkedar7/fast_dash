@@ -422,8 +422,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#discover-the-input-contract" class="md-nav__link">
-    Discover the input contract
+  <a href="#discover-the-contract" class="md-nav__link">
+    Discover the contract
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-contract-is-enforced" class="md-nav__link">
+    The contract is enforced
   </a>
   
 </li>
@@ -739,8 +746,15 @@
       <ul class="md-nav__list">
         
           <li class="md-nav__item">
-  <a href="#discover-the-input-contract" class="md-nav__link">
-    Discover the input contract
+  <a href="#discover-the-contract" class="md-nav__link">
+    Discover the contract
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#the-contract-is-enforced" class="md-nav__link">
+    The contract is enforced
   </a>
   
 </li>
@@ -801,9 +815,9 @@
 <p>Pass <code>mcp_server=True</code> and your Fast Dash app serves a web UI <strong>and</strong> a
 <a href="https://modelcontextprotocol.io">Model Context Protocol</a> (MCP) server, so any
 MCP-capable agent — Claude Code, Cursor, Cline, … — can inspect and drive it.
-The same type hints that build the UI describe the inputs an agent sees via the
-<a href="#discover-the-input-contract"><code>describe_app</code></a> tool (id, type, default, allowed
-options, and current value).</p>
+The same type hints that build the UI describe what an agent sees via the
+<a href="#discover-the-contract"><code>describe_app</code></a> tool: every input (id, type, default,
+allowed options, current value) and every output the app produces.</p>
 <p>The MCP server is built on <a href="https://dash.plotly.com">Dash's native MCP support</a>
 (Dash ≥ 4.3, installed automatically) and is mounted on the <strong>same port</strong> as the
 web app, at <code>/mcp</code>.</p>
@@ -832,7 +846,7 @@ web app, at <code>/mcp</code>.</p>
 <tr>
 <td><code>describe_app()</code></td>
 <td>Fast Dash</td>
-<td><strong>Start here.</strong> The input contract + current state: each input's id, type, default, options, and current value</td>
+<td><strong>Start here.</strong> The full contract + current state: each input's id, type, default, options and current value, and each output the app produces</td>
 </tr>
 <tr>
 <td><code>set_input(component_id, value)</code></td>
@@ -872,19 +886,41 @@ web app, at <code>/mcp</code>.</p>
 </tbody>
 </table>
 <p><code>component_id</code> is the <strong>parameter name</strong> itself (e.g. <code>"n"</code>, <code>"color"</code>).</p>
-<h3 id="discover-the-input-contract">Discover the input contract</h3>
+<h3 id="discover-the-contract">Discover the contract</h3>
 <p>Call <strong><code>describe_app()</code></strong> to learn the exact input ids, their Python types,
-defaults, allowed options, and <strong>current values</strong> — and use that to build a valid
-<code>invoke</code> call:</p>
+defaults, allowed options and <strong>current values</strong>, plus what a run produces — and
+use that to build a valid <code>invoke</code> call:</p>
 <div class="highlight"><pre><span></span><code><span class="p">{</span>
 <span class="w">  </span><span class="nt">&quot;title&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Plot Bars&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;doc&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Plot a bar chart with n bars in the chosen color.&quot;</span><span class="p">,</span>
 <span class="w">  </span><span class="nt">&quot;inputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span><span class="w">     </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;integer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w">         </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">},</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;color&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;string&quot;</span><span class="p">,</span><span class="w">  </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;n&quot;</span><span class="p">,</span><span class="w">     </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Slider&quot;</span><span class="p">,</span><span class="w">     </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;integer&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w">         </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">6</span><span class="p">,</span><span class="w">         </span><span class="nt">&quot;secret&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">},</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;color&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ColorInput&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;string&quot;</span><span class="p">,</span><span class="w">  </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;secret&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}</span>
+<span class="w">  </span><span class="p">],</span>
+<span class="w">  </span><span class="nt">&quot;outputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;output_go_Figure&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Graph&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Bar chart&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
+<p><code>tag</code> is the widget the hint became — a <code>str</code> input can be a text box, a
+textarea or a colour picker, and they are not interchangeable. <code>outputs</code> lets an
+agent see what a run returns <strong>without</strong> having to run it.</p>
+<h3 id="the-contract-is-enforced">The contract is enforced</h3>
+<p>Whatever <code>describe_app()</code> advertises is what <code>set_input</code> / <code>set_inputs</code> /
+<code>invoke</code> accept — an agent cannot set a value the UI itself could never produce.
+A value outside a dropdown's <code>options</code>, outside a Slider's <code>min</code>/<code>max</code>, or of the
+wrong type (a string for a number, a string for a switch) is rejected with an
+error naming the constraint, and <code>invoke</code> is atomic: one bad value rejects the
+whole call without mutating anything. The same holds for a form an agent builds
+at runtime with <code>set_form</code> — the specs it declared become the contract it is
+then held to.</p>
+<div class="admonition warning">
+<p class="admonition-title">Secrets</p>
+<p>A <code>PasswordInput</code>'s value is <strong>never reported back</strong> over MCP: the contract
+marks it <code>"secret": true</code> and masks it everywhere (<code>describe_app</code>, the
+<code>set_input</code> echo, <code>get_invocation</code>). An agent can fill the field; it cannot
+read it.</p>
+</div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
 <p>The drive tools' (<code>invoke</code> / <code>set_inputs</code> / <code>set_input</code>) raw MCP <em>input
@@ -929,7 +965,8 @@ materializes in the browser within ~500 ms of the call.</p>
 <code>id</code>, <code>type</code>, <code>default</code>, <code>options</code>, and <code>props</code> (e.g. a slider's <code>min</code>/<code>max</code>) plus
 its current value — so a reconnecting (or second) agent can discover and drive the
 form without remembering the spec it sent. From there, <code>set_inputs(...)</code> + <code>invoke()</code>
-run it.</p>
+run it, validated against the very specs the form was built from: a value outside
+that slider's <code>0..10</code> is rejected exactly as it would be on a static app.</p>
 <h2 id="real-time-push-opt-in">Real-time push (opt-in)</h2>
 <p>On the default Flask backend, agent mutations reach the browser via a ~500 ms
 polling drain. Install the <code>fastapi</code> extra and pass <code>backend="fastapi"</code> to run
@@ -955,7 +992,8 @@ on Dash's ASGI backend, where updates stream over a WebSocket with <code>set_pro
 <p>The MCP route shares the web app's host/port and has <strong>no authentication</strong> —
 anyone who can reach it can drive your callback. Keep it bound to
 <code>127.0.0.1</code> (the default) during development, and put it behind your own
-auth before exposing it.</p>
+auth before exposing it. Serving on a non-loopback host (e.g.
+<code>run_kwargs={"host": "0.0.0.0"}</code>) with <code>mcp_server=True</code> raises a warning.</p>
 </div>
 <ul>
 <li><strong>One MCP-enabled app per process</strong> (Dash's tool registry is process-global).</li>

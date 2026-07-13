@@ -1158,7 +1158,8 @@ and invokes <code>callback_fn</code>. Outputs are written into
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/dynamic.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">188</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">187</span>
+<span class="normal">188</span>
 <span class="normal">189</span>
 <span class="normal">190</span>
 <span class="normal">191</span>
@@ -1517,7 +1518,24 @@ and invokes <code>callback_fn</code>. Outputs are written into
 <span class="normal">544</span>
 <span class="normal">545</span>
 <span class="normal">546</span>
-<span class="normal">547</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DynamicDash</span><span class="p">:</span>
+<span class="normal">547</span>
+<span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">DynamicDash</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A Dash app whose input form is generated at runtime.</span>
 
 <span class="sd">    Two ways to drive the form:</span>
@@ -1576,14 +1594,13 @@ and invokes <code>callback_fn</code>. Outputs are written into
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MCPState</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span> <span class="o">=</span> <span class="n">MCPState</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">mcp_host</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">):</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;mcp_host=</span><span class="si">{</span><span class="n">mcp_host</span><span class="si">!r}</span><span class="s2"> binds the MCP port to a non-loopback &quot;</span>
-                    <span class="s2">&quot;address. The MCP port has no authentication; anyone who can &quot;</span>
-                    <span class="s2">&quot;reach it can invoke your callback. Use 127.0.0.1 unless you &quot;</span>
-                    <span class="s2">&quot;have a deliberate reason to expose it.&quot;</span><span class="p">,</span>
-                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-                <span class="p">)</span>
+            <span class="c1"># The form on screen at startup is the contract an agent connects to.</span>
+            <span class="c1"># Without this, an app-authored form (initial_specs / placeholder) had</span>
+            <span class="c1"># no MCP contract at all: no ids to check, no bounds to enforce, no</span>
+            <span class="c1"># PasswordInput to mask — only a form the agent built itself did.</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span><span class="o">.</span><span class="n">set_current_specs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_specs</span><span class="p">)</span>
+            <span class="c1"># The exposure warning lives in run(), keyed off the host we</span>
+            <span class="c1"># actually bind to -- see mcp.warn_if_exposed (#149).</span>
 
         <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_has_var_kw</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
@@ -1711,12 +1728,28 @@ and invokes <code>callback_fn</code>. Outputs are written into
             <span class="p">)</span>
         <span class="p">)</span>
 
+    <span class="k">def</span><span class="w"> </span><span class="nf">_sync_form_contract</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">specs</span><span class="p">,</span> <span class="n">parent_value</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Point the MCP contract at the form the parent cascade just rendered.</span>
+
+<span class="sd">        The cascade replaces the form, so it replaces the contract. Without this</span>
+<span class="sd">        an agent reading ``describe_app`` would still see whatever a previous</span>
+<span class="sd">        ``set_form`` left behind — and the validators would enforce *those* ids</span>
+<span class="sd">        while rejecting the ones actually on screen.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="k">return</span>
+        <span class="n">parent_name</span> <span class="o">=</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">parent_control</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span><span class="o">.</span><span class="n">set_current_specs</span><span class="p">(</span><span class="n">specs</span><span class="p">,</span> <span class="n">keep</span><span class="o">=</span><span class="p">{</span><span class="n">parent_name</span><span class="p">}</span> <span class="o">-</span> <span class="p">{</span><span class="kc">None</span><span class="p">})</span>
+        <span class="k">if</span> <span class="n">parent_name</span> <span class="ow">and</span> <span class="n">parent_value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span><span class="o">.</span><span class="n">inputs</span><span class="p">[</span><span class="n">parent_name</span><span class="p">]</span> <span class="o">=</span> <span class="n">parent_value</span>
+
     <span class="k">def</span><span class="w"> </span><span class="nf">_register_callbacks</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
         <span class="n">app</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">app</span>
 
         <span class="c1"># ----- (i) parent control → form (form-driven) -----------------------</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_control</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec_resolver</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">resolver</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">spec_resolver</span>
+            <span class="n">parent_name</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">parent_control</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;name&quot;</span><span class="p">)</span>
 
             <span class="nd">@app</span><span class="o">.</span><span class="n">callback</span><span class="p">(</span>
                 <span class="n">Output</span><span class="p">(</span><span class="s2">&quot;dyn-form&quot;</span><span class="p">,</span> <span class="s2">&quot;children&quot;</span><span class="p">),</span>
@@ -1731,9 +1764,11 @@ and invokes <code>callback_fn</code>. Outputs are written into
                 <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">no_update</span>
                 <span class="k">try</span><span class="p">:</span>
-                    <span class="k">return</span> <span class="n">render_spec</span><span class="p">(</span><span class="n">specs</span><span class="p">)</span><span class="o">.</span><span class="n">children</span>
+                    <span class="n">children</span> <span class="o">=</span> <span class="n">render_spec</span><span class="p">(</span><span class="n">specs</span><span class="p">)</span><span class="o">.</span><span class="n">children</span>
                 <span class="k">except</span> <span class="ne">Exception</span><span class="p">:</span>
                     <span class="k">return</span> <span class="n">no_update</span>
+                <span class="bp">self</span><span class="o">.</span><span class="n">_sync_form_contract</span><span class="p">(</span><span class="n">specs</span><span class="p">,</span> <span class="n">parent_value</span><span class="p">)</span>
+                <span class="k">return</span> <span class="n">children</span>
 
         <span class="c1"># ----- (ii) MCP set_form → form (agent-driven, v0.2 drain) -----------</span>
         <span class="c1"># An external agent calls the set_form MCP tool, which writes the</span>
@@ -1872,8 +1907,9 @@ and invokes <code>callback_fn</code>. Outputs are written into
         <span class="k">if</span> <span class="n">port</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">8050</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
-            <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span>
+            <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span><span class="p">,</span> <span class="n">warn_if_exposed</span>
 
+            <span class="n">warn_if_exposed</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
             <span class="c1"># Native Dash MCP mounts on this app at /mcp (shared port).</span>
             <span class="n">enable_mcp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -1906,7 +1942,8 @@ and invokes <code>callback_fn</code>. Outputs are written into
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/dynamic.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">206</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">205</span>
+<span class="normal">206</span>
 <span class="normal">207</span>
 <span class="normal">208</span>
 <span class="normal">209</span>
@@ -1982,9 +2019,7 @@ and invokes <code>callback_fn</code>. Outputs are written into
 <span class="normal">279</span>
 <span class="normal">280</span>
 <span class="normal">281</span>
-<span class="normal">282</span>
-<span class="normal">283</span>
-<span class="normal">284</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">282</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="p">:</span> <span class="n">Callable</span><span class="p">,</span>
     <span class="n">initial_specs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="nb">dict</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
@@ -2025,14 +2060,13 @@ and invokes <code>callback_fn</code>. Outputs are written into
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MCPState</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span> <span class="o">=</span> <span class="n">MCPState</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">mcp_host</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;mcp_host=</span><span class="si">{</span><span class="n">mcp_host</span><span class="si">!r}</span><span class="s2"> binds the MCP port to a non-loopback &quot;</span>
-                <span class="s2">&quot;address. The MCP port has no authentication; anyone who can &quot;</span>
-                <span class="s2">&quot;reach it can invoke your callback. Use 127.0.0.1 unless you &quot;</span>
-                <span class="s2">&quot;have a deliberate reason to expose it.&quot;</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="c1"># The form on screen at startup is the contract an agent connects to.</span>
+        <span class="c1"># Without this, an app-authored form (initial_specs / placeholder) had</span>
+        <span class="c1"># no MCP contract at all: no ids to check, no bounds to enforce, no</span>
+        <span class="c1"># PasswordInput to mask — only a form the agent built itself did.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span><span class="o">.</span><span class="n">set_current_specs</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">initial_specs</span><span class="p">)</span>
+        <span class="c1"># The exposure warning lives in run(), keyed off the host we</span>
+        <span class="c1"># actually bind to -- see mcp.warn_if_exposed (#149).</span>
 
     <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="n">callback_fn</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">_has_var_kw</span> <span class="o">=</span> <span class="nb">any</span><span class="p">(</span>
@@ -2089,22 +2123,23 @@ wins over a <code>DynamicDash(..., port=...)</code> constructor value.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/dynamic.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">532</span>
-<span class="normal">533</span>
-<span class="normal">534</span>
-<span class="normal">535</span>
-<span class="normal">536</span>
-<span class="normal">537</span>
-<span class="normal">538</span>
-<span class="normal">539</span>
-<span class="normal">540</span>
-<span class="normal">541</span>
-<span class="normal">542</span>
-<span class="normal">543</span>
-<span class="normal">544</span>
-<span class="normal">545</span>
-<span class="normal">546</span>
-<span class="normal">547</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">548</span>
+<span class="normal">549</span>
+<span class="normal">550</span>
+<span class="normal">551</span>
+<span class="normal">552</span>
+<span class="normal">553</span>
+<span class="normal">554</span>
+<span class="normal">555</span>
+<span class="normal">556</span>
+<span class="normal">557</span>
+<span class="normal">558</span>
+<span class="normal">559</span>
+<span class="normal">560</span>
+<span class="normal">561</span>
+<span class="normal">562</span>
+<span class="normal">563</span>
+<span class="normal">564</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">debug</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Convenience wrapper around the Dash dev server.</span>
 
 <span class="sd">    When ``mcp_server=True`` was passed to the constructor, Dash&#39;s native</span>
@@ -2115,8 +2150,9 @@ wins over a <code>DynamicDash(..., port=...)</code> constructor value.</p>
     <span class="k">if</span> <span class="n">port</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_port</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="mi">8050</span>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span><span class="p">,</span> <span class="n">warn_if_exposed</span>
 
+        <span class="n">warn_if_exposed</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
         <span class="c1"># Native Dash MCP mounts on this app at /mcp (shared port).</span>
         <span class="n">enable_mcp</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">debug</span><span class="o">=</span><span class="n">debug</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span>
@@ -4487,7 +4523,20 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2576</span>
 <span class="normal">2577</span>
 <span class="normal">2578</span>
-<span class="normal">2579</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
+<span class="normal">2579</span>
+<span class="normal">2580</span>
+<span class="normal">2581</span>
+<span class="normal">2582</span>
+<span class="normal">2583</span>
+<span class="normal">2584</span>
+<span class="normal">2585</span>
+<span class="normal">2586</span>
+<span class="normal">2587</span>
+<span class="normal">2588</span>
+<span class="normal">2589</span>
+<span class="normal">2590</span>
+<span class="normal">2591</span>
+<span class="normal">2592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -4529,7 +4578,7 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
         <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-        <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
+        <span class="n">run_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
         <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -4644,14 +4693,8 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
             <span class="kn">from</span><span class="w"> </span><span class="nn">.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MCPState</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span> <span class="o">=</span> <span class="n">MCPState</span><span class="p">()</span>
-            <span class="k">if</span> <span class="n">mcp_host</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">):</span>
-                <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                    <span class="sa">f</span><span class="s2">&quot;mcp_host=</span><span class="si">{</span><span class="n">mcp_host</span><span class="si">!r}</span><span class="s2"> binds the MCP port to a non-loopback &quot;</span>
-                    <span class="s2">&quot;address. The MCP port has no authentication; anyone who &quot;</span>
-                    <span class="s2">&quot;can reach it can invoke your callback. Use 127.0.0.1 unless &quot;</span>
-                    <span class="s2">&quot;you have a deliberate reason to expose it.&quot;</span><span class="p">,</span>
-                    <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-                <span class="p">)</span>
+            <span class="c1"># The exposure warning lives in run(), keyed off the host we</span>
+            <span class="c1"># actually bind to -- see mcp.warn_if_exposed (#149).</span>
 
         <span class="c1"># callback_fn is required unless steps= is provided, or chat= itself</span>
         <span class="c1"># supplies the chat handler (an agent / graph / model / chat callable).</span>
@@ -4857,7 +4900,11 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="n">run_kwargs</span>
+        <span class="c1"># Copy, never alias: `run_kwargs` used to default to a shared mutable</span>
+        <span class="c1"># dict, so every app that didn&#39;t pass one aliased *the same* dict and the</span>
+        <span class="c1"># last constructed app silently rewrote every earlier app&#39;s port (and any</span>
+        <span class="c1"># other run_kwargs, including the security-relevant `host`) — #153.</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">run_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">run_kwargs</span> <span class="k">else</span> <span class="p">{}</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">))</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
@@ -5011,6 +5058,12 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="k">if</span> <span class="n">inputs</span> <span class="ow">is</span> <span class="kc">None</span>
             <span class="k">else</span> <span class="n">inputs</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">inputs</span><span class="p">,</span> <span class="nb">list</span><span class="p">)</span> <span class="k">else</span> <span class="p">[</span><span class="n">inputs</span><span class="p">]</span>
         <span class="p">)</span>
+        <span class="c1"># Whether the return annotation was used to build the outputs. When the</span>
+        <span class="c1"># caller passed `outputs=` explicitly it wins over the annotation, and the</span>
+        <span class="c1"># agent contract must describe what was actually rendered, not what the</span>
+        <span class="c1"># hint said (an `outputs=[Graph]` app whose callback is annotated `-&gt; str`</span>
+        <span class="c1"># renders a figure, and must not tell an agent it returns a string).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_outputs_inferred</span> <span class="o">=</span> <span class="n">outputs</span> <span class="ow">is</span> <span class="kc">None</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">outputs</span> <span class="o">=</span> <span class="n">_infer_output_components</span><span class="p">(</span>
             <span class="n">callback_fn</span><span class="p">,</span> <span class="n">outputs</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">output_labels</span>
         <span class="p">)</span>
@@ -5617,7 +5670,11 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="kn">import</span><span class="w"> </span><span class="nn">uvicorn</span>
 
-        <span class="n">host</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;host&quot;</span><span class="p">,</span> <span class="s2">&quot;127.0.0.1&quot;</span><span class="p">)</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">effective_bind_host</span>
+
+        <span class="c1"># Same host resolution Dash&#39;s own run() uses (run_kwargs, else $HOST,</span>
+        <span class="c1"># else loopback), so the address we bind is the address we warned about.</span>
+        <span class="n">host</span> <span class="o">=</span> <span class="n">effective_bind_host</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="p">)</span>
         <span class="n">port</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;port&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">port</span><span class="p">)</span>
         <span class="n">uvicorn</span><span class="o">.</span><span class="n">Server</span><span class="p">(</span>
             <span class="n">uvicorn</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">app</span><span class="o">.</span><span class="n">server</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="n">host</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">,</span> <span class="n">log_level</span><span class="o">=</span><span class="s2">&quot;warning&quot;</span><span class="p">)</span>
@@ -5638,7 +5695,12 @@ sets all parameters required for Fast Dash app deployment.</p>
                 <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
             <span class="p">)</span>
             <span class="k">return</span>
-        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span>
+        <span class="kn">from</span><span class="w"> </span><span class="nn">.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">enable_mcp</span><span class="p">,</span> <span class="n">warn_if_exposed</span>
+
+        <span class="c1"># Only warn about an exposed /mcp once we know we are about to mount one</span>
+        <span class="c1"># -- the multi-function bail-out above means mcp_server=True does not</span>
+        <span class="c1"># always produce an endpoint to expose (#149).</span>
+        <span class="n">warn_if_exposed</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="p">)</span>
 
         <span class="c1"># Native Dash MCP shares the web app&#39;s host/port; agents connect at</span>
         <span class="c1"># http://&lt;host&gt;:&lt;port&gt;/mcp. The legacy mcp_port/mcp_host kwargs are</span>
@@ -6837,7 +6899,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
 
 <h3 id="fast_dash.fast_dash.FastDash.__init__" class="doc doc-heading">
-<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">chat_tools</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_title</span><span class="o">=</span><span class="s1">&#39;Assistant&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_extractors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="fm">__init__</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">chat_tools</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_title</span><span class="o">=</span><span class="s1">&#39;Assistant&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_extractors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h3>
 
@@ -7103,7 +7165,7 @@ sets all parameters required for Fast Dash app deployment.</p>
           </td>
           <td><p>All values from this variable are passed to Dash's <code>.run</code> method.</p></td>
           <td>
-                <code>dict()</code>
+                <code>None</code>
           </td>
         </tr>
         <tr>
@@ -7590,9 +7652,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">711</span>
 <span class="normal">712</span>
 <span class="normal">713</span>
-<span class="normal">714</span>
-<span class="normal">715</span>
-<span class="normal">716</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">714</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -7619,7 +7679,7 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
+    <span class="n">run_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">tab_titles</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">steps</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
@@ -7734,14 +7794,8 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">mcp_server_enabled</span><span class="p">:</span>
         <span class="kn">from</span><span class="w"> </span><span class="nn">.mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">MCPState</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">_mcp_state</span> <span class="o">=</span> <span class="n">MCPState</span><span class="p">()</span>
-        <span class="k">if</span> <span class="n">mcp_host</span> <span class="ow">not</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;127.0.0.1&quot;</span><span class="p">,</span> <span class="s2">&quot;localhost&quot;</span><span class="p">):</span>
-            <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
-                <span class="sa">f</span><span class="s2">&quot;mcp_host=</span><span class="si">{</span><span class="n">mcp_host</span><span class="si">!r}</span><span class="s2"> binds the MCP port to a non-loopback &quot;</span>
-                <span class="s2">&quot;address. The MCP port has no authentication; anyone who &quot;</span>
-                <span class="s2">&quot;can reach it can invoke your callback. Use 127.0.0.1 unless &quot;</span>
-                <span class="s2">&quot;you have a deliberate reason to expose it.&quot;</span><span class="p">,</span>
-                <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
-            <span class="p">)</span>
+        <span class="c1"># The exposure warning lives in run(), keyed off the host we</span>
+        <span class="c1"># actually bind to -- see mcp.warn_if_exposed (#149).</span>
 
     <span class="c1"># callback_fn is required unless steps= is provided, or chat= itself</span>
     <span class="c1"># supplies the chat handler (an agent / graph / model / chat callable).</span>
@@ -7947,7 +8001,11 @@ sets all parameters required for Fast Dash app deployment.</p>
     <span class="bp">self</span><span class="o">.</span><span class="n">disable_logs</span> <span class="o">=</span> <span class="n">disable_logs</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">scale_height</span> <span class="o">=</span> <span class="n">scale_height</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">port</span> <span class="o">=</span> <span class="n">port</span>
-    <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="n">run_kwargs</span>
+    <span class="c1"># Copy, never alias: `run_kwargs` used to default to a shared mutable</span>
+    <span class="c1"># dict, so every app that didn&#39;t pass one aliased *the same* dict and the</span>
+    <span class="c1"># last constructed app silently rewrote every earlier app&#39;s port (and any</span>
+    <span class="c1"># other run_kwargs, including the security-relevant `host`) — #153.</span>
+    <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">run_kwargs</span><span class="p">)</span> <span class="k">if</span> <span class="n">run_kwargs</span> <span class="k">else</span> <span class="p">{}</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">run_kwargs</span><span class="o">.</span><span class="n">update</span><span class="p">(</span><span class="nb">dict</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="n">port</span><span class="p">))</span>
     <span class="bp">self</span><span class="o">.</span><span class="n">kwargs</span> <span class="o">=</span> <span class="n">kwargs</span>
 
@@ -8066,20 +8124,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2490</span>
-<span class="normal">2491</span>
-<span class="normal">2492</span>
-<span class="normal">2493</span>
-<span class="normal">2494</span>
-<span class="normal">2495</span>
-<span class="normal">2496</span>
-<span class="normal">2497</span>
-<span class="normal">2498</span>
-<span class="normal">2499</span>
-<span class="normal">2500</span>
-<span class="normal">2501</span>
-<span class="normal">2502</span>
-<span class="normal">2503</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2503</span>
 <span class="normal">2504</span>
 <span class="normal">2505</span>
 <span class="normal">2506</span>
@@ -8155,7 +8200,20 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2576</span>
 <span class="normal">2577</span>
 <span class="normal">2578</span>
-<span class="normal">2579</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">2579</span>
+<span class="normal">2580</span>
+<span class="normal">2581</span>
+<span class="normal">2582</span>
+<span class="normal">2583</span>
+<span class="normal">2584</span>
+<span class="normal">2585</span>
+<span class="normal">2586</span>
+<span class="normal">2587</span>
+<span class="normal">2588</span>
+<span class="normal">2589</span>
+<span class="normal">2590</span>
+<span class="normal">2591</span>
+<span class="normal">2592</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
     <span class="c1"># Native-WebSocket streaming pushes via set_props directly; the</span>
     <span class="c1"># socket.io clientside listeners below are only for the Flask path.</span>
@@ -8267,20 +8325,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2393</span>
-<span class="normal">2394</span>
-<span class="normal">2395</span>
-<span class="normal">2396</span>
-<span class="normal">2397</span>
-<span class="normal">2398</span>
-<span class="normal">2399</span>
-<span class="normal">2400</span>
-<span class="normal">2401</span>
-<span class="normal">2402</span>
-<span class="normal">2403</span>
-<span class="normal">2404</span>
-<span class="normal">2405</span>
-<span class="normal">2406</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2406</span>
 <span class="normal">2407</span>
 <span class="normal">2408</span>
 <span class="normal">2409</span>
@@ -8318,7 +8363,20 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2441</span>
 <span class="normal">2442</span>
 <span class="normal">2443</span>
-<span class="normal">2444</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2444</span>
+<span class="normal">2445</span>
+<span class="normal">2446</span>
+<span class="normal">2447</span>
+<span class="normal">2448</span>
+<span class="normal">2449</span>
+<span class="normal">2450</span>
+<span class="normal">2451</span>
+<span class="normal">2452</span>
+<span class="normal">2453</span>
+<span class="normal">2454</span>
+<span class="normal">2455</span>
+<span class="normal">2456</span>
+<span class="normal">2457</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
@@ -8400,20 +8458,7 @@ rather than append on the native path.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2446</span>
-<span class="normal">2447</span>
-<span class="normal">2448</span>
-<span class="normal">2449</span>
-<span class="normal">2450</span>
-<span class="normal">2451</span>
-<span class="normal">2452</span>
-<span class="normal">2453</span>
-<span class="normal">2454</span>
-<span class="normal">2455</span>
-<span class="normal">2456</span>
-<span class="normal">2457</span>
-<span class="normal">2458</span>
-<span class="normal">2459</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2459</span>
 <span class="normal">2460</span>
 <span class="normal">2461</span>
 <span class="normal">2462</span>
@@ -8442,7 +8487,20 @@ rather than append on the native path.</p>
 <span class="normal">2485</span>
 <span class="normal">2486</span>
 <span class="normal">2487</span>
-<span class="normal">2488</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2488</span>
+<span class="normal">2489</span>
+<span class="normal">2490</span>
+<span class="normal">2491</span>
+<span class="normal">2492</span>
+<span class="normal">2493</span>
+<span class="normal">2494</span>
+<span class="normal">2495</span>
+<span class="normal">2496</span>
+<span class="normal">2497</span>
+<span class="normal">2498</span>
+<span class="normal">2499</span>
+<span class="normal">2500</span>
+<span class="normal">2501</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Native-WebSocket streaming handler — pushes via ``set_props``.</span>
 
 <span class="sd">    The ASGI counterpart of :meth:`stream_handler`. Called by</span>
@@ -9362,7 +9420,7 @@ to get a frame to <code>yield</code>. No LLM SDK is imported or required.</p>
 
 
 <h2 id="fast_dash.fastdash" class="doc doc-heading">
-<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">chat_tools</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_title</span><span class="o">=</span><span class="s1">&#39;Assistant&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_extractors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
+<code class="highlight language-python"><span class="n">fastdash</span><span class="p">(</span><span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">inputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">output_labels</span><span class="o">=</span><span class="s1">&#39;infer&#39;</span><span class="p">,</span> <span class="n">title</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">title_image_path</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">subheader</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">github_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">linkedin_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">twitter_url</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">navbar</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">footer</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">loader</span><span class="o">=</span><span class="s1">&#39;bars&#39;</span><span class="p">,</span> <span class="n">branding</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">about</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">theme</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">accent</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">update_live</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="mi">8080</span><span class="p">,</span> <span class="n">mode</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">run_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span> <span class="n">chat_tools</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_model</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_title</span><span class="o">=</span><span class="s1">&#39;Assistant&#39;</span><span class="p">,</span> <span class="n">chat_placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">chat_extractors</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">mcp_port</span><span class="o">=</span><span class="mi">8001</span><span class="p">,</span> <span class="n">mcp_host</span><span class="o">=</span><span class="s1">&#39;127.0.0.1&#39;</span><span class="p">,</span> <span class="n">kwargs</span><span class="p">)</span></code>
 
 </h2>
 
@@ -9631,7 +9689,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
           </td>
           <td><p>All values from this variable are passed to Dash's <code>.run</code> method.</p></td>
           <td>
-                <code>dict()</code>
+                <code>None</code>
           </td>
         </tr>
     </tbody>
@@ -9639,20 +9697,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2582</span>
-<span class="normal">2583</span>
-<span class="normal">2584</span>
-<span class="normal">2585</span>
-<span class="normal">2586</span>
-<span class="normal">2587</span>
-<span class="normal">2588</span>
-<span class="normal">2589</span>
-<span class="normal">2590</span>
-<span class="normal">2591</span>
-<span class="normal">2592</span>
-<span class="normal">2593</span>
-<span class="normal">2594</span>
-<span class="normal">2595</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2595</span>
 <span class="normal">2596</span>
 <span class="normal">2597</span>
 <span class="normal">2598</span>
@@ -9808,7 +9853,20 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 <span class="normal">2748</span>
 <span class="normal">2749</span>
 <span class="normal">2750</span>
-<span class="normal">2751</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">2751</span>
+<span class="normal">2752</span>
+<span class="normal">2753</span>
+<span class="normal">2754</span>
+<span class="normal">2755</span>
+<span class="normal">2756</span>
+<span class="normal">2757</span>
+<span class="normal">2758</span>
+<span class="normal">2759</span>
+<span class="normal">2760</span>
+<span class="normal">2761</span>
+<span class="normal">2762</span>
+<span class="normal">2763</span>
+<span class="normal">2764</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -9835,7 +9893,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
     <span class="n">minimal</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">disable_logs</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">scale_height</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
-    <span class="n">run_kwargs</span><span class="o">=</span><span class="nb">dict</span><span class="p">(),</span>
+    <span class="n">run_kwargs</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">chat</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
     <span class="n">chat_history_size</span><span class="o">=</span><span class="mi">50</span><span class="p">,</span>
     <span class="n">chat_tools</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -10016,7 +10074,8 @@ stacked layout as <code>grid=False</code>). Two <code>span: 6</code> specs sit s
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/dynamic.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">143</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">142</span>
+<span class="normal">143</span>
 <span class="normal">144</span>
 <span class="normal">145</span>
 <span class="normal">146</span>
@@ -10049,8 +10108,7 @@ stacked layout as <code>grid=False</code>). Two <code>span: 6</code> specs sit s
 <span class="normal">173</span>
 <span class="normal">174</span>
 <span class="normal">175</span>
-<span class="normal">176</span>
-<span class="normal">177</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">render_spec</span><span class="p">(</span><span class="n">specs</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;dyn-form&quot;</span><span class="p">,</span>
+<span class="normal">176</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">render_spec</span><span class="p">(</span><span class="n">specs</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">dict</span><span class="p">],</span> <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;dyn-form&quot;</span><span class="p">,</span>
                 <span class="n">registry</span><span class="p">:</span> <span class="nb">dict</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">grid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">html</span><span class="o">.</span><span class="n">Div</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Render a list of UI specs into a Dash container.</span>
 
