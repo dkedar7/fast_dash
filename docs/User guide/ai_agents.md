@@ -5,9 +5,9 @@
 Pass `mcp_server=True` and your Fast Dash app serves a web UI **and** a
 [Model Context Protocol](https://modelcontextprotocol.io) (MCP) server, so any
 MCP-capable agent — Claude Code, Cursor, Cline, … — can inspect and drive it.
-The same type hints that build the UI describe the inputs an agent sees via the
-[`describe_app`](#discover-the-input-contract) tool (id, type, default, allowed
-options, and current value).
+The same type hints that build the UI describe what an agent sees via the
+[`describe_app`](#discover-the-contract) tool: every input (id, type, default,
+allowed options, current value) and every output the app produces.
 
 The MCP server is built on [Dash's native MCP support](https://dash.plotly.com)
 (Dash ≥ 4.3, installed automatically) and is mounted on the **same port** as the
@@ -35,7 +35,7 @@ Point any MCP client at the app's `/mcp` endpoint (streamable HTTP):
 
 | Surface | Provided by | Use |
 |---|---|---|
-| `describe_app()` | Fast Dash | **Start here.** The input contract + current state: each input's id, type, default, options, and current value |
+| `describe_app()` | Fast Dash | **Start here.** The full contract + current state: each input's id, type, default, options and current value, and each output the app produces |
 | `set_input(component_id, value)` | Fast Dash | Set one input |
 | `set_inputs(inputs)` | Fast Dash | Set several inputs at once (`inputs` is a `{id: value}` dict) |
 | `invoke(inputs=None)` | Fast Dash | Run the callback (optionally setting inputs first), in one call |
@@ -46,22 +46,46 @@ Point any MCP client at the app's `/mcp` endpoint (streamable HTTP):
 
 `component_id` is the **parameter name** itself (e.g. `"n"`, `"color"`).
 
-### Discover the input contract
+### Discover the contract
 
 Call **`describe_app()`** to learn the exact input ids, their Python types,
-defaults, allowed options, and **current values** — and use that to build a valid
-`invoke` call:
+defaults, allowed options and **current values**, plus what a run produces — and
+use that to build a valid `invoke` call:
 
 ```json
 {
   "title": "Plot Bars",
   "doc": "Plot a bar chart with n bars in the chosen color.",
   "inputs": [
-    {"id": "n",     "type": "integer", "default": 6,         "options": null, "current_value": 6},
-    {"id": "color", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6"}
+    {"id": "n",     "tag": "Slider",     "type": "integer", "default": 6,         "options": null, "current_value": 6,         "secret": false},
+    {"id": "color", "tag": "ColorInput", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6", "secret": false}
+  ],
+  "outputs": [
+    {"id": "output_go_Figure", "tag": "Graph", "type": "object", "label": "Bar chart"}
   ]
 }
 ```
+
+`tag` is the widget the hint became — a `str` input can be a text box, a
+textarea or a colour picker, and they are not interchangeable. `outputs` lets an
+agent see what a run returns **without** having to run it.
+
+### The contract is enforced
+
+Whatever `describe_app()` advertises is what `set_input` / `set_inputs` /
+`invoke` accept — an agent cannot set a value the UI itself could never produce.
+A value outside a dropdown's `options`, outside a Slider's `min`/`max`, or of the
+wrong type (a string for a number, a string for a switch) is rejected with an
+error naming the constraint, and `invoke` is atomic: one bad value rejects the
+whole call without mutating anything. The same holds for a form an agent builds
+at runtime with `set_form` — the specs it declared become the contract it is
+then held to.
+
+!!! warning "Secrets"
+    A `PasswordInput`'s value is **never reported back** over MCP: the contract
+    marks it `"secret": true` and masks it everywhere (`describe_app`, the
+    `set_input` echo, `get_invocation`). An agent can fill the field; it cannot
+    read it.
 
 !!! note
     The drive tools' (`invoke` / `set_inputs` / `set_input`) raw MCP *input
@@ -117,7 +141,8 @@ After `set_form`, **`describe_app()` reflects the materialized form** — each f
 `id`, `type`, `default`, `options`, and `props` (e.g. a slider's `min`/`max`) plus
 its current value — so a reconnecting (or second) agent can discover and drive the
 form without remembering the spec it sent. From there, `set_inputs(...)` + `invoke()`
-run it.
+run it, validated against the very specs the form was built from: a value outside
+that slider's `0..10` is rejected exactly as it would be on a static app.
 
 ## Real-time push (opt-in)
 
@@ -150,7 +175,8 @@ The same ASGI backend also powers native-WebSocket **streaming** for
     The MCP route shares the web app's host/port and has **no authentication** —
     anyone who can reach it can drive your callback. Keep it bound to
     `127.0.0.1` (the default) during development, and put it behind your own
-    auth before exposing it.
+    auth before exposing it. Serving on a non-loopback host (e.g.
+    `run_kwargs={"host": "0.0.0.0"}`) with `mcp_server=True` raises a warning.
 
 - **One MCP-enabled app per process** (Dash's tool registry is process-global).
 - **Multi-function and steps modes** skip the MCP surface.

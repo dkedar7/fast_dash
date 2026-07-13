@@ -289,7 +289,7 @@ class FastDash(ChatAppMixin):
         minimal=False,
         disable_logs=False,
         scale_height=1,
-        run_kwargs=dict(),
+        run_kwargs=None,
         tab_titles=None,
         steps=None,
         chat=False,
@@ -404,14 +404,8 @@ class FastDash(ChatAppMixin):
         if self.mcp_server_enabled:
             from .mcp import MCPState
             self._mcp_state = MCPState()
-            if mcp_host not in ("127.0.0.1", "localhost"):
-                warnings.warn(
-                    f"mcp_host={mcp_host!r} binds the MCP port to a non-loopback "
-                    "address. The MCP port has no authentication; anyone who "
-                    "can reach it can invoke your callback. Use 127.0.0.1 unless "
-                    "you have a deliberate reason to expose it.",
-                    stacklevel=2,
-                )
+            # The exposure warning lives in run(), keyed off the host we
+            # actually bind to -- see mcp.warn_if_exposed (#149).
 
         # callback_fn is required unless steps= is provided, or chat= itself
         # supplies the chat handler (an agent / graph / model / chat callable).
@@ -617,7 +611,11 @@ class FastDash(ChatAppMixin):
         self.disable_logs = disable_logs
         self.scale_height = scale_height
         self.port = port
-        self.run_kwargs = run_kwargs
+        # Copy, never alias: `run_kwargs` used to default to a shared mutable
+        # dict, so every app that didn't pass one aliased *the same* dict and the
+        # last constructed app silently rewrote every earlier app's port (and any
+        # other run_kwargs, including the security-relevant `host`) — #153.
+        self.run_kwargs = dict(run_kwargs) if run_kwargs else {}
         self.run_kwargs.update(dict(port=port))
         self.kwargs = kwargs
 
@@ -771,6 +769,12 @@ class FastDash(ChatAppMixin):
             if inputs is None
             else inputs if isinstance(inputs, list) else [inputs]
         )
+        # Whether the return annotation was used to build the outputs. When the
+        # caller passed `outputs=` explicitly it wins over the annotation, and the
+        # agent contract must describe what was actually rendered, not what the
+        # hint said (an `outputs=[Graph]` app whose callback is annotated `-> str`
+        # renders a figure, and must not tell an agent it returns a string).
+        self._outputs_inferred = outputs is None
         self.outputs = _infer_output_components(
             callback_fn, outputs, self.output_labels
         )
@@ -1377,7 +1381,11 @@ class FastDash(ChatAppMixin):
         """
         import uvicorn
 
-        host = self.run_kwargs.get("host", "127.0.0.1")
+        from .mcp import effective_bind_host
+
+        # Same host resolution Dash's own run() uses (run_kwargs, else $HOST,
+        # else loopback), so the address we bind is the address we warned about.
+        host = effective_bind_host(self.run_kwargs)
         port = self.run_kwargs.get("port", self.port)
         uvicorn.Server(
             uvicorn.Config(self.app.server, host=host, port=port, log_level="warning")
@@ -1398,7 +1406,12 @@ class FastDash(ChatAppMixin):
                 stacklevel=2,
             )
             return
-        from .mcp import enable_mcp
+        from .mcp import enable_mcp, warn_if_exposed
+
+        # Only warn about an exposed /mcp once we know we are about to mount one
+        # -- the multi-function bail-out above means mcp_server=True does not
+        # always produce an endpoint to expose (#149).
+        warn_if_exposed(self.run_kwargs)
 
         # Native Dash MCP shares the web app's host/port; agents connect at
         # http://<host>:<port>/mcp. The legacy mcp_port/mcp_host kwargs are
@@ -2606,7 +2619,7 @@ def fastdash(
     minimal=False,
     disable_logs=False,
     scale_height=1,
-    run_kwargs=dict(),
+    run_kwargs=None,
     chat=False,
     chat_history_size=50,
     chat_tools=None,

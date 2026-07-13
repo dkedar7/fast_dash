@@ -5,6 +5,7 @@ import inspect
 import json
 import math
 import numbers
+import types
 import warnings
 from collections.abc import Iterable, Sequence
 from dataclasses import dataclass, field
@@ -1369,15 +1370,19 @@ def _get_component_from_input(hint, default_value=None):
             # A short single-line string is a single-line TextInput; a hex color
             # is a swatch picker; only genuinely long / multi-line text gets a
             # Textarea. (Previously every str became a tall Textarea.)
+            # The tag must name the widget actually chosen, not the `str` hint —
+            # otherwise describe_app() collapses a colour picker, a textarea and a
+            # text box to the same tag: "Text", and a headless agent can't tell
+            # them apart (#147).
             if _is_hex_color(default_value):
                 component = Fastify(
-                    dmc.ColorInput(value=default_value), "value", tag=_hint_type
+                    dmc.ColorInput(value=default_value), "value", tag="ColorInput"
                 )
             elif "\n" in default_value or len(default_value) > 120:
                 component = Fastify(
                     dmc.Textarea(value=default_value, autosize=True, minRows=3),
                     "value",
-                    tag=_hint_type,
+                    tag="TextArea",
                 )
             else:
                 component = Fastify(
@@ -1824,6 +1829,26 @@ def _infer_input_components(func):
     return components
 
 
+def expand_return_annotation(annotation):
+    """One entry per value the function returns, given its return annotation.
+
+    A bare parenthesized annotation ``-> (int, str)`` is a real tuple object,
+    but the idiomatic PEP 484 / PEP 585 spellings ``Tuple[int, str]`` and
+    ``tuple[int, str]`` are generic *aliases* — ``isinstance(ann, tuple)`` is
+    False for them, so they used to collapse to a single output and silently
+    drop every return value after the first (#156). Expand those via
+    ``get_origin`` / ``get_args``.
+    """
+    if isinstance(annotation, tuple):
+        return list(annotation)
+    if get_origin(annotation) is tuple:
+        args = list(get_args(annotation))
+        # A variadic `tuple[int, ...]` has no fixed arity, so we can't infer an
+        # output count from it — fall back to a single output.
+        return [annotation] if (not args or Ellipsis in args) else args
+    return [annotation]
+
+
 def _infer_output_components(func, outputs, output_labels):
     signature = inspect.signature(func)
     components = []
@@ -1835,13 +1860,24 @@ def _infer_output_components(func, outputs, output_labels):
         parameters = [(None, outputs)]
 
     else:
-        parameters = list(
-            enumerate(
-                signature.return_annotation
-                if isinstance(signature.return_annotation, tuple)
-                else [signature.return_annotation]
-            )
-        )
+        annotation = signature.return_annotation
+        if isinstance(annotation, str):
+            # Under `from __future__ import annotations` every hint reaches us as
+            # a string, so `Tuple[int, str]` would never even be recognized as a
+            # tuple (#156). Resolve it the same way the inputs path does; if the
+            # name isn't importable from the user's module we keep the string and
+            # fall through to the by-name handling in _get_output_components.
+            try:
+                resolved = eval(annotation, getattr(func, "__globals__", {}))  # noqa: S307 - user's own annotation, user's own module
+            except Exception:
+                resolved = None
+            # `from PIL import Image` binds a *module* to the name, and
+            # `_get_output_components` has a by-name fallback for exactly that
+            # spelling. Resolving it would hand that path a module object, which
+            # matches no hint, and a returned picture would render as an <h1>.
+            if resolved is not None and not isinstance(resolved, types.ModuleType):
+                annotation = resolved
+        parameters = list(enumerate(expand_return_annotation(annotation)))
 
     if output_labels is None:
         output_labels = [None] * len(parameters)

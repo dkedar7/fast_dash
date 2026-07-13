@@ -20,7 +20,6 @@ from __future__ import annotations
 
 import copy
 import inspect
-import warnings
 from typing import Any, Callable, Iterable
 
 import dash
@@ -244,14 +243,13 @@ class DynamicDash:
         if self.mcp_server_enabled:
             from fast_dash.mcp import MCPState
             self._mcp_state = MCPState()
-            if mcp_host not in ("127.0.0.1", "localhost"):
-                warnings.warn(
-                    f"mcp_host={mcp_host!r} binds the MCP port to a non-loopback "
-                    "address. The MCP port has no authentication; anyone who can "
-                    "reach it can invoke your callback. Use 127.0.0.1 unless you "
-                    "have a deliberate reason to expose it.",
-                    stacklevel=2,
-                )
+            # The form on screen at startup is the contract an agent connects to.
+            # Without this, an app-authored form (initial_specs / placeholder) had
+            # no MCP contract at all: no ids to check, no bounds to enforce, no
+            # PasswordInput to mask — only a form the agent built itself did.
+            self._mcp_state.set_current_specs(self.initial_specs)
+            # The exposure warning lives in run(), keyed off the host we
+            # actually bind to -- see mcp.warn_if_exposed (#149).
 
         sig = inspect.signature(callback_fn)
         self._has_var_kw = any(
@@ -379,12 +377,28 @@ class DynamicDash:
             )
         )
 
+    def _sync_form_contract(self, specs, parent_value=None):
+        """Point the MCP contract at the form the parent cascade just rendered.
+
+        The cascade replaces the form, so it replaces the contract. Without this
+        an agent reading ``describe_app`` would still see whatever a previous
+        ``set_form`` left behind — and the validators would enforce *those* ids
+        while rejecting the ones actually on screen.
+        """
+        if self._mcp_state is None:
+            return
+        parent_name = (self.parent_control or {}).get("name")
+        self._mcp_state.set_current_specs(specs, keep={parent_name} - {None})
+        if parent_name and parent_value is not None:
+            self._mcp_state.inputs[parent_name] = parent_value
+
     def _register_callbacks(self):
         app = self.app
 
         # ----- (i) parent control → form (form-driven) -----------------------
         if self.parent_control is not None and self.spec_resolver is not None:
             resolver = self.spec_resolver
+            parent_name = self.parent_control.get("name")
 
             @app.callback(
                 Output("dyn-form", "children"),
@@ -399,9 +413,11 @@ class DynamicDash:
                 except Exception:
                     return no_update
                 try:
-                    return render_spec(specs).children
+                    children = render_spec(specs).children
                 except Exception:
                     return no_update
+                self._sync_form_contract(specs, parent_value)
+                return children
 
         # ----- (ii) MCP set_form → form (agent-driven, v0.2 drain) -----------
         # An external agent calls the set_form MCP tool, which writes the
@@ -540,8 +556,9 @@ class DynamicDash:
         if port is None:
             port = self._port if self._port is not None else 8050
         if self.mcp_server_enabled:
-            from fast_dash.mcp import enable_mcp
+            from fast_dash.mcp import enable_mcp, warn_if_exposed
 
+            warn_if_exposed(kwargs)
             # Native Dash MCP mounts on this app at /mcp (shared port).
             enable_mcp(self)
         self.app.run(debug=debug, port=port, **kwargs)

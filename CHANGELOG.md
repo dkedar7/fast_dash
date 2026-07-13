@@ -1,4 +1,31 @@
-# Release 0.6.2
+# Release 0.6.3
+
+## 0.6.3 (2026-07-13)
+
+An agent-contract release: the MCP surface now describes what an app really is,
+and refuses what its UI could never produce.
+
+### Fixed
+- **`Tuple[int, str]` return hints silently dropped outputs** (#156) — the
+  idiomatic spellings collapsed to one output; only bare `-> (int, str)` worked.
+- **Apps shared one mutable-default `run_kwargs` dict** (#153) — constructing a
+  second app rewrote the first's port, so `run()` bound the wrong one.
+- **`PasswordInput` values leaked over the no-auth MCP route** (#151) — secrets
+  now go in but never come back out (`"secret": true`, masked values).
+- **Value validation was type-blind** (#150) — a string slipped past a Slider's
+  min/max; numeric and boolean inputs now reject the wrong JSON type.
+- **`DynamicDash` forms skipped all validation** (#144) — the form currently on
+  screen (`initial_specs`, a `parent_control` cascade, or an agent's `set_form`)
+  is now the contract enforced against, parent control included.
+- **The MCP no-auth warning watched the defunct `mcp_host`** (#149) — it now
+  fires at `run()`, keyed off the host actually bound.
+- **All `str` widgets reported tag `"Text"`** (#147) — a colour picker, textarea
+  and text box now each report the widget they became.
+
+### Added
+- **Output contract in `describe_app`** (#152) — agents can discover what a run
+  produces (id, component tag, JSON type, label) without side-effectingly
+  calling `invoke()`.
 
 ## 0.6.2 (2026-07-12)
 

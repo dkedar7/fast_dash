@@ -421,3 +421,27 @@ def test_fdfd016_stream_text_simple(dash_duo):
     # Now assert on the final text
     final_text = dash_duo.find_element("#output_output_text").text
     assert "output" in final_text
+
+def test_run_kwargs_are_not_shared_between_apps():
+    """Two apps must not share one run_kwargs dict (#153).
+
+    `run_kwargs=dict()` was a mutable default, so every app that didn't pass one
+    aliased *the same* dict — and the constructor then mutated it with its own
+    port. Building a second app silently rewrote the first app's port (and any
+    other run_kwargs, including the security-relevant `host`).
+    """
+    a = FastDash(callback_fn=simple_text_to_text_function, port=8001)
+    b = FastDash(callback_fn=simple_text_to_text_function, port=8002)
+
+    assert a.run_kwargs is not b.run_kwargs
+    assert a.run_kwargs["port"] == 8001      # not clobbered by b's construction
+    assert b.run_kwargs["port"] == 8002
+
+
+def test_caller_run_kwargs_dict_is_not_mutated():
+    "The dict the caller passed stays the caller's — we copy before mutating (#153)."
+    shared = {"host": "0.0.0.0"}
+    app = FastDash(callback_fn=simple_text_to_text_function, port=8003, run_kwargs=shared)
+
+    assert shared == {"host": "0.0.0.0"}     # no port injected into the caller's dict
+    assert app.run_kwargs == {"host": "0.0.0.0", "port": 8003}
