@@ -1343,6 +1343,9 @@ def _get_component_from_input(hint, default_value=None):
     # Resolve typing generics (Literal, Enum, Optional, Annotated, list[str], etc.)
     resolved = _resolve_typing_hint(hint, default_value)
     if resolved.component is not None:
+        resolved.component.tag = {"Literal": "Select", "Enum": "Select"}.get(
+            resolved.component.tag, resolved.component.tag
+        )
         return resolved.component
     hint = resolved.base_type
 
@@ -1396,7 +1399,7 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Sequence":
             component = Fastify(
-                dmc.Select(data=default_value), "value", tag=_hint_type
+                dmc.Select(data=default_value), "value", tag="Select"
             )
 
         elif _default_value_type == "Dictionary":
@@ -1428,12 +1431,12 @@ def _get_component_from_input(hint, default_value=None):
             component = Fastify(
                 dmc.NumberInput(value=hint(default_value)),
                 "value",
-                tag=_hint_type,
+                tag="NumberInput",
             )
 
         elif _default_value_type == "Numeric":
             component = Fastify(
-                dmc.NumberInput(value=default_value), "value", tag=_hint_type
+                dmc.NumberInput(value=default_value), "value", tag="NumberInput"
             )
 
         elif _default_value_type == "Sequence":
@@ -1445,7 +1448,7 @@ def _get_component_from_input(hint, default_value=None):
                 )
 
                 component = Fastify(
-                    dmc.Slider(min=start, max=stop, step=step), "value", tag=_hint_type
+                    dmc.Slider(min=start, max=stop, step=step), "value", tag="Slider"
                 )
 
             else:
@@ -1462,11 +1465,11 @@ def _get_component_from_input(hint, default_value=None):
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
                 "value",
-                tag=_hint_type,
+                tag="Slider",
             )
 
         else:
-            component = Fastify(dmc.NumberInput(), "value", tag=_hint_type)
+            component = Fastify(dmc.NumberInput(), "value", tag="NumberInput")
 
     elif _hint_type == "Sequence":
         if _default_value_type == "Text":
@@ -1519,11 +1522,11 @@ def _get_component_from_input(hint, default_value=None):
         # old dbc.Checkbox rendered with the Bootswatch accent (off-theme).
         if _default_value_type == "Boolean":
             component = Fastify(
-                dmc.Checkbox(checked=default_value), "checked", tag=_hint_type
+                dmc.Checkbox(checked=default_value), "checked", tag="Switch"
             )
 
         else:
-            component = Fastify(dmc.Checkbox(), "checked", tag=_hint_type)
+            component = Fastify(dmc.Checkbox(), "checked", tag="Switch")
 
     elif _hint_type == "Image":
         if _default_value_type == "Image":
@@ -1579,7 +1582,7 @@ def _get_component_from_input(hint, default_value=None):
                     style={"width": "100%"},
                 ),
                 "date",
-                tag=_hint_type,
+                tag="DateInput",
             )
 
         else:
@@ -1590,7 +1593,7 @@ def _get_component_from_input(hint, default_value=None):
                     style={"width": "100%"},
                 ),
                 "date",
-                tag=_hint_type,
+                tag="DateInput",
             )
 
     else:

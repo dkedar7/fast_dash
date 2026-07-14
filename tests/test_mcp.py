@@ -17,7 +17,12 @@ import enum
 import importlib.util
 import json
 import warnings
-from typing import Annotated, Optional, Tuple  # module-level for get_type_hints (#119, #132)
+from typing import (  # module-level for get_type_hints (#119, #132)
+    Annotated,
+    Literal,
+    Optional,
+    Tuple,
+)
 
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
@@ -656,6 +661,37 @@ class TestTools:
         assert by_id["color"]["tag"] == "ColorInput"
         assert by_id["bio"]["tag"] == "TextArea"
         assert by_id["name"]["tag"] == "Text"
+
+    def test_static_input_tags_match_component_types(self):
+        # #158: expose component types, not internal hint names such as Numeric
+        # or Boolean, so agents can cross-reference list_component_types().
+        def form(
+            plain: str = "hi",
+            choice: str = ["a", "b"],
+            literal: Literal["x", "y"] = "x",
+            flavor: Flavor = Flavor.VANILLA,
+            count: int = 1,
+            ratio: float = 0.5,
+            enabled: bool = True,
+            day: datetime.date = datetime.date(2024, 1, 1),
+        ) -> str:
+            return plain
+
+        c = _client_for(FastDash(callback_fn=form, mcp_server=True))
+        legal = set(_call(c, "list_component_types")["types"])
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+
+        assert {name: item["tag"] for name, item in by_id.items()} == {
+            "plain": "Text",
+            "choice": "Select",
+            "literal": "Select",
+            "flavor": "Select",
+            "count": "NumberInput",
+            "ratio": "NumberInput",
+            "enabled": "Switch",
+            "day": "DateInput",
+        }
+        assert {item["tag"] for item in by_id.values()} <= legal
 
     def test_password_value_goes_in_but_never_comes_back(self):
         # #151: the browser masks a PasswordInput; the unauthenticated /mcp route
