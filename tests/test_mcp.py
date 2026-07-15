@@ -17,7 +17,7 @@ import enum
 import importlib.util
 import json
 import warnings
-from typing import Annotated, Optional, Tuple  # module-level for get_type_hints (#119, #132)
+from typing import Annotated, Literal, Optional, Tuple  # module-level for get_type_hints (#119, #132)
 
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
@@ -640,6 +640,27 @@ class TestTools:
         after = _call(c, "describe_app")["outputs"]
         assert after[1]["current_value"] == "4 bars"   # live value, still typed
 
+    def test_dynamicdash_output_contract_is_not_empty(self):
+        # #160: the #152 output contract read the public `outputs_with_ids`, but
+        # DynamicDash stores its prepared outputs under `_outputs_with_ids`, so
+        # describe_app reported `outputs: []` for every DynamicDash — pushing an
+        # agent right back into discovering outputs by running the app. The
+        # contract must match the ids invoke() actually produces.
+        app = _dynamic_app()
+        c = _client_for(app)
+
+        outs = _call(c, "describe_app")["outputs"]
+        assert [(o["id"], o["tag"]) for o in outs] == [
+            ("dyn-output-0", "Graph"), ("dyn-output-1", "Markdown")]
+
+        _call(c, "set_form", {"specs": [{"name": "x", "type": "Slider",
+                                         "props": {"min": 0, "max": 10}}]})
+        _call(c, "set_inputs", {"inputs": {"x": 5}})
+        run = _call(c, "invoke", {"inputs": {}})
+        # The contract predicted exactly the ids a run produces — no need to run
+        # to find out.
+        assert set(run["outputs"]) == {o["id"] for o in outs}
+
     def test_str_hint_widgets_report_the_widget_they_became(self):
         # #147: a colour picker, a textarea and a text box are three different
         # widgets, but all three reported tag "Text" (the `str` hint), so a
@@ -656,6 +677,46 @@ class TestTools:
         assert by_id["color"]["tag"] == "ColorInput"
         assert by_id["bio"]["tag"] == "TextArea"
         assert by_id["name"]["tag"] == "Text"
+
+    def test_every_static_input_tag_is_a_real_widget_type(self):
+        # #158: #147 named the widget for the ColorInput/TextArea/Text branches
+        # but left the rest reporting the *hint* name. A str-with-list-default
+        # renders a Select yet reported "Text" (== a plain text box, the exact
+        # #147 failure mode), and int/bool/date/Literal reported internal names
+        # ("Numeric"/"Boolean"/"Date"/"Literal") absent from
+        # list_component_types(). The invariant: every static input's tag names a
+        # real widget an agent could reproduce with set_form.
+        # Hints must use module-level names (`datetime`, `Literal`) so
+        # get_type_hints resolves them under this file's future annotations —
+        # a function-local import would degrade to a text box (#119).
+        def demo(plain: str = "hi",
+                 choice: str = ["a", "b", "c"],          # -> Select
+                 lit: Literal["x", "y"] = "x",           # -> Select
+                 n: int = 5,                             # -> NumberInput
+                 rng: Annotated[int, range(0, 10)] = 5,  # -> Slider
+                 flag: bool = True,                      # -> Switch
+                 day: datetime.date = datetime.date(2024, 1, 1),  # -> DateInput
+                 tags: list = ["a", "b"]) -> str:        # -> MultiSelect
+            """Every widget kind."""
+            return "x"
+
+        c = _client_for(FastDash(callback_fn=demo, mcp_server=True))
+        legal = set(_call(c, "list_component_types")["types"])
+        by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
+
+        # The headline: a fixed-choice dropdown is no longer indistinguishable
+        # from a free-text box.
+        assert by_id["choice"]["tag"] == "Select"
+        assert by_id["plain"]["tag"] == "Text"
+        assert by_id["choice"]["tag"] != by_id["plain"]["tag"]
+
+        expected = {"plain": "Text", "choice": "Select", "lit": "Select",
+                    "n": "NumberInput", "rng": "Slider", "flag": "Switch",
+                    "day": "DateInput", "tags": "MultiSelect"}
+        assert {k: by_id[k]["tag"] for k in expected} == expected
+        # ...and every one is a type an agent could name in set_form.
+        for i in by_id.values():
+            assert i["tag"] in legal, f"{i['id']} tag {i['tag']!r} not in {sorted(legal)}"
 
     def test_password_value_goes_in_but_never_comes_back(self):
         # #151: the browser masks a PasswordInput; the unauthenticated /mcp route
