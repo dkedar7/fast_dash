@@ -651,12 +651,36 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-064">Release 0.6.4</h1>
+<h2 id="064-2026-07-15">0.6.4 (2026-07-15)</h2>
+<p>A follow-up to the 0.6.3 agent-contract work: two discoverability gaps the
+nightly dogfood found in the parts of it that didn't cover every path.</p>
+<h3 id="fixed">Fixed</h3>
+<ul>
+<li><strong><code>describe_app()</code> reported <code>outputs: []</code> for every <code>DynamicDash</code> app</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/160">#160</a>).
+  The 0.6.3 output contract (<a href="https://github.com/dkedar7/fast_dash/issues/152">#152</a>) read the public <code>outputs_with_ids</code>, but
+  <code>DynamicDash</code> keeps its prepared outputs under <code>_outputs_with_ids</code>, so a
+  headless agent driving a <code>DynamicDash</code> was pushed right back into discovering
+  outputs by <em>running</em> the app — the exact thing the output contract exists to
+  prevent. It now reports the real outputs (matching the ids <code>invoke</code> produces),
+  the same private-name fallback <code>_enumerate_outputs</code> already used.</li>
+<li><strong><code>describe_app()</code> still reported <code>tag: "Text"</code> for a dropdown</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/158">#158</a>). The
+  #147 widget-tag fix covered the <code>ColorInput</code> and <code>TextArea</code> branches but left
+  the sibling <code>Select</code> branch and the numeric / boolean / date / <code>Literal</code>
+  branches reporting the <em>hint</em> name — so a <code>str</code>-with-list-default dropdown was
+  indistinguishable from a plain text box (the very #147 failure mode), and
+  <code>int</code>/<code>bool</code>/<code>date</code>/<code>Literal</code> reported internal names (<code>"Numeric"</code>,
+  <code>"Boolean"</code>, <code>"Date"</code>, <code>"Literal"</code>) absent from <code>list_component_types()</code>. Every
+  static input's <code>tag</code> now names the widget it actually became — <code>Select</code>,
+  <code>NumberInput</code>, <code>Slider</code>, <code>Switch</code>, <code>DateInput</code>, <code>MultiSelect</code>, <code>UploadImage</code> —
+  and is guaranteed to be a member of <code>list_component_types()</code>.</li>
+</ul>
 <h1 id="release-063">Release 0.6.3</h1>
 <h2 id="063-2026-07-13">0.6.3 (2026-07-13)</h2>
 <p>An <strong>agent-contract</strong> release: the MCP surface now describes what an app really
 is, and refuses what its UI could never produce. Every open bug at the time of
 writing is fixed.</p>
-<h3 id="fixed">Fixed</h3>
+<h3 id="fixed_1">Fixed</h3>
 <ul>
 <li><strong><code>Tuple[int, str]</code> return hints silently dropped outputs</strong> (<a href="https://github.com/dkedar7/fast_dash/issues/156">#156</a>). Only the
   bare parenthesized spelling <code>-&gt; (int, str)</code> produced two outputs; the
@@ -806,7 +830,7 @@ thinking block, a <code>write_todos</code> result becomes a task list with statu
   friendly ASCII error. Only used for a LangGraph agent; a plain chat callable
   ignores it silently.</li>
 </ul>
-<h3 id="fixed_1">Fixed</h3>
+<h3 id="fixed_2">Fixed</h3>
 <ul>
 <li>Inline artifact tables render as a real <code>DataTable</code> again (a <code>className</code> kwarg
   unsupported by <code>dash_table.DataTable</code> on dash 4.3 had been silently falling back
@@ -954,7 +978,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </table>
 <h1 id="release-055">Release 0.5.5</h1>
 <h2 id="055-2026-07-05">0.5.5 (2026-07-05)</h2>
-<h3 id="fixed_2">Fixed</h3>
+<h3 id="fixed_3">Fixed</h3>
 <ul>
 <li><strong><code>chat_agent_position="sidebar"</code> layout.</strong> The wider (420px) sidebar wasn't
   reaching Mantine's AppShell: the <code>toggle_sidebar</code> callback reset the navbar to
