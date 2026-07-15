@@ -1,5 +1,35 @@
 # History
 
+# Release 0.6.4
+
+## 0.6.4 (2026-07-15)
+
+A follow-up to the 0.6.3 agent-contract work: two discoverability gaps the
+nightly dogfood found in the parts of it that didn't cover every path.
+
+### Fixed
+
+- **`describe_app()` reported `outputs: []` for every `DynamicDash` app** ([#160]).
+  The 0.6.3 output contract ([#152]) read the public `outputs_with_ids`, but
+  `DynamicDash` keeps its prepared outputs under `_outputs_with_ids`, so a
+  headless agent driving a `DynamicDash` was pushed right back into discovering
+  outputs by *running* the app — the exact thing the output contract exists to
+  prevent. It now reports the real outputs (matching the ids `invoke` produces),
+  the same private-name fallback `_enumerate_outputs` already used.
+- **`describe_app()` still reported `tag: "Text"` for a dropdown** ([#158]). The
+  #147 widget-tag fix covered the `ColorInput` and `TextArea` branches but left
+  the sibling `Select` branch and the numeric / boolean / date / `Literal`
+  branches reporting the *hint* name — so a `str`-with-list-default dropdown was
+  indistinguishable from a plain text box (the very #147 failure mode), and
+  `int`/`bool`/`date`/`Literal` reported internal names (`"Numeric"`,
+  `"Boolean"`, `"Date"`, `"Literal"`) absent from `list_component_types()`. Every
+  static input's `tag` now names the widget it actually became — `Select`,
+  `NumberInput`, `Slider`, `Switch`, `DateInput`, `MultiSelect`, `UploadImage` —
+  and is guaranteed to be a member of `list_component_types()`.
+
+[#158]: https://github.com/dkedar7/fast_dash/issues/158
+[#160]: https://github.com/dkedar7/fast_dash/issues/160
+
 # Release 0.6.3
 
 ## 0.6.3 (2026-07-13)

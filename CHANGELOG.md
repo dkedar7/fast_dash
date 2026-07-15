@@ -1,4 +1,18 @@
-# Release 0.6.3
+# Release 0.6.4
+
+## 0.6.4 (2026-07-15)
+
+Two agent-contract discoverability gaps the nightly dogfood found in 0.6.3.
+
+### Fixed
+- **`describe_app()` reported `outputs: []` for every `DynamicDash` app** (#160) —
+  the #152 output contract read the public `outputs_with_ids`, but `DynamicDash`
+  stores its outputs under `_outputs_with_ids`. It now reports the real outputs.
+- **`describe_app()` still reported `tag: "Text"` for a dropdown** (#158) — #147
+  named the widget for the ColorInput/TextArea branches only; the Select branch
+  and int/bool/date/Literal reported hint names absent from
+  `list_component_types()`. Every static input's `tag` now names the widget it
+  became and is a member of `list_component_types()`.
 
 ## 0.6.3 (2026-07-13)
 

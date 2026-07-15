@@ -57,7 +57,7 @@ use that to build a valid `invoke` call:
   "title": "Plot Bars",
   "doc": "Plot a bar chart with n bars in the chosen color.",
   "inputs": [
-    {"id": "n",     "tag": "Slider",     "type": "integer", "default": 6,         "options": null, "current_value": 6,         "secret": false},
+    {"id": "n",     "tag": "NumberInput", "type": "integer", "default": 6,        "options": null, "current_value": 6,         "secret": false},
     {"id": "color", "tag": "ColorInput", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6", "secret": false}
   ],
   "outputs": [

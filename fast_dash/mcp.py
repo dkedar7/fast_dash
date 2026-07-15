@@ -634,7 +634,9 @@ def _describe_static_inputs(fd, snapshot):
         cur = snapshot.get(cid, snapshot.get(param))
         entry = {
             "id": cid,
-            "tag": d["tag"],
+            # The widget actually rendered, named as list_component_types() --
+            # not the hint name static inference stamps on `tag` (#147/#158).
+            "tag": _input_widget_tag(components.get(cid), d["tag"]),
             "type": jtype,
             "options": _jsonify_for_mcp(options),
             "secret": cid in secrets,          # PasswordInput: value never echoed (#151)
@@ -677,6 +679,54 @@ def _output_kind(comp):
     return _OUTPUT_KIND.get(name, (name, "object"))
 
 
+# Live widget class -> the canonical widget name from list_component_types()
+# (the DynamicDash COMPONENT_REGISTRY keys). What static inference *actually*
+# builds, empirically -- e.g. a hex-default str becomes a dmc.ColorInput, a
+# list-default str becomes a dmc.Select, a bool becomes a dmc.Checkbox (whose
+# spec-level equivalent is "Switch").
+_INPUT_WIDGET_TAG = {
+    "TextInput": "Text",
+    "Textarea": "TextArea",
+    "ColorInput": "ColorInput",
+    "PasswordInput": "PasswordInput",
+    "NumberInput": "NumberInput",
+    "Slider": "Slider",
+    "RangeSlider": "Slider",
+    "Select": "Select",
+    "MultiSelect": "MultiSelect",
+    "Checkbox": "Switch",
+    "Switch": "Switch",
+    "DatePickerSingle": "DateInput",
+    "DateInput": "DateInput",
+    "DatePickerRange": "DateRange",
+    "DatePickerInput": "DateRange",
+    "Markdown": "Markdown",
+}
+
+
+def _input_widget_tag(component, raw_tag):
+    """The widget a static input actually became, named as list_component_types().
+
+    ``describe_app`` reports whatever ``tag`` the component was built with, but
+    static inference stamps the *hint* name there, not the widget's: a
+    list-default ``str`` renders a Select yet carries tag ``"Text"`` (identical
+    to a plain text box), and int/bool/date/Literal carry internal names
+    (``"Numeric"``/``"Boolean"``/``"Date"``/``"Literal"``) that aren't in
+    ``list_component_types()`` at all (#147 fixed only the ColorInput/TextArea
+    branches; #158 is the rest). The raw tag can't be trusted -- that Select
+    literally says ``"Text"`` -- so read the live widget class, which is honest.
+    Fall back to the raw tag for a user-supplied component we don't recognize.
+    """
+    # The image-upload widget is a bare dcc.Upload; only its construction tag
+    # distinguishes it from a file upload.
+    if raw_tag == "Image":
+        return "UploadImage"
+    name = type(getattr(component, "component", component)).__name__
+    if name == "Upload":
+        return "UploadImage" if raw_tag == "Image" else "Upload"
+    return _INPUT_WIDGET_TAG.get(name, raw_tag)
+
+
 def _describe_outputs(fd, state=None):
     """Per-output contract: what ``invoke`` will produce, without running it.
 
@@ -688,7 +738,15 @@ def _describe_outputs(fd, state=None):
     from fast_dash.Components import expand_return_annotation
     from fast_dash.utils import _summarize_for_history
 
-    components = list(getattr(fd, "outputs_with_ids", None) or [])
+    # DynamicDash stores its prepared outputs under the private name, same as
+    # _enumerate_outputs already reaches for — without this fallback the output
+    # contract was empty for every DynamicDash app, pushing an agent right back
+    # into discovering outputs by running the app (#160).
+    components = list(
+        getattr(fd, "outputs_with_ids", None)
+        or getattr(fd, "_outputs_with_ids", None)
+        or []
+    )
     anns = []
     # Only consult the annotation when the outputs were built *from* it. An
     # explicit `outputs=[Graph]` wins over a `-> str` hint, and the contract has
