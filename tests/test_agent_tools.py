@@ -197,6 +197,8 @@ class TestSetInput:
 @requires_agent
 class TestRunAppAndLayout:
     def test_run_app_emits_frame(self):
+        # Off-turn (bare turn_buffer, no drive inputs seeded): keep the old
+        # fire-and-forget behavior -- a plain frame the drain will run.
         app = _sidecar_app(("run_app",))
         run_app = _tool(AT.agent_toolkit(app), "run_app")
         with AT.turn_buffer():
@@ -217,6 +219,158 @@ class TestRunAppAndLayout:
             set_output.invoke({"slot": "A", "value": 42})
             assert AT.drain_frames() == [
                 {"type": "set_output", "slot": "A", "value": 42}]
+
+
+@requires_agent
+class TestRunAppClosesTheLoop:
+    """#135: run_app runs the callback and REPORTS the result to the model.
+
+    Before this, run_app only queued a frame and returned "outputs are
+    updating" -- the agent could trigger a run but was blind to what it
+    produced. Now, inside a seeded drive turn, run_app runs the callback, returns
+    a summary naming each output slot, and marks its frame so the frame drain
+    renders the carried outputs instead of running the callback a second time.
+    """
+
+    def test_run_app_runs_and_reports_the_outputs(self):
+        app = _sidecar_app(("set_input", "run_app"))     # _add(a, b) -> int
+        tk = AT.agent_toolkit(app)
+        run_app, set_input = _tool(tk, "run_app"), _tool(tk, "set_input")
+        with AT.turn_buffer({"a": 1, "b": 2}):
+            set_input.invoke({"name": "a", "value": 10})
+            reply = run_app.invoke({})
+        # The model is told what the run produced (10 + 2 == 12), not just that
+        # outputs are "updating".
+        assert "updating" not in reply
+        assert "A:" in reply and "12" in reply
+
+    def test_run_app_runs_on_the_value_set_this_turn(self):
+        # set_input stages into the shared per-turn dict, so a following run_app
+        # in the same turn runs on the value just set (not the turn-start value).
+        app = _sidecar_app(("set_input", "run_app"))
+        tk = AT.agent_toolkit(app)
+        run_app, set_input = _tool(tk, "run_app"), _tool(tk, "set_input")
+        with AT.turn_buffer({"a": 1, "b": 2}):
+            set_input.invoke({"name": "a", "value": 100})
+            set_input.invoke({"name": "b", "value": 5})
+            reply = run_app.invoke({})
+        assert "105" in reply
+
+    def test_run_app_frame_carries_outputs_so_dispatch_does_not_rerun(self):
+        # The single callback execution IS the run; the frame carries its outputs
+        # so the drain renders them rather than running the callback again.
+        calls = {"n": 0}
+
+        def counting(x: int = 1) -> int:
+            """count."""
+            calls["n"] += 1
+            return x * 10
+
+        app = FastDash(callback_fn=counting, chat=_stub_agent,
+                       chat_tools=("run_app",), title="Count")
+        run_app = _tool(AT.agent_toolkit(app), "run_app")
+        with AT.turn_buffer({"x": 4}):
+            run_app.invoke({})
+            frames = AT.drain_frames()
+
+        assert calls["n"] == 1                            # ran exactly once
+        run_frame = next(f for f in frames if f["type"] == "run_app")
+        assert run_frame.get("ran") is True
+        assert run_frame.get("outputs") == [40]           # rendered, not re-run
+
+    def test_run_app_reports_a_callback_error_without_a_frame(self):
+        def boom(x: int = 1) -> int:
+            """boom."""
+            raise ValueError("kaboom")
+
+        app = FastDash(callback_fn=boom, chat=_stub_agent,
+                       chat_tools=("run_app",), title="Boom")
+        run_app = _tool(AT.agent_toolkit(app), "run_app")
+        with AT.turn_buffer({"x": 1}):
+            reply = run_app.invoke({})
+            frames = AT.drain_frames()
+        # The model is told it failed (so it can fix inputs), and no run_app
+        # frame is emitted (nothing ran to render).
+        assert "error" in reply.lower() and "kaboom" in reply
+        assert not any(f["type"] == "run_app" for f in frames)
+
+    def test_run_app_off_turn_keeps_fire_and_forget(self):
+        # No seeded drive turn -> the fallback frame the drain will run.
+        app = _sidecar_app(("run_app",))
+        run_app = _tool(AT.agent_toolkit(app), "run_app")
+        with AT.turn_buffer():                            # None, not a drive turn
+            reply = run_app.invoke({})
+            assert AT.drain_frames() == [{"type": "run_app"}]
+        assert "updating" in reply
+
+    def test_run_app_summary_withholds_output_derived_from_a_secret(self):
+        # The sidecar guarantees a PasswordInput value never reaches the LLM, but
+        # a callback may derive an output from it. run_app's summary must then
+        # report shape/type only -- never the value -- so a decrypt/echo app
+        # can't leak the secret back to the model through the run report.
+        from fast_dash import PasswordInput
+
+        def reveal(user: str = "kedar", password: PasswordInput = "hunter2") -> str:
+            """Worst case: an output that echoes the secret."""
+            return "%s:%s" % (user, password)
+
+        app = FastDash(callback_fn=reveal, chat=_stub_agent,
+                       chat_tools=("run_app",), title="Reveal")
+        assert app._sidecar_secret_inputs == {"password"}
+        run_app = _tool(AT.agent_toolkit(app), "run_app")
+        with AT.turn_buffer({"user": "kedar", "password": "hunter2"}):
+            reply = run_app.invoke({})
+        assert "hunter2" not in reply                     # secret withheld
+        assert "text (" in reply                          # shape reported instead
+
+    def test_run_app_summary_keeps_full_value_without_secrets(self):
+        # No secret inputs -> the model gets the real output value (the point of
+        # the feature: read the result and react to it).
+        def calc(n: int = 3) -> str:
+            """calc."""
+            return "answer is %d" % (n * 2)
+
+        app = FastDash(callback_fn=calc, chat=_stub_agent,
+                       chat_tools=("run_app",), title="Calc")
+        assert app._sidecar_secret_inputs == set()
+        run_app = _tool(AT.agent_toolkit(app), "run_app")
+        with AT.turn_buffer({"n": 5}):
+            reply = run_app.invoke({})
+        assert "answer is 10" in reply
+
+
+class TestBriefOutput:
+    """The model-facing one-liner per output value (no agent extra needed)."""
+
+    def test_figure_reports_traces_and_title(self):
+        import plotly.graph_objects as go
+        fig = go.Figure(go.Bar(x=[1], y=[1]), layout={"title": "Sales"})
+        assert AT._brief_output(fig) == "a figure with 1 trace titled 'Sales'"
+
+    def test_dataframe_reports_shape(self):
+        import pandas as pd
+        df = pd.DataFrame({"a": [1, 2, 3], "b": [4, 5, 6]})
+        assert AT._brief_output(df) == "a table (3 rows x 2 cols)"
+
+    def test_short_scalar_and_string_pass_through(self):
+        assert AT._brief_output(42) == "42"
+        assert AT._brief_output("hi") == "'hi'"
+
+    def test_bytes_output_is_prose_not_a_raw_dict(self):
+        # The summarizer returns a {type: bytes, size, sha1} dict for bytes; the
+        # brief must render prose, not dump the dict at the model.
+        out = AT._brief_output(b"\x00\x01\x02\x03")
+        assert out == "binary data (4 bytes)"
+        assert "{" not in out
+
+    def test_redact_reports_shape_without_values(self):
+        import plotly.graph_objects as go
+        assert AT._brief_output(42, redact=True) == "a number"
+        assert AT._brief_output(True, redact=True) == "a boolean"
+        assert AT._brief_output("s3cr3t-value", redact=True) == "text (12 chars)"
+        # A figure's title could echo a secret -- dropped under redaction.
+        fig = go.Figure(go.Bar(x=[1], y=[1]), layout={"title": "s3cr3t"})
+        assert AT._brief_output(fig, redact=True) == "a figure with 1 trace"
 
 
 # --------------------------------------------------------------------------- #

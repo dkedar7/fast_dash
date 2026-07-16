@@ -47,6 +47,21 @@ _FRAME_BUFFER: contextvars.ContextVar[list] = contextvars.ContextVar(
     "fast_dash_frame_buffer", default=None
 )
 
+# The per-turn app-input state the drive tools share: ``set_input`` writes staged
+# values here, ``run_app`` reads them to run the callback. Seeded by the sidecar
+# turn loop with the *same* dict object the turn uses to dispatch frames (via
+# ``turn_buffer``), so a tool mutating it in place is seen both by ``run_app``
+# (same graph, another task) and by the frame drain -- the exact cross-task
+# sharing that already makes ``_FRAME_BUFFER`` work.
+_DRIVE_INPUTS: contextvars.ContextVar[dict] = contextvars.ContextVar(
+    "fast_dash_drive_inputs", default=None
+)
+
+
+def current_drive_inputs():
+    """The mutable per-turn app-input dict, or None outside a seeded turn."""
+    return _DRIVE_INPUTS.get()
+
 
 def emit_frame(frame: dict) -> None:
     """Append ``frame`` to the current turn's buffer (no-op if none is active).
@@ -76,14 +91,22 @@ def drain_frames() -> list[dict]:
 
 
 @contextlib.contextmanager
-def turn_buffer():
+def turn_buffer(drive_inputs=None):
     """Open a fresh frame buffer for one turn; clear it on exit.
 
     The sidecar turn loop wraps a turn in this so ``emit_frame`` calls made by
     tools during the turn accumulate in an isolated list, and nothing leaks into
-    the next turn.
+    the next turn. ``drive_inputs`` (the turn's own app-input dict) is published
+    for the drive tools to read/write in place; pass the SAME object the turn
+    dispatches frames against so ``set_input`` and ``run_app`` stay in lockstep
+    with it.
     """
-    token = _FRAME_BUFFER.set([])
+    frame_token = _FRAME_BUFFER.set([])
+    # None (the bare turn_buffer() unit-test / off-turn case) means "not a drive
+    # turn" -- run_app then keeps its fire-and-forget behavior. A real sidecar
+    # turn always passes a dict (even {} for an input-less app), enabling the
+    # run-in-tool path that reports the result.
+    drive_token = _DRIVE_INPUTS.set(drive_inputs)
     try:
         yield
     finally:
@@ -91,7 +114,8 @@ def turn_buffer():
         buf = _FRAME_BUFFER.get()
         if buf is not None:
             buf[:] = []
-        _FRAME_BUFFER.reset(token)
+        _FRAME_BUFFER.reset(frame_token)
+        _DRIVE_INPUTS.reset(drive_token)
 
 
 # --------------------------------------------------------------------------- #
@@ -242,6 +266,78 @@ def _summarize_py_result(res: dict) -> str:
 _SLOT_LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
 
+def _brief_output(value, redact=False) -> str:
+    """A one-line, model-facing description of one output value.
+
+    Reuses the MCP history summarizer, then flattens its dict form into prose a
+    model reads at a glance: a figure's trace count + title, a table's shape, a
+    long string's preview. Short scalars/strings pass through verbatim.
+
+    ``redact=True`` reports **shape/type only** -- trace count, table dimensions,
+    text length -- and never a value, title, or preview. The sidecar guarantees a
+    PasswordInput's value never reaches the LLM (it redacts ctx.inputs), but a
+    callback may *derive* an output from that secret (a decrypt/echo app), so when
+    the app has any secret input the run summary must not carry output *content*
+    back to the model (found in adversarial review of #135).
+    """
+    from .utils import _summarize_for_history
+
+    # Value-bearing shapes handled before the summarizer, so redaction sees the
+    # real type (the summarizer passes short scalars/strings through verbatim).
+    if isinstance(value, bool):
+        return "a boolean" if redact else str(value)
+    if isinstance(value, (int, float)):
+        return "a number" if redact else str(value)
+    if isinstance(value, str):
+        if redact:
+            return "text (%d chars)" % len(value)
+        return "text (%d chars): %r" % (len(value), value[:80]) if len(value) > 200 \
+            else repr(value)
+
+    s = _summarize_for_history(value)
+    if not isinstance(s, dict):
+        return str(s)
+    kind = s.get("type")
+    if kind == "Figure":
+        n = s.get("n_traces", 0)
+        bit = "a figure with %d trace%s" % (n, "" if n == 1 else "s")
+        title = s.get("layout_title")
+        return bit if redact else bit + (" titled %r" % title if title else "")
+    if kind == "DataFrame":
+        shape = s.get("shape") or [None, None]
+        return "a table (%s rows x %s cols)" % (shape[0], shape[1])
+    if kind == "Image":
+        return "an image" if redact else "an image (%s %s)" % (s.get("mode"), s.get("size"))
+    if kind == "data_url":
+        return "an image (%s)" % s.get("mime")
+    if kind == "bytes":
+        return "binary data (%d bytes)" % s.get("size", 0)
+    if kind in ("list", "dict"):
+        return "a %s of %d item%s" % (kind, s.get("len"), "" if s.get("len") == 1 else "s")
+    return kind if redact else "%s %s" % (kind, s.get("repr", ""))
+
+
+def _summarize_run(app, raw_outputs) -> str:
+    """Model-facing summary of a run: each output slot and what it now holds.
+
+    ``raw_outputs`` is the callback's own return list (before the display
+    transform), which describes far more cleanly than the transformed props.
+    This is the reply ``run_app`` hands back so the agent can *see* what its run
+    produced rather than being told the outputs are merely "updating". When the
+    app has a secret (password) input, values are withheld -- shape/type only --
+    so an output derived from the secret can't slip back to the model (#135).
+    """
+    redact = bool(getattr(app, "_sidecar_secret_inputs", None))
+    slots = _output_slots(app)
+    lines = ["Ran the app. It produced:"]
+    for i, value in enumerate(raw_outputs):
+        slot = slots[i]["slot"] if i < len(slots) else "slot %d" % i
+        lines.append("- %s: %s" % (slot, _brief_output(value, redact=redact)))
+    if len(raw_outputs) == 0:
+        lines.append("- (no outputs)")
+    return "\n".join(lines)
+
+
 def _output_slots(app) -> list[dict]:
     """``[{"slot": "A", "type": "Graph"}, ...]`` for the app's output components.
 
@@ -351,16 +447,38 @@ def agent_toolkit(app) -> list:
         err = app._sidecar_validate_input(name, value)
         if err:
             return err                                   # no frame -- model retries
+        # Stage into the shared per-turn dict so a following run_app (same turn,
+        # another graph task) runs on this value -- the frame drain reads the
+        # same object, so the two never diverge.
+        staged = current_drive_inputs()
+        if staged is not None:
+            staged[name] = value
         emit_frame({"type": "set_input", "name": name, "value": value})
         return "Set input '%s' to %r." % (name, value)
 
     @tool
     def run_app() -> str:
-        """Run the app with the current inputs and stream its outputs to the UI.
+        """Run the app with the current inputs and return what it produced.
         Use after set_input to apply changes. A Run always overwrites the
-        outputs, so call this last."""
-        emit_frame({"type": "run_app"})
-        return "Ran the app; its outputs are updating."
+        outputs, so call this last. The reply names each output slot and
+        summarizes its value, so you can see the result and react to it."""
+        staged = current_drive_inputs()
+        run = getattr(app, "_sidecar_run_app_with_result", None)
+        # Off-turn (no seeded turn) or a non-sidecar app: keep the old fire-and-
+        # forget behavior -- emit the frame for the drain to run, return a note.
+        if staged is None or run is None:
+            emit_frame({"type": "run_app"})
+            return "Ran the app; its outputs are updating."
+        try:
+            outputs, raw = run(dict(staged))
+        except Exception as exc:                          # noqa: BLE001
+            # The run failed; nothing to render. Tell the model so it can fix the
+            # inputs and try again.
+            return "The app raised an error while running: %s" % exc
+        # Carry the computed outputs so the frame drain renders them instead of
+        # running the callback a second time (single execution per run_app).
+        emit_frame({"type": "run_app", "outputs": outputs, "ran": True})
+        return _summarize_run(app, raw)
 
     @tool
     def set_output(slot: str, value: Any) -> str:
@@ -553,7 +671,9 @@ def app_prompt(app) -> str:
     guidance = {
         "read_app": "read_app() -- read the app's inputs, current values, and output slots.",
         "set_input": "set_input(name, value) -- stage an input change (validated).",
-        "run_app": "run_app() -- run the app on the current inputs and stream outputs.",
+        "run_app": "run_app() -- run the app on the current inputs; returns a "
+                   "summary of each output slot's new value, so you can see the "
+                   "result and react to it.",
         "set_output": "set_output(slot, value) -- set one output slot directly.",
         "set_layout": "set_layout(mosaic) -- rearrange/resize existing slots.",
         "run_python": "run_python(code) -- run Python for computation the inputs can't express; "

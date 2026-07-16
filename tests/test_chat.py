@@ -2384,6 +2384,28 @@ class TestAutoAgentEndToEnd:
         assert app.output_state == ["sum=12"]         # server state mirrored
         assert app.chat_history.get("s1")[-1]["content"].startswith("I set a to 10")
 
+    def test_run_app_runs_the_callback_exactly_once(self):
+        # #135, end to end: the run_app tool runs the callback (to report the
+        # result to the model) and carries the outputs on its frame so the drain
+        # renders them WITHOUT a second execution. Guards the double-run the
+        # frame-carry mechanism exists to prevent. (That the model is shown the
+        # summary is asserted on the tool's return value in test_agent_tools.)
+        from langchain_core.messages import AIMessage
+        calls = {"n": 0}
+        def dashboard(a: int = 1) -> str:
+            calls["n"] += 1
+            return f"answer={a}"
+        model = _scripted_tool_model([
+            AIMessage(content="", tool_calls=[
+                {"name": "run_app", "args": {}, "id": "c1"}]),
+            AIMessage(content="Ran it."),
+        ])
+        app = FastDash(callback_fn=dashboard, chat=True, chat_model=model)
+        ops = self._ops(app, "run it", app_inputs={"a": 7})
+        drive = [p for ev, p in ops if ev == "chat_drive"]
+        assert calls["n"] == 1                            # ran exactly once
+        assert any(d.get("outputs") == ["answer=7"] and d.get("ran") for d in drive)
+
     def test_model_instance_is_not_mistaken_for_a_graph(self):
         # A chat model is a LangChain Runnable, so it carries get_graph +
         # astream just like a compiled graph -- but it also has bind_tools. It
