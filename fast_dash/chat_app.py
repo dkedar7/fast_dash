@@ -317,6 +317,20 @@ class ChatAppMixin:
         drive produces exactly what a manual Run would. Returns the list of
         output-component property values (figures, tables, text, ...).
         """
+        return self._sidecar_run_app_with_result(drive_inputs)[0]
+
+    def _sidecar_run_app_with_result(self, drive_inputs):
+        """Run the callback; return ``(outputs, raw_return_values)``.
+
+        ``outputs`` is the transformed list a Run pushes to the components;
+        ``raw_return_values`` is the callback's own return (a figure, DataFrame,
+        string, ...), which summarizes far more cleanly than its transformed form
+        — the auto-agent's ``run_app`` tool needs it to tell the model what the
+        run produced (closing the loop: the agent can now *see* its own run's
+        output, not just trigger it). The single callback execution here is the
+        run: the ``run_app`` frame it emits carries these outputs so the frame
+        drain renders them instead of running the callback a second time.
+        """
         from .utils import _transform_inputs, _transform_outputs
         raw = [drive_inputs.get(n) for n in self._chat_input_names]
         inputs = _transform_inputs(raw, self.input_tags)
@@ -337,7 +351,7 @@ class ChatAppMixin:
             self.latest_output_state = outputs
             self.app_initialized = True
         self._sidecar_sync_mcp_mirror(drive_inputs)
-        return outputs
+        return outputs, result
 
     def _output_slot_letters(self):
         """The stable mosaic slot letters for this app's outputs (sorted)."""
@@ -1818,7 +1832,14 @@ class ChatAppMixin:
                     # latest-value-wins, so a trailing run_app must carry the
                     # inputs set earlier this turn or they'd be clobbered.
                     try:
-                        outputs = self._sidecar_run_app(drive_inputs)
+                        if frame.get("ran"):
+                            # The auto-agent's run_app tool already ran the
+                            # callback (to summarize its result for the model) and
+                            # carried the outputs on the frame -- render them,
+                            # don't run a second time.
+                            outputs = frame.get("outputs") or []
+                        else:
+                            outputs = self._sidecar_run_app(drive_inputs)
                         # Mirror the run's outputs so a later set_layout keeps
                         # them (Bug 3).
                         self._mirror_outputs(sid, outputs)
@@ -1948,7 +1969,11 @@ class ChatAppMixin:
 
         from .chat import ChatFrameError
         try:
-            with _turn_buffer():
+            # Seed the drive tools with THIS turn's input dict (same object the
+            # frame drain mutates), so an auto-agent's run_app runs on the inputs
+            # it just staged and can report the result. nullcontext ignores the
+            # arg when the [agent] extra is absent.
+            with _turn_buffer(drive_inputs):
                 result = run_turn(
                     self._chat_fn, query,
                     history=history, settings=settings, emit=_on_frame,

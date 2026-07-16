@@ -1,5 +1,32 @@
 # History
 
+# Release 0.6.5
+
+## 0.6.5 (2026-07-16)
+
+Closes the agent loop: an auto-built chat assistant can now **see what its own
+run produced**, not just trigger it.
+
+### Changed
+
+- **`run_app` reports its result to the assistant** (RFC [#135]). The auto-agent's
+  `run_app` tool used to emit a run and return a canned *"outputs are updating"*
+  — so the model could trigger a run but was blind to what it produced, unable to
+  react to (say) an empty chart or an error. It now runs the callback, returns a
+  summary of each output slot's new value (a figure's traces + title, a table's
+  shape, a text preview), and carries those outputs on its frame so the browser
+  renders them **without running the callback a second time** (exactly one
+  execution per `run_app`). A callback error is reported back to the model so it
+  can correct the inputs and retry. The raw-frame / langstage drive path
+  (`yield {"type": "run_app"}`) is unchanged — it still runs on dispatch.
+    - **Secret guarantee preserved.** The sidecar already keeps a `PasswordInput`
+      value out of the model's context. Because a callback can *derive* an output
+      from that secret, the run summary reports **shape/type only** (trace count,
+      table dimensions, text length — never a value, title, or preview) whenever
+      the app has a secret input; apps without one keep full output fidelity.
+
+[#135]: https://github.com/dkedar7/fast_dash/issues/135
+
 # Release 0.6.4
 
 ## 0.6.4 (2026-07-15)

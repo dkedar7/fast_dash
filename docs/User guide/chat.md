@@ -256,6 +256,12 @@ To wire the toolkit into an agent you build yourself, call `agent_toolkit(app)`
 for the tools and `app_prompt(app)` for a system prompt, or attach
 `FastDashMiddleware(app)` to a LangChain `create_agent`.
 
+`run_app` **returns a summary of what the run produced** — each output slot and
+its new value (a figure's traces + title, a table's shape, a text preview) — so
+the assistant can *see* the result of the run it triggered and react to it (e.g.
+notice an empty chart and adjust the inputs), not just fire it and move on. The
+callback still runs exactly once per `run_app`.
+
 The auto-trim rules keep the assistant safe by default: on an `update_live` app
 every app-driving verb is dropped (its inputs recompute on change, so driving
 would double-run the callback or be immediately overwritten — the assistant is
@@ -275,7 +281,10 @@ set (Stop means "stop now", not "undo").
     A `PasswordInput`'s value is **redacted** from `ctx.inputs`, omitted from
     `ctx.input_specs` / `app_tool_specs`, and `set_input` on it is refused — so a
     secret the user typed is never sent to the model and the agent can't set it.
-    `run_app` still runs the callback with the real value.
+    `run_app` still runs the callback with the real value. Because an output can
+    *derive* from that secret, `run_app`'s result summary reports **shape/type
+    only** (no values) when the app has any secret input, so the secret can't
+    slip back to the model through the run report either.
 
 !!! note "Large outputs"
     `run_app`'s outputs are streamed to the browser like any other update; a

@@ -1,4 +1,18 @@
-# Release 0.6.4
+# Release 0.6.5
+
+## 0.6.5 (2026-07-16)
+
+Closes the agent loop: an auto-built chat assistant can now see what its own run
+produced, not just trigger it.
+
+### Changed
+- **`run_app` reports its result to the assistant** (#135) — the auto-agent's
+  `run_app` tool used to return a canned "outputs are updating", leaving the
+  model blind to what it produced. It now runs the callback, returns a summary of
+  each output slot's new value, and carries those outputs on its frame so the
+  browser renders them without a second execution (exactly one run per
+  `run_app`). Callback errors are reported back so the model can retry. The
+  raw-frame / langstage drive path is unchanged.
 
 ## 0.6.4 (2026-07-15)
 
