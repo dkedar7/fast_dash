@@ -1144,6 +1144,11 @@ chat with no app access at all.</p>
 <p>To wire the toolkit into an agent you build yourself, call <code>agent_toolkit(app)</code>
 for the tools and <code>app_prompt(app)</code> for a system prompt, or attach
 <code>FastDashMiddleware(app)</code> to a LangChain <code>create_agent</code>.</p>
+<p><code>run_app</code> <strong>returns a summary of what the run produced</strong> — each output slot and
+its new value (a figure's traces + title, a table's shape, a text preview) — so
+the assistant can <em>see</em> the result of the run it triggered and react to it (e.g.
+notice an empty chart and adjust the inputs), not just fire it and move on. The
+callback still runs exactly once per <code>run_app</code>.</p>
 <p>The auto-trim rules keep the assistant safe by default: on an <code>update_live</code> app
 every app-driving verb is dropped (its inputs recompute on change, so driving
 would double-run the callback or be immediately overwritten — the assistant is
@@ -1162,7 +1167,10 @@ set (Stop means "stop now", not "undo").</p>
 <p>A <code>PasswordInput</code>'s value is <strong>redacted</strong> from <code>ctx.inputs</code>, omitted from
 <code>ctx.input_specs</code> / <code>app_tool_specs</code>, and <code>set_input</code> on it is refused — so a
 secret the user typed is never sent to the model and the agent can't set it.
-<code>run_app</code> still runs the callback with the real value.</p>
+<code>run_app</code> still runs the callback with the real value. Because an output can
+<em>derive</em> from that secret, <code>run_app</code>'s result summary reports <strong>shape/type
+only</strong> (no values) when the app has any secret input, so the secret can't
+slip back to the model through the run report either.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Large outputs</p>

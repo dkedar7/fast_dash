@@ -651,6 +651,30 @@
 
 
 <h1 id="history">History</h1>
+<h1 id="release-065">Release 0.6.5</h1>
+<h2 id="065-2026-07-16">0.6.5 (2026-07-16)</h2>
+<p>Closes the agent loop: an auto-built chat assistant can now <strong>see what its own
+run produced</strong>, not just trigger it.</p>
+<h3 id="changed">Changed</h3>
+<ul>
+<li><strong><code>run_app</code> reports its result to the assistant</strong> (RFC <a href="https://github.com/dkedar7/fast_dash/issues/135">#135</a>). The auto-agent's
+  <code>run_app</code> tool used to emit a run and return a canned <em>"outputs are updating"</em>
+  — so the model could trigger a run but was blind to what it produced, unable to
+  react to (say) an empty chart or an error. It now runs the callback, returns a
+  summary of each output slot's new value (a figure's traces + title, a table's
+  shape, a text preview), and carries those outputs on its frame so the browser
+  renders them <strong>without running the callback a second time</strong> (exactly one
+  execution per <code>run_app</code>). A callback error is reported back to the model so it
+  can correct the inputs and retry. The raw-frame / langstage drive path
+  (<code>yield {"type": "run_app"}</code>) is unchanged — it still runs on dispatch.<ul>
+<li><strong>Secret guarantee preserved.</strong> The sidecar already keeps a <code>PasswordInput</code>
+  value out of the model's context. Because a callback can <em>derive</em> an output
+  from that secret, the run summary reports <strong>shape/type only</strong> (trace count,
+  table dimensions, text length — never a value, title, or preview) whenever
+  the app has a secret input; apps without one keep full output fidelity.</li>
+</ul>
+</li>
+</ul>
 <h1 id="release-064">Release 0.6.4</h1>
 <h2 id="064-2026-07-15">0.6.4 (2026-07-15)</h2>
 <p>A follow-up to the 0.6.3 agent-contract work: two discoverability gaps the
@@ -1004,7 +1028,7 @@ drawer / <code>chat_agent_*</code> API is removed outright (no deprecation alias
 </ul>
 <h1 id="release-053">Release 0.5.3</h1>
 <h2 id="053-2026-07-05">0.5.3 (2026-07-05)</h2>
-<h3 id="changed">Changed</h3>
+<h3 id="changed_1">Changed</h3>
 <ul>
 <li><strong>The empty-chat hint fits the app and the mode.</strong> The transcript's
   placeholder was hardcoded to "Ask the assistant to change the output." — which
