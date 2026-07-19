@@ -510,6 +510,30 @@ def _summarize_for_history(value):
     except Exception:
         pass
 
+    try:
+        # A matplotlib figure is rendered as an <Img>, exactly like a PIL image
+        # (_transform_mapper sends it through _mpl_to_b64), so summarize it in
+        # that same "Image" shape. Without a branch it fell through to the
+        # generic {"type": <__name__>, "repr": ...} -- and matplotlib's class is
+        # *also* named "Figure", so the summary collided with the Plotly one
+        # while carrying none of its n_traces/layout_title keys, breaking agent
+        # code that branches on type == "Figure". (issue #167)
+        if isinstance(value, mpl.figure.Figure):
+            width, height = value.get_size_inches() * value.dpi
+            summary = {
+                "type": "Image",
+                "size": [int(width), int(height)],
+                "n_axes": len(value.axes),
+            }
+            title = value.get_suptitle() if hasattr(value, "get_suptitle") else ""
+            if not title and value.axes:
+                title = value.axes[0].get_title()
+            if title:
+                summary["title"] = title
+            return summary
+    except Exception:
+        pass
+
     return {"type": type(value).__name__, "repr": repr(value)[:120]}
 
 
