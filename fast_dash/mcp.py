@@ -59,6 +59,7 @@ from __future__ import annotations
 
 import collections
 import datetime
+import functools
 import inspect
 import os
 import time
@@ -632,11 +633,20 @@ def _describe_static_inputs(fd, snapshot):
                 # else (range / arbitrary objects): leave default None so the
                 # contract never carries a non-JSON repr (issue #116).
         cur = snapshot.get(cid, snapshot.get(param))
+        # The widget actually rendered, named as list_component_types() --
+        # not the hint name static inference stamps on `tag` (#147/#158).
+        tag = _input_widget_tag(components.get(cid), d["tag"])
+        # A MultiSelect's value is an *array* of selected option keys, whatever
+        # the annotation implied. A ``dict`` default renders a MultiSelect over
+        # its keys, so the annotation-derived "object" would advertise a value
+        # the UI can never produce and the validators reject. Reconcile the
+        # declared type with the widget actually rendered -- the same answer
+        # _SPEC_JSON_TYPE already gives on the DynamicDash path. (issue #162)
+        if tag == "MultiSelect":
+            jtype = "array"
         entry = {
             "id": cid,
-            # The widget actually rendered, named as list_component_types() --
-            # not the hint name static inference stamps on `tag` (#147/#158).
-            "tag": _input_widget_tag(components.get(cid), d["tag"]),
+            "tag": tag,
             "type": jtype,
             "options": _jsonify_for_mcp(options),
             "secret": cid in secrets,          # PasswordInput: value never echoed (#151)
@@ -829,6 +839,46 @@ def _option_error(fd, component_id, value, snapshot, state=None):
 # Native MCP mount + fast_dash tool registration
 # --------------------------------------------------------------------------- #
 
+def _structured_errors(fn):
+    """Keep a drive tool's error contract structured, even on a malformed call.
+
+    A missing required argument raises ``TypeError`` *when Python calls the
+    function* -- before its body runs -- so the tool's own ``try/except`` can
+    never catch it, and the raw exception (which spells out the internal
+    ``enable_mcp.<locals>.<tool>`` qualname) reaches the agent instead of the
+    ``{"ok": false, "error": ...}`` shape every other error path on these tools
+    returns. Bind the arguments here instead and report a missing or unexpected
+    one in the contract's own shape.
+
+    ``functools.wraps`` keeps the wrapped signature, so Dash still derives the
+    same MCP input schema -- the arguments stay *required* in the schema; they
+    just fail in the contract's shape rather than as a traceback. (issue #165)
+    """
+    sig = inspect.signature(fn)
+    required = [
+        p.name for p in sig.parameters.values()
+        if p.default is inspect.Parameter.empty
+        and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD)
+    ]
+
+    @functools.wraps(fn)
+    def wrapper(*args, **kwargs):
+        try:
+            sig.bind(*args, **kwargs)
+        except TypeError as e:
+            return {
+                "ok": False,
+                "error": f"{fn.__name__}() {e}",
+                "required_arguments": required,
+            }
+        try:
+            return fn(*args, **kwargs)
+        except Exception as e:  # noqa: BLE001 - never leak a traceback over /mcp
+            return {"ok": False, "error": f"{type(e).__name__}: {e}"}
+
+    return wrapper
+
+
 def _ensure_dash_mcp():
     """Import Dash's native MCP API, with a clear error if too old."""
     try:
@@ -875,6 +925,7 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
     from fast_dash.utils import _jsonify_for_mcp
 
     @mcp_enabled(name="describe_app", expose_docstring=True)
+    @_structured_errors
     def describe_app() -> dict:
         """Describe this chat app's contract for a headless agent.
 
@@ -890,6 +941,7 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
         }
 
     @mcp_enabled(name="invoke", expose_docstring=True)
+    @_structured_errors
     def invoke(query: str, settings: dict = None) -> dict:
         """Run one chat turn headlessly and return its frames (JSON-safe).
 
@@ -986,6 +1038,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         return _jsonify_for_mcp(_redact(entries.get(cid) or {}, value))
 
     @mcp_enabled(name="set_input", expose_docstring=True)
+    @_structured_errors
     def set_input(component_id: str, value: Any) -> dict:
         """Update one input's value, server-side and live in the browser.
 
@@ -1007,6 +1060,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         return {"ok": True, "id": component_id, "value": _echo(entries, component_id, value)}
 
     @mcp_enabled(name="set_inputs", expose_docstring=True)
+    @_structured_errors
     def set_inputs(inputs: dict) -> dict:
         """Bulk-update multiple input values (keyed by parameter name).
 
@@ -1030,6 +1084,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         return {"ok": not errors, "applied": applied, "errors": errors}
 
     @mcp_enabled(name="invoke", expose_docstring=True)
+    @_structured_errors
     def invoke(inputs: dict = None) -> dict:
         """Run the app's callback with the current input mirror.
 
@@ -1131,6 +1186,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         }
 
     @mcp_enabled(name="set_form", expose_docstring=True)
+    @_structured_errors
     def set_form(specs: list) -> dict:
         """Replace the form on a DynamicDash app with a new spec list.
 
@@ -1158,6 +1214,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         return {"ok": True, "count": len(specs)}
 
     @mcp_enabled(name="get_invocation", expose_docstring=True)
+    @_structured_errors
     def get_invocation(index: int) -> dict:
         """Look up a past invocation by history index (returned by invoke)."""
         if index not in state.full_history:
@@ -1176,11 +1233,13 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         }
 
     @mcp_enabled(name="list_component_types", expose_docstring=True)
+    @_structured_errors
     def list_component_types() -> dict:
         """List the legal ``type`` values for a DynamicDash UI spec."""
         return {"types": _component_types()}
 
     @mcp_enabled(name="describe_app", expose_docstring=True)
+    @_structured_errors
     def describe_app() -> dict:
         """Describe the app's inputs and outputs, plus their CURRENT values.
 
