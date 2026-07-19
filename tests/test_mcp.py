@@ -1082,3 +1082,74 @@ class TestSidecarMcp:
             app._run_chat_turn("go", "s1", "sock", (), app_inputs={"revenue": 100})
         rev = [i for i in _call(c, "describe_app")["inputs"] if i["id"] == "revenue"]
         assert rev and rev[0]["current_value"] == 500
+
+
+class TestMcpBugBatch:
+    """Regressions for the three MCP bugs filed by the nightly dogfood."""
+
+    def test_dict_default_reports_array_not_object(self):
+        # #162: a `dict` default renders a MultiSelect, whose value is an *array*
+        # of selected keys -- but describe_app reported the annotation-derived
+        # "object", advertising a value the UI can never produce and the
+        # validators themselves reject.
+        def shop(items: dict = {"apples": 1, "pears": 2, "figs": 3}) -> str:
+            """Echo selection."""
+            return str(items)
+
+        c = _client_for(FastDash(callback_fn=shop, mcp_server=True))
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["items"]
+        assert entry["tag"] == "MultiSelect"
+        assert entry["type"] == "array"          # was "object"
+        # The contract now matches enforcement in both directions.
+        ok = _call(c, "set_input", {"component_id": "items", "value": ["apples"]})
+        assert ok["ok"] is True
+        bad = _call(c, "set_input", {"component_id": "items", "value": {"apples": 1}})
+        assert bad["ok"] is False
+
+    def test_list_default_still_reports_array(self):
+        # The `list` sibling was already correct; keep it that way.
+        def pick(flavors: list = ["a", "b"]) -> str:
+            """Echo."""
+            return str(flavors)
+
+        c = _client_for(FastDash(callback_fn=pick, mcp_server=True))
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["flavors"]
+        assert entry["type"] == "array"
+
+    def test_missing_required_arg_returns_structured_error(self):
+        # #165: omitting a required argument raised a raw TypeError whose text
+        # leaked the internal `enable_mcp.<locals>.<tool>` qualname -- the only
+        # error path on these tools that wasn't the structured contract.
+        c = _client_for(_plain_app())
+        for tool in ("set_input", "set_inputs", "set_form", "get_invocation"):
+            out = _call(c, tool, {})
+            assert isinstance(out, dict), f"{tool} returned {out!r}"
+            assert out.get("ok") is False, f"{tool} should fail structurally: {out}"
+            assert out.get("required_arguments"), f"{tool} should name its args"
+            blob = json.dumps(out)
+            assert "enable_mcp" not in blob, f"{tool} leaked internals: {blob}"
+            assert "<locals>" not in blob, f"{tool} leaked internals: {blob}"
+
+    def test_tool_body_exception_is_structured_too(self):
+        # The same guard keeps any in-body failure in the contract's shape
+        # rather than surfacing a traceback over /mcp.
+        c = _client_for(_plain_app())
+        out = _call(c, "get_invocation", {"index": "not-an-index"})
+        assert isinstance(out, dict) and out.get("ok") is False
+
+    def test_agent_output_drain_clears_the_pre_run_placeholder(self):
+        # #164: the pre-run `.fd-not-run` gate on #output-group-col was cleared
+        # only by the human Run button's click count, so an agent invoke()'s
+        # output landed in a leaf CSS still hid -- a watching human saw the
+        # mirrored inputs above a stale "Run to see results" placeholder until
+        # someone clicked Run once. The output drain must clear the gate too.
+        app = _plain_app()
+        drains = [
+            cb for cb in app.app.callback_map.values()
+            if any(i.get("id") == "_mcp_poll" for i in cb.get("inputs", []))
+        ]
+        assert drains, "MCP poll drain callbacks should be registered"
+        targets = {str(o) for cb in drains for o in cb.get("output", [])}
+        assert any("output-group-col.className" in t for t in targets), (
+            "the MCP output drain must also clear the pre-run .fd-not-run gate"
+        )

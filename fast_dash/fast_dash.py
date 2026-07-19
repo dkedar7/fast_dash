@@ -1511,15 +1511,22 @@ class FastDash(ChatAppMixin):
                 [
                     Output(c.id, c.component_property, allow_duplicate=True)
                     for c in self.outputs_with_ids
-                ],
+                ]
+                # ...and reveal the output pane. The pre-run placeholder is a
+                # `.fd-not-run` class cleared only by the human Run button's
+                # click count, so an agent's output landed in a leaf that CSS
+                # still had at `visibility: hidden` until someone clicked Run
+                # once. Clearing it here makes "agent drives, human watches"
+                # true on a freshly-loaded page. (issue #164)
+                + [Output("output-group-col", "className", allow_duplicate=True)],
                 Input("_mcp_poll", "n_intervals"),
                 prevent_initial_call=True,
             )
             def _mcp_drain_outputs(_n):
                 pending = state.pop_pending_outputs()
                 if not pending:
-                    return [no_update] * len(self.outputs_with_ids)
-                return self._mcp_apply_output_transforms(pending)
+                    return [no_update] * (len(self.outputs_with_ids) + 1)
+                return self._mcp_apply_output_transforms(pending) + [""]
 
     def _register_mcp_ws_drain(self):
         """Real-time server -> browser push over a persistent WebSocket.
@@ -1551,6 +1558,10 @@ class FastDash(ChatAppMixin):
                     for c, val in zip(self.outputs_with_ids, transformed):
                         if val is not no_update:
                             set_props(c.id, {c.component_property: val})
+                    # Same pre-run placeholder gate as the Interval drain --
+                    # reveal the output pane so a watching human sees the
+                    # agent's result without clicking Run first. (issue #164)
+                    set_props("output-group-col", {"className": ""})
 
                 await asyncio.sleep(0.05)
 
