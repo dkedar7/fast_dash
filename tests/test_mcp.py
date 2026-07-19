@@ -19,9 +19,12 @@ import json
 import warnings
 from typing import Annotated, Literal, Optional, Tuple  # module-level for get_type_hints (#119, #132)
 
+import matplotlib
+matplotlib.use("Agg")  # headless: tests must not need a display
 import pandas as pd  # noqa: F401  (module-level for any -> pd.DataFrame hints)
 import plotly.graph_objects as go
 import pytest
+from matplotlib.figure import Figure  # module-level so get_type_hints resolves `-> Figure` (#167)
 
 from fast_dash import DynamicDash, FastDash, Graph, Markdown, PasswordInput
 from fast_dash.mcp import MCPState, enable_mcp
@@ -1153,3 +1156,62 @@ class TestMcpBugBatch:
         assert any("output-group-col.className" in t for t in targets), (
             "the MCP output drain must also clear the pre-run .fd-not-run gate"
         )
+
+    def test_matplotlib_summary_does_not_collide_with_plotly(self):
+        # #167: matplotlib's class is *also* named "Figure", so with no branch
+        # of its own it fell through to the generic {"type": __name__, "repr":}
+        # -- colliding with the Plotly summary while carrying none of its
+        # n_traces/layout_title keys, so agent code branching on
+        # type == "Figure" hit a KeyError and never learned an image was made.
+        import matplotlib.pyplot as plt
+
+        from fast_dash.utils import _summarize_for_history
+
+        fig, ax = plt.subplots()
+        try:
+            ax.bar(range(3), range(3))
+            ax.set_title("Sales")
+            summary = _summarize_for_history(fig)
+        finally:
+            plt.close(fig)
+
+        # It renders as an <Img>, so it reports the same shape a PIL image does.
+        assert summary["type"] == "Image"      # not the colliding "Figure"
+        assert "repr" not in summary           # no object repr reaches the agent
+        assert summary["n_axes"] == 1
+        assert summary["title"] == "Sales"
+
+        # ...and the Plotly sibling is untouched.
+        pf = go.Figure(data=go.Bar(y=[1, 2]))
+        pf.update_layout(title="P")
+        assert _summarize_for_history(pf) == {
+            "type": "Figure", "n_traces": 1, "layout_title": "P",
+        }
+
+    def test_pil_summary_shape_unchanged(self):
+        # The sibling the matplotlib branch was modelled on must not drift.
+        from PIL import Image
+
+        from fast_dash.utils import _summarize_for_history
+
+        assert _summarize_for_history(Image.new("RGB", (10, 20))) == {
+            "type": "Image", "mode": "RGB", "size": [10, 20],
+        }
+
+    def test_matplotlib_invoke_reports_an_image_over_mcp(self):
+        # The agent-facing path: invoke() on a matplotlib-returning app must
+        # summarize the output as an image, not an opaque repr.
+        import matplotlib.pyplot as plt
+
+        def make_plot(n: int = 3) -> Figure:
+            """Bar chart with n bars."""
+            fig, ax = plt.subplots()
+            ax.bar(range(n), range(n))
+            return fig
+
+        c = _client_for(FastDash(callback_fn=make_plot, mcp_server=True))
+        out = _call(c, "invoke", {"inputs": {"n": 2}})
+        assert out["ok"] is True
+        summary = next(iter(out["outputs"].values()))
+        assert summary["type"] == "Image"
+        assert "repr" not in summary
