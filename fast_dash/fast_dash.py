@@ -1830,11 +1830,26 @@ class FastDash(ChatAppMixin):
         # count only, so it fires instantly and isn't deferred by the run.
         # (The loading skeleton is driven separately by the process_input
         # `running=` bracket on #output-loading-wrap — see register_callback_fn.)
-        self.app.clientside_callback(
-            "function(n) { return (n && n > 0) ? '' : 'fd-not-run'; }",
-            Output("output-group-col", "className"),
-            Input("submit_inputs", "n_clicks"),
-        )
+        #
+        # ...but an `update_live` app has no Run step: it recomputes on load and
+        # on every input change. Every 0-input callback auto-enables update_live
+        # (a function that takes no inputs is "supposed to run as-is and display
+        # its output"). Gating those behind the Run placeholder hid the output
+        # the initial auto-run had already computed -- `.fd-not-run` forces the
+        # placeholder visible AND sets the content to visibility:hidden -- so the
+        # app rendered blank. update_live apps therefore never gate.
+        if self.update_live:
+            self.app.clientside_callback(
+                "function(n) { return ''; }",
+                Output("output-group-col", "className"),
+                Input("submit_inputs", "n_clicks"),
+            )
+        else:
+            self.app.clientside_callback(
+                "function(n) { return (n && n > 0) ? '' : 'fd-not-run'; }",
+                Output("output-group-col", "className"),
+                Input("submit_inputs", "n_clicks"),
+            )
 
         # Native streaming makes the main callback a WebSocket callback so
         # set_props can stream partial updates mid-execution. The legacy Flask

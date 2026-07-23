@@ -52,3 +52,43 @@ def test_app_layout_contains_run_button():
     layout_str = str(app.app.layout)
     assert "'Run'" in layout_str or '"Run"' in layout_str
     assert '"Submit"' not in layout_str and "'Submit'" not in layout_str
+
+
+def _classname_gate_js(app):
+    """The clientside JS registered for #output-group-col.className."""
+    hit = next(
+        cb for cb in app.app._callback_list
+        if "output-group-col.className" in str(cb.get("output", ""))
+    )
+    fn_hash = hit["clientside_function"]["function_name"]
+    return next(s for s in app.app._inline_scripts if fn_hash in s)
+
+
+def test_no_input_app_does_not_gate_output_behind_placeholder():
+    """A 0-input callback auto-enables update_live and must render on load.
+
+    Regression: the pre-run `.fd-not-run` placeholder gate (keyed only on the
+    Run button's click count) hid the output the initial auto-run had already
+    computed, so the app rendered blank. update_live apps have no Run step, so
+    the gate must never engage for them.
+    """
+    import plotly.graph_objects as go
+
+    def dashboard() -> go.Figure:
+        return go.Figure(go.Bar(x=["a", "b"], y=[3, 1]))
+
+    app = FastDash(callback_fn=dashboard)
+    assert app.update_live is True           # auto-enabled for 0 inputs
+    js = _classname_gate_js(app)
+    assert "fd-not-run" not in js            # never gates -> output is shown
+
+
+def test_run_mode_app_still_gates_until_first_run():
+    """A normal Run-mode app keeps the pre-run placeholder until the first Run."""
+    def f(x: str = "hi") -> str:
+        return x
+
+    app = FastDash(callback_fn=f)             # 1 input, update_live stays False
+    assert app.update_live is False
+    js = _classname_gate_js(app)
+    assert "fd-not-run" in js                 # gate preserved
