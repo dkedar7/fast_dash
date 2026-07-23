@@ -1,4 +1,33 @@
-# Release 0.6.5
+# Release 0.6.6
+
+## 0.6.6 (2026-07-23)
+
+Bug-fix release. Most were surfaced by the nightly dogfood routine, plus a
+directly-reported rendering bug.
+
+### Fixed
+- **No-input callbacks rendered blank** — a callback that takes no inputs
+  auto-enables `update_live` and runs on load, but its output stayed hidden
+  behind the pre-run "Run to see results" placeholder, which only a Run click
+  cleared. `update_live` apps have no Run step, so they now never gate and show
+  their output immediately. (Affected every `update_live` app, not just 0-input
+  ones.)
+- **Agent `invoke()` output never rendered until the first human Run** (#164) —
+  the same placeholder gate hid agent-produced output on a freshly-loaded page.
+  Both the Interval and WebSocket output drains now clear it, so "agent drives,
+  human watches" works without a Run first.
+- **MCP drive tools leaked a raw `TypeError`** (#165) — omitting a required
+  argument raised at call time, exposing the internal `enable_mcp.<locals>`
+  qualname instead of the structured `{"ok": false, ...}` contract. Every tool
+  now reports missing/unexpected arguments in that contract shape.
+- **`describe_app()` reported a `dict`-default input as `type: "object"`** (#162)
+  — but the MultiSelect it renders only accepts/produces an array of keys. The
+  declared type is now reconciled with the rendered widget.
+- **matplotlib outputs summarized as a colliding `"Figure"`** (#167) —
+  `invoke`/`get_invocation` summarized a matplotlib figure via the generic
+  fallback, whose `type: "Figure"` collided with the Plotly summary while
+  carrying none of its keys. matplotlib now reports the same `"Image"` shape a
+  PIL image does.
 
 ## 0.6.5 (2026-07-16)
 
