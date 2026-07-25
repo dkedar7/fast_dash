@@ -1387,8 +1387,16 @@ class FastDash(ChatAppMixin):
         # else loopback), so the address we bind is the address we warned about.
         host = effective_bind_host(self.run_kwargs)
         port = self.run_kwargs.get("port", self.port)
+
+        # Announce the URL, as the Flask backend does ("Dash is running on
+        # ..."). Serving the ASGI app object bypasses Dash's own run(), which is
+        # what prints that line, and uvicorn at log_level="warning" says nothing
+        # either -- so this path booted in total silence: no URL to open and no
+        # way to tell a running server from a hung one (issue #170). uvicorn's
+        # own startup/shutdown lines come back at "info" for the same reason.
+        print(f"Dash is running on http://{host}:{port}/\n", flush=True)
         uvicorn.Server(
-            uvicorn.Config(self.app.server, host=host, port=port, log_level="warning")
+            uvicorn.Config(self.app.server, host=host, port=port, log_level="info")
         ).run()
 
     def _start_mcp_server(self):

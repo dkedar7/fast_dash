@@ -104,7 +104,7 @@ Fast Dash uses these type hints to determine which UI components to use. For exa
 
 Fast Dash understands two types of type hints—one, in-built Python data type classes (`str`, `int`, `float`, `list`, `dict`, etc.), and two, [Dash Components](components.md) directly.
 
-In addition to type hints, the input arguments can also have default values. In the example below, the default value of string `a` is `Fast`, that of integer `b` is `5`, and `c` is a `list` with a default value of `[1, 2, 3]`. The function returns a single string value, as indicated by the return variable type hint (`-> str:`).
+In addition to type hints, the input arguments can also have default values. In the example below, string `a` starts out as `Fast` and integer `b` as `5`. The function returns a single string value, as indicated by the return variable type hint (`-> str:`).
 
 ```py hl_lines="1 2 3"
 def your_function(a: str = "Fast", 
@@ -112,6 +112,19 @@ def your_function(a: str = "Fast",
                   c: list = [1, 2, 3]) -> str:
     ...
 ```
+
+!!! warning "Collection defaults set the *choices*, not the starting value"
+
+    A **scalar** default (`a`, `b` above) becomes the widget's starting value. A
+    **collection** default — a `list`, a `dict`, or a `range()` — is used instead to
+    build the widget's *option set*: `c: list = [1, 2, 3]` renders a multi-select
+    offering `1`, `2` and `3` **with nothing selected**, so an untouched Run calls
+    your function with `c=None`, not `c=[1, 2, 3]`.
+
+    This matters when your function is written to rely on its own default — a body
+    that does `sum(c)` works when you call `your_function()` directly but raises
+    `TypeError: 'NoneType' object is not iterable` on the first Run. Guard the
+    parameter (`c = c or [1, 2, 3]`) if it must never be empty.
 
 Fast Dash determines the best components for each input using their hints and default values. Details about which combination of these values results in what components are in the [patterns documentation](patterns.md).
 

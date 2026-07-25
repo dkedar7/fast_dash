@@ -218,8 +218,8 @@ class DynamicDash:
     ):
         if parent_control is not None and spec_resolver is None:
             raise ValueError(
-                "parent_control was given but spec_resolver is None — "
-                "supply a callable that maps parent value → list of specs."
+                "parent_control was given but spec_resolver is None - "
+                "supply a callable that maps parent value to a list of specs."
             )
 
         self.callback_fn = callback_fn
