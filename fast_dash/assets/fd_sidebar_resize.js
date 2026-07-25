@@ -1,11 +1,15 @@
 /* Fast Dash: drag-to-resize the input sidebar (progressive, no-op without it).
 
    Mantine's AppShell drives BOTH the navbar's own width and the main pane's
-   offset from two CSS variables it writes inline on the shell
-   (`--app-shell-navbar-width` / `--app-shell-navbar-offset`), and it builds the
-   collapse transform out of the width var too. So setting those two vars during
-   a drag moves the sidebar, shifts the output pane with it, and keeps the
-   collapse animation correct -- no server round-trip, no layout thrash.
+   offset from two CSS variables (`--app-shell-navbar-width` /
+   `--app-shell-navbar-offset`), and it builds the collapse transform out of the
+   width var too. Setting those two as inline styles on the shell therefore
+   moves the sidebar, shifts the output pane with it, and keeps the collapse
+   animation correct -- no server round-trip, no layout thrash.
+
+   Note dmc's own values are rem expressions (`calc(18.75rem * 1)`) supplied by
+   a stylesheet, not inline pixels, so the current width is always MEASURED off
+   the rendered navbar rather than parsed out of the variable.
 
    dmc recomputes those vars from the `navbar` prop whenever the shell
    re-renders (the toggle callback returns a fresh dict), which would snap a
@@ -24,6 +28,23 @@
 
   function clampWidth(px) {
     return Math.max(MIN_WIDTH, Math.min(px, maxWidth()));
+  }
+
+  function navbarEl() {
+    // The handle is appended as a direct child of the navbar, so its parent is
+    // the element whose width we are changing.
+    var handle = document.querySelector(".fd-sidebar-resizer");
+    return handle ? handle.parentElement : null;
+  }
+
+  function currentWidth() {
+    // Measure the rendered box rather than parsing the CSS var: dmc expresses
+    // the var in rem (`calc(18.75rem * 1)`), which no amount of parseInt turns
+    // into pixels -- reading it that way made the keyboard nudge either jump to
+    // the minimum or do nothing at all. getBoundingClientRect is always px and
+    // is true regardless of how the width was set.
+    var nav = navbarEl();
+    return nav ? Math.round(nav.getBoundingClientRect().width) : null;
   }
 
   function applyWidth(shell, px) {
@@ -66,9 +87,8 @@
       document.body.classList.remove("fd-resizing");
       window.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      var current = parseInt(
-        shell.style.getPropertyValue("--app-shell-navbar-width"), 10);
-      if (!isNaN(current)) { persistWidth(current); }
+      var current = currentWidth();
+      if (current !== null) { persistWidth(current); }
     }
 
     window.addEventListener("pointermove", onMove);
@@ -89,8 +109,8 @@
       var shell = document.getElementById(SHELL_ID);
       if (!shell) { return; }
       ev.preventDefault();
-      var now = parseInt(
-        shell.style.getPropertyValue("--app-shell-navbar-width"), 10) || MIN_WIDTH;
+      var now = currentWidth();
+      if (now === null) { return; }
       var px = clampWidth(now + delta);
       applyWidth(shell, px);
       handle.setAttribute("aria-valuenow", String(px));
@@ -118,9 +138,8 @@
   window.addEventListener("resize", function () {
     var shell = document.getElementById(SHELL_ID);
     if (!shell) { return; }
-    var now = parseInt(
-      shell.style.getPropertyValue("--app-shell-navbar-width"), 10);
-    if (isNaN(now)) { return; }
+    var now = currentWidth();
+    if (now === null) { return; }
     var px = clampWidth(now);
     if (px !== now) { applyWidth(shell, px); persistWidth(px); }
   });
