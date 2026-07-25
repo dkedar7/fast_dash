@@ -1079,12 +1079,24 @@
 <p>Fast Dash leverages this flexibility in defining type hints to allow using Dash components as hints. Read more on this in the documentation for <a href="../components/"><abbr title="UI components that make up a Fast Dash app. They are wrappers around Dash components.">Fast Components</abbr></a>.</p>
 </div>
 <p>Fast Dash understands two types of type hints—one, in-built Python data type classes (<code>str</code>, <code>int</code>, <code>float</code>, <code>list</code>, <code>dict</code>, etc.), and two, <a href="../components/">Dash Components</a> directly.</p>
-<p>In addition to type hints, the input arguments can also have default values. In the example below, the default value of string <code>a</code> is <code>Fast</code>, that of integer <code>b</code> is <code>5</code>, and <code>c</code> is a <code>list</code> with a default value of <code>[1, 2, 3]</code>. The function returns a single string value, as indicated by the return variable type hint (<code>-&gt; str:</code>).</p>
+<p>In addition to type hints, the input arguments can also have default values. In the example below, string <code>a</code> starts out as <code>Fast</code> and integer <code>b</code> as <code>5</code>. The function returns a single string value, as indicated by the return variable type hint (<code>-&gt; str:</code>).</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="k">def</span><span class="w"> </span><span class="nf">your_function</span><span class="p">(</span><span class="n">a</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;Fast&quot;</span><span class="p">,</span> 
 </span><span class="hll">                  <span class="n">b</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> 
 </span><span class="hll">                  <span class="n">c</span><span class="p">:</span> <span class="nb">list</span> <span class="o">=</span> <span class="p">[</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
 </span>    <span class="o">...</span>
 </code></pre></div>
+<div class="admonition warning">
+<p class="admonition-title">Collection defaults set the <em>choices</em>, not the starting value</p>
+<p>A <strong>scalar</strong> default (<code>a</code>, <code>b</code> above) becomes the widget's starting value. A
+<strong>collection</strong> default — a <code>list</code>, a <code>dict</code>, or a <code>range()</code> — is used instead to
+build the widget's <em>option set</em>: <code>c: list = [1, 2, 3]</code> renders a multi-select
+offering <code>1</code>, <code>2</code> and <code>3</code> <strong>with nothing selected</strong>, so an untouched Run calls
+your function with <code>c=None</code>, not <code>c=[1, 2, 3]</code>.</p>
+<p>This matters when your function is written to rely on its own default — a body
+that does <code>sum(c)</code> works when you call <code>your_function()</code> directly but raises
+<code>TypeError: 'NoneType' object is not iterable</code> on the first Run. Guard the
+parameter (<code>c = c or [1, 2, 3]</code>) if it must never be empty.</p>
+</div>
 <p>Fast Dash determines the best components for each input using their hints and default values. Details about which combination of these values results in what components are in the <a href="../patterns/">patterns documentation</a>.</p>
 <p>Dash components are also valid type hints for Fast Dash. Instead of depending on the hints and default values, using Dash components directly tells Fast Dash which components to use. In the example below, <code>UploadImage</code> and <code>Slider</code> are in-built Fast Component wrappers for <a href="https://dash.plotly.com/dash-core-components/upload"><code>dcc.Upload</code></a> and <a href="https://dash.plotly.com/dash-core-components/slider"><code>dcc.Slider</code></a> respectively. The function returns a text field, represented using the <a href="https://dash.plotly.com/dash-html-components/h1"><code>html.H1</code></a> component by default.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">dcc</span>
