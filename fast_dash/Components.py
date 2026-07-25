@@ -835,6 +835,28 @@ class AppLayout:
                    "display": "flex", "flexDirection": "column"},
         )
 
+    @staticmethod
+    def _sidebar_resizer():
+        """Grab strip on the sidebar's trailing edge (issue #80).
+
+        The drag itself is clientside (``assets/fd_sidebar_resize.js``): it
+        writes Mantine's ``--app-shell-navbar-width`` / ``-offset`` vars, which
+        move the sidebar and the output pane together, capped at half the
+        viewport. Exposed as a real slider role so it is reachable by keyboard
+        and announced, not just draggable.
+        """
+        return html.Div(
+            id="fd-sidebar-resizer",
+            className="fd-sidebar-resizer",
+            role="separator",
+            tabIndex=0,
+            title="Drag to resize the sidebar",
+            **{
+                "aria-orientation": "vertical",
+                "aria-label": "Resize sidebar",
+            },
+        )
+
     def generate_layout(self, stream_event_names=None):
         if self.minimal:
             self.title = self.subtitle = self.navbar = self.footer = False
@@ -842,6 +864,15 @@ class AppLayout:
         header_children = self.generate_navbar_container() or []
         navbar_content = self.generate_input_component()
         main_content = self.generate_output_component()
+        # generate_input_component returns a *list* of sections; keep the navbar
+        # children flat (Dash does not flatten a nested list, and a nested one
+        # silently drops the sections inside it) when appending the resize
+        # handle (issue #80).
+        navbar_children = (
+            list(navbar_content)
+            if isinstance(navbar_content, (list, tuple))
+            else [navbar_content]
+        ) + [self._sidebar_resizer()]
 
         has_sidecar = getattr(self.app, "has_chat_sidecar", False)
         # A chat sidecar is stacked under the inputs in the navbar (built by
@@ -857,7 +888,7 @@ class AppLayout:
                 id="header1162572",
             ),
             dmc.AppShellNavbar(
-                navbar_content,
+                navbar_children,
                 p="md",
                 id="navbar3260780",
                 # Column so the grow inputs-section scrolls and the Run
@@ -897,6 +928,11 @@ class AppLayout:
         extra = [
             dmc.NotificationContainer(id="notification-container"),
             html.Div(id="dummy-div", style={"display": "none"}),
+            # Dragged sidebar width (issue #80). The drag applies instantly via
+            # CSS vars; this store is what makes it survive a collapse/expand,
+            # since toggle_sidebar re-renders the shell from the navbar prop and
+            # would otherwise snap the width back to the default.
+            dcc.Store(id="fd-sidebar-width"),
         ]
         # About modal
         if self.about and header_children and len(header_children) > 1:
@@ -1078,7 +1114,10 @@ class AppLayout:
             appshell_children.insert(
                 1,
                 dmc.AppShellNavbar(
-                    self.generate_input_component(collapsible=True),
+                    # Flat children: generate_input_component returns a list and
+                    # Dash does not flatten a nested one (issue #80).
+                    [*self.generate_input_component(collapsible=True),
+                     self._sidebar_resizer()],
                     p="md",
                     id="navbar3260780",
                     style={"display": "flex", "flexDirection": "column",
@@ -1096,6 +1135,7 @@ class AppLayout:
         extra = [
             dmc.NotificationContainer(id="notification-container"),
             html.Div(id="dummy-div", style={"display": "none"}),
+            dcc.Store(id="fd-sidebar-width"),     # dragged width (issue #80)
             *self._chat_stores(),                 # chat state stores (shared)
         ]
         if self.about and header_children and len(header_children) > 1:
@@ -1130,8 +1170,9 @@ class AppLayout:
         @app.app.callback(
             Output("appshell", "navbar"),
             Input("sidebar-button", "opened"),
+            State("fd-sidebar-width", "data"),
         )
-        def toggle_sidebar(opened):
+        def toggle_sidebar(opened, dragged_width):
             user_agent = request.headers.get("User-Agent")
 
             # A chat sidecar stacks the chat under the inputs and needs the wider
@@ -1149,9 +1190,16 @@ class AppLayout:
             # The sidecar width (420) must match generate_layout's, or dmc
             # derives the main offset and collapse-transform from the wrong width
             # -- leaving the output shifted under the sidebar and the sidebar
-            # unable to fully close (v0.5.5 / #143).
+            # unable to fully close (v0.5.5 / #143). A width the user dragged to
+            # (issue #80) wins over that default: this callback re-renders the
+            # shell from the navbar prop, so returning the default here would
+            # snap a resized sidebar back on the next collapse/expand.
+            width = 420 if has_sidecar else 300
+            if isinstance(dragged_width, (int, float)) and dragged_width > 0:
+                width = int(dragged_width)
+
             return {
-                "width": 420 if has_sidecar else 300,
+                "width": width,
                 "breakpoint": "sm",
                 "collapsed": collapsed,
             }
