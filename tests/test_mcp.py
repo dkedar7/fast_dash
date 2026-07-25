@@ -70,12 +70,20 @@ def _layout_ids(comp, out=None):
 
 @pytest.fixture(autouse=True)
 def clear_mcp_registry():
-    """Reset Dash's global MCP tool registry before each test (one app/process)."""
+    """Reset Dash's global MCP tool registry before each test (one app/process).
+
+    Also clears fast_dash's own one-owner-per-process latch (#171), which is
+    what enforces that limit at runtime: without resetting it, the *first* test
+    to mount an app would own the process and every later test would hit the
+    guard.
+    """
     try:
         from dash.mcp import _decorator
         _decorator.MCP_DECORATED_FUNCTIONS.clear()
     except Exception:
         pass
+    import fast_dash.mcp as _fd_mcp
+    _fd_mcp._mcp_owner = None
     yield
 
 
@@ -1215,3 +1223,125 @@ class TestMcpBugBatch:
         summary = next(iter(out["outputs"].values()))
         assert summary["type"] == "Image"
         assert "repr" not in summary
+
+
+class TestDogfoodBatchJul25:
+    """Regressions for the bugs the nightly dogfood filed against 0.6.5/0.6.6."""
+
+    def test_second_mcp_app_in_one_process_fails_loudly(self):
+        # #171: Dash's mcp_enabled registry is process-global, so a second
+        # MCP-enabled app silently overwrote the first's tools -- BOTH /mcp
+        # endpoints then drove the last-registered app, so an agent connected to
+        # app A was really running app B's callback. Documented in prose only.
+        def alpha(a: int = 1) -> int:
+            """ALPHA."""
+            return a + 100
+
+        def beta(b: int = 2) -> int:
+            """BETA."""
+            return b + 200
+
+        app1 = FastDash(callback_fn=alpha, mcp_server=True)
+        enable_mcp(app1)
+        app2 = FastDash(callback_fn=beta, mcp_server=True)
+        with pytest.raises(RuntimeError, match="already enabled on another app"):
+            enable_mcp(app2)
+
+    def test_same_app_remount_is_still_idempotent(self):
+        # The #171 guard must not break the documented per-app idempotency.
+        app = _plain_app()
+        enable_mcp(app)
+        enable_mcp(app)          # must not raise
+
+    def test_initialize_instructions_describe_stateful_drive(self):
+        # #173: the handshake served Dash's "Dash apps are stateless ... does NOT
+        # update the user's browser", telling every agent at connect time not to
+        # attempt the exact thing fast_dash's drive tools exist for.
+        c = _client_for(_plain_app())
+        instructions = _rpc(c, "initialize")["result"].get("instructions", "")
+        assert "does NOT update" not in instructions
+        assert "Fast Dash" in instructions
+        # It should point at the drive tools it actually ships.
+        for tool in ("describe_app", "set_input", "invoke"):
+            assert tool in instructions
+
+    def test_dynamicdash_outputs_always_carry_the_label_key(self):
+        # #172: the documented output contract is {id, tag, type, label}, but the
+        # key was dropped when the component had no label -- true for every
+        # DynamicDash output -- so a generic agent reading output["label"]
+        # worked on FastDash and raised KeyError on DynamicDash.
+        c = _client_for(_dynamic_app())
+        outputs = _call(c, "describe_app")["outputs"]
+        assert outputs, "DynamicDash must report its outputs (#160)"
+        for entry in outputs:
+            assert "label" in entry, f"missing label key: {entry}"
+
+    def test_fastdash_outputs_still_carry_their_label(self):
+        # The FastDash side of the same contract must keep its real label.
+        c = _client_for(_plain_app())
+        outputs = _call(c, "describe_app")["outputs"]
+        assert all("label" in e for e in outputs)
+
+
+def test_error_strings_are_ascii_only():
+    """#169: a non-ASCII char in a raised/warned message crashes cp1252 consoles.
+
+    The DynamicDash parent_control ValueError carried a U+2192 arrow (and an
+    em dash), so printing that traceback on a default Windows console raised a
+    secondary UnicodeEncodeError that masked the helpful message. Scan every
+    raise/warn literal in the package so the whole class stays fixed.
+    """
+    import ast
+    import pathlib
+
+    offenders = []
+    for path in sorted(pathlib.Path("fast_dash").rglob("*.py")):
+        tree = ast.parse(path.read_text(encoding="utf-8"))
+        for node in ast.walk(tree):
+            is_warn = (
+                isinstance(node, ast.Call)
+                and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "warn"
+            )
+            if not (isinstance(node, ast.Raise) or is_warn):
+                continue
+            for sub in ast.walk(node):
+                if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+                    if any(ord(ch) > 127 for ch in sub.value):
+                        offenders.append(f"{path}:{sub.lineno}: {sub.value[:60]!r}")
+    assert not offenders, "non-ASCII error strings:\n" + "\n".join(offenders)
+
+
+@requires_fastapi
+def test_asgi_backend_announces_its_url(monkeypatch, capsys):
+    """#170: backend="fastapi" booted in total silence.
+
+    The Flask backend prints "Dash is running on <url>"; serving the ASGI app
+    object bypasses Dash's run() (which prints it) and uvicorn at
+    log_level="warning" says nothing either, so a user following the docs
+    ("Open the URL") had no URL and no way to tell a booted server from a hung
+    one.
+    """
+    import uvicorn
+
+    def fig(n: int = 3) -> go.Figure:
+        return go.Figure()
+
+    app = FastDash(callback_fn=fig, backend="fastapi", port=8091)
+
+    captured = {}
+
+    class _FakeServer:
+        def __init__(self, config):
+            captured["config"] = config
+
+        def run(self):
+            captured["ran"] = True
+
+    monkeypatch.setattr(uvicorn, "Server", _FakeServer)
+    app._run_asgi()
+
+    out = capsys.readouterr().out
+    assert "8091" in out and "http://" in out, f"no URL announced: {out!r}"
+    # uvicorn's own startup/shutdown lines are no longer suppressed.
+    assert captured["config"].log_level == "info"

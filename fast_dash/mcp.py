@@ -64,10 +64,17 @@ import inspect
 import os
 import time
 import warnings
+import weakref
 from typing import Any
 
 # Holder kept for backwards compatibility with older imports/tests.
 _active_mcp_thread = None
+
+# Weakref to the app that owns this process's MCP tool registry. Dash keys that
+# registry by tool name process-globally, so only one fast_dash app can own it;
+# a second mount raises rather than silently repointing both endpoints (#171).
+# A weakref means a garbage-collected app releases the slot on its own.
+_mcp_owner = None
 
 # Addresses that keep the (unauthenticated) /mcp route on this machine.
 LOOPBACK_HOSTS = frozenset({"127.0.0.1", "localhost", "::1", "[::1]"})
@@ -778,13 +785,20 @@ def _describe_outputs(fd, state=None):
         if i < len(anns) and anns[i] in (str, int, float, bool, list, dict):
             jtype = _json_type_name(anns[i])
         cid = _stringify_id(comp.id)
-        entry = {"id": cid, "tag": tag, "type": jtype}
         # label_ is the label the UI actually renders: _infer_output_components
         # normalizes a wrong-length output_labels list to OUTPUT_1/OUTPUT_2 and
         # stamps it on the component, while fd.output_labels keeps the original.
-        label = getattr(comp, "label_", None)
-        if label:
-            entry["label"] = label
+        # The key is ALWAYS present (null when the component carries no label, as
+        # DynamicDash's runtime-built outputs don't): the documented contract is
+        # {id, tag, type, label}, and dropping the key made a generic agent that
+        # reads output["label"] raise KeyError on DynamicDash while working on
+        # FastDash. (issue #172)
+        entry = {
+            "id": cid,
+            "tag": tag,
+            "type": jtype,
+            "label": getattr(comp, "label_", None) or None,
+        }
         if state is not None and cid in state.outputs:
             entry["current_value"] = _summarize_for_history(state.outputs[cid])
         outputs.append(entry)
@@ -1000,6 +1014,25 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
 
     if getattr(fd, "_mcp_mounted", False):
         return
+
+    # Dash's `mcp_enabled` registry is process-global and keyed by tool name, so
+    # a second MCP-enabled app overwrites the first app's tools: BOTH /mcp
+    # endpoints -- including the first app's already-working one -- then resolve
+    # to whichever app registered last, and an agent driving app A silently runs
+    # app B's callback. That limitation was documented in prose but not enforced,
+    # so the collision was silent and active. Fail loudly instead. (issue #171)
+    global _mcp_owner
+    owner = _mcp_owner() if _mcp_owner is not None else None
+    if owner is not None and owner is not fd:
+        raise RuntimeError(
+            "mcp_server=True is already enabled on another app in this process "
+            f"({getattr(owner, 'title', None) or type(owner).__name__!r}). Dash's "
+            "MCP tool registry is process-global, so mounting a second one would "
+            "silently repoint BOTH /mcp endpoints at this app and an agent "
+            "driving the first app would run this app's callback instead. Run one "
+            "MCP-enabled app per process."
+        )
+    _mcp_owner = weakref.ref(fd)
     fd._mcp_mounted = True
 
     # Delegate the introspection surface to Dash; hide the noisy internal Dash
@@ -1017,6 +1050,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     # of the input-mirror tools, then mount and return.
     if getattr(fd, "is_chat", False):
         _register_chat_mcp_tools(fd, mcp_enabled)
+        _override_mcp_instructions()
         enable_mcp_server(fd.app, mcp_path)
         if getattr(fd, "_backend", None):
             _install_asgi_mcp_request_context(fd.app.server, mcp_path)
@@ -1281,13 +1315,68 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             "outputs": _describe_outputs(fd, state),
         }
 
-    # Mount the MCP routes on the Dash app (same port).
+    # Mount the MCP routes on the Dash app (same port). Swap Dash's "stateless,
+    # does NOT update the browser" handshake instructions for ours first (#173).
+    _override_mcp_instructions()
     enable_mcp_server(fd.app, mcp_path)
 
     # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
     # /mcp route (see _install_asgi_mcp_request_context).
     if getattr(fd, "_backend", None):
         _install_asgi_mcp_request_context(fd.app.server, mcp_path)
+
+
+_FASTDASH_MCP_INSTRUCTIONS = (
+    "This is a Fast Dash app: a Python callback rendered as a web UI, with a "
+    "live browser session a human may be watching.\n\n"
+    "Unlike a plain Dash app, this app's tools are STATEFUL -- they drive the "
+    "running app, and what you do IS reflected in the user's browser (within "
+    "about 500ms, no reload):\n"
+    "  - describe_app() -- start here: every input's id, type, default, allowed "
+    "options and current value, plus the outputs a run produces.\n"
+    "  - set_input(component_id, value) / set_inputs(inputs) -- set values; the "
+    "browser's widgets update to match.\n"
+    "  - invoke(inputs=None) -- set values and run the callback in one call; the "
+    "output renders in the browser and the result is returned to you.\n"
+    "  - set_form(specs) -- DynamicDash only: build the input form at runtime.\n\n"
+    "Values are validated against the contract describe_app() advertises, so you "
+    "cannot set something the UI itself could not produce."
+)
+
+
+def _override_mcp_instructions() -> None:
+    """Replace Dash's stateless ``initialize`` instructions with Fast Dash's.
+
+    Dash's native MCP server tells every connecting agent, in the very first
+    handshake, that "Dash apps are stateless ... calling a tool executes a
+    callback and returns its result to you, but does NOT update the user's
+    browser". For a Fast Dash app that is false and actively counter-productive:
+    the drive tools are precisely the stateful ones, and the ``instructions``
+    field exists to steer model behavior -- so an agent that trusts it is told
+    up front not to attempt the thing the feature exists for. (issue #173)
+
+    Dash builds its method table inside ``_process_mcp_message``, reading
+    ``_handle_initialize`` from module globals per call, so replacing the
+    attribute takes effect for every subsequent handshake. Best-effort: a Dash
+    version that restructures this leaves the stock instructions in place rather
+    than breaking the mount.
+    """
+    try:
+        from dash.mcp import _server as _dash_mcp_server
+
+        if getattr(_dash_mcp_server, "_fastdash_instructions_patched", False):
+            return
+        _stock_initialize = _dash_mcp_server._handle_initialize
+
+        def _fastdash_initialize():
+            result = _stock_initialize()
+            result.instructions = _FASTDASH_MCP_INSTRUCTIONS
+            return result
+
+        _dash_mcp_server._handle_initialize = _fastdash_initialize
+        _dash_mcp_server._fastdash_instructions_patched = True
+    except Exception:  # noqa: BLE001 - never fail the mount over instructions
+        pass
 
 
 def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
