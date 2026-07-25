@@ -1,4 +1,41 @@
-# Release 0.6.6
+# Release 0.6.7
+
+## 0.6.7 (2026-07-25)
+
+Bug-fix release clearing the open board — six findings from the nightly dogfood,
+four of them on the MCP agent contract.
+
+### Fixed
+- **A second `mcp_server=True` app in one process silently hijacked the first**
+  (#171) — Dash's MCP tool registry is process-global, so the second app's tools
+  overwrote the first's and *both* `/mcp` endpoints resolved to whichever
+  registered last: an agent driving app A silently ran app B's callback. The
+  one-app-per-process limit was documented in prose but never enforced; it now
+  raises a `RuntimeError` naming the owning app (re-mounting the same app stays
+  idempotent).
+- **The MCP `initialize` handshake told agents the app was stateless** (#173) —
+  every client read Dash's stock *"does NOT update the user's browser"*
+  instructions, steering agents away from the stateful drive tools that are the
+  feature's whole point. Fast Dash now serves its own instructions.
+- **`describe_app()` dropped the `label` key for DynamicDash outputs** (#172) —
+  the documented `{id, tag, type, label}` shape held for `FastDash` but not
+  `DynamicDash`, so a generic agent reading `output["label"]` raised `KeyError`.
+  The key is now always present (`null` when the component has no label).
+- **`backend="fastapi"` started completely silently** (#170) — no URL and no
+  boot confirmation, so a user following the docs had nothing to open and no way
+  to tell a running server from a hung one. The URL is announced and uvicorn's
+  startup lines are no longer suppressed.
+- **A non-ASCII character in a raised error crashed cp1252 consoles** (#169) —
+  the `parent_control` `ValueError` carried `U+2192` (and an em dash), so
+  printing that traceback on a default Windows console raised a secondary
+  `UnicodeEncodeError` that masked the message. Both replaced, and a test now
+  scans every `raise`/`warn` string in the package.
+
+### Documentation
+- **"10 minutes to Fast Dash" misdescribed collection defaults** (#176) — a
+  `list`/`dict`/`range()` default builds the widget's *option set*, so an
+  untouched Run passes `None`, not the default. Documented with the `TypeError`
+  it otherwise causes and how to guard against it.
 
 ## 0.6.6 (2026-07-23)
 
