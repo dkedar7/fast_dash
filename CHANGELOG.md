@@ -1,4 +1,36 @@
-# Release 0.6.7
+# Release 0.6.8
+
+## 0.6.8 (2026-07-27)
+
+One feature and three fixes, two of which made a documented type hint lie to the
+callback it typed.
+
+### Added
+- **Drag to resize the input sidebar** (#80) — a grab strip on the sidebar's
+  trailing edge resizes it up to half the viewport, with the output pane
+  tracking it. Also operable from the keyboard (focus the handle, arrow keys
+  nudge, shift for a coarser step), and hidden below the breakpoint where the
+  navbar becomes a full-width overlay. A width you drag to survives collapsing
+  and re-expanding the sidebar.
+
+### Fixed
+- **`update_live` apps rendered only for the first visitor per worker process**
+  (#183) — the page-load render was gated on a permanent latch stored on the
+  `FastDash` instance, so the first visitor got a dashboard and every later
+  visitor (or a plain reload) got a silent blank one. Since every 0-input
+  callback auto-enables `update_live`, this hit the parameterless dashboard
+  case. Each page load now renders, and the re-mount protection that latch
+  provided is preserved via a one-shot token.
+- **`enum.Enum` inputs passed the raw option string, not the member** (#181) —
+  `.value` / `.name` raised `AttributeError`, and `is` / `==` comparisons
+  against a member silently never matched, returning a wrong result with no
+  error. The callback now receives the Enum member its hint promises.
+- **`datetime.date` inputs passed a raw ISO string once set** (#182) — the
+  callback got a real `date` only while the input was untouched; picking a date
+  (or an agent setting one) turned it into `"2025-12-25"`, so `.isoformat()`,
+  `.year` and friends crashed. ISO values are now parsed back to
+  `date`/`datetime`; values already of the right type, and unparseable ones,
+  are left untouched.
 
 ## 0.6.7 (2026-07-25)
 
