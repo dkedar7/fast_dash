@@ -3,6 +3,7 @@ Utility functions
 """
 import base64
 import copy
+import datetime
 import functools
 import inspect
 from io import BytesIO
@@ -799,16 +800,71 @@ def _transform_outputs(output_states, tags, outputs_with_ids, counter):
     ]
 
 
-def _transform_inputs(inputs, tags):
-    "Transform inputs to fit in the desired components"
+def _coerce_enum(value, component):
+    """Map a Select's option string back to the Enum member (issue #181).
 
+    A widget can only carry the stringified option, but typing a parameter as an
+    ``enum.Enum`` is exactly how you ask to receive the *member* -- so handing
+    the callback ``"red"`` made ``.value``/``.name`` raise and, worse, made
+    ``color is Color.RED`` quietly never match. The class is stashed on the
+    component when the dropdown is built.
+    """
+    enum_class = getattr(component, "enum_class", None)
+    if enum_class is None or isinstance(value, enum_class):
+        return value
+    for member in enum_class:
+        if value == member or str(member.value) == str(value):
+            return member
+    return value                      # unknown option: hand it back untouched
+
+
+def _coerce_date(value, tag):
+    """Parse a picker's ISO string into date/datetime (issue #182).
+
+    The untouched default arrives as a real ``datetime.date`` while a *set*
+    value arrives as ``"2025-12-25"``, so an app worked until someone touched
+    the picker and then crashed on ``.isoformat()``/``.year``. Normalize both
+    paths to the type the hint promises.
+    """
+    if not isinstance(value, str):
+        return value                  # already a date/datetime -- leave it
+    text = value.strip()
+    if not text:
+        return value
+    try:
+        if tag == "Timestamp":
+            return datetime.datetime.fromisoformat(text)
+        # A date picker may still hand back a full ISO timestamp; keep the date.
+        try:
+            return datetime.date.fromisoformat(text)
+        except ValueError:
+            return datetime.datetime.fromisoformat(text).date()
+    except (ValueError, TypeError):
+        return value                  # unparseable: don't mangle the input
+
+
+def _transform_inputs(inputs, tags, components=None):
+    """Transform inputs to fit in the desired components.
+
+    ``components`` (the ``inputs_with_ids`` aligned to ``inputs``) is optional so
+    older call sites keep working, but without it Enum inputs can't be mapped
+    back to their member -- the Enum class lives on the component.
+    """
+    comps = list(components) if components else []
     transformed_inputs = []
-    for inp, tag in zip(inputs, tags):
+    for i, (inp, tag) in enumerate(zip(inputs, tags)):
+        comp = comps[i] if i < len(comps) else None
         if inp is None:
             transformed_inputs.append(inp)
 
         elif tag == "Image":
             transformed_inputs.append(_b64_to_pil(inp))
+
+        elif tag == "Enum":
+            transformed_inputs.append(_coerce_enum(inp, comp))
+
+        elif tag in ("Date", "Timestamp"):
+            transformed_inputs.append(_coerce_date(inp, tag))
 
         else:
             transformed_inputs.append(inp)

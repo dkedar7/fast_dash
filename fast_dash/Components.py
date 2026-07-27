@@ -1264,13 +1264,16 @@ def _resolve_typing_hint(hint, default_value=None):
     if isinstance(hint, type) and issubclass(hint, enum.Enum):
         members = [str(e.value) for e in hint]
         default = str(default_value.value) if isinstance(default_value, enum.Enum) else members[0] if members else None
-        return _ResolvedHint(
-            component=Fastify(
-                dmc.Select(data=members, value=default),
-                "value",
-                tag="Enum",
-            ),
+        component = Fastify(
+            dmc.Select(data=members, value=default),
+            "value",
+            tag="Enum",
         )
+        # Remember the Enum class: the widget can only carry the option string,
+        # but the callback's type hint promises the *member*, so the transform
+        # layer needs the class to map "red" back to Color.RED (issue #181).
+        component.enum_class = hint
+        return _ResolvedHint(component=component)
 
     # Annotated[T, metadata] -> depends on metadata
     if origin is Annotated:
