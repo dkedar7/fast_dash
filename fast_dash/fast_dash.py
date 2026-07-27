@@ -833,9 +833,13 @@ class FastDash(ChatAppMixin):
         self.submit_clicks = 0
         self.reset_clicks = 0
         self.app_initialized = False
-        # True once the page-load render of the main callback has run; a later
-        # no-trigger fire is a re-mount re-fire and must not clobber (Bug 1b).
-        self._initial_render_done = False
+        # One-shot: armed only when a Run swaps output-group-col.children, which
+        # makes Dash re-fire the main callback with an empty ctx. The next
+        # no-trigger fire consumes it and yields no_update so that expected
+        # re-fire can't clobber the Run's outputs (Bug 1b). Deliberately NOT a
+        # permanent latch -- as one it made the page-load render happen once per
+        # worker process, blanking every visitor after the first (issue #183).
+        self._expect_remount_refire = False
 
 
     def _init_multi_function(self):
@@ -1264,7 +1268,8 @@ class FastDash(ChatAppMixin):
             user_input_vals = list(input_values[
                 input_offset:input_offset + len(sd["inputs_with_ids"])
             ])
-            user_input_vals = _transform_inputs(user_input_vals, sd["input_tags"])
+            user_input_vals = _transform_inputs(user_input_vals, sd["input_tags"],
+                                                sd["inputs_with_ids"])
             for (pname, _pobj), val in zip(sd["user_params"], user_input_vals):
                 kwargs[pname] = val
 
@@ -2003,30 +2008,36 @@ class FastDash(ChatAppMixin):
                 # clobber the value a genuine Run just rendered. A true no-trigger
                 # fire (page load) still raises as before.
                 if _tid in ("submit_inputs", "reset_inputs"):
-                    self._initial_render_done = True
                     return _no_update_all()
                 raise PreventUpdate
 
-            # No genuine trigger (update_live app): the FIRST such call is the
-            # real page-load render (it must establish the default output view);
-            # any later no-trigger call is a re-mount re-fire -- e.g. the
-            # Run-reset swapping output-group-col.children remounts the leaf
-            # outputs and re-fires this callback with an empty ctx. Returning the
-            # default output there would clobber the value the Run just rendered,
-            # so after the first render a no-trigger call yields no_update.
+            # No genuine trigger (update_live app): normally the real page-load
+            # render, which must establish the output view. The exception is the
+            # re-mount re-fire that follows a Run-reset swapping
+            # output-group-col.children -- that remounts the leaf outputs and
+            # re-fires this callback with an empty ctx, where returning defaults
+            # would clobber what the Run just rendered.
+            #
+            # That expected re-fire is announced by a ONE-SHOT token set at the
+            # single place that swaps children, and consumed here. It used to be
+            # a permanent `_initial_render_done` latch on the instance, which
+            # made the page-load render happen once per worker *process* instead
+            # of once per page load: the first visitor got a dashboard and every
+            # later visitor (or reload) got a blank one, silently (issue #183).
             if not genuine_trigger:
-                if getattr(self, "_initial_render_done", False):
-                    # no_update for every output component (+ notification +
-                    # overlay), so this re-mount re-fire leaves the values a
-                    # genuine Run / drive already rendered untouched.
+                if getattr(self, "_expect_remount_refire", False):
+                    # Consume the token: no_update for every output component
+                    # (+ notification + overlay) leaves the values the Run
+                    # already rendered untouched.
+                    self._expect_remount_refire = False
                     return _no_update_all()
-                self._initial_render_done = True
 
             default_notification = []
             self.state_counter += 1
 
             try:
-                inputs = _transform_inputs(input_args, self.input_tags)
+                inputs = _transform_inputs(input_args, self.input_tags,
+                                            self.inputs_with_ids)
 
                 if ctx.triggered_id == "submit_inputs" or (
                     self.update_live is True and None not in input_args
@@ -2078,6 +2089,13 @@ class FastDash(ChatAppMixin):
                     if _run_reset_server and _layout_dirty:
                         try:
                             children = self._run_reset_children(self.output_state)
+                            # Swapping children remounts the leaves, which makes
+                            # Dash re-fire this callback with an empty ctx. Arm
+                            # the one-shot token so that expected re-fire is
+                            # ignored instead of clobbering these outputs -- and
+                            # so that ordinary page loads, which never set it,
+                            # still render (issue #183).
+                            self._expect_remount_refire = True
                             return (self.output_state
                                     + [default_notification, False]
                                     + _extra(children=children, dirty=False))
@@ -2370,7 +2388,8 @@ class FastDash(ChatAppMixin):
 
             try:
                 num_extra = 3 if self.stream else 2
-                inputs = _transform_inputs(args[:-num_extra], _fd["input_tags"])
+                inputs = _transform_inputs(args[:-num_extra], _fd["input_tags"],
+                                            _fd["inputs_with_ids"])
 
                 if ctx.triggered_id == submit_id or (
                     _fd["update_live"] is True and None not in args

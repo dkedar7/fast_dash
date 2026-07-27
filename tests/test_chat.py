@@ -2072,9 +2072,14 @@ class TestMainCallbackNoTriggerNeutralized:
             fdmod.ctx = orig
 
     def test_remount_refire_returns_no_update_for_update_live(self):
-        # An update_live app renders defaults ONCE (page load) then yields
-        # no_update on every later no-trigger fire, so a Run-reset re-mount
-        # cannot revert the value the Run just rendered.
+        # An update_live app renders on EVERY page load, and yields no_update
+        # only for the re-mount re-fire that a children-swapping Run announces
+        # via the one-shot token.
+        #
+        # This used to be a permanent latch: the first no-trigger fire rendered
+        # and every later one returned no_update. That made the page-load render
+        # happen once per worker *process*, so the first visitor got a dashboard
+        # and everyone after got a blank one (issue #183).
         import dash
         import fast_dash.fast_dash as fdmod
         from fast_dash import Text
@@ -2087,11 +2092,22 @@ class TestMainCallbackNoTriggerNeutralized:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx(None)
         try:
-            app._initial_render_done = False
-            first = raw(1, 2, 0, 0, "sid-a")           # page-load render
+            first = raw(1, 2, 0, 0, "sid-a")           # page load -> renders
             assert not all(x is dash.no_update for x in first)
-            second = raw(1, 2, 0, 0, "sid-a")          # re-mount re-fire
-            assert all(x is dash.no_update for x in second)
+
+            # A SECOND page load must render too -- this is the #183 regression.
+            second = raw(1, 2, 0, 0, "sid-a")
+            assert not all(x is dash.no_update for x in second)
+
+            # Arm the token the way a children-swapping Run does: that one
+            # expected re-fire must not clobber what the Run just rendered.
+            app._expect_remount_refire = True
+            refire = raw(1, 2, 0, 0, "sid-a")
+            assert all(x is dash.no_update for x in refire)
+
+            # ...and it is one-shot, so the next page load renders again.
+            after = raw(1, 2, 0, 0, "sid-a")
+            assert not all(x is dash.no_update for x in after)
         finally:
             fdmod.ctx = orig
 
@@ -2109,7 +2125,7 @@ class TestMainCallbackNoTriggerNeutralized:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("submit_inputs")
         try:
-            app._initial_render_done = True            # past page load
+            # (no render latch any more -- a genuine submit always runs)
             out = raw(7, 0, 1, "sid-a")                # a, reset, submit, sid
             assert out[0] == "value-7"
         finally:
@@ -2131,7 +2147,6 @@ class TestMainCallbackNoTriggerNeutralized:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("reset_inputs")
         try:
-            app._initial_render_done = True
             # a, b, reset_n=0 (phantom -- remounted), submit_n=4, sid.
             out = raw(1, 2, 0, 4, "sid-a")
             assert all(x is dash.no_update for x in out)
@@ -2149,7 +2164,6 @@ class TestMainCallbackNoTriggerNeutralized:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("submit_inputs")
         try:
-            app._initial_render_done = True
             out = raw(1, 2, 0, 0, "sid-a")             # submit_n=0 -> phantom
             assert all(x is dash.no_update for x in out)
         finally:
@@ -2166,7 +2180,6 @@ class TestMainCallbackNoTriggerNeutralized:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("reset_inputs")
         try:
-            app._initial_render_done = True
             out = raw(1, 2, 1, 0, "sid-a")             # reset_n=1 -> genuine
             # Not a no_update sweep: the reset branch returned real defaults.
             assert not all(x is dash.no_update for x in out)
@@ -2186,7 +2199,6 @@ class TestManualRunMirror:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("submit_inputs")
         try:
-            app._initial_render_done = True
             raw(3, 4, 0, 1, "sid-run")                 # a, b, reset, submit, sid
         finally:
             fdmod.ctx = orig
@@ -2204,7 +2216,6 @@ class TestManualRunMirror:
         orig = fdmod.ctx
         fdmod.ctx = _FakeCtx("submit_inputs")
         try:
-            app._initial_render_done = True
             raw(3, 4, 0, 1, None)                      # sid is None
         finally:
             fdmod.ctx = orig

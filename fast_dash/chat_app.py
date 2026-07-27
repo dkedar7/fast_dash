@@ -333,7 +333,7 @@ class ChatAppMixin:
         """
         from .utils import _transform_inputs, _transform_outputs
         raw = [drive_inputs.get(n) for n in self._chat_input_names]
-        inputs = _transform_inputs(raw, self.input_tags)
+        inputs = _transform_inputs(raw, self.input_tags, self.inputs_with_ids)
         # Serialize against a user's manual Run (A4): one host-callback execution
         # at a time across the Run thread and this chat thread.
         lock = getattr(self, "_host_callback_lock", None)
