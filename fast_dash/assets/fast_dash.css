@@ -418,3 +418,59 @@
   font-style: italic;
   text-align: center;
 }
+
+/* --- Draggable sidebar width (issue #80) -------------------------------------
+   A grab strip on the sidebar's trailing edge. It sits inside the navbar (which
+   AppShell positions), so `inset-inline-end: 0` pins it to that edge in both LTR
+   and RTL. Kept narrow but with a generous hit area, and invisible until you
+   approach it so it doesn't add a permanent line to the chrome. */
+.fd-sidebar-resizer {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 5;
+  /* The visible hairline is a child pseudo-element so the grab area can stay
+     wider than the 1px people actually see. */
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.fd-sidebar-resizer::after {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  width: 2px;
+  background: transparent;
+  transition: background 120ms ease;
+}
+
+.fd-sidebar-resizer:hover::after,
+.fd-sidebar-resizer:focus-visible::after,
+body.fd-resizing .fd-sidebar-resizer::after {
+  background: var(--mantine-color-default-border);
+}
+
+.fd-sidebar-resizer:focus-visible {
+  outline: 2px solid var(--mantine-primary-color-filled);
+  outline-offset: -2px;
+}
+
+/* While dragging: kill the text-selection ghosting and any width transition so
+   the sidebar tracks the pointer exactly. */
+body.fd-resizing {
+  user-select: none;
+  cursor: col-resize;
+}
+
+body.fd-resizing * {
+  transition: none !important;
+}
+
+/* Below the AppShell breakpoint the navbar goes full-width and becomes an
+   overlay, so there is no edge to drag. */
+@media (max-width: 768px) {
+  .fd-sidebar-resizer { display: none; }
+}
