@@ -4570,7 +4570,26 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2623</span>
 <span class="normal">2624</span>
 <span class="normal">2625</span>
-<span class="normal">2626</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
+<span class="normal">2626</span>
+<span class="normal">2627</span>
+<span class="normal">2628</span>
+<span class="normal">2629</span>
+<span class="normal">2630</span>
+<span class="normal">2631</span>
+<span class="normal">2632</span>
+<span class="normal">2633</span>
+<span class="normal">2634</span>
+<span class="normal">2635</span>
+<span class="normal">2636</span>
+<span class="normal">2637</span>
+<span class="normal">2638</span>
+<span class="normal">2639</span>
+<span class="normal">2640</span>
+<span class="normal">2641</span>
+<span class="normal">2642</span>
+<span class="normal">2643</span>
+<span class="normal">2644</span>
+<span class="normal">2645</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -5156,9 +5175,13 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="bp">self</span><span class="o">.</span><span class="n">submit_clicks</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset_clicks</span> <span class="o">=</span> <span class="mi">0</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">app_initialized</span> <span class="o">=</span> <span class="kc">False</span>
-        <span class="c1"># True once the page-load render of the main callback has run; a later</span>
-        <span class="c1"># no-trigger fire is a re-mount re-fire and must not clobber (Bug 1b).</span>
-        <span class="bp">self</span><span class="o">.</span><span class="n">_initial_render_done</span> <span class="o">=</span> <span class="kc">False</span>
+        <span class="c1"># One-shot: armed only when a Run swaps output-group-col.children, which</span>
+        <span class="c1"># makes Dash re-fire the main callback with an empty ctx. The next</span>
+        <span class="c1"># no-trigger fire consumes it and yields no_update so that expected</span>
+        <span class="c1"># re-fire can&#39;t clobber the Run&#39;s outputs (Bug 1b). Deliberately NOT a</span>
+        <span class="c1"># permanent latch -- as one it made the page-load render happen once per</span>
+        <span class="c1"># worker process, blanking every visitor after the first (issue #183).</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_expect_remount_refire</span> <span class="o">=</span> <span class="kc">False</span>
 
 
     <span class="k">def</span><span class="w"> </span><span class="nf">_init_multi_function</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
@@ -5587,7 +5610,8 @@ sets all parameters required for Fast Dash app deployment.</p>
             <span class="n">user_input_vals</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">input_values</span><span class="p">[</span>
                 <span class="n">input_offset</span><span class="p">:</span><span class="n">input_offset</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="n">sd</span><span class="p">[</span><span class="s2">&quot;inputs_with_ids&quot;</span><span class="p">])</span>
             <span class="p">])</span>
-            <span class="n">user_input_vals</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">user_input_vals</span><span class="p">,</span> <span class="n">sd</span><span class="p">[</span><span class="s2">&quot;input_tags&quot;</span><span class="p">])</span>
+            <span class="n">user_input_vals</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">user_input_vals</span><span class="p">,</span> <span class="n">sd</span><span class="p">[</span><span class="s2">&quot;input_tags&quot;</span><span class="p">],</span>
+                                                <span class="n">sd</span><span class="p">[</span><span class="s2">&quot;inputs_with_ids&quot;</span><span class="p">])</span>
             <span class="k">for</span> <span class="p">(</span><span class="n">pname</span><span class="p">,</span> <span class="n">_pobj</span><span class="p">),</span> <span class="n">val</span> <span class="ow">in</span> <span class="nb">zip</span><span class="p">(</span><span class="n">sd</span><span class="p">[</span><span class="s2">&quot;user_params&quot;</span><span class="p">],</span> <span class="n">user_input_vals</span><span class="p">):</span>
                 <span class="n">kwargs</span><span class="p">[</span><span class="n">pname</span><span class="p">]</span> <span class="o">=</span> <span class="n">val</span>
 
@@ -6326,30 +6350,36 @@ sets all parameters required for Fast Dash app deployment.</p>
                 <span class="c1"># clobber the value a genuine Run just rendered. A true no-trigger</span>
                 <span class="c1"># fire (page load) still raises as before.</span>
                 <span class="k">if</span> <span class="n">_tid</span> <span class="ow">in</span> <span class="p">(</span><span class="s2">&quot;submit_inputs&quot;</span><span class="p">,</span> <span class="s2">&quot;reset_inputs&quot;</span><span class="p">):</span>
-                    <span class="bp">self</span><span class="o">.</span><span class="n">_initial_render_done</span> <span class="o">=</span> <span class="kc">True</span>
                     <span class="k">return</span> <span class="n">_no_update_all</span><span class="p">()</span>
                 <span class="k">raise</span> <span class="n">PreventUpdate</span>
 
-            <span class="c1"># No genuine trigger (update_live app): the FIRST such call is the</span>
-            <span class="c1"># real page-load render (it must establish the default output view);</span>
-            <span class="c1"># any later no-trigger call is a re-mount re-fire -- e.g. the</span>
-            <span class="c1"># Run-reset swapping output-group-col.children remounts the leaf</span>
-            <span class="c1"># outputs and re-fires this callback with an empty ctx. Returning the</span>
-            <span class="c1"># default output there would clobber the value the Run just rendered,</span>
-            <span class="c1"># so after the first render a no-trigger call yields no_update.</span>
+            <span class="c1"># No genuine trigger (update_live app): normally the real page-load</span>
+            <span class="c1"># render, which must establish the output view. The exception is the</span>
+            <span class="c1"># re-mount re-fire that follows a Run-reset swapping</span>
+            <span class="c1"># output-group-col.children -- that remounts the leaf outputs and</span>
+            <span class="c1"># re-fires this callback with an empty ctx, where returning defaults</span>
+            <span class="c1"># would clobber what the Run just rendered.</span>
+            <span class="c1">#</span>
+            <span class="c1"># That expected re-fire is announced by a ONE-SHOT token set at the</span>
+            <span class="c1"># single place that swaps children, and consumed here. It used to be</span>
+            <span class="c1"># a permanent `_initial_render_done` latch on the instance, which</span>
+            <span class="c1"># made the page-load render happen once per worker *process* instead</span>
+            <span class="c1"># of once per page load: the first visitor got a dashboard and every</span>
+            <span class="c1"># later visitor (or reload) got a blank one, silently (issue #183).</span>
             <span class="k">if</span> <span class="ow">not</span> <span class="n">genuine_trigger</span><span class="p">:</span>
-                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_initial_render_done&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
-                    <span class="c1"># no_update for every output component (+ notification +</span>
-                    <span class="c1"># overlay), so this re-mount re-fire leaves the values a</span>
-                    <span class="c1"># genuine Run / drive already rendered untouched.</span>
+                <span class="k">if</span> <span class="nb">getattr</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="s2">&quot;_expect_remount_refire&quot;</span><span class="p">,</span> <span class="kc">False</span><span class="p">):</span>
+                    <span class="c1"># Consume the token: no_update for every output component</span>
+                    <span class="c1"># (+ notification + overlay) leaves the values the Run</span>
+                    <span class="c1"># already rendered untouched.</span>
+                    <span class="bp">self</span><span class="o">.</span><span class="n">_expect_remount_refire</span> <span class="o">=</span> <span class="kc">False</span>
                     <span class="k">return</span> <span class="n">_no_update_all</span><span class="p">()</span>
-                <span class="bp">self</span><span class="o">.</span><span class="n">_initial_render_done</span> <span class="o">=</span> <span class="kc">True</span>
 
             <span class="n">default_notification</span> <span class="o">=</span> <span class="p">[]</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">state_counter</span> <span class="o">+=</span> <span class="mi">1</span>
 
             <span class="k">try</span><span class="p">:</span>
-                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">input_args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span><span class="p">)</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">input_args</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">input_tags</span><span class="p">,</span>
+                                            <span class="bp">self</span><span class="o">.</span><span class="n">inputs_with_ids</span><span class="p">)</span>
 
                 <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="s2">&quot;submit_inputs&quot;</span> <span class="ow">or</span> <span class="p">(</span>
                     <span class="bp">self</span><span class="o">.</span><span class="n">update_live</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">input_args</span>
@@ -6401,6 +6431,13 @@ sets all parameters required for Fast Dash app deployment.</p>
                     <span class="k">if</span> <span class="n">_run_reset_server</span> <span class="ow">and</span> <span class="n">_layout_dirty</span><span class="p">:</span>
                         <span class="k">try</span><span class="p">:</span>
                             <span class="n">children</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">_run_reset_children</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_state</span><span class="p">)</span>
+                            <span class="c1"># Swapping children remounts the leaves, which makes</span>
+                            <span class="c1"># Dash re-fire this callback with an empty ctx. Arm</span>
+                            <span class="c1"># the one-shot token so that expected re-fire is</span>
+                            <span class="c1"># ignored instead of clobbering these outputs -- and</span>
+                            <span class="c1"># so that ordinary page loads, which never set it,</span>
+                            <span class="c1"># still render (issue #183).</span>
+                            <span class="bp">self</span><span class="o">.</span><span class="n">_expect_remount_refire</span> <span class="o">=</span> <span class="kc">True</span>
                             <span class="k">return</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">output_state</span>
                                     <span class="o">+</span> <span class="p">[</span><span class="n">default_notification</span><span class="p">,</span> <span class="kc">False</span><span class="p">]</span>
                                     <span class="o">+</span> <span class="n">_extra</span><span class="p">(</span><span class="n">children</span><span class="o">=</span><span class="n">children</span><span class="p">,</span> <span class="n">dirty</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
@@ -6693,7 +6730,8 @@ sets all parameters required for Fast Dash app deployment.</p>
 
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">num_extra</span> <span class="o">=</span> <span class="mi">3</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="k">else</span> <span class="mi">2</span>
-                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="n">num_extra</span><span class="p">],</span> <span class="n">_fd</span><span class="p">[</span><span class="s2">&quot;input_tags&quot;</span><span class="p">])</span>
+                <span class="n">inputs</span> <span class="o">=</span> <span class="n">_transform_inputs</span><span class="p">(</span><span class="n">args</span><span class="p">[:</span><span class="o">-</span><span class="n">num_extra</span><span class="p">],</span> <span class="n">_fd</span><span class="p">[</span><span class="s2">&quot;input_tags&quot;</span><span class="p">],</span>
+                                            <span class="n">_fd</span><span class="p">[</span><span class="s2">&quot;inputs_with_ids&quot;</span><span class="p">])</span>
 
                 <span class="k">if</span> <span class="n">ctx</span><span class="o">.</span><span class="n">triggered_id</span> <span class="o">==</span> <span class="n">submit_id</span> <span class="ow">or</span> <span class="p">(</span>
                     <span class="n">_fd</span><span class="p">[</span><span class="s2">&quot;update_live&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">True</span> <span class="ow">and</span> <span class="kc">None</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">args</span>
@@ -8192,26 +8230,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2537</span>
-<span class="normal">2538</span>
-<span class="normal">2539</span>
-<span class="normal">2540</span>
-<span class="normal">2541</span>
-<span class="normal">2542</span>
-<span class="normal">2543</span>
-<span class="normal">2544</span>
-<span class="normal">2545</span>
-<span class="normal">2546</span>
-<span class="normal">2547</span>
-<span class="normal">2548</span>
-<span class="normal">2549</span>
-<span class="normal">2550</span>
-<span class="normal">2551</span>
-<span class="normal">2552</span>
-<span class="normal">2553</span>
-<span class="normal">2554</span>
-<span class="normal">2555</span>
-<span class="normal">2556</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2556</span>
 <span class="normal">2557</span>
 <span class="normal">2558</span>
 <span class="normal">2559</span>
@@ -8281,7 +8300,26 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2623</span>
 <span class="normal">2624</span>
 <span class="normal">2625</span>
-<span class="normal">2626</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">2626</span>
+<span class="normal">2627</span>
+<span class="normal">2628</span>
+<span class="normal">2629</span>
+<span class="normal">2630</span>
+<span class="normal">2631</span>
+<span class="normal">2632</span>
+<span class="normal">2633</span>
+<span class="normal">2634</span>
+<span class="normal">2635</span>
+<span class="normal">2636</span>
+<span class="normal">2637</span>
+<span class="normal">2638</span>
+<span class="normal">2639</span>
+<span class="normal">2640</span>
+<span class="normal">2641</span>
+<span class="normal">2642</span>
+<span class="normal">2643</span>
+<span class="normal">2644</span>
+<span class="normal">2645</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
     <span class="c1"># Native-WebSocket streaming pushes via set_props directly; the</span>
     <span class="c1"># socket.io clientside listeners below are only for the Flask path.</span>
@@ -8393,26 +8431,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2440</span>
-<span class="normal">2441</span>
-<span class="normal">2442</span>
-<span class="normal">2443</span>
-<span class="normal">2444</span>
-<span class="normal">2445</span>
-<span class="normal">2446</span>
-<span class="normal">2447</span>
-<span class="normal">2448</span>
-<span class="normal">2449</span>
-<span class="normal">2450</span>
-<span class="normal">2451</span>
-<span class="normal">2452</span>
-<span class="normal">2453</span>
-<span class="normal">2454</span>
-<span class="normal">2455</span>
-<span class="normal">2456</span>
-<span class="normal">2457</span>
-<span class="normal">2458</span>
-<span class="normal">2459</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2459</span>
 <span class="normal">2460</span>
 <span class="normal">2461</span>
 <span class="normal">2462</span>
@@ -8444,7 +8463,26 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2488</span>
 <span class="normal">2489</span>
 <span class="normal">2490</span>
-<span class="normal">2491</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2491</span>
+<span class="normal">2492</span>
+<span class="normal">2493</span>
+<span class="normal">2494</span>
+<span class="normal">2495</span>
+<span class="normal">2496</span>
+<span class="normal">2497</span>
+<span class="normal">2498</span>
+<span class="normal">2499</span>
+<span class="normal">2500</span>
+<span class="normal">2501</span>
+<span class="normal">2502</span>
+<span class="normal">2503</span>
+<span class="normal">2504</span>
+<span class="normal">2505</span>
+<span class="normal">2506</span>
+<span class="normal">2507</span>
+<span class="normal">2508</span>
+<span class="normal">2509</span>
+<span class="normal">2510</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
@@ -8526,26 +8564,7 @@ rather than append on the native path.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2493</span>
-<span class="normal">2494</span>
-<span class="normal">2495</span>
-<span class="normal">2496</span>
-<span class="normal">2497</span>
-<span class="normal">2498</span>
-<span class="normal">2499</span>
-<span class="normal">2500</span>
-<span class="normal">2501</span>
-<span class="normal">2502</span>
-<span class="normal">2503</span>
-<span class="normal">2504</span>
-<span class="normal">2505</span>
-<span class="normal">2506</span>
-<span class="normal">2507</span>
-<span class="normal">2508</span>
-<span class="normal">2509</span>
-<span class="normal">2510</span>
-<span class="normal">2511</span>
-<span class="normal">2512</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2512</span>
 <span class="normal">2513</span>
 <span class="normal">2514</span>
 <span class="normal">2515</span>
@@ -8568,7 +8587,26 @@ rather than append on the native path.</p>
 <span class="normal">2532</span>
 <span class="normal">2533</span>
 <span class="normal">2534</span>
-<span class="normal">2535</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2535</span>
+<span class="normal">2536</span>
+<span class="normal">2537</span>
+<span class="normal">2538</span>
+<span class="normal">2539</span>
+<span class="normal">2540</span>
+<span class="normal">2541</span>
+<span class="normal">2542</span>
+<span class="normal">2543</span>
+<span class="normal">2544</span>
+<span class="normal">2545</span>
+<span class="normal">2546</span>
+<span class="normal">2547</span>
+<span class="normal">2548</span>
+<span class="normal">2549</span>
+<span class="normal">2550</span>
+<span class="normal">2551</span>
+<span class="normal">2552</span>
+<span class="normal">2553</span>
+<span class="normal">2554</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Native-WebSocket streaming handler — pushes via ``set_props``.</span>
 
 <span class="sd">    The ASGI counterpart of :meth:`stream_handler`. Called by</span>
@@ -8741,8 +8779,7 @@ and returns property updates for the dependent component:</p>
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/utils.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">57</span>
-<span class="normal">58</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">58</span>
 <span class="normal">59</span>
 <span class="normal">60</span>
 <span class="normal">61</span>
@@ -8762,7 +8799,8 @@ and returns property updates for the dependent component:</p>
 <span class="normal">75</span>
 <span class="normal">76</span>
 <span class="normal">77</span>
-<span class="normal">78</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">depends_on</span><span class="p">:</span>
+<span class="normal">78</span>
+<span class="normal">79</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">depends_on</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Declare that an input depends on another input&#39;s value.</span>
 
 <span class="sd">    The *resolver* callable receives the current value of the parent input</span>
@@ -8848,8 +8886,7 @@ def select_columns(
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/utils.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">26</span>
-<span class="normal">27</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">27</span>
 <span class="normal">28</span>
 <span class="normal">29</span>
 <span class="normal">30</span>
@@ -8876,7 +8913,8 @@ def select_columns(
 <span class="normal">51</span>
 <span class="normal">52</span>
 <span class="normal">53</span>
-<span class="normal">54</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">from_step</span><span class="p">:</span>
+<span class="normal">54</span>
+<span class="normal">55</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">from_step</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Declare that a step parameter receives its value from a previous step&#39;s output.</span>
 
 <span class="sd">    Used in ``FastDash(steps=[...])`` pipelines to wire the output of one step</span>
@@ -9036,8 +9074,7 @@ def select_columns(
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/utils.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 81</span>
-<span class="normal"> 82</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 82</span>
 <span class="normal"> 83</span>
 <span class="normal"> 84</span>
 <span class="normal"> 85</span>
@@ -9080,7 +9117,8 @@ def select_columns(
 <span class="normal">122</span>
 <span class="normal">123</span>
 <span class="normal">124</span>
-<span class="normal">125</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">125</span>
+<span class="normal">126</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">Fastify</span><span class="p">(</span><span class="n">component</span><span class="p">,</span> <span class="n">component_property</span><span class="p">,</span> <span class="n">ack</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">placeholder</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">label_</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">tag</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="o">*</span><span class="n">args</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Modify a Dash component into a FastComponent.</span>
 
@@ -9765,26 +9803,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2629</span>
-<span class="normal">2630</span>
-<span class="normal">2631</span>
-<span class="normal">2632</span>
-<span class="normal">2633</span>
-<span class="normal">2634</span>
-<span class="normal">2635</span>
-<span class="normal">2636</span>
-<span class="normal">2637</span>
-<span class="normal">2638</span>
-<span class="normal">2639</span>
-<span class="normal">2640</span>
-<span class="normal">2641</span>
-<span class="normal">2642</span>
-<span class="normal">2643</span>
-<span class="normal">2644</span>
-<span class="normal">2645</span>
-<span class="normal">2646</span>
-<span class="normal">2647</span>
-<span class="normal">2648</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2648</span>
 <span class="normal">2649</span>
 <span class="normal">2650</span>
 <span class="normal">2651</span>
@@ -9934,7 +9953,26 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 <span class="normal">2795</span>
 <span class="normal">2796</span>
 <span class="normal">2797</span>
-<span class="normal">2798</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">2798</span>
+<span class="normal">2799</span>
+<span class="normal">2800</span>
+<span class="normal">2801</span>
+<span class="normal">2802</span>
+<span class="normal">2803</span>
+<span class="normal">2804</span>
+<span class="normal">2805</span>
+<span class="normal">2806</span>
+<span class="normal">2807</span>
+<span class="normal">2808</span>
+<span class="normal">2809</span>
+<span class="normal">2810</span>
+<span class="normal">2811</span>
+<span class="normal">2812</span>
+<span class="normal">2813</span>
+<span class="normal">2814</span>
+<span class="normal">2815</span>
+<span class="normal">2816</span>
+<span class="normal">2817</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
