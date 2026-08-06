@@ -1,4 +1,40 @@
-# Release 0.6.8
+# Release 0.6.9
+
+## 0.6.9 (2026-08-06)
+
+Bug-fix release closing the eight findings the nightly dogfood filed against
+0.6.8 — seven on the MCP agent contract, one on its UI-side sibling.
+
+### Security
+- **A secret could escape through a run's output** (#194) — `invoke` and
+  `get_invocation` returned the callback's output unredacted, so an app that
+  derives its output from a `PasswordInput` handed the credential to any agent
+  that could reach the (unauthenticated) `/mcp`. The input axis was closed in
+  #151; the output axis is closed now, masking the secret wherever it appears
+  in a payload. The live browser still receives the real value.
+
+### Fixed
+- **The agent path skipped input coercion** (#186) — `invoke`/`set_inputs`
+  handed the callback a raw option string / ISO string where a UI Run handed it
+  an `Enum` member / `date`, re-opening #181 and #182 on the agent surface.
+- **A parameter named `input_*` could not be driven over MCP** (#189) — the
+  drive path stripped the prefix, so the Quickstart's own `input_text` was
+  called as `text=` and raised `TypeError`.
+- **`Annotated[str, [...]]` lost its dropdown options** (#192) — `describe_app`
+  reported `options: null`, so validation was skipped and `set_input` accepted a
+  value the UI could never emit.
+- **A `depends_on` child kept its stale value** (#191) — switching the parent
+  over MCP re-resolved the child's options but not its value, leaving
+  `describe_app` advertising a `current_value` outside its own `options`.
+- **`set_form` accepted duplicate field names** (#190) — two inputs sharing one
+  id is a contract the callback can never honour.
+- **`set_form` silently ignored unknown spec keys** (#193) — including
+  `default`, the key `describe_app` itself emits, so feeding its output back
+  produced an empty field. `default` is now an accepted alias for `value`, and
+  unknown keys are rejected rather than dropped.
+- **A component used as a type hint ignored the signature default** (#188) —
+  the exported `Slider` ships `value=10`, so `level: Slider = 3` ran with 10
+  while `describe_app` reported 3.
 
 ## 0.6.8 (2026-07-27)
 
