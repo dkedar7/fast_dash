@@ -260,10 +260,59 @@ def _enumerate_outputs(fd) -> list[dict]:
     return descriptors
 
 
-def _param_name_from_id(component_id: str) -> str:
+def _param_name_from_id(component_id: str, callback_fn=None) -> str:
+    """Component id -> the callback keyword it feeds.
+
+    FastDash prefixes some generated ids with ``input_``, so the prefix is
+    stripped by default. But a *parameter can itself be named* ``input_...`` --
+    the Quickstart's own ``input_text`` is -- and blindly stripping then called
+    the callback with ``text=`` and raised TypeError, breaking that param on the
+    MCP path while the UI path worked (#189). When the callback is available,
+    an exact parameter match therefore wins over stripping.
+    """
+    if callback_fn is not None:
+        try:
+            if component_id in inspect.signature(callback_fn).parameters:
+                return component_id
+        except (TypeError, ValueError):
+            pass
     if component_id.startswith("input_"):
         return component_id[len("input_"):]
     return component_id
+
+
+def _coerce_for_callback(fd, kwargs):
+    """Give the callback the types its hints promise, as the UI path does.
+
+    ``_transform_inputs`` coerces a Select's option string back to the Enum
+    member (#181), a picker's ISO string back to date/datetime (#182) and an
+    upload's data URL to a PIL image -- but only on the UI callback path. The
+    MCP drive path called the callback with the raw mirror values, so the same
+    input driven by an agent and by a human produced *different argument types*
+    and a realistic callback worked in the UI and broke over MCP (#186).
+    """
+    from fast_dash.utils import _b64_to_pil, _coerce_date, _coerce_enum
+
+    for comp in list(getattr(fd, "inputs_with_ids", None) or []):
+        cid = _stringify_id(comp.id)
+        param = _param_name_from_id(cid, getattr(fd, "callback_fn", None))
+        key = cid if cid in kwargs else param if param in kwargs else None
+        if key is None:
+            continue
+        value = kwargs[key]
+        if value is None:
+            continue
+        tag = getattr(comp, "tag", None)
+        if tag == "Enum":
+            kwargs[key] = _coerce_enum(value, comp)
+        elif tag in ("Date", "Timestamp"):
+            kwargs[key] = _coerce_date(value, tag)
+        elif tag == "Image":
+            try:
+                kwargs[key] = _b64_to_pil(value)
+            except Exception:             # noqa: BLE001 - leave odd values alone
+                pass
+    return kwargs
 
 
 def _seed_input_mirror(fd) -> None:
@@ -318,6 +367,12 @@ def _json_type_name(annotation) -> str:
         import types as _types
         import typing
 
+        # Unwrap Annotated[T, ...] to T. The metadata is not part of the value's
+        # JSON type, and an Annotated carrying a *list* of options is itself
+        # unhashable -- so leaving it wrapped made the dict lookup below raise
+        # once the contract started reading Annotated metadata (issue #192).
+        if hasattr(annotation, "__metadata__"):
+            annotation = typing.get_args(annotation)[0]
         origin = typing.get_origin(annotation)
         is_union = origin is typing.Union or (
             hasattr(_types, "UnionType") and origin is _types.UnionType
@@ -328,10 +383,13 @@ def _json_type_name(annotation) -> str:
                 annotation = members[0]
     except Exception:
         pass
-    return {
-        int: "integer", float: "number", str: "string",
-        bool: "boolean", list: "array", dict: "object",
-    }.get(annotation, "string")
+    try:
+        return {
+            int: "integer", float: "number", str: "string",
+            bool: "boolean", list: "array", dict: "object",
+        }.get(annotation, "string")
+    except TypeError:                 # unhashable annotation: not a scalar type
+        return "string"
 
 
 # JSON type each DynamicDash spec component emits. Lets describe_app report a
@@ -355,7 +413,7 @@ def _spec_json_type(spec_type) -> str:
 
 
 def _annotation_options(annotation):
-    """Allowed values for a Literal[...] or Enum annotation, else None."""
+    """Allowed values for a Literal / Enum / Annotated[T, [...]] hint, else None."""
     try:
         import enum
         import typing
@@ -365,6 +423,17 @@ def _annotation_options(annotation):
             # Match the UI Select, which is built with str(e.value) options — so
             # an IntEnum's options are ["1", "2"], not [1, 2] (issue #126).
             return [str(e.value) for e in annotation]
+        # Annotated[str, ["a", "b"]] renders a Select in the UI, but the contract
+        # never extracted its options: describe_app reported `options: null`, so
+        # the validators had nothing to enforce and set_input accepted a value
+        # the dropdown could never emit (issue #192).
+        if typing.get_origin(annotation) is not None and hasattr(annotation, "__metadata__"):
+            for meta in annotation.__metadata__:
+                if isinstance(meta, (list, tuple)) and meta:
+                    return list(meta)
+            # Annotated[T, ...] with non-option metadata (e.g. a range for a
+            # Slider): fall back to the wrapped type's own options.
+            return _annotation_options(typing.get_args(annotation)[0])
     except Exception:
         pass
     return None
@@ -391,6 +460,46 @@ def _resolve_depends_on_options(fd, dep, snapshot):
     return list(data) if isinstance(data, list) else None
 
 
+def _clear_stale_dependents(fd, state) -> list:
+    """Drop a ``depends_on`` child's value once the parent invalidates it (#191).
+
+    The browser cascade clears the dependent dropdown when its parent changes.
+    The MCP path re-resolved the child's *options* but kept its old *value*, so
+    ``describe_app`` ended up advertising a ``current_value`` that isn't in its
+    own ``options`` -- and the two drive paths disagreed about it, ``set_input``
+    rejecting the value that ``invoke`` would happily run. Returns the ids
+    cleared, so callers can report them.
+    """
+    from fast_dash.utils import depends_on
+
+    try:
+        sig_params = inspect.signature(fd.callback_fn).parameters
+    except (TypeError, ValueError):
+        return []
+
+    cleared = []
+    for comp in list(getattr(fd, "inputs_with_ids", None) or []):
+        cid = _stringify_id(comp.id)
+        param = _param_name_from_id(cid, getattr(fd, "callback_fn", None))
+        p = sig_params.get(param) or sig_params.get(cid)
+        dep = getattr(p, "default", None) if p is not None else None
+        if not isinstance(dep, depends_on):
+            continue
+        snapshot = dict(state.inputs)
+        current = snapshot.get(cid, snapshot.get(param))
+        if current is None:
+            continue
+        options = _resolve_depends_on_options(fd, dep, snapshot)
+        if options is not None and current not in options:
+            for key in (cid, param):
+                state.inputs.pop(key, None)
+            # Push the clear to the live browser too, so the widget doesn't keep
+            # showing a value the contract no longer accepts.
+            state.pending_inputs[cid] = None
+            cleared.append(cid)
+    return cleared
+
+
 def _component_bounds(comp):
     """Numeric ``{min, max, step}`` carried by a Slider/number component, else {}.
 
@@ -413,6 +522,11 @@ def _component_bounds(comp):
 # What an agent sees instead of a secret's value. Not a valid value for any
 # widget, so a round-trip of describe_app -> set_input can't silently re-send it.
 REDACTED = "********"
+
+# The keys a DynamicDash spec may carry (what _spec_to_component consumes).
+# `default` is accepted too, as an alias for `value`, so describe_app's own
+# output round-trips back through set_form (issue #193).
+_SPEC_KEYS = frozenset({"name", "type", "label", "value", "props"})
 
 
 def _is_password_component(comp) -> bool:
@@ -443,6 +557,49 @@ def _secret_ids(fd, state=None) -> set:
     if state is not None:
         ids.update(getattr(state, "secret_ids", None) or set())
     return ids
+
+
+def _secret_values(fd, state=None) -> list:
+    """Current values of the app's secret inputs, as non-empty strings."""
+    if state is None:
+        state = getattr(fd, "_mcp_state", None)
+    mirror = dict(getattr(state, "inputs", None) or {})
+    values = []
+    for cid in _secret_ids(fd, state):
+        value = mirror.get(cid)
+        if isinstance(value, str) and value.strip():
+            values.append(value)
+    return values
+
+
+def _scrub_secrets(payload, secrets):
+    """Mask any secret that shows up *inside* an output payload (#194).
+
+    The input axis of this leak was closed in #151 (describe_app's
+    current_value, the set_input echo, get_invocation's kwargs). But the
+    callback's OUTPUT went back unredacted, so the canonical decrypt/echo app --
+    one that derives its output from a PasswordInput -- handed the credential
+    straight to any agent that could reach the unauthenticated /mcp. Within one
+    get_invocation response the input showed as ``********`` while the output
+    returned the very same string in the clear.
+
+    Redaction is by *content*, not by field: the secret is masked wherever it
+    appears in a summary, including nested inside a str/list/dict, because a
+    field-level mask leaks through siblings and stringified containers.
+    """
+    if not secrets:
+        return payload
+    if isinstance(payload, str):
+        scrubbed = payload
+        for secret in secrets:
+            if secret in scrubbed:
+                scrubbed = scrubbed.replace(secret, REDACTED)
+        return scrubbed
+    if isinstance(payload, dict):
+        return {k: _scrub_secrets(v, secrets) for k, v in payload.items()}
+    if isinstance(payload, (list, tuple)):
+        return type(payload)(_scrub_secrets(v, secrets) for v in payload)
+    return payload
 
 
 def _redact(entry, value):
@@ -592,7 +749,10 @@ def _describe_static_inputs(fd, snapshot):
     # types; fall back to the raw annotation.
     try:
         import typing
-        hints = typing.get_type_hints(fd.callback_fn)
+        # include_extras keeps Annotated[...] metadata; without it the options
+        # of an Annotated[str, [...]] dropdown are stripped before the contract
+        # can read them (issue #192).
+        hints = typing.get_type_hints(fd.callback_fn, include_extras=True)
     except Exception:
         hints = {}
 
@@ -600,7 +760,7 @@ def _describe_static_inputs(fd, snapshot):
     contract = []
     for d in descriptors:
         cid = d["id"]
-        param = _param_name_from_id(cid)
+        param = _param_name_from_id(cid, getattr(fd, "callback_fn", None))
         p = sig_params.get(param) or sig_params.get(cid)
         jtype, default, options = "string", None, None
         if p is not None:
@@ -929,7 +1089,8 @@ def _describe_chat_settings(fd) -> list[dict]:
         return []
     settings = _describe_static_inputs(fd, dict(fd._mcp_state.inputs))
     for entry in settings:
-        entry["name"] = _param_name_from_id(entry["id"])
+        entry["name"] = _param_name_from_id(
+            entry["id"], getattr(fd, "callback_fn", None))
     return settings
 
 
@@ -1091,7 +1252,13 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             return {"ok": False, "error": bad, "id": component_id}
         state.inputs[component_id] = value
         state.pending_inputs[component_id] = value
-        return {"ok": True, "id": component_id, "value": _echo(entries, component_id, value)}
+        # Changing a depends_on parent invalidates its child's value (#191).
+        cleared = _clear_stale_dependents(fd, state)
+        out = {"ok": True, "id": component_id,
+               "value": _echo(entries, component_id, value)}
+        if cleared:
+            out["cleared"] = cleared
+        return out
 
     @mcp_enabled(name="set_inputs", expose_docstring=True)
     @_structured_errors
@@ -1115,7 +1282,11 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             state.pending_inputs[k] = v
             snapshot[k] = v
             applied[k] = _echo(entries, k, v)
-        return {"ok": not errors, "applied": applied, "errors": errors}
+        cleared = _clear_stale_dependents(fd, state)          # #191
+        out = {"ok": not errors, "applied": applied, "errors": errors}
+        if cleared:
+            out["cleared"] = cleared
+        return out
 
     @mcp_enabled(name="invoke", expose_docstring=True)
     @_structured_errors
@@ -1156,6 +1327,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             for k, v in inputs.items():
                 state.inputs[k] = v
                 state.pending_inputs[k] = v
+            _clear_stale_dependents(fd, state)                # #191
 
         kwargs = {}
         snapshot = dict(state.inputs)
@@ -1163,13 +1335,17 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         if descriptors:
             for d in descriptors:
                 cid = d["id"]
-                param = _param_name_from_id(cid)
+                param = _param_name_from_id(cid, fd.callback_fn)
                 if cid in snapshot:
                     kwargs[param] = snapshot[cid]
                 elif param in snapshot:
                     kwargs[param] = snapshot[param]
         else:
             kwargs = dict(snapshot)
+
+        # Same coercion the UI path applies, so an agent-driven run and a human
+        # Run hand the callback identical argument types (#186).
+        kwargs = _coerce_for_callback(fd, kwargs)
 
         # Secrets go into the callback but never come back out — not in the
         # error echo, and not in the history a later get_invocation reads (#151).
@@ -1198,11 +1374,16 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         dt_ms = round((time.time() - t0) * 1000, 1)
 
         result_list = list(result) if isinstance(result, (list, tuple)) else [result]
+        # A callback that derives its output from a PasswordInput would otherwise
+        # hand the credential back in the clear -- the output axis of the #151
+        # leak. The live browser still receives the real value; only what goes
+        # back over /mcp is scrubbed (#194).
+        secrets = _secret_values(fd, state)
         out_summary = {}
         for d, val in zip(_enumerate_outputs(fd), result_list):
             state.outputs[d["id"]] = val
             state.pending_outputs[d["id"]] = val
-            out_summary[d["id"]] = _summarize_for_history(val)
+            out_summary[d["id"]] = _scrub_secrets(_summarize_for_history(val), secrets)
 
         entry_summary = {
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -1233,6 +1414,45 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             return {"ok": False, "error": "set_form requires a DynamicDash app"}
         if not isinstance(specs, list):
             return {"ok": False, "error": "specs must be a list of dicts"}
+
+        # `default` is the key describe_app reports an initial value under, so
+        # accept it as an alias for the `value` render_spec actually reads --
+        # otherwise describe_app's own vocabulary silently fails to round-trip
+        # through set_form and the field renders empty (issue #193).
+        normalized = []
+        for spec in specs:
+            if isinstance(spec, dict) and "default" in spec and "value" not in spec:
+                spec = {**spec, "value": spec["default"]}
+                spec.pop("default", None)
+            normalized.append(spec)
+        specs = normalized
+
+        # Anything else unrecognized is a typo, not a no-op: silently dropping it
+        # returned ok:true for a form that isn't what the agent asked for.
+        for spec in specs:
+            if not isinstance(spec, dict):
+                continue
+            unknown = sorted(set(spec) - _SPEC_KEYS)
+            if unknown:
+                return {
+                    "ok": False,
+                    "error": f"unknown spec key(s): {unknown}",
+                    "allowed_keys": sorted(_SPEC_KEYS | {"default"}),
+                    "spec": spec,
+                }
+
+        # Two fields sharing a name can't both reach the callback (it takes
+        # **kwargs, and a dict can't hold a key twice), so describe_app would
+        # advertise a contract the app can never honour (issue #190).
+        names = [s.get("name") for s in specs if isinstance(s, dict)]
+        duplicates = sorted({n for n in names if n and names.count(n) > 1})
+        if duplicates:
+            return {
+                "ok": False,
+                "error": f"duplicate field name(s): {duplicates}",
+                "hint": "each spec needs a unique 'name' -- it is the callback kwarg",
+            }
+
         for spec in specs:
             try:
                 _spec_to_component(spec)
@@ -1258,12 +1478,16 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                 "available": list(state.full_history.keys()),
             }
         entry = state.full_history[index]
+        # History is written already scrubbed; scrub again on the way out so a
+        # secret can't survive in an entry written by some other path, and so a
+        # value that became secret after the fact is still masked (#194).
+        secrets = _secret_values(fd, state)
         return {
             "ok": True,
             "ts": entry["ts"],
             "duration_ms": entry["duration_ms"],
-            "kwargs_summary": entry["kwargs"],
-            "outputs_summary": entry["outputs"],
+            "kwargs_summary": _scrub_secrets(entry["kwargs"], secrets),
+            "outputs_summary": _scrub_secrets(entry["outputs"], secrets),
         }
 
     @mcp_enabled(name="list_component_types", expose_docstring=True)
