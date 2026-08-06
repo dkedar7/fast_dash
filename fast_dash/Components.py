@@ -1381,6 +1381,16 @@ def _get_component_from_input(hint, default_value=None):
 
     # If hint has the attribute "component_property", it indicates that hint is a FastComponent, return it
     if hasattr(hint, "component_property"):
+        # ...but honour the signature's default. The exported components ship
+        # with a value baked in (Slider carries value=10), and returning the
+        # shared instance as-is silently dropped the declared default: a
+        # `level: Slider = 3` app rendered the handle at 10 and ran the callback
+        # with 10, while describe_app reported default 3 -- contradicting itself
+        # and the docs' "component used directly" pattern (issue #188). Copy
+        # before mutating so the shared exported component isn't rebound for
+        # every other app in the process.
+        if default_value is not None and not isinstance(default_value, type):
+            hint = hint(**{hint.component_property: default_value})
         return hint
 
     # Elif the component is a Dash component, use the specified component_property

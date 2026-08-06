@@ -1345,3 +1345,136 @@ def test_asgi_backend_announces_its_url(monkeypatch, capsys):
     assert "8091" in out and "http://" in out, f"no URL announced: {out!r}"
     # uvicorn's own startup/shutdown lines are no longer suppressed.
     assert captured["config"].log_level == "info"
+
+
+class TestDogfoodBatchAug06:
+    """Regressions for the bugs the nightly dogfood filed against 0.6.8."""
+
+    # --- #194: secrets must not escape via OUTPUT content ------------------ #
+
+    def test_secret_is_scrubbed_from_invoke_and_history_output(self):
+        # #151 closed the input axis (describe_app / set_input echo / kwargs).
+        # A callback that DERIVES its output from the secret handed it straight
+        # back, so an agent that "cannot read it" read it by invoking.
+        def reveal(pwd: PasswordInput = "") -> str:
+            """Echo the secret."""
+            return f"decrypted: {pwd}"
+
+        app = FastDash(callback_fn=reveal, mcp_server=True)
+        c = _client_for(app)
+        _call(c, "set_input", {"component_id": "pwd", "value": "hunter2"})
+
+        # Assert by substring over the WHOLE payload: a field-level mask leaks
+        # through siblings and stringified containers.
+        assert "hunter2" not in json.dumps(_call(c, "invoke", {}))
+        assert "hunter2" not in json.dumps(_call(c, "get_invocation", {"index": 0}))
+
+    def test_non_secret_output_is_not_scrubbed(self):
+        def echo(word: str = "hello") -> str:
+            """Echo."""
+            return f"said {word}"
+
+        c = _client_for(FastDash(callback_fn=echo, mcp_server=True))
+        assert "said hello" in json.dumps(_call(c, "invoke", {}))
+
+    # --- #186: the agent path coerces inputs like the UI path -------------- #
+
+    def test_invoke_hands_the_callback_enum_members_and_dates(self):
+        # 0.6.8 coerced only the UI path, so the same input driven by an agent
+        # arrived as a raw option string / ISO string -- a parity break that
+        # re-opened #181 and #182 on the flagship agent surface.
+        def describe(flavor: Flavor = Flavor.VANILLA,
+                     when: datetime.date = datetime.date(2024, 1, 1)) -> str:
+            """Report what the callback actually received."""
+            return (f"{type(flavor).__name__}|{flavor is Flavor.CHOCO}"
+                    f"|{type(when).__name__}")
+
+        c = _client_for(FastDash(callback_fn=describe, mcp_server=True))
+        out = json.dumps(_call(c, "invoke",
+                               {"inputs": {"flavor": "choco", "when": "2025-12-25"}}))
+        assert "Flavor|True|date" in out
+
+    # --- #189: a parameter literally named input_* ------------------------- #
+
+    def test_invoke_drives_a_param_named_input_something(self):
+        # The drive path stripped a leading `input_`, so the Quickstart's own
+        # `input_text` param was called as `text=` and raised TypeError -- while
+        # set_input still returned ok:true, hiding the failure until invoke.
+        def text_to_text_function(input_text: str = "hi") -> str:
+            """Quickstart."""
+            return input_text.upper()
+
+        c = _client_for(FastDash(callback_fn=text_to_text_function, mcp_server=True))
+        out = _call(c, "invoke", {"inputs": {"input_text": "hello"}})
+        assert out["ok"] is True, out
+        assert "HELLO" in json.dumps(out["outputs"])
+
+    # --- #192: Annotated[str, [...]] carries its options ------------------- #
+
+    def test_annotated_dropdown_options_reach_the_contract(self):
+        def pick(choice: Annotated[str, ["p", "q"]] = "p") -> str:
+            """Pick."""
+            return choice
+
+        c = _client_for(FastDash(callback_fn=pick, mcp_server=True))
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["choice"]
+        assert entry["options"] == ["p", "q"]
+        # ...and the contract is now enforced, as the docs promise.
+        assert _call(c, "set_input",
+                     {"component_id": "choice", "value": "z"})["ok"] is False
+        assert _call(c, "set_input",
+                     {"component_id": "choice", "value": "q"})["ok"] is True
+
+    # --- #190 / #193: set_form spec validation ----------------------------- #
+
+    def test_set_form_rejects_duplicate_field_names(self):
+        c = _client_for(_dynamic_app())
+        out = _call(c, "set_form", {"specs": [
+            {"name": "a", "type": "Text"}, {"name": "a", "type": "Text"}]})
+        assert out["ok"] is False
+        assert "duplicate" in out["error"]
+
+    def test_set_form_rejects_unknown_spec_keys(self):
+        c = _client_for(_dynamic_app())
+        out = _call(c, "set_form",
+                    {"specs": [{"name": "a", "type": "Text", "bogus": 1}]})
+        assert out["ok"] is False
+        assert "bogus" in out["error"]
+
+    def test_describe_app_default_round_trips_through_set_form(self):
+        # describe_app reports an initial value under `default`, but render_spec
+        # reads `value` -- so feeding describe_app's own output back silently
+        # produced an empty field.
+        c = _client_for(_dynamic_app())
+        assert _call(c, "set_form", {"specs": [
+            {"name": "a", "type": "Text", "default": "seeded"}]})["ok"] is True
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["a"]
+        assert entry["default"] == "seeded"
+
+    # --- #191: a depends_on child loses its stale value -------------------- #
+
+    def test_changing_a_depends_on_parent_clears_the_child(self):
+        # The browser cascade clears the dependent dropdown; the MCP path
+        # re-resolved its options but kept the old value, so describe_app
+        # advertised a current_value outside its own options and the two drive
+        # paths disagreed (set_input rejected what invoke would run).
+        from fast_dash import depends_on
+
+        countries = {"USA": ["CA", "TX"], "India": ["MH", "KA"]}
+
+        def pick(country: str = ["USA", "India"],
+                 state: str = depends_on("country", lambda c: countries[c])) -> str:
+            """Pick."""
+            return f"{state}, {country}"
+
+        c = _client_for(FastDash(callback_fn=pick, mcp_server=True))
+        _call(c, "set_input", {"component_id": "country", "value": "USA"})
+        assert _call(c, "set_input",
+                     {"component_id": "state", "value": "TX"})["ok"] is True
+
+        # Switching the parent invalidates "TX".
+        _call(c, "set_input", {"component_id": "country", "value": "India"})
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["state"]
+        assert entry["current_value"] != "TX", "stale child value survived"
+        if entry["options"] is not None and entry["current_value"] is not None:
+            assert entry["current_value"] in entry["options"]
