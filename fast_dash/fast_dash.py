@@ -115,6 +115,29 @@ def _is_chat_shaped(callback_fn):
     return bool(params) and params[0] == "query"
 
 
+def _looks_like_mistyped_chatbot(callback_fn):
+    """True if ``callback_fn`` reads like a chat handler whose first parameter
+    is simply not named ``query``.
+
+    ``chat=True`` misses the signature tiebreak when the first parameter is not
+    ``query`` and is then treated as an app callback wanting an auto-built agent
+    sidecar. A single callback whose first parameter is a plain text param
+    (annotation empty or ``str``) is far more likely the docs' 5-line chatbot
+    with a mistyped first parameter than a normal app. Used to pick the
+    on-topic error (see ``_check_auto_agent_prereqs``).
+    """
+    if callback_fn is None or isinstance(callback_fn, list):
+        return False
+    try:
+        params = list(inspect.signature(callback_fn).parameters.values())
+    except (TypeError, ValueError):
+        return False
+    if not params:
+        return False
+    annotation = params[0].annotation
+    return annotation is inspect.Parameter.empty or annotation in (str, "str")
+
+
 def _is_model_instance(obj):
     """Duck-type a chat model instance (LangChain BaseChatModel and friends).
 
@@ -589,7 +612,7 @@ class FastDash(ChatAppMixin):
                 # Fail early with a friendly ASCII error if the [agent] extra is
                 # unavailable OR no model is configured (chat_model / env). The
                 # real agent is built lazily by Round 3's build_auto_agent.
-                self._check_auto_agent_prereqs()
+                self._check_auto_agent_prereqs(callback_fn)
             else:
                 self._chat_agent = _agent
             self.chat_tools_config = _resolve_chat_tools(
@@ -713,7 +736,7 @@ class FastDash(ChatAppMixin):
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
 
-    def _check_auto_agent_prereqs(self):
+    def _check_auto_agent_prereqs(self, callback_fn):
         """Fail fast (friendly, ASCII) when an auto-agent can't be built later.
 
         chat=True on an app callback auto-builds an assistant via
@@ -732,6 +755,33 @@ class FastDash(ChatAppMixin):
             and importlib.util.find_spec("langgraph") is not None
         )
         if not has_agent_extra:
+            if (
+                self.chat_model is None
+                and not os.environ.get("FASTDASH_MODEL")
+                and _looks_like_mistyped_chatbot(callback_fn)
+            ):
+                # A callback shaped like the docs' 5-line chatbot (one plain
+                # text param, no model configured) that missed the `query`
+                # tiebreak almost certainly did not mean "normal app + agent
+                # sidecar". Raise the on-topic message the chat docs promise
+                # instead of pointing at the [agent] extra (issue #214).
+                try:
+                    _params = list(inspect.signature(callback_fn).parameters)
+                except (TypeError, ValueError):
+                    _params = []
+                raise TypeError(
+                    "chat=True with %s: a chat callback's first parameter "
+                    "must be named 'query' (it receives the composer text). "
+                    "Did you mean def %s(query: ...)? Got signature (%s). "
+                    "If you meant to attach an auto-built agent to a normal "
+                    "app instead, install \"fast-dash[agent]\" and pass "
+                    "chat_model= (or set FASTDASH_MODEL)."
+                    % (
+                        getattr(callback_fn, "__name__", repr(callback_fn)),
+                        getattr(callback_fn, "__name__", "callback"),
+                        ", ".join(_params),
+                    )
+                )
             raise ImportError(
                 "chat=True auto-builds an assistant, which needs the optional "
                 "agent extra (langchain + langgraph). Install it with:\n"
