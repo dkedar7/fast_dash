@@ -818,6 +818,27 @@ def _coerce_enum(value, component):
     return value                      # unknown option: hand it back untouched
 
 
+def _coerce_literal(value, component):
+    """Map a Select's option string back to the Literal member (issue #235).
+
+    A widget can only carry the stringified option, but typing a parameter as
+    ``Literal[...]`` is exactly how you ask to receive the *member* -- so
+    handing the callback ``"2"`` made an ``int`` hint receive a ``str`` and
+    made the MCP and UI drive paths disagree. The members are stashed on the
+    component when the dropdown is built.
+    """
+    options = getattr(component, "literal_options", None)
+    if not options:
+        return value
+    for member in options:
+        if value is member or (type(value) is type(member) and value == member):
+            return member
+    for member in options:
+        if str(member) == str(value):
+            return member
+    return value                      # unknown option: hand it back untouched
+
+
 def _coerce_date(value, tag):
     """Parse a picker's ISO string into date/datetime (issue #182).
 
@@ -862,6 +883,9 @@ def _transform_inputs(inputs, tags, components=None):
 
         elif tag == "Enum":
             transformed_inputs.append(_coerce_enum(inp, comp))
+
+        elif tag == "Literal":
+            transformed_inputs.append(_coerce_literal(inp, comp))
 
         elif tag in ("Date", "Timestamp"):
             transformed_inputs.append(_coerce_date(inp, tag))
