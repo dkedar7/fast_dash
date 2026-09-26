@@ -338,7 +338,10 @@ def test_fdco007_input_hint_is_dictionary(dash_duo):
     assert (
         input_component.__doc__ == dmc.MultiSelect().__doc__
         and hasattr(input_component, "data")
-        and input_component.data == list(sample_dictionary.keys())
+        # MultiSelect options are strings; the callback maps them back to the
+        # original keys (#231), and every key starts selected.
+        and input_component.data == [str(k) for k in sample_dictionary]
+        and input_component.value == [str(k) for k in sample_dictionary]
         and hasattr(input_component, "component_property")
         and input_component.component_property == "value"
     ), "Default dictionary failed"
