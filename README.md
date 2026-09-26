@@ -382,7 +382,7 @@ Most apps need none of these — defaults are sensible. Pass any of them as kwar
 | `about` | `True` | Show the docstring as an "About" modal; pass a string to override |
 | `minimal` | `False` | Hide chrome (header, footer, nav) for embedding |
 | `branding` | `False` | Show the Fast Dash rocket footer |
-| `stream` | `False` | Enable streaming outputs (see docs) |
+| `stream` | `False` | Stream partial results: `yield` them, or call `update(name, value)` |
 | `mcp_server` | `False` | Also serve an MCP server (Dash-native, on the web app's port at `/mcp`) so AI agents can drive the app (see [above](#drive-your-app-from-an-ai-agent-mcp)) |
 | `backend` | `None` | `"fastapi"` (needs `fast-dash[fastapi]`) for the ASGI backend + real-time WebSocket push; default is Flask |
 

@@ -52,7 +52,7 @@ That is the whole app. Open the URL, type a name, click **Run**.
 | Cascading inputs | `state=depends_on("country", resolver)` | Dependent dropdowns |
 | Multiple tools, one app | `FastDash([fn_a, fn_b], tab_titles=[...])` | Tabbed "apps" under one URL |
 | Multi-step wizard | `FastDash(steps=[fn_a, fn_b, fn_c])` + `from_step(prev_fn)` | Pipeline UX, one panel at a time |
-| Streaming outputs | `update("output_x", chunk)` inside the fn + `stream=True` | LLM / token-by-token / progress |
+| Streaming outputs | `yield` partial results (or `update("x", chunk)`) + `stream=True` | LLM / token-by-token / progress |
 | Notebook rendering | `@fastdash(mode="inline")` | Jupyter |
 | Wrap a custom component | `Fastify(dcc.Slider(...), "value")` | Any Dash component |
 
@@ -120,7 +120,7 @@ Full list with reproducers: [references/gotchas.md](references/gotchas.md).
 - User has **multiple independent tools** → `FastDash([fn_a, fn_b], tab_titles=[...]).run()`.
 - User has **a pipeline (step 1 output feeds step 2)** → `FastDash(steps=[fn_a, fn_b, ...]).run()` with `from_step(prev_fn)` defaults.
 - User has **dependent dropdowns** → `depends_on("parent_name", resolver)` as a default value.
-- User wants **streaming / token-by-token output** (LLMs, progress) → call `update(component_id, data)` inside the function + `stream=True` on the app.
+- User wants **streaming / token-by-token output** (LLMs, progress) → `yield` partial results (or call `update(name, data)`, `name` = the returned variable) + `stream=True` on the app.
 - User wants the app **in a Jupyter notebook** → add `mode="inline"`.
 - User wants to **not start the server immediately** → use `FastDash(...)` class, skip `.run()`.
 

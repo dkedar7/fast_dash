@@ -1454,7 +1454,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
 
         t0 = time.time()
         try:
-            result = fd.callback_fn(**kwargs)
+            from fast_dash.utils import _drain_generator
+            result = _drain_generator(fd.callback_fn(**kwargs))  # #207
         except Exception as e:
             return {
                 "ok": False,

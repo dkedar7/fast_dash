@@ -45,7 +45,7 @@ from fast_dash.Components import (
     Upload,
     UploadImage,
 )
-from fast_dash.utils import Fastify
+from fast_dash.utils import Fastify, _drain_generator
 
 
 __all__ = [
@@ -535,7 +535,7 @@ class DynamicDash:
                     }
 
                 try:
-                    result = self.callback_fn(**filtered)
+                    result = _drain_generator(self.callback_fn(**filtered))
                 except TypeError as e:
                     missing = self._callback_param_names - set(filtered.keys())
                     msg = (
