@@ -65,9 +65,12 @@ langstage = [
     "langstage-core[agui]>=1.0.0"
     ]
 
+# Everything the auto-built chat assistant needs, langstage bridge included
+# (#211); [langstage] alone still covers bringing your own LangGraph graph.
 agent = [
     "langchain>=1.0",
-    "langgraph"
+    "langgraph",
+    "langstage-core[agui]>=1.0.0"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]
