@@ -166,3 +166,9 @@ def pair(x):
     return x, label
 '''
     assert _names_from_return(src) == ["x", "label"]
+
+
+def test_string_literal_return_is_its_own_label():
+    from fast_dash.utils import _names_from_return
+    src = 'def f(x):\n    return x, "Return some text", "!!!"\n'
+    assert _names_from_return(src, upper_case=True) == ["X", "RETURN_SOME_TEXT", "OUTPUT_3"]

@@ -1121,8 +1121,9 @@ def _names_from_return(source, upper_case=False):
     comma inside a string (the README's own ``f"Hello, {name}!"``) made up a
     second output and discarded every label, and an f-string or expression
     became token soup (``F_RESULTA_B``) that leaked into output ids (#201).
-    Parse it instead: a returned variable or attribute keeps its name, and
-    anything else (f-string, call, arithmetic, literal) gets the generic
+    Parse it instead: a returned variable or attribute keeps its name, a plain
+    string literal is its own label (``"Return some text"``), and anything else
+    (f-string, call, arithmetic, number) gets the generic
     ``output_<n>`` name that the unparseable-source fallback already uses.
     """
     import ast
@@ -1160,9 +1161,11 @@ def _names_from_return(source, upper_case=False):
             raw = el.id
         elif isinstance(el, ast.Attribute):
             raw = el.attr
+        elif isinstance(el, ast.Constant) and isinstance(el.value, str) and el.value.strip():
+            raw = el.value
         else:
             raw = f"output_{i}"
-        names.append(_clean_text(raw, upper_case=upper_case))
+        names.append(_clean_text(raw, upper_case=upper_case) or _clean_text(f"output_{i}", upper_case=upper_case))
     return names
 
 
