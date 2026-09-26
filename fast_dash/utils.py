@@ -810,7 +810,36 @@ def _make_download_children(download_dict, component_id):
     ])
 
 
-def _get_transform_function(output, tag, component_id, counter, partial_update=False, stream=False):
+def _as_child_component(value):
+    """A renderable component for a rich value headed into a ``children`` slot.
+
+    A callback with no return annotation gets a text output (``H1.children``). A
+    Plotly figure put there rendered nothing, a DataFrame became an invalid list
+    of dicts, and an image became a data-URL string -- silently, with no error
+    (#217). Render each as the component it would have had with an annotation.
+    Returns None for anything that is already fine as ``children``.
+    """
+    try:
+        import plotly.graph_objects as go
+        if isinstance(value, go.Figure):
+            return dcc.Graph(figure=value, style=dict(height="100%", width="100%"))
+    except ImportError:
+        pass
+    if isinstance(value, pd.DataFrame):
+        return dash.dash_table.DataTable(
+            data=value.to_dict(orient="records"),
+            columns=[{"name": str(c), "id": str(c)} for c in value.columns],
+            page_size=100,
+            style_table={"overflowX": "auto"},
+        )
+    if isinstance(value, PIL.Image.Image):
+        return html.Img(src=_pil_to_b64(value), style={"maxWidth": "100%"})
+    if isinstance(value, plt.Figure):
+        return html.Img(src=_mpl_to_b64(value), style={"maxWidth": "100%"})
+    return None
+
+
+def _get_transform_function(output, tag, component_id, counter, partial_update=False, stream=False, component_property=None):
     "Utility for _transform_outputs. Defines the transform function to be applied to a Fast component's property."
 
     if tag == "Chat":
@@ -819,6 +848,11 @@ def _get_transform_function(output, tag, component_id, counter, partial_update=F
 
     if tag == "Download":
         return functools.partial(_make_download_children, component_id=component_id)
+
+    if component_property == "children":
+        child = _as_child_component(output)
+        if child is not None:
+            return lambda _value: child
 
     subclass = type(output)
     _transform_mapper = {plt.Figure: _mpl_to_b64,
@@ -838,7 +872,8 @@ def _transform_outputs(output_states, tags, outputs_with_ids, counter):
     "Transform outputs to fit in the desired components"
 
     return [
-        _get_transform_function(o, tag, ot.id, counter, False, ot.stream)(o)
+        _get_transform_function(o, tag, ot.id, counter, False, ot.stream,
+                                getattr(ot, "component_property", None))(o)
         for (o, tag, ot) in zip(output_states, tags, outputs_with_ids)
     ]
 
@@ -907,6 +942,21 @@ def _coerce_date(value, tag):
         return value                  # unparseable: don't mangle the input
 
 
+def _coerce_dict(value, component):
+    """Selected keys -> the matching sub-dict of the ``dict`` default (#231).
+
+    A ``dict`` hint renders a multi-select of the default's keys, but the widget
+    can only carry the key strings -- so the callback, typed ``dict``, received a
+    list. Map the selection back onto the default's (original, possibly non-str)
+    keys and values.
+    """
+    mapping = getattr(component, "dict_default", None)
+    if mapping is None or not isinstance(value, (list, tuple)):
+        return value
+    by_str = {str(k): k for k in mapping}
+    return {by_str[v]: mapping[by_str[v]] for v in value if v in by_str}
+
+
 def _transform_inputs(inputs, tags, components=None):
     """Transform inputs to fit in the desired components.
 
@@ -930,6 +980,9 @@ def _transform_inputs(inputs, tags, components=None):
 
         elif tag == "Literal":
             transformed_inputs.append(_coerce_literal(inp, comp))
+
+        elif tag == "Dictionary":
+            transformed_inputs.append(_coerce_dict(inp, comp))
 
         elif tag in ("Date", "Timestamp"):
             transformed_inputs.append(_coerce_date(inp, tag))
@@ -1058,12 +1111,59 @@ def _infer_variable_names(func, upper_case=False):
         except OSError:
             return None
 
-    final_line = s.split("return")[-1].strip()
-    line_without_comment = final_line.split("#")[0].strip().split(",")
+    return _names_from_return(s, upper_case=upper_case)
 
-    variable_names = [_clean_text(s, upper_case=upper_case) for s in line_without_comment]
 
-    return variable_names
+def _names_from_return(source, upper_case=False):
+    """One name per returned value, read from the function's last ``return``.
+
+    The old parser split the *text* after the last ``return`` on commas, so a
+    comma inside a string (the README's own ``f"Hello, {name}!"``) made up a
+    second output and discarded every label, and an f-string or expression
+    became token soup (``F_RESULTA_B``) that leaked into output ids (#201).
+    Parse it instead: a returned variable or attribute keeps its name, and
+    anything else (f-string, call, arithmetic, literal) gets the generic
+    ``output_<n>`` name that the unparseable-source fallback already uses.
+    """
+    import ast
+    import textwrap
+
+    try:
+        tree = ast.parse(textwrap.dedent(source))
+    except SyntaxError:
+        return None
+    func = next(
+        (n for n in ast.walk(tree)
+         if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))),
+        None,
+    )
+    if func is None:
+        return None
+
+    # Returns in the function's own body -- not those of nested functions.
+    returns, stack = [], list(func.body)
+    while stack:
+        node = stack.pop()
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Lambda, ast.ClassDef)):
+            continue
+        if isinstance(node, ast.Return) and node.value is not None:
+            returns.append(node)
+        stack.extend(ast.iter_child_nodes(node))
+    if not returns:
+        return None
+    value = max(returns, key=lambda n: (n.lineno, n.col_offset)).value
+
+    elements = value.elts if isinstance(value, ast.Tuple) else [value]
+    names = []
+    for i, el in enumerate(elements, start=1):
+        if isinstance(el, ast.Name):
+            raw = el.id
+        elif isinstance(el, ast.Attribute):
+            raw = el.attr
+        else:
+            raw = f"output_{i}"
+        names.append(_clean_text(raw, upper_case=upper_case))
+    return names
 
 
 def _get_default_property(component_type):

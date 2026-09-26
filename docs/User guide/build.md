@@ -113,18 +113,20 @@ def your_function(a: str = "Fast",
     ...
 ```
 
-!!! warning "Collection defaults set the *choices*, not the starting value"
+!!! note "Collection defaults set the *choices*, and a sensible starting value"
 
     A **scalar** default (`a`, `b` above) becomes the widget's starting value. A
-    **collection** default — a `list`, a `dict`, or a `range()` — is used instead to
-    build the widget's *option set*: `c: list = [1, 2, 3]` renders a multi-select
-    offering `1`, `2` and `3` **with nothing selected**, so an untouched Run calls
-    your function with `c=None`, not `c=[1, 2, 3]`.
+    **collection** default — a `list`, a `dict`, or a `range()` — builds the
+    widget's *option set* instead, and the widget starts on:
 
-    This matters when your function is written to rely on its own default — a body
-    that does `sum(c)` works when you call `your_function()` directly but raises
-    `TypeError: 'NoneType' object is not iterable` on the first Run. Guard the
-    parameter (`c = c or [1, 2, 3]`) if it must never be empty.
+    | Default | Widget | An untouched Run passes |
+    | --- | --- | --- |
+    | `x: str = ["a", "b"]` | single-select | `"a"` (the first option) |
+    | `x: list = [1, 2, 3]` | multi-select | `[]` (nothing picked yet) |
+    | `x: dict = {"a": 1, "b": 2}` | multi-select of keys, all picked | `{"a": 1, "b": 2}` (the selected entries) |
+    | `x: int = range(0, 10)` | slider | `0` (the range start) |
+
+    An agent calling the app over MCP gets exactly the same values.
 
 Fast Dash determines the best components for each input using their hints and default values. Details about which combination of these values results in what components are in the [patterns documentation](patterns.md).
 

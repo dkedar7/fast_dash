@@ -292,7 +292,8 @@ def _coerce_for_callback(fd, kwargs):
     and a realistic callback worked in the UI and broke over MCP (#186).
     """
     from fast_dash.utils import (
-        _b64_to_pil, _coerce_date, _coerce_enum, _coerce_literal, _reveal_secret,
+        _b64_to_pil, _coerce_date, _coerce_dict, _coerce_enum, _coerce_literal,
+        _reveal_secret,
     )
 
     for comp in list(getattr(fd, "inputs_with_ids", None) or []):
@@ -311,6 +312,8 @@ def _coerce_for_callback(fd, kwargs):
             kwargs[key] = _coerce_enum(value, comp)
         elif tag == "Literal":
             kwargs[key] = _coerce_literal(value, comp)
+        elif tag == "Dictionary":
+            kwargs[key] = _coerce_dict(value, comp)         # #231
         elif tag in ("Date", "Timestamp"):
             kwargs[key] = _coerce_date(value, tag)
         elif tag == "Image":
@@ -360,6 +363,41 @@ def _seed_input_mirror(fd) -> None:
                 )
     except (TypeError, ValueError):
         pass
+
+    _seed_dependents(fd, state, components)
+
+
+def _seed_dependents(fd, state, components):
+    """Give each ``depends_on`` child the value the browser gives it on load.
+
+    A dependent dropdown is built empty; in the browser its cascade runs once
+    at load (``prevent_initial_call=False``) against the parent's initial value.
+    The mirror never ran it, so ``describe_app`` reported ``None`` and
+    ``invoke()`` passed ``None`` while a UI Run passed the resolved value --
+    for a list resolver (the README cascade, #204) and a scalar one (#246).
+    """
+    try:
+        import dash as _dash
+
+        from fast_dash.fast_dash import FastDash
+    except Exception:
+        return
+    for c in components:
+        resolver = getattr(c, "_depends_on_resolver", None)
+        parent = getattr(c, "_depends_on_parent", None)
+        if resolver is None or parent is None:
+            continue
+        cid = _stringify_id(c.id)
+        if state.inputs.get(cid) is not None:
+            continue
+        try:
+            _data, value = FastDash._apply_dependency_resolver(
+                resolver, state.inputs.get(parent)
+            )
+        except Exception:
+            continue
+        if value is not _dash.no_update and value is not None:
+            state.inputs[cid] = value
 
 
 def _json_type_name(annotation) -> str:
@@ -500,11 +538,16 @@ def _clear_stale_dependents(fd, state) -> list:
             continue
         options = _resolve_depends_on_options(fd, dep, snapshot)
         if options is not None and current not in options:
+            # Reset to the first new option, exactly as the browser cascade does
+            # (#204); drop the value only when there is nothing to pick.
+            reset = options[0] if options else None
             for key in (cid, param):
                 state.inputs.pop(key, None)
-            # Push the clear to the live browser too, so the widget doesn't keep
+            if reset is not None:
+                state.inputs[cid] = reset
+            # Push it to the live browser too, so the widget doesn't keep
             # showing a value the contract no longer accepts.
-            state.pending_inputs[cid] = None
+            state.pending_inputs[cid] = reset
             cleared.append(cid)
     return cleared
 
@@ -804,7 +847,7 @@ def _describe_static_inputs(fd, snapshot):
                         options = list(dflt)          # list default = dropdown options
                 elif isinstance(dflt, dict):
                     if options is None:
-                        options = list(dflt.keys())   # dict default = MultiSelect keys
+                        options = [str(k) for k in dflt]  # dict default = MultiSelect keys, as rendered (#231)
                 elif isinstance(dflt, (datetime.date, datetime.datetime)):
                     # A DateInput/date-range default is a date/datetime object, not
                     # a scalar — surface its ISO string (the exact value the browser
@@ -823,7 +866,14 @@ def _describe_static_inputs(fd, snapshot):
                             default = str(dflt)
                     except Exception:
                         pass
-                # else (range / arbitrary objects): leave default None so the
+                if isinstance(dflt, (list, dict, range)):
+                    # Options-as-default: the default is what the widget starts
+                    # on (first option / all keys / range start), not the
+                    # options themselves -- same value current_value seeds (#204).
+                    comp = components.get(cid)
+                    if comp is not None:
+                        default = getattr(comp, getattr(comp, "component_property", ""), None)
+                # else (arbitrary objects): leave default None so the
                 # contract never carries a non-JSON repr (issue #116).
         cur = snapshot.get(cid, snapshot.get(param))
         # The widget actually rendered, named as list_component_types() --

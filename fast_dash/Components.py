@@ -1369,6 +1369,14 @@ def _is_hex_color(s):
     return len(body) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in body)
 
 
+def _first_option(options):
+    """The option a single-select starts on (#204): its first, or None if empty."""
+    try:
+        return next(iter(options))
+    except (TypeError, StopIteration):
+        return None
+
+
 def _get_component_from_input(hint, default_value=None):
     """
     Get FastComponent to represent the given input.
@@ -1461,8 +1469,12 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         elif _default_value_type == "Sequence":
+            # Pre-select the first option, as a scalar default pre-fills its
+            # input -- otherwise a default Run hands a `str` callback None (#204).
             component = Fastify(
-                dmc.Select(data=default_value), "value", tag=_hint_type
+                dmc.Select(data=default_value, value=_first_option(default_value)),
+                "value",
+                tag=_hint_type,
             )
 
         elif _default_value_type == "Dictionary":
@@ -1519,11 +1531,14 @@ def _get_component_from_input(hint, default_value=None):
                 start, stop = min(default_value), max(default_value)
                 step = (stop - start) / len(default_value)
 
+            # Start at the lowest value, like the Annotated[int, range(...)]
+            # path -- without a value a default Run passes None (#219).
             component = Fastify(
                 dcc.Slider(
                     start,
                     stop,
                     step,
+                    value=start,
                     marks=None,
                     tooltip={"placement": "bottom", "always_visible": True},
                 ),
@@ -1547,9 +1562,11 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         elif _default_value_type == "Sequence":
+            # A `list` callback gets [] until something is picked, never None (#204).
             component = Fastify(
                 dmc.MultiSelect(
                     data=default_value,
+                    value=[],
                     searchable=True,
                 ),
                 "value",
@@ -1557,9 +1574,11 @@ def _get_component_from_input(hint, default_value=None):
             )
 
         elif _default_value_type == "Dictionary":
+            # A `list` callback gets [] until something is picked, never None (#204).
             component = Fastify(
                 dmc.MultiSelect(
                     data=default_value,
+                    value=[],
                     searchable=True,
                 ),
                 "value",
@@ -1569,6 +1588,7 @@ def _get_component_from_input(hint, default_value=None):
         else:
             component = Fastify(
                 dmc.MultiSelect(
+                    value=[],
                     searchable=True
                 ),
                 "value",
@@ -1576,9 +1596,16 @@ def _get_component_from_input(hint, default_value=None):
             )
 
     elif _hint_type == "Dictionary":
+        # A multi-select of the dict's keys, all selected, so a default Run hands
+        # the callback the whole dict; `_coerce_dict` turns the selected keys back
+        # into that sub-dict, as the `dict` hint promises (#231).
+        mapping = dict(default_value) if isinstance(default_value, dict) else {}
         component = Fastify(
-            dmc.MultiSelect(data=list(default_value.keys())), "value", tag=_hint_type
+            dmc.MultiSelect(data=[str(k) for k in mapping], value=[str(k) for k in mapping]),
+            "value",
+            tag=_hint_type,
         )
+        component.dict_default = mapping
 
     elif _hint_type == "Boolean":
         # Mantine Checkbox follows the app's primary color and dark theme; the
@@ -1685,6 +1712,7 @@ def _get_component_from_input(hint, default_value=None):
                             start,
                             stop,
                             step,
+                            value=start,
                             marks=None,
                             tooltip={"placement": "bottom", "always_visible": True},
                         ),
@@ -1693,15 +1721,19 @@ def _get_component_from_input(hint, default_value=None):
                     )
 
                 else:
+                    # Bound to "value" (it read a nonexistent "options" prop, so
+                    # the callback always got None), first option pre-selected.
                     component = Fastify(
-                        dmc.Select(data=default_value),
-                        "options",
+                        dmc.Select(data=default_value,
+                                   value=_first_option(default_value)),
+                        "value",
                         tag=_default_value_type,
                     )
 
             elif _default_value_type == "Dictionary":
+                keys = list(default_value.keys())
                 component = Fastify(
-                    dmc.Select(data=list(default_value.keys())),
+                    dmc.Select(data=keys, value=_first_option(keys)),
                     "value",
                     tag=_default_value_type,
                 )
