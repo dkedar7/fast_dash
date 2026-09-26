@@ -43,3 +43,28 @@ def pytest_setup_options():
     # options.add_argument("--disable-pytest-warnings")  # This was invalid
     
     return options
+
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _reset_mcp_ownership():
+    """Start every test with no MCP-enabled app owning the process.
+
+    ``mcp_server=True`` mounts ``/mcp`` at construction (#244), and only one
+    MCP-enabled app may own a process (#171) because Dash's tool registry is
+    global. Without a reset, an app built by an earlier test -- kept alive by a
+    reference cycle -- would own the process and make the next test's
+    construction raise.
+    """
+    try:
+        from dash.mcp import _decorator
+        _decorator.MCP_DECORATED_FUNCTIONS.clear()
+    except Exception:
+        pass
+    try:
+        import fast_dash.mcp as _fd_mcp
+        _fd_mcp._mcp_owner = None
+    except Exception:
+        pass
+    yield

@@ -281,6 +281,14 @@ class DynamicDash:
         self.app.layout = self._build_layout()
         self._register_callbacks()
 
+        # Mount /mcp at construction (not in run()) so `app.server` carries the
+        # route when a production server serves it without calling run() --
+        # Flask refuses new routes after the first request (issue #244).
+        if self.mcp_server_enabled:
+            from fast_dash.mcp import enable_mcp
+
+            enable_mcp(self)
+
     def _build_parent_control(self):
         if self.parent_control is None:
             return None
@@ -548,17 +556,16 @@ class DynamicDash:
     def run(self, debug: bool = False, port: int = None, **kwargs):
         """Convenience wrapper around the Dash dev server.
 
-        When ``mcp_server=True`` was passed to the constructor, Dash's native
-        MCP server is mounted on this app first (shared port, ``/mcp``) — same
-        one-call contract as :class:`FastDash`. An explicit ``run(port=...)``
-        wins over a ``DynamicDash(..., port=...)`` constructor value.
+        With ``mcp_server=True`` the constructor has already mounted Dash's
+        native MCP server on this app (shared port, ``/mcp``) — same contract
+        as :class:`FastDash`. An explicit ``run(port=...)`` wins over a
+        ``DynamicDash(..., port=...)`` constructor value.
         """
         if port is None:
             port = self._port if self._port is not None else 8050
         if self.mcp_server_enabled:
-            from fast_dash.mcp import enable_mcp, warn_if_exposed
+            from fast_dash.mcp import warn_if_exposed
 
+            # The bind host is only known here, so warn here (#149).
             warn_if_exposed(kwargs)
-            # Native Dash MCP mounts on this app at /mcp (shared port).
-            enable_mcp(self)
         self.app.run(debug=debug, port=port, **kwargs)

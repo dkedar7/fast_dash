@@ -74,3 +74,10 @@ gcloud run deploy
 You will be asked to choose a few different settings for your deployment. Read Google Cloud Run's documentation here to understand what each of them mean.
 
 That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.
+
+## Deploying an app with `mcp_server=True`
+
+Nothing extra is needed: `/mcp` is mounted when the app object is built, so `server = app.server` carries it and `gunicorn wsgi:server` serves it alongside the UI. For `backend="fastapi"`, `app.server` is an ASGI app, so serve it with `uvicorn wsgi:server` instead.
+
+!!! warning
+    `/mcp` has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app.
