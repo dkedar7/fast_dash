@@ -57,8 +57,8 @@ use that to build a valid `invoke` call:
   "title": "Plot Bars",
   "doc": "Plot a bar chart with n bars in the chosen color.",
   "inputs": [
-    {"id": "n",     "tag": "NumberInput", "type": "integer", "default": 6,        "options": null, "current_value": 6,         "secret": false},
-    {"id": "color", "tag": "ColorInput", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6", "secret": false}
+    {"id": "n",     "tag": "NumberInput", "type": "integer", "default": 6,        "options": null, "current_value": 6,         "secret": false, "required": false},
+    {"id": "color", "tag": "ColorInput", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6", "secret": false, "required": false}
   ],
   "outputs": [
     {"id": "output_go_Figure", "tag": "Graph", "type": "object", "label": "Bar chart"}
@@ -66,7 +66,8 @@ use that to build a valid `invoke` call:
 }
 ```
 
-`tag` is the widget the hint became — a `str` input can be a text box, a
+`required: true` marks a parameter with no default: `invoke` refuses to run
+without it and names what's missing. `tag` is the widget the hint became — a `str` input can be a text box, a
 textarea or a colour picker, and they are not interchangeable. `outputs` lets an
 agent see what a run returns **without** having to run it.
 

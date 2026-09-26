@@ -573,7 +573,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
         and input_component.date == datetime.date(2022, 12, 25)
     ), "Default date failed"
 
-    # 7. Default value is timestamp (currently treated as date)
+    # 7. Default value is timestamp: a date *and time* picker (#242)
     def simple_datetime(l_=datetime.datetime(2022, 12, 25, 14, 55, 35)):
         return l_
 
@@ -581,11 +581,9 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dcc.DatePickerSingle.__doc__
-        and hasattr(input_component, "component_property")
-        and input_component.component_property == "date"
-        and hasattr(input_component, "date")
-        and input_component.date == datetime.date(2022, 12, 25)
+        input_component.__doc__ == dmc.DateTimePicker.__doc__
+        and input_component.component_property == "value"
+        and input_component.value == "2022-12-25 14:55:35"
     ), "Default timestamp failed"
 
     # 8. Unsupported default value type

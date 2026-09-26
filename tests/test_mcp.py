@@ -562,7 +562,10 @@ class TestTools:
         c = _client_for(app)
         by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
         assert by_id["day"]["default"] == "2021-06-15"          # was null pre-fix
-        assert by_id["at"]["default"] == "2021-06-15T10:30:00"  # keeps the time
+        # keeps the time, in the DateTimePicker's own spelling -- the same
+        # string current_value reports (#242)
+        assert by_id["at"]["default"] == "2021-06-15 10:30:00"
+        assert by_id["at"]["current_value"] == by_id["at"]["default"]
         # dates travel as JSON strings (no native JSON date type).
         assert by_id["day"]["type"] == "string"
 

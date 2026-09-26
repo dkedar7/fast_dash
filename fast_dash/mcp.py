@@ -400,7 +400,7 @@ def _seed_dependents(fd, state, components):
             state.inputs[cid] = value
 
 
-def _json_type_name(annotation) -> str:
+def _json_type_name(annotation, default="string") -> str:
     """Best-effort JSON-schema type name for a Python annotation.
 
     Unwraps ``Optional[T]`` / ``Union[T, None]`` (and PEP 604 ``T | None``) to
@@ -431,9 +431,9 @@ def _json_type_name(annotation) -> str:
         return {
             int: "integer", float: "number", str: "string",
             bool: "boolean", list: "array", dict: "object",
-        }.get(annotation, "string")
+        }.get(annotation, default)
     except TypeError:                 # unhashable annotation: not a scalar type
-        return "string"
+        return default
 
 
 # JSON type each DynamicDash spec component emits. Lets describe_app report a
@@ -717,7 +717,24 @@ def _type_error(entry, value):
             return f"expected an integer, got {value!r}"
     elif jtype == "boolean" and not isinstance(value, bool):
         return f"expected a boolean, got {type(value).__name__} ({value!r})"
+    elif jtype == "array":
+        if not isinstance(value, (list, tuple)):
+            return f"expected an array, got {type(value).__name__} ({value!r})"
+        if entry.get("tag") == "DateRange" and not _is_date_pair(value):
+            return f"expected [start, end] as two ISO dates, got {value!r}"   # #218
     return None
+
+
+def _is_date_pair(value):
+    """True for a DateRange value: exactly two ISO dates (#218)."""
+    if len(value) != 2:
+        return False
+    for v in value:
+        try:
+            datetime.date.fromisoformat(str(v)[:10])
+        except ValueError:
+            return False
+    return True
 
 
 def _describe_dynamic_inputs(fd, snapshot, specs, state=None):
@@ -742,8 +759,8 @@ def _describe_dynamic_inputs(fd, snapshot, specs, state=None):
     contract = []
     for spec in all_specs:
         name = spec.get("name")
-        if not name:
-            continue
+        if not name or spec.get("type") in _DISPLAY_ONLY:
+            continue            # a Markdown block feeds nothing to the callback (#220)
         props = spec.get("props") or {}
         default = spec.get("value", props.get("value"))
         cur = snapshot.get(name, default)
@@ -763,6 +780,38 @@ def _describe_dynamic_inputs(fd, snapshot, specs, state=None):
         entry["current_value"] = _jsonify_for_mcp(_redact(entry, cur))
         contract.append(entry)
     return contract
+
+
+_DISPLAY_ONLY = {"Markdown"}
+
+_NO_FORM = ("this DynamicDash app has no form yet: call set_form() to build one, "
+            "then set its inputs")
+
+
+def _dynamic_kwargs(fd, snapshot, state):
+    """Callback kwargs for a DynamicDash invoke: every field on the form.
+
+    A field the agent left alone runs with the default ``describe_app``
+    reports, as it does in the browser -- not dropped (#199). Display-only
+    blocks are never passed (#220), and a callback without ``**kwargs`` only
+    gets the parameters it declares, exactly like the UI run.
+    """
+    specs = list(getattr(state, "current_specs", None) or [])
+    parent = getattr(fd, "parent_control", None)
+    if isinstance(parent, dict) and parent.get("name"):
+        specs = [parent] + specs
+    kwargs = {}
+    for spec in specs:
+        name = spec.get("name")
+        if not name or spec.get("type") in _DISPLAY_ONLY:
+            continue
+        props = spec.get("props") or {}
+        kwargs[name] = snapshot.get(name, spec.get("value", props.get("value")))
+    if not getattr(fd, "_has_var_kw", True):
+        names = getattr(fd, "_callback_param_names", None)
+        if names is not None:
+            kwargs = {k: v for k, v in kwargs.items() if k in names}
+    return kwargs
 
 
 def _input_contract(fd, snapshot, state=None):
@@ -822,9 +871,11 @@ def _describe_static_inputs(fd, snapshot):
         param = _param_name_from_id(cid, getattr(fd, "callback_fn", None))
         p = sig_params.get(param) or sig_params.get(cid)
         jtype, default, options = "string", None, None
+        typed = False
         if p is not None:
             ann = hints.get(param, hints.get(cid, p.annotation))
             jtype = _json_type_name(ann)
+            typed = _json_type_name(ann, default=None) is not None
             options = _annotation_options(ann)
             if p.default is not inspect.Parameter.empty:
                 dflt = p.default
@@ -854,6 +905,11 @@ def _describe_static_inputs(fd, snapshot):
                     # DatePicker emits) instead of dropping it to null. isoformat()
                     # keeps the time component for a datetime. (issue #134)
                     default = dflt.isoformat()
+                    if isinstance(dflt, datetime.datetime):
+                        # The DateTimePicker's own spelling, so default and
+                        # current_value agree (#242).
+                        comp = components.get(cid)
+                        default = getattr(comp, "value", None) or default
                 elif isinstance(dflt, (str, bool, int, float)):
                     default = dflt                    # a scalar default IS the value
                     try:
@@ -887,12 +943,19 @@ def _describe_static_inputs(fd, snapshot):
         # _SPEC_JSON_TYPE already gives on the DynamicDash path. (issue #162)
         if tag == "MultiSelect":
             jtype = "array"
+        elif not typed and not options:
+            # A component-class hint (`level: Slider = 3`) or no hint at all says
+            # nothing about the value's JSON type -- the widget does (#198, #218).
+            jtype = _spec_json_type(tag)
         entry = {
             "id": cid,
             "tag": tag,
             "type": jtype,
             "options": _jsonify_for_mcp(options),
             "secret": cid in secrets,          # PasswordInput: value never echoed (#151)
+            # No signature default: the agent must supply it (#238).
+            "required": p is not None and p.default is inspect.Parameter.empty
+            and p.kind not in (p.VAR_POSITIONAL, p.VAR_KEYWORD),
         }
         entry["default"] = _jsonify_for_mcp(_redact(entry, default))
         entry["current_value"] = _jsonify_for_mcp(_redact(entry, cur))
@@ -950,6 +1013,7 @@ _INPUT_WIDGET_TAG = {
     "Checkbox": "Switch",
     "Switch": "Switch",
     "DatePickerSingle": "DateInput",
+    "DateTimePicker": "DateInput",
     "DateInput": "DateInput",
     "DatePickerRange": "DateRange",
     "DatePickerInput": "DateRange",
@@ -1331,6 +1395,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         """
         snapshot = dict(state.inputs)
         entries = _contract_index(snapshot)
+        if not entries and _is_dynamic(fd):
+            return {"ok": False, "error": _NO_FORM}
         if entries and component_id not in entries:
             return {
                 "ok": False,
@@ -1359,6 +1425,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         """
         snapshot = dict(state.inputs)
         entries = _contract_index(snapshot)
+        if not entries and _is_dynamic(fd) and inputs:
+            return {"ok": False, "error": _NO_FORM, "applied": {}, "errors": {}}
         applied, errors = {}, {}
         for k, v in (inputs or {}).items():
             if entries and k not in entries:
@@ -1395,6 +1463,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         if inputs:
             snapshot = dict(state.inputs)
             entries = _contract_index(snapshot)
+            if not entries and _is_dynamic(fd):
+                return {"ok": False, "error": _NO_FORM}
             if entries:
                 unknown = sorted(k for k in inputs if k not in entries)
                 if unknown:
@@ -1430,8 +1500,21 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                     kwargs[param] = snapshot[cid]
                 elif param in snapshot:
                     kwargs[param] = snapshot[param]
+        elif _is_dynamic(fd):
+            kwargs = _dynamic_kwargs(fd, snapshot, state)       # #199 / #220
         else:
             kwargs = dict(snapshot)
+
+        # A parameter with no default and no value would otherwise surface as a
+        # raw TypeError; name what's missing, as describe_app's `required` does.
+        missing = [
+            e["id"] for e in _input_contract(fd, snapshot, state)
+            if e.get("required")
+            and _param_name_from_id(e["id"], fd.callback_fn) not in kwargs
+        ]
+        if missing:
+            return {"ok": False, "error": f"missing required input(s): {missing}",
+                    "missing": missing}                          # #238
 
         # Same coercion the UI path applies, so an agent-driven run and a human
         # Run hand the callback identical argument types (#186).
@@ -1464,7 +1547,10 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             }
         dt_ms = round((time.time() - t0) * 1000, 1)
 
-        result_list = list(result) if isinstance(result, (list, tuple)) else [result]
+        # Split exactly as this app's UI does: a static app fans out a tuple only
+        # (a list is one value), DynamicDash fans out a list too (#237).
+        split = isinstance(result, tuple) or (_is_dynamic(fd) and isinstance(result, list))
+        result_list = list(result) if split else [result]
         # A callback that derives its output from a PasswordInput would otherwise
         # hand the credential back in the clear -- the output axis of the #151
         # leak. The live browser still receives the real value; only what goes

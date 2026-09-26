@@ -1395,6 +1395,31 @@ def _mantine_accent(accent):
     return "blue"
 
 
+def _datetime_picker(default_value, tag):
+    """A date *and time* picker for a ``datetime.datetime`` input (#242).
+
+    It used to be a date-only picker, so the time was dropped: a UI Run passed
+    midnight and an MCP invoke passed a bare ``date``. The value is the
+    picker's own ``YYYY-MM-DD HH:mm:ss`` string, which both paths parse back to
+    a ``datetime``.
+    """
+    value = (
+        default_value.isoformat(sep=" ", timespec="seconds")
+        if isinstance(default_value, datetime.datetime) else None
+    )
+    return Fastify(
+        dmc.DateTimePicker(
+            value=value,
+            valueFormat="YYYY-MM-DD HH:mm:ss",
+            withSeconds=True,
+            clearable=True,
+            style={"width": "100%"},
+        ),
+        "value",
+        tag=tag,
+    )
+
+
 def _first_option(options):
     """The option a single-select starts on (#204): its first, or None if empty."""
     try:
@@ -1689,6 +1714,12 @@ def _get_component_from_input(hint, default_value=None):
                 tag=_hint_type,
             )
 
+    elif _hint_type == "Timestamp":
+        component = _datetime_picker(
+            default_value if isinstance(default_value, datetime.datetime) else None,
+            _hint_type,
+        )
+
     elif _hint_type == "Date":
         if _default_value_type == "Date":
             component = Fastify(
@@ -1781,15 +1812,7 @@ def _get_component_from_input(hint, default_value=None):
                 )
 
             elif _default_value_type == "Timestamp":
-                component = Fastify(
-                    dcc.DatePickerSingle(
-                        display_format="MMM DD, YYYY",
-                        date=default_value.date(),
-                        style={"width": "100%"},
-                    ),
-                    "date",
-                    tag=_default_value_type,
-                )
+                component = _datetime_picker(default_value, _default_value_type)
 
             elif _default_value_type == "Image":
                 acknowledge_image_component = Fastify(

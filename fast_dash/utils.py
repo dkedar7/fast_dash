@@ -473,9 +473,15 @@ def _summarize_for_history(value):
             "size": len(value),
             "sha1": hashlib.sha1(bytes(value)).hexdigest()[:8],
         }
+    # A short collection is the output itself (a list return is one value an
+    # agent needs to read, #237); only a large one collapses to its length.
     if isinstance(value, (list, tuple)):
+        if len(value) <= 50:
+            return [_summarize_for_history(v) for v in value]
         return {"type": "list", "len": len(value)}
     if isinstance(value, dict):
+        if len(value) <= 50:
+            return {str(k): _summarize_for_history(v) for k, v in value.items()}
         return {"type": "dict", "len": len(value)}
 
     try:
