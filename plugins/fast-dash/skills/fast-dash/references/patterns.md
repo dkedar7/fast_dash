@@ -165,37 +165,39 @@ app.run()
 
 ## 11. Streaming outputs
 
-Call `update(component_id, data)` from inside the function to push partial results to the UI before the function returns. Pair with `stream=True` on the app.
+Set `stream=True` and `yield` partial results: each yielded value replaces the output as it arrives, and the last one is the result. Yield a tuple to stream several outputs at once.
+
+```python
+import time
+from fast_dash import FastDash
+
+def slow_count(n: int = 3) -> str:
+    out = ""
+    for i in range(1, n + 1):
+        out += f"tick {i}
+"
+        time.sleep(0.2)
+        yield out
+
+FastDash(callback_fn=slow_count, stream=True).run()
+```
+
+To push from a regular function instead, call `update(name, data)` and `return` the final value. `name` is the returned variable's name (`"output"` below); the `output_`-prefixed id that `describe_app` reports (`"output_output"`) works too.
 
 ```python
 from fast_dash import FastDash, update
 
-def stream_text(input_text: str) -> str:
+def stream_text(input_text: str = "hi") -> str:
     output = ""
     for char in "This is the expected output.":
-        update("output_text", char)   # pushes one character at a time
         output += char
+        update("output", output)      # push the text so far
     return output
 
 FastDash(callback_fn=stream_text, stream=True).run()
 ```
 
-The component ID matches the return-value name (from source introspection) prefixed with `output_`. Pass `output_labels=[...]` to control it. Use `notify(data, action="show")` to push a toast notification mid-run.
-
-For chat-style streaming:
-
-```python
-from fast_dash import FastDash, Chat, update
-
-def chat_fn(prompt: str) -> Chat:
-    reply = ""
-    for chunk in some_llm_stream(prompt):   # user-supplied iterator
-        reply += chunk
-        update("output_reply", reply)
-    return reply
-
-FastDash(callback_fn=chat_fn, outputs=Chat, stream=True).run()
-```
+Without `stream=True` a generator still works: it runs to completion and shows the last value. An MCP agent's `invoke()` always gets the last value. Use `notify(data, action="show")` to push a toast mid-run. For token-by-token chat, use `chat=True` (see the chat docs) rather than a `Chat` output.
 
 ## 12. Custom Dash components via Fastify
 

@@ -28,6 +28,8 @@ from .Components import (
 )
 
 from .utils import (
+    _drain_generator,
+    _find_stream_output,
     _assign_ids_to_inputs,
     _assign_ids_to_outputs,
     _get_transform_function,
@@ -1333,7 +1335,7 @@ class FastDash(ChatAppMixin):
 
             # 3) Execute and cache the result
             try:
-                result = fn(**kwargs)
+                result = _drain_generator(fn(**kwargs))
             except Exception as e:
                 traceback.print_exc()
                 notification = _get_error_notification_component(str(e))
@@ -2116,7 +2118,10 @@ class FastDash(ChatAppMixin):
                     # the host callback from two threads at once.
                     with self._host_callback_lock:
                         with StreamContext(stream_handler_func):
-                            output_state = self.callback_fn(*inputs)
+                            output_state = _drain_generator(
+                                self.callback_fn(*inputs),
+                                push=self._stream_push(stream_handler_func),
+                            )
 
                         if isinstance(output_state, tuple):
                             self.output_state = list(output_state)
@@ -2468,7 +2473,10 @@ class FastDash(ChatAppMixin):
                         stream_handler_func = lambda *a, **kw: None
 
                     with StreamContext(stream_handler_func):
-                        output_state = _fd["fn"](*inputs)
+                        output_state = _drain_generator(
+                            _fd["fn"](*inputs),
+                            push=self._stream_push(stream_handler_func, _fd["outputs_with_ids"]),
+                        )
 
                     if isinstance(output_state, tuple):
                         _fd["output_state"] = list(output_state)
@@ -2519,6 +2527,16 @@ class FastDash(ChatAppMixin):
                 ]
                 return ack_components + [[]]
 
+    def _stream_push(self, handler, outputs=None):
+        """Push one yielded value (a tuple for multiple outputs) to the page."""
+        outputs = outputs if outputs is not None else self.outputs_with_ids
+
+        def push(value):
+            values = list(value) if isinstance(value, tuple) else [value]
+            for component, val in zip(outputs, values):
+                handler(component.id, val, notification=False)
+        return push
+
     # Define a stream handler function
     def stream_handler(self, component_id, data, property=None, socket_id=None, notification=True, func_data=None):
         """A simple handler that prints to console and returns a response"""
@@ -2532,12 +2550,7 @@ class FastDash(ChatAppMixin):
 
         outputs_to_search = func_data["outputs_with_ids"] if func_data else self.outputs_with_ids
         prefix = func_data["prefix"] if func_data else ""
-        component = [c for c in outputs_to_search if c.id == f"{prefix}output_{component_id}"]
-
-        if not component:
-            raise ValueError(f"Component with id {component_id} not found in outputs.")
-
-        component = component[0]
+        component = _find_stream_output(outputs_to_search, component_id, prefix)
         component_id = component.id
 
         if component.tag == "Chat" and not property:
@@ -2598,10 +2611,7 @@ class FastDash(ChatAppMixin):
 
         outputs_to_search = func_data["outputs_with_ids"] if func_data else self.outputs_with_ids
         prefix = func_data["prefix"] if func_data else ""
-        match = [c for c in outputs_to_search if c.id == f"{prefix}output_{component_id}"]
-        if not match:
-            raise ValueError(f"Component with id {component_id} not found in outputs.")
-        component = match[0]
+        component = _find_stream_output(outputs_to_search, component_id, prefix)
 
         if component.tag == "Chat" and not property:
             raise ValueError("Argument 'property' must be specified for chat components. Allowed 'property' values are 'query' and 'response'.")

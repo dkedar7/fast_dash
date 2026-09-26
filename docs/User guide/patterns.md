@@ -301,7 +301,47 @@ Use `from_step(prev_fn)` as a parameter default to pull a previous step's return
 - Linear pipelines only — no conditional branching in this release.
 - The cache lives in the FastDash process; a server restart or a multi-worker deployment loses session state. Acceptable for prototyping.
 
-## 7. Selecting other configurations
+## 7. Streaming outputs
+
+Set `stream=True` and `yield` partial results. Each yielded value replaces the
+output as it arrives, and the last one stays as the result. Yield a tuple to
+stream several outputs together.
+
+```python
+import time
+from fast_dash import fastdash
+
+@fastdash(stream=True)
+def slow_count(n: int = 3) -> str:
+    out = ""
+    for i in range(1, n + 1):
+        out += f"tick {i}
+"
+        time.sleep(0.2)
+        yield out
+```
+
+To push from a regular function instead, call `update(name, value)` and
+`return` the final value. `name` is the returned variable's name; the
+`output_`-prefixed id (`"output_text"`) works too.
+
+```python
+from fast_dash import fastdash, update
+
+@fastdash(stream=True)
+def type_out(prompt: str = "hi") -> str:
+    text = ""
+    for char in "Streaming, one character at a time.":
+        text += char
+        update("text", text)
+    return text
+```
+
+A generator also works without `stream=True`: it runs to completion and shows
+the last value. An AI agent calling `invoke()` over MCP always gets the last
+value. For token-by-token chat, use [`chat=True`](chat.md).
+
+## 8. Selecting other configurations
 
 Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.
 

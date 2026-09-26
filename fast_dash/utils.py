@@ -1114,6 +1114,44 @@ def _infer_variable_names(func, upper_case=False):
     return _names_from_return(s, upper_case=upper_case)
 
 
+def _drain_generator(result, push=None):
+    """Run a ``yield``-ing callback to completion and return its last value.
+
+    A generator callback returns an un-run generator object, which used to go
+    straight to Dash (a 500: "generator is not JSON serializable", #212) or back
+    over MCP as a repr (#207). Drain it instead: every yielded value is handed
+    to ``push`` (the live stream on a ``stream=True`` UI Run) and the last one
+    is the Run's result, so the UI and an agent end on the same output.
+    """
+    import inspect
+
+    if not inspect.isgenerator(result):
+        return result
+    last = None
+    for last in result:
+        if push is not None:
+            push(last)
+    return last
+
+
+def _find_stream_output(outputs, component_id, prefix=""):
+    """The output ``update(component_id, ...)`` targets.
+
+    Accepts the bare return-variable name (``"text"``) and the ``output_``-
+    prefixed id that ``describe_app`` and the page expose (``"output_text"``),
+    so either spelling an app author or an agent sees works (#233).
+    """
+    wanted = {f"{prefix}output_{component_id}", f"{prefix}{component_id}", component_id}
+    for c in outputs:
+        if c.id in wanted:
+            return c
+    names = ", ".join(repr(str(c.id)[len(prefix) + len("output_"):]) for c in outputs)
+    raise ValueError(
+        f"update(): no output named {component_id!r}. "
+        f"Pass the returned variable's name (one of: {names}); "
+        f"the 'output_'-prefixed id works too."
+    )
+
 def _names_from_return(source, upper_case=False):
     """One name per returned value, read from the function's last ``return``.
 
