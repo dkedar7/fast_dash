@@ -353,7 +353,7 @@ app = DynamicDash(
     output_components=[Graph, Markdown],
     mcp_server=True,
 )
-app.run(port=8052)                    # run() mounts the MCP server on :8052/mcp
+app.run(port=8052)                    # MCP is served at :8052/mcp
 ```
 
 **Real-time push (opt-in).** On the default Flask backend, agent mutations reach the browser via a ~500 ms polling drain. Install `fast-dash[fastapi]` and pass `backend="fastapi"` to switch to Dash's ASGI backend, where updates stream over a WebSocket via `set_props` (sub-100 ms, no polling):
@@ -376,7 +376,7 @@ Most apps need none of these — defaults are sensible. Pass any of them as kwar
 | `inputs`, `outputs` | inferred | Override component selection |
 | `mosaic` | `None` | ASCII layout for multiple outputs |
 | `theme` | `"JOURNAL"` | Any [Bootswatch](https://bootswatch.com/) theme name |
-| `port` | `8080` | Port to serve on |
+| `port` | `8080` | Port to serve on (also settable as `run_kwargs={"port": ...}` or `app.run(port=...)`) |
 | `mode` | `None` | Set to `"jupyterlab"`, `"inline"`, or `"external"` for notebook use |
 | `update_live` | `False` | Re-run on every input change instead of waiting for the Run button |
 | `about` | `True` | Show the docstring as an "About" modal; pass a string to override |
@@ -392,7 +392,7 @@ The full list lives in the [docs](https://docs.fastdash.app).
 
 - **Output labels are inferred from the `return` line of your source.** If the source can't be retrieved (REPL, `exec`, frozen environments), Fast Dash falls back to generic `OUTPUT_1`, `OUTPUT_2` labels rather than crashing. Pass `output_labels=[...]` explicitly to control them.
 - **Reusing component instances across inputs and outputs** can mutate shared attributes. Construct fresh components per slot (or use `inputs=Text` rather than `inputs=text_instance`).
-- **The `theme` arg expects a Bootswatch name**, not a CSS URL. It sets light/dark mode (dark for `CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`); Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables). To set the **accent colour** of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass `accent="indigo"` — a Mantine colour name — rather than expecting `theme` to carry it.
+- **The `theme` arg expects a Bootswatch name**, not a CSS URL. It sets light/dark mode (dark for `CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`); Bootswatch CSS still loads and styles `dbc`-rendered bits (e.g. data tables). To set the **accent colour** of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass `accent="indigo"` — a Mantine colour name (`dark`, `gray`, `red`, `pink`, `grape`, `violet`, `indigo`, `blue`, `cyan`, `teal`, `green`, `lime`, `yellow`, `orange`) — rather than expecting `theme` to carry it. Anything else (a hex code, a typo) falls back to blue with a warning.
 
 ## Development
 
