@@ -729,6 +729,40 @@ class TestTools:
         for i in by_id.values():
             assert i["tag"] in legal, f"{i['id']} tag {i['tag']!r} not in {sorted(legal)}"
 
+    def test_int_literal_contract_is_consistent_and_coerced(self):
+        # #235: an int Literal reported type string with int options/default
+        # but a string current_value, set_input rejected the very string the
+        # contract advertised, and the MCP/UI paths handed the callback
+        # different types. The widget carries strings; the callback gets ints.
+        from fast_dash.utils import _transform_inputs
+
+        def pick(size: Literal[1, 2, 3] = 2) -> str:
+            """Pick a size."""
+            return f"{type(size).__name__}:{size + 1}"
+
+        app = FastDash(callback_fn=pick, mcp_server=True)
+        c = _client_for(app)
+        entry = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["size"]
+        assert entry["type"] == "string"
+        assert entry["options"] == ["1", "2", "3"]
+        assert entry["default"] == "2"
+        assert entry["current_value"] == "2"  # never reject the advertised value
+
+        # Both spellings of the option are settable.
+        assert _call(c, "set_input",
+                     {"component_id": "size", "value": "2"})["ok"] is True
+        assert _call(c, "set_input",
+                     {"component_id": "size", "value": 2})["ok"] is True
+
+        # The agent path hands the callback the hinted int, like the UI path.
+        out = _call(c, "invoke", {"inputs": {"size": "2"}})
+        assert out["ok"] is True, out
+        assert "int:3" in json.dumps(out["outputs"])
+
+        # UI parity without a browser: the widget string maps back to the int.
+        comp = next(x for x in app.inputs_with_ids if getattr(x, "tag", None) == "Literal")
+        assert _transform_inputs(["2"], ["Literal"], [comp]) == [2]
+
     def test_password_value_goes_in_but_never_comes_back(self):
         # #151: the browser masks a PasswordInput; the unauthenticated /mcp route
         # must not undo that by reading the credential back out in plain text.

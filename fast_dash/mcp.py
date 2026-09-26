@@ -291,7 +291,7 @@ def _coerce_for_callback(fd, kwargs):
     input driven by an agent and by a human produced *different argument types*
     and a realistic callback worked in the UI and broke over MCP (#186).
     """
-    from fast_dash.utils import _b64_to_pil, _coerce_date, _coerce_enum
+    from fast_dash.utils import _b64_to_pil, _coerce_date, _coerce_enum, _coerce_literal
 
     for comp in list(getattr(fd, "inputs_with_ids", None) or []):
         cid = _stringify_id(comp.id)
@@ -305,6 +305,8 @@ def _coerce_for_callback(fd, kwargs):
         tag = getattr(comp, "tag", None)
         if tag == "Enum":
             kwargs[key] = _coerce_enum(value, comp)
+        elif tag == "Literal":
+            kwargs[key] = _coerce_literal(value, comp)
         elif tag in ("Date", "Timestamp"):
             kwargs[key] = _coerce_date(value, tag)
         elif tag == "Image":
@@ -418,7 +420,10 @@ def _annotation_options(annotation):
         import enum
         import typing
         if typing.get_origin(annotation) is typing.Literal:
-            return list(typing.get_args(annotation))
+            # Match the UI Select, which is built with str(o) options — so an
+            # int Literal's options are ["1", "2"], not [1, 2], keeping type /
+            # options / default / current_value in one type (issues #126, #235).
+            return [str(m) for m in typing.get_args(annotation)]
         if isinstance(annotation, type) and issubclass(annotation, enum.Enum):
             # Match the UI Select, which is built with str(e.value) options — so
             # an IntEnum's options are ["1", "2"], not [1, 2] (issue #126).
@@ -797,6 +802,16 @@ def _describe_static_inputs(fd, snapshot):
                     default = dflt.isoformat()
                 elif isinstance(dflt, (str, bool, int, float)):
                     default = dflt                    # a scalar default IS the value
+                    try:
+                        if (typing.get_origin(ann) is typing.Literal
+                                and str(dflt) in [str(m) for m in typing.get_args(ann)]):
+                            # The UI Select carries str(member) options, so a
+                            # Literal member default must surface in the same
+                            # string spelling to keep type / options / default /
+                            # current_value in one type (issues #126, #235).
+                            default = str(dflt)
+                    except Exception:
+                        pass
                 # else (range / arbitrary objects): leave default None so the
                 # contract never carries a non-JSON repr (issue #116).
         cur = snapshot.get(cid, snapshot.get(param))
@@ -992,6 +1007,20 @@ def _option_error(fd, component_id, value, snapshot, state=None):
                     return f"value(s) {bad} not in allowed options {options}"
                 return None
             if value not in options:
+                # The widget carries strings but the hint promises the member —
+                # both spellings are legal for a Literal (issue #235). The
+                # contract entry names the rendered widget ("Select"), so read
+                # the construction tag off the component itself.
+                try:
+                    _comps = {
+                        _stringify_id(c.id): c
+                        for c in (getattr(fd, "inputs_with_ids", None) or [])
+                    }
+                    _ctag = getattr(_comps.get(component_id), "tag", None)
+                except Exception:
+                    _ctag = None
+                if _ctag == "Literal" and str(value) in options:
+                    return None
                 return f"value {value!r} not in allowed options {options}"
             return None
         bad_type = _type_error(entry, value)
