@@ -122,10 +122,16 @@ def test_depends_on_unknown_parent_emits_warning():
 # from a unit test.
 
 
-def test_resolver_list_sets_data_and_clears_value():
+def test_resolver_list_sets_data_and_selects_first():
+    # #204: a list resolver lands on its first option, like any list dropdown.
     data, value = FastDash._apply_dependency_resolver(lambda v: ["a", "b", "c"], "USA")
     assert data == ["a", "b", "c"]
-    assert value is None
+    assert value == "a"
+
+
+def test_resolver_empty_list_leaves_no_value():
+    data, value = FastDash._apply_dependency_resolver(lambda v: [], "USA")
+    assert data == [] and value is None
 
 
 def test_resolver_dict_sets_data_and_value():

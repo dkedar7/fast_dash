@@ -1660,7 +1660,8 @@ class FastDash(ChatAppMixin):
                 continue
             raw = pending[c.id]
             transform = _get_transform_function(
-                raw, tag, c.id, self.state_counter, False, c.stream
+                raw, tag, c.id, self.state_counter, False, c.stream,
+                getattr(c, "component_property", None),
             )
             results.append(transform(raw))
         return results
@@ -2276,7 +2277,10 @@ class FastDash(ChatAppMixin):
             return _dash.no_update, _dash.no_update
 
         if isinstance(result, list):
-            return result, None
+            # A single-select with options always holds one of them (#204), so a
+            # new option list resets the child to its first entry rather than
+            # clearing it -- the README's cascade then runs on load.
+            return result, (result[0] if result else None)
 
         if isinstance(result, dict):
             data = result.get("data", _dash.no_update)
@@ -2547,7 +2551,8 @@ class FastDash(ChatAppMixin):
                                                        tag=component.tag,
                                                        component_id=component.id,
                                                        counter=counter,
-                                                       partial_update=True)
+                                                       partial_update=True,
+                                                       component_property=getattr(component, "component_property", None))
 
 
         if component.tag == "Chat" and property == "query":
@@ -2610,6 +2615,7 @@ class FastDash(ChatAppMixin):
             component_id=component.id,
             counter=counter,
             partial_update=True,
+            component_property=getattr(component, "component_property", None),
         )
         set_props(component.id, {component.component_property: transform(data)})
 

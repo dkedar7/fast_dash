@@ -261,7 +261,7 @@ def pick_state(
 ```
 
 The resolver receives the parent input's current value. Return:
-- a **list** to set the dependent dropdown's options (and clear its value),
+- a **list** to set the dependent dropdown's options (and select the first one),
 - a **dict** like `{"data": [...], "value": ...}` to set both, or
 - a **scalar** to set just the value.
 

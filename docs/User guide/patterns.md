@@ -249,7 +249,7 @@ def pick_state(
 
 The first argument to `depends_on` is the **parameter name** of the parent input. The second is a **resolver** function that receives the parent's current value and returns one of:
 
-- a **list** — sets the dependent dropdown's options and clears its value;
+- a **list** — sets the dependent dropdown's options and selects the first one;
 - a **dict** like `{"data": [...], "value": ...}` — sets either or both;
 - a **scalar** — sets just the dependent's value (e.g. derived numbers, prefilled text).
 

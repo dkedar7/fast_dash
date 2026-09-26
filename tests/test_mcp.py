@@ -263,16 +263,17 @@ class TestSeed:
         assert app._mcp_state.inputs.get("count") == 3
 
     def test_dropdown_default_seeds_none_not_options(self):
-        # #110: a str dropdown (list default) is options-as-default; its browser
-        # value is None, so the mirror must seed None, not the options list.
+        # #110/#204: a str dropdown (list default) is options-as-default; the
+        # browser starts on the first option, so the mirror seeds that -- never
+        # the options list itself. A list MultiSelect starts with nothing picked.
         from fast_dash.mcp import _seed_input_mirror
 
         def pick(fruit: str = ["a", "b", "c"], tags: list = ["x"], n: int = 6) -> str:
             return str(fruit)
         app = FastDash(callback_fn=pick, mcp_server=True)
         _seed_input_mirror(app)
-        assert app._mcp_state.inputs["fruit"] is None    # not ["a","b","c"]
-        assert app._mcp_state.inputs["tags"] is None      # multiselect too
+        assert app._mcp_state.inputs["fruit"] == "a"     # not ["a","b","c"]
+        assert app._mcp_state.inputs["tags"] == []        # multiselect: empty pick
         assert app._mcp_state.inputs["n"] == 6            # scalar still seeded
 
 
@@ -350,9 +351,9 @@ class TestTools:
         assert by_id["color"]["current_value"] == "#1c7ed6"  # seeded default
 
     def test_dropdown_contract_consistent_and_invoke_parity(self):
-        # #110: describe_app current_value is type-consistent (None, not a list),
-        # and invoke() with defaults passes None (the browser's value), not the
-        # options list — so a str param never silently receives a list.
+        # #110/#204: describe_app current_value is type-consistent (a str, not a
+        # list), and invoke() with defaults passes the first option (the
+        # browser's value) -- so a str param never silently receives a list/None.
         def pick(fruit: str = ["a", "b", "c"]) -> str:
             """Echo the type."""
             return type(fruit).__name__
@@ -360,10 +361,11 @@ class TestTools:
         c = _client_for(app)
         fruit = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["fruit"]
         assert fruit["type"] == "string"
-        assert fruit["current_value"] is None           # not the options list
+        assert fruit["current_value"] == "a"            # not the options list
+        assert fruit["default"] == "a"                  # same value the UI starts on
         assert fruit["options"] == ["a", "b", "c"]
         out = _call(c, "invoke")
-        assert "NoneType" in json.dumps(out["outputs"])  # callback got None
+        assert '"str"' in json.dumps(out["outputs"])     # callback got a str
 
     def test_depends_on_contract_no_repr_leak_and_resolved_options(self):
         # #116: a depends_on (cascading) input must report a clean contract — no
@@ -386,7 +388,11 @@ class TestTools:
         # default is clean JSON (None), never an object repr string.
         assert st["default"] is None
         assert "object at 0x" not in json.dumps(st)
-        assert st["options"] is None          # parent unset -> not yet discoverable
+        # #204/#246: the parent starts on its first option, so the dependent's
+        # options resolve up front and it starts on the first of them.
+        assert st["options"] == ["California", "Texas"]
+        assert st["current_value"] == "California"
+        assert _call(c, "invoke")["outputs"] == {"output_output_1": "California, USA"}
 
         # set the parent; the dependent dropdown's options now resolve.
         _call(c, "set_input", {"component_id": "country", "value": "India"})
@@ -405,11 +411,10 @@ class TestTools:
         c = _client_for(app)
         items = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}["items"]
         assert items["options"] == ["apples", "pears", "figs"]
-        # and no raw object repr leaks into the default contract field.
-        assert items["default"] is None
-        # #119: now that future annotations no longer degrade inference, the dict
-        # builds a real MultiSelect (no value), so current_value is a clean None.
-        assert items["current_value"] is None
+        # the default is the widget's starting pick (every key, #231) -- clean
+        # JSON, never a raw object repr.
+        assert items["default"] == ["apples", "pears", "figs"]
+        assert items["current_value"] == ["apples", "pears", "figs"]
 
     def test_future_annotations_do_not_degrade_inference(self):
         # #119: this module uses `from __future__ import annotations`, so every
@@ -432,7 +437,7 @@ class TestTools:
         by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
 
         assert by_id["items"]["options"] == ["a", "b"]        # dict -> MultiSelect keys
-        assert by_id["items"]["current_value"] is None        # real widget, not a text box
+        assert by_id["items"]["current_value"] == ["a", "b"]  # real widget, not a text box
         assert by_id["fruit"]["options"] == ["x", "y", "z"]   # list -> Select dropdown
         assert by_id["level"]["props"] == {"min": 0, "max": 10, "step": 1}  # Slider bounds
         assert "props" not in by_id["free"]                   # plain str stays free text
