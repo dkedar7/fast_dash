@@ -91,11 +91,40 @@ class AppLayout:
         # Flat, professional Mantine theme (Inter). The accent (primaryColor)
         # is a first-class knob: FastDash(accent="indigo") themes buttons,
         # links, focus rings, and the chat user bubble. Falls back to a calm
-        # blue. An unknown accent name is ignored by Mantine (stays blue).
+        # blue. Mantine v7 THROWS on a primaryColor that is not a key of
+        # theme.colors (blank page, HTTP 200, no server-side error), so an
+        # unknown accent is validated here and degrades to blue with a
+        # UserWarning naming the bad value (#234).
         _FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        _accent = (getattr(self.app, "accent", None) or "blue")
+        _MANTINE_COLORS = {
+            "dark",
+            "gray",
+            "red",
+            "pink",
+            "grape",
+            "violet",
+            "indigo",
+            "blue",
+            "cyan",
+            "teal",
+            "green",
+            "lime",
+            "yellow",
+            "orange",
+        }
+        _accent = getattr(self.app, "accent", None) or "blue"
         if isinstance(_accent, str):
             _accent = _accent.strip().lower()
+        if _accent not in _MANTINE_COLORS:
+            warnings.warn(
+                "Invalid accent %r: not a Mantine colour name, so the whole "
+                "app would render blank (Mantine v7 rejects unknown "
+                "primaryColor values). Falling back to 'blue'. Valid choices: "
+                "%s." % (_accent, ", ".join(sorted(_MANTINE_COLORS))),
+                UserWarning,
+                stacklevel=2,
+            )
+            _accent = "blue"
         self._mantine_theme = {
             "fontFamily": _FONT,
             "fontFamilyMonospace": "'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace",
