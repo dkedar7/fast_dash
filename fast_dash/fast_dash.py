@@ -309,7 +309,7 @@ class FastDash(ChatAppMixin):
         theme=None,
         accent=None,
         update_live=False,
-        port=8080,
+        port=None,
         mode=None,
         minimal=False,
         disable_logs=False,
@@ -635,6 +635,15 @@ class FastDash(ChatAppMixin):
         self.mode = mode
         self.disable_logs = disable_logs
         self.scale_height = scale_height
+        # `port=` defaults to None so an explicit run_kwargs["port"] is not
+        # clobbered by the 8080 default (#203); an explicit port= still wins.
+        _rk_port = (run_kwargs or {}).get("port")
+        if port is not None and _rk_port is not None and _rk_port != port:
+            warnings.warn(
+                f"port={port} and run_kwargs['port']={_rk_port} disagree; using {port}.",
+                stacklevel=2,
+            )
+        port = port if port is not None else (_rk_port if _rk_port is not None else 8080)
         self.port = port
         # Copy, never alias: `run_kwargs` used to default to a shared mutable
         # dict, so every app that didn't pass one aliased *the same* dict and the
@@ -1421,7 +1430,17 @@ class FastDash(ChatAppMixin):
             next_disabled = current_idx not in (completed_set or [])
             return styles + [back_disabled, next_disabled]
 
-    def run(self):
+    def run(self, debug=None, port=None, host=None, **kwargs):
+        """Start the server. Keyword arguments (``debug``, ``port``, ``host``,
+        and any other Dash ``run()`` option) override the constructor's (#205)."""
+        overrides = dict(kwargs)
+        for key, val in (("debug", debug), ("port", port), ("host", host)):
+            if val is not None:
+                overrides[key] = val
+        self.run_kwargs.update(overrides)
+        if "port" in overrides:
+            self.port = overrides["port"]
+
         # /mcp is already mounted: __init__ does it so `app.server` carries the
         # route under gunicorn/uvicorn too (issue #244). The bind host is only
         # final here, so this is where an exposed, unauthenticated /mcp is
@@ -2743,7 +2762,7 @@ def fastdash(
     theme=None,
     accent=None,
     update_live=False,
-    port=8080,
+    port=None,
     mode=None,
     minimal=False,
     disable_logs=False,

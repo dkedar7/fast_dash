@@ -91,11 +91,11 @@ class AppLayout:
         # Flat, professional Mantine theme (Inter). The accent (primaryColor)
         # is a first-class knob: FastDash(accent="indigo") themes buttons,
         # links, focus rings, and the chat user bubble. Falls back to a calm
-        # blue. An unknown accent name is ignored by Mantine (stays blue).
+        # blue. Mantine throws on a primaryColor that isn't one of its palette
+        # keys, blanking the whole page (#234), so an unknown accent falls back
+        # to blue with a warning.
         _FONT = "Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif"
-        _accent = (getattr(self.app, "accent", None) or "blue")
-        if isinstance(_accent, str):
-            _accent = _accent.strip().lower()
+        _accent = _mantine_accent(getattr(self.app, "accent", None))
         self._mantine_theme = {
             "fontFamily": _FONT,
             "fontFamilyMonospace": "'JetBrains Mono', 'SFMono-Regular', Menlo, Consolas, monospace",
@@ -1173,16 +1173,21 @@ class AppLayout:
             State("fd-sidebar-width", "data"),
         )
         def toggle_sidebar(opened, dragged_width):
-            user_agent = request.headers.get("User-Agent")
+            # No Flask request on the ASGI/WebSocket backend (#227).
+            try:
+                user_agent = request.headers.get("User-Agent") or ""
+            except RuntimeError:
+                user_agent = ""
 
             # A chat sidecar stacks the chat under the inputs and needs the wider
             # navbar; it must stay open (the chat is only reachable there).
             has_sidecar = getattr(self.app, "has_chat_sidecar", False)
             if has_sidecar:
                 collapsed = {"desktop": not opened, "mobile": not opened}
-            elif not opened or self.app.inputs == [] or self.app.inputs is None:
+            # steps / multi-function apps have no single `inputs` list (#213).
+            elif not opened or (hasattr(self.app, "inputs") and not self.app.inputs):
                 collapsed = {"desktop": True, "mobile": True}
-            elif ctx.triggered_id == "submit_inputs" and "Mobi" in user_agent:
+            elif "Mobi" in user_agent and ctx.triggered_id == "submit_inputs":
                 collapsed = {"desktop": False, "mobile": True}
             else:
                 collapsed = {"desktop": False, "mobile": False}
@@ -1367,6 +1372,27 @@ def _is_hex_color(s):
         return False
     body = s[1:]
     return len(body) in (3, 6) and all(c in "0123456789abcdefABCDEF" for c in body)
+
+
+MANTINE_COLORS = (
+    "dark", "gray", "red", "pink", "grape", "violet", "indigo", "blue",
+    "cyan", "teal", "green", "lime", "yellow", "orange",
+)
+
+
+def _mantine_accent(accent):
+    """A Mantine palette key for ``accent=``; unknown values fall back to blue (#234)."""
+    if accent is None or accent == "":
+        return "blue"
+    name = accent.strip().lower() if isinstance(accent, str) else accent
+    if name in MANTINE_COLORS:
+        return name
+    warnings.warn(
+        f"accent={accent!r} is not a Mantine color; using 'blue'. "
+        f"Choose one of: {', '.join(MANTINE_COLORS)}.",
+        stacklevel=3,
+    )
+    return "blue"
 
 
 def _first_option(options):
