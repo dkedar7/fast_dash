@@ -291,7 +291,9 @@ def _coerce_for_callback(fd, kwargs):
     input driven by an agent and by a human produced *different argument types*
     and a realistic callback worked in the UI and broke over MCP (#186).
     """
-    from fast_dash.utils import _b64_to_pil, _coerce_date, _coerce_enum, _coerce_literal
+    from fast_dash.utils import (
+        _b64_to_pil, _coerce_date, _coerce_enum, _coerce_literal, _reveal_secret,
+    )
 
     for comp in list(getattr(fd, "inputs_with_ids", None) or []):
         cid = _stringify_id(comp.id)
@@ -299,7 +301,9 @@ def _coerce_for_callback(fd, kwargs):
         key = cid if cid in kwargs else param if param in kwargs else None
         if key is None:
             continue
-        value = kwargs[key]
+        # A concealed PasswordInput default travels as the mask; hand the
+        # callback the real value, exactly as a UI Run does (#224).
+        value = kwargs[key] = _reveal_secret(kwargs[key], comp)
         if value is None:
             continue
         tag = getattr(comp, "tag", None)
@@ -572,8 +576,15 @@ def _secret_values(fd, state=None) -> list:
     values = []
     for cid in _secret_ids(fd, state):
         value = mirror.get(cid)
-        if isinstance(value, str) and value.strip():
+        if isinstance(value, str) and value.strip() and value != REDACTED:
             values.append(value)
+    # A concealed default is never in the mirror (it holds only the mask), yet
+    # the callback still receives it -- so it must be scrubbed from outputs too,
+    # or a callback that echoes it would leak it through invoke (#194, #224).
+    for c in (getattr(fd, "inputs_with_ids", None) or []):
+        concealed = getattr(c, "_secret_default", None)
+        if isinstance(concealed, str) and concealed.strip():
+            values.append(concealed)
     return values
 
 

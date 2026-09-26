@@ -539,6 +539,49 @@ def _summarize_for_history(value):
 
 
 # Fast Dash app utilities
+# What a PasswordInput carries instead of a construction-time secret (and what
+# the MCP contract reports for it). Seeing it come back from the browser or an
+# agent means "the default, unchanged".
+SECRET_MASK = "********"
+
+
+def _is_secret_component(comp):
+    return type(getattr(comp, "component", comp)).__name__ == "PasswordInput"
+
+
+def _conceal_secret_default(comp):
+    """Keep a PasswordInput's default out of the served layout (issue #224).
+
+    Whatever sits in ``app.layout`` is public: Dash's native MCP surface
+    (``dash://layout`` / ``get_dash_component``) serializes it for any agent,
+    and ``/_dash-layout`` sends it to every browser. A default secret (an API key
+    pre-filled from config) therefore leaked in plaintext however carefully the
+    Fast Dash tools masked it. The real value is kept on the component, which
+    Dash never serializes, and the widget shows only the mask;
+    ``_reveal_secret`` swaps it back at the callback boundary.
+    """
+    if not _is_secret_component(comp):
+        return comp
+    prop = getattr(comp, "component_property", "value")
+    value = getattr(comp, prop, None)
+    if isinstance(value, str) and value and value != SECRET_MASK:
+        comp._secret_default = value
+        setattr(comp, prop, SECRET_MASK)
+    return comp
+
+
+def _reveal_secret(value, comp):
+    """Map the mask back to the concealed default before the callback runs.
+
+    Only the untouched mask is swapped: a value the user typed, or an empty
+    field they cleared on purpose, reaches the callback as-is.
+    """
+    secret = getattr(comp, "_secret_default", None)
+    if secret is not None and value == SECRET_MASK:
+        return secret
+    return value
+
+
 def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
     """
     Modify the 'id' property of inputs.
@@ -552,7 +595,7 @@ def _assign_ids_to_inputs(inputs, callback_fn, prefix=""):
         inputs, _get_input_names_from_callback_fn(callback_fn)
     ):
         input_.id = f"{prefix}{parameter_name}"
-        inputs_with_ids.append(copy.deepcopy(input_))
+        inputs_with_ids.append(_conceal_secret_default(copy.deepcopy(input_)))
 
     return inputs_with_ids
 
@@ -875,6 +918,7 @@ def _transform_inputs(inputs, tags, components=None):
     transformed_inputs = []
     for i, (inp, tag) in enumerate(zip(inputs, tags)):
         comp = comps[i] if i < len(comps) else None
+        inp = _reveal_secret(inp, comp)
         if inp is None:
             transformed_inputs.append(inp)
 

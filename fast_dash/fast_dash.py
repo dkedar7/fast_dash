@@ -736,6 +736,14 @@ class FastDash(ChatAppMixin):
         else:
             self._init_single_function(callback_fn, inputs, outputs, output_labels, update_live)
 
+        # Mount /mcp now rather than in run(): the documented production deploy
+        # hands `app.server` to gunicorn/uvicorn and never calls run(), and
+        # Flask refuses new routes after the first request -- so a run()-time
+        # mount left a deployed app with no /mcp at all (405 on the MCP
+        # handshake, and a GET that fell through to the SPA) (issue #244).
+        if self.mcp_server_enabled:
+            self._start_mcp_server()
+
     def _check_auto_agent_prereqs(self, callback_fn):
         """Fail fast (friendly, ASCII) when an auto-agent can't be built later.
 
@@ -1412,8 +1420,14 @@ class FastDash(ChatAppMixin):
             return styles + [back_disabled, next_disabled]
 
     def run(self):
-        if self.mcp_server_enabled:
-            self._start_mcp_server()
+        # /mcp is already mounted: __init__ does it so `app.server` carries the
+        # route under gunicorn/uvicorn too (issue #244). The bind host is only
+        # final here, so this is where an exposed, unauthenticated /mcp is
+        # flagged -- and only if a route was actually mounted (#149).
+        if self.mcp_server_enabled and getattr(self, "_mcp_mounted", False):
+            from .mcp import warn_if_exposed
+
+            warn_if_exposed(self.run_kwargs)
 
         if self._backend:
             self._run_asgi()
@@ -1469,16 +1483,12 @@ class FastDash(ChatAppMixin):
                 stacklevel=2,
             )
             return
-        from .mcp import enable_mcp, warn_if_exposed
-
-        # Only warn about an exposed /mcp once we know we are about to mount one
-        # -- the multi-function bail-out above means mcp_server=True does not
-        # always produce an endpoint to expose (#149).
-        warn_if_exposed(self.run_kwargs)
+        from .mcp import enable_mcp
 
         # Native Dash MCP shares the web app's host/port; agents connect at
         # http://<host>:<port>/mcp. The legacy mcp_port/mcp_host kwargs are
-        # retained for compatibility but no longer open a second port.
+        # retained for compatibility but no longer open a second port. The
+        # exposure warning is run()'s job: the bind host is only final there.
         enable_mcp(self)
 
     def _register_mcp_mirror(self):

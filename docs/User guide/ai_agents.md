@@ -85,7 +85,10 @@ then held to.
     A `PasswordInput`'s value is **never reported back** over MCP: the contract
     marks it `"secret": true` and masks it everywhere (`describe_app`, the
     `set_input` echo, `get_invocation`). An agent can fill the field; it cannot
-    read it.
+    read it. A `PasswordInput` **default** (say, a key pre-filled from config)
+    never leaves the server either: the served page and Dash's native
+    `dash://layout` / `get_dash_component` carry only `********`, and the real
+    value is swapped back in when the callback runs.
 
 !!! note
     The drive tools' (`invoke` / `set_inputs` / `set_input`) raw MCP *input
@@ -125,7 +128,7 @@ app = DynamicDash(
     output_components=[Graph, Markdown],
     mcp_server=True,
 )
-app.run(port=8052)                    # run() mounts the MCP server on :8052/mcp
+app.run(port=8052)                    # MCP is served at :8052/mcp
 ```
 
 The agent then calls, for example:

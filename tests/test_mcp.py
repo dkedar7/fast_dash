@@ -1275,11 +1275,12 @@ class TestDogfoodBatchJul25:
             """BETA."""
             return b + 200
 
+        # /mcp mounts at construction (#244), which is exactly where the
+        # registry collision happens -- so the second app fails as it is built.
         app1 = FastDash(callback_fn=alpha, mcp_server=True)
-        enable_mcp(app1)
-        app2 = FastDash(callback_fn=beta, mcp_server=True)
+        assert app1._mcp_mounted
         with pytest.raises(RuntimeError, match="already enabled on another app"):
-            enable_mcp(app2)
+            FastDash(callback_fn=beta, mcp_server=True)
 
     def test_same_app_remount_is_still_idempotent(self):
         # The #171 guard must not break the documented per-app idempotency.
@@ -1512,3 +1513,95 @@ class TestDogfoodBatchAug06:
         assert entry["current_value"] != "TX", "stale child value survived"
         if entry["options"] is not None and entry["current_value"] is not None:
             assert entry["current_value"] in entry["options"]
+
+
+# --- #224 / #244: secrets never served; /mcp mounted without run() --------- #
+
+_SECRET = "sk-REAL-SECRET-9931"   # 19 chars, so a callback can prove which it got
+
+
+def _secret_app():
+    def call_api(api_key: PasswordInput = _SECRET, n: int = 1) -> str:
+        """Report the key's length (proves which value the callback received)."""
+        return f"len={len(api_key)} n={n}"
+    return FastDash(callback_fn=call_api, mcp_server=True)
+
+
+@requires_dash_mcp
+class TestSecretDefaultNeverServed:
+    """#224: a PasswordInput default must not reach any served surface."""
+
+    def test_not_in_the_layout_sent_to_browsers(self):
+        import plotly
+        app = _secret_app()
+        served = json.dumps(app.app.layout, cls=plotly.utils.PlotlyJSONEncoder)
+        assert _SECRET not in served
+
+    def test_not_in_dash_native_mcp_surface(self):
+        c = _client_for(_secret_app())
+        native = json.dumps(_call(c, "get_dash_component", {"component_id": "api_key"}))
+        assert _SECRET not in native
+        layout = json.dumps(_rpc(c, "resources/read", {"uri": "dash://layout"}))
+        assert _SECRET not in layout
+        assert _SECRET not in json.dumps(_call(c, "describe_app"))
+
+    def test_callback_still_receives_the_real_default_over_mcp(self):
+        c = _client_for(_secret_app())
+        out = _call(c, "invoke")
+        assert out["ok"] is True, out
+        assert "len=19" in json.dumps(out["outputs"])      # not the 8-char mask
+
+    def test_echoed_default_is_scrubbed_from_invoke_output(self):
+        # The mirror only ever holds the mask, so #194's output scrubbing has to
+        # learn the concealed value from the component, or an echo leaks it.
+        def echo(api_key: PasswordInput = _SECRET) -> str:
+            """Echo the key."""
+            return f"key={api_key}"
+        c = _client_for(FastDash(callback_fn=echo, mcp_server=True))
+        out = json.dumps(_call(c, "invoke"))
+        assert _SECRET not in out
+        hist = json.dumps(_call(c, "get_invocation", {"index": 0}))
+        assert _SECRET not in hist
+
+    def test_ui_run_reveals_mask_but_honours_typed_and_cleared_values(self):
+        from fast_dash.utils import SECRET_MASK, _transform_inputs
+        app = _secret_app()
+        run = lambda v: _transform_inputs([v, 1], app.input_tags, app.inputs_with_ids)[0]
+        assert run(SECRET_MASK) == _SECRET      # untouched field -> the default
+        assert run("typed-key") == "typed-key"   # user override wins
+        assert run("") == ""                     # deliberate clear is respected
+
+    def test_ui_and_mcp_masks_agree(self):
+        from fast_dash.mcp import REDACTED
+        from fast_dash.utils import SECRET_MASK
+        assert SECRET_MASK == REDACTED
+
+
+@requires_dash_mcp
+class TestMcpMountedWithoutRun:
+    """#244: `app.server` must carry /mcp for gunicorn/uvicorn, which never call run()."""
+
+    def _assert_live(self, server):
+        rules = {r.rule for r in server.url_map.iter_rules()}
+        assert "/mcp" in rules
+        r = server.test_client().post(
+            "/mcp",
+            data=json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize", "params": {
+                "protocolVersion": "2025-06-18", "capabilities": {},
+                "clientInfo": {"name": "t", "version": "0"}}}),
+            headers={"Content-Type": "application/json"},
+        )
+        assert r.status_code == 200 and "result" in r.get_json()
+
+    def test_fastdash_mounts_at_construction(self):
+        self._assert_live(_plain_app().app.server)
+
+    def test_dynamicdash_mounts_at_construction(self):
+        self._assert_live(_dynamic_app().app.server)
+
+    def test_no_route_when_mcp_disabled(self):
+        def f(n: int = 1) -> int:
+            """f."""
+            return n
+        rules = {r.rule for r in FastDash(callback_fn=f).app.server.url_map.iter_rules()}
+        assert "/mcp" not in rules
