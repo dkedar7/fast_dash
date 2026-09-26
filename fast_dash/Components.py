@@ -1252,12 +1252,17 @@ def _resolve_typing_hint(hint, default_value=None):
     if origin is Literal:
         options = [str(o) for o in args]
         default = str(default_value) if default_value is not None and str(default_value) in options else options[0] if options else None
+        component = Fastify(
+            dmc.Select(data=options, value=default),
+            "value",
+            tag="Literal",
+        )
+        # Remember the raw members: the widget can only carry the option
+        # string, but the callback's hint promises the member, so the
+        # transform layer needs them to map "2" back to 2 (issue #235).
+        component.literal_options = list(args)
         return _ResolvedHint(
-            component=Fastify(
-                dmc.Select(data=options, value=default),
-                "value",
-                tag="Literal",
-            ),
+            component=component,
         )
 
     # Enum subclass -> Select dropdown

@@ -313,6 +313,33 @@ class TestChatConstruction:
             FastDash(chat=bot)
         assert "query" in str(ei.value) and str(ei.value).isascii()
 
+    @pytest.mark.skipif(
+        _HAS_AGENT, reason="misdirection only bites when the agent extra is absent"
+    )
+    def test_nonquery_first_param_points_at_query_rule(self, monkeypatch):
+        # Issue #214: chat=True with a non-`query` first param is reinterpreted
+        # as an app callback needing an auto-built sidecar, and dies with a
+        # misleading ImportError about the [agent] extra. When the callback
+        # actually looks like the docs' 5-line chatbot (one bare str param, no
+        # model configured), the on-topic "must be named 'query'" message must
+        # win -- and still name the sidecar interpretation.
+        monkeypatch.delenv("FASTDASH_MODEL", raising=False)
+
+        def assistant(prompt: str):
+            yield "hi"
+        with pytest.raises(TypeError) as ei:
+            FastDash(callback_fn=assistant, chat=True)
+        msg = str(ei.value)
+        assert "query" in msg and msg.isascii()
+        assert "fast-dash[agent]" in msg
+
+        # An app-shaped callback (typed non-str params) keeps the ImportError:
+        # it reads as a normal app wanting a sidecar, not a mistyped chatbot.
+        def dashboard(revenue: int = 100) -> str:
+            return str(revenue)
+        with pytest.raises(ImportError):
+            FastDash(callback_fn=dashboard, chat=True)
+
     def test_update_live_incompatible(self):
         def bot(query):
             yield "hi"
