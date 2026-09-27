@@ -199,7 +199,65 @@ FastDash(callback_fn=stream_text, stream=True).run()
 
 Without `stream=True` a generator still works: it runs to completion and shows the last value. An MCP agent's `invoke()` always gets the last value. Use `notify(data, action="show")` to push a toast mid-run. For token-by-token chat, use `chat=True` (see the chat docs) rather than a `Chat` output.
 
-## 12. Custom Dash components via Fastify
+## 12. Drive the app from an AI agent (MCP)
+
+Pass `mcp_server=True`. The app serves its web UI **and** an MCP server on the same port at `/mcp`, and a human and an agent drive the same live app.
+
+```python
+from fast_dash import fastdash
+import plotly.graph_objects as go
+
+@fastdash(mcp_server=True)            # web UI AND MCP on :8080/mcp
+def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
+    """Plot a bar chart with n bars in the chosen color."""
+    return go.Figure(go.Bar(y=list(range(1, n + 1)), marker_color=color))
+```
+
+Point the agent at it: `{"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}`. The agent starts with `describe_app()` (each input's id, type, default, options, current value, and `required`), then drives with `set_input` / `set_inputs` / `invoke(inputs={...})` and reads past runs with `get_invocation`. Values the UI couldn't produce (wrong type, outside a slider's range, not an option) are rejected. A `PasswordInput` value is never sent back to the agent.
+
+- Keep it on `127.0.0.1` (the default): `/mcp` has no authentication.
+- One MCP-enabled app per process; multi-function and `steps=` apps skip MCP.
+- `backend="fastapi"` (needs `pip install "fast-dash[fastapi]"`) pushes agent changes to the browser over a WebSocket instead of ~500 ms polling.
+- Deploying: `/mcp` is mounted when the app object is built, so with `server = app.server` in the module, `gunicorn app:server` serves it too.
+
+## 13. Agent-built forms (DynamicDash)
+
+When the fields aren't known ahead of time, let the agent build the form:
+
+```python
+from fast_dash import DynamicDash, Graph, Markdown
+
+def score(**fields):
+    """Summarize whatever numeric fields were sent."""
+    return None, ", ".join(f"{k}={v}" for k, v in fields.items())
+
+app = DynamicDash(
+    callback_fn=score,
+    placeholder="Ask the agent to call set_form() to build the form.",
+    output_components=[Graph, Markdown],
+    mcp_server=True,
+)
+app.run(port=8052)                    # MCP at :8052/mcp
+```
+
+The agent calls `set_form(specs=[{"name": "technical", "type": "Slider", "props": {"min": 0, "max": 10}}, ...])` (`list_component_types()` lists the legal types), then `invoke()`. Fields left alone run with their defaults; `Markdown` specs are display-only.
+
+## 14. Chat apps
+
+A `yield`-ing function with `chat=True` is a streaming chat app:
+
+```python
+from fast_dash import fastdash
+
+@fastdash(chat=True)
+def assistant(query: str):
+    for word in f"You said: {query}".split():
+        yield word + " "
+```
+
+To put an assistant **beside** a normal app, pass `chat=` a `(query, ctx)` function (it can `yield {"type": "set_input", ...}` / `{"type": "run_app"}` to drive the app), or `chat=True, chat_model="openai:gpt-4o-mini"` to auto-build a LangChain assistant with tools to read, set and run the app (narrow them with `chat_tools=`). The auto-built assistant needs `pip install "fast-dash[agent]"`.
+
+## 15. Custom Dash components via Fastify
 
 ```python
 from fast_dash import fastdash, Fastify
@@ -224,4 +282,8 @@ def app(x: bounded_slider) -> str:
 | `update_live` | `False` | Re-run on every change |
 | `about` | `True` | Docstring → About modal; pass a string to override |
 | `minimal` | `False` | Hide chrome for embedding |
-| `stream` | `False` | Enable streaming outputs |
+| `stream` | `False` | Stream partial results (`yield`, or `update(name, value)`) |
+| `accent` | `"blue"` | Mantine color for buttons / links (`indigo`, `teal`, ...; anything else falls back to blue) |
+| `mcp_server` | `False` | Also serve an MCP server at `/mcp` so AI agents can drive the app |
+| `backend` | `None` | `"fastapi"` for the ASGI backend + real-time WebSocket push |
+| `chat` | `False` | Chat app (`yield`-ing fn) or an assistant beside a normal app |

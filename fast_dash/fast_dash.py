@@ -809,8 +809,9 @@ class FastDash(ChatAppMixin):
         if importlib.util.find_spec("langstage_core") is None:
             raise ImportError(
                 "chat=True auto-builds an assistant, whose LangGraph agent is "
-                "streamed through the langstage bridge. Install it with:\n"
-                '    pip install "fast-dash[langstage]"'
+                "streamed through the langstage bridge. The agent extra "
+                "includes it (#211):\n"
+                '    pip install "fast-dash[agent]"'
             )
         has_model = self.chat_model is not None or os.environ.get("FASTDASH_MODEL")
         if not has_model:
