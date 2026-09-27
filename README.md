@@ -41,7 +41,7 @@ Fast Dash inspects your Python function's signature, picks UI components from th
 It exists for one job: collapse the gap between a working Python function and a shareable interactive web app.
 
 <!-- film:start -->
-![Fast Dash in one minute: a typed Python function becomes a web app, then a chat app, then an app an AI agent drives over MCP](https://raw.githubusercontent.com/dkedar7/fast_dash/release/docs/assets/fast-dash-in-motion.gif)
+![Fast Dash in one minute: a typed Python function becomes a web app, then a chat app, then an app an AI agent drives over MCP](https://dkedar.com/media/fast-dash/fast-dash-in-motion.gif)
 
 <sub>Fast Dash in one minute. Watch it in 1080p on [docs.fastdash.app](https://docs.fastdash.app).</sub>
 <!-- film:end -->
