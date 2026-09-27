@@ -1248,7 +1248,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
     <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">state</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">country</span><span class="si">}</span><span class="s2">&quot;</span>
 </code></pre></div>
 <p>The resolver receives the parent input's current value. Return:
-- a <strong>list</strong> to set the dependent dropdown's options (and clear its value),
+- a <strong>list</strong> to set the dependent dropdown's options (and select the first one),
 - a <strong>dict</strong> like <code>{"data": [...], "value": ...}</code> to set both, or
 - a <strong>scalar</strong> to set just the value.</p>
 <p><strong>Skip the decorator</strong> when you want more control over the lifecycle:</p>
@@ -1316,7 +1316,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
     <span class="n">output_components</span><span class="o">=</span><span class="p">[</span><span class="n">Graph</span><span class="p">,</span> <span class="n">Markdown</span><span class="p">],</span>
     <span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>
-<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="mi">8052</span><span class="p">)</span>                    <span class="c1"># run() mounts the MCP server on :8052/mcp</span>
+<span class="n">app</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">port</span><span class="o">=</span><span class="mi">8052</span><span class="p">)</span>                    <span class="c1"># MCP is served at :8052/mcp</span>
 </code></pre></div>
 <p><strong>Real-time push (opt-in).</strong> On the default Flask backend, agent mutations reach the browser via a ~500 ms polling drain. Install <code>fast-dash[fastapi]</code> and pass <code>backend="fastapi"</code> to switch to Dash's ASGI backend, where updates stream over a WebSocket via <code>set_props</code> (sub-100 ms, no polling):</p>
 <div class="highlight"><pre><span></span><code><span class="nd">@fastdash</span><span class="p">(</span><span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;fastapi&quot;</span><span class="p">)</span>   <span class="c1"># real-time WebSocket push</span>
@@ -1358,7 +1358,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 <tr>
 <td><code>port</code></td>
 <td><code>8080</code></td>
-<td>Port to serve on</td>
+<td>Port to serve on (also settable as <code>run_kwargs={"port": ...}</code> or <code>app.run(port=...)</code>)</td>
 </tr>
 <tr>
 <td><code>mode</code></td>
@@ -1388,7 +1388,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 <tr>
 <td><code>stream</code></td>
 <td><code>False</code></td>
-<td>Enable streaming outputs (see docs)</td>
+<td>Stream partial results: <code>yield</code> them, or call <code>update(name, value)</code></td>
 </tr>
 <tr>
 <td><code>mcp_server</code></td>
@@ -1407,7 +1407,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 <ul>
 <li><strong>Output labels are inferred from the <code>return</code> line of your source.</strong> If the source can't be retrieved (REPL, <code>exec</code>, frozen environments), Fast Dash falls back to generic <code>OUTPUT_1</code>, <code>OUTPUT_2</code> labels rather than crashing. Pass <code>output_labels=[...]</code> explicitly to control them.</li>
 <li><strong>Reusing component instances across inputs and outputs</strong> can mutate shared attributes. Construct fresh components per slot (or use <code>inputs=Text</code> rather than <code>inputs=text_instance</code>).</li>
-<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. It sets light/dark mode (dark for <code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>); Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables). To set the <strong>accent colour</strong> of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass <code>accent="indigo"</code> — a Mantine colour name — rather than expecting <code>theme</code> to carry it.</li>
+<li><strong>The <code>theme</code> arg expects a Bootswatch name</strong>, not a CSS URL. It sets light/dark mode (dark for <code>CYBORG</code>, <code>DARKLY</code>, <code>QUARTZ</code>, <code>SLATE</code>, <code>SOLAR</code>, <code>SUPERHERO</code>, <code>VAPOR</code>); Bootswatch CSS still loads and styles <code>dbc</code>-rendered bits (e.g. data tables). To set the <strong>accent colour</strong> of the Mantine chrome (buttons, links, focus rings, chat bubbles), pass <code>accent="indigo"</code> — a Mantine colour name (<code>dark</code>, <code>gray</code>, <code>red</code>, <code>pink</code>, <code>grape</code>, <code>violet</code>, <code>indigo</code>, <code>blue</code>, <code>cyan</code>, <code>teal</code>, <code>green</code>, <code>lime</code>, <code>yellow</code>, <code>orange</code>) — rather than expecting <code>theme</code> to carry it. Anything else (a hex code, a typo) falls back to blue with a warning.</li>
 </ul>
 <h2 id="development">Development</h2>
 <div class="highlight"><pre><span></span><code>git<span class="w"> </span>clone<span class="w"> </span>https://github.com/dkedar7/fast_dash.git

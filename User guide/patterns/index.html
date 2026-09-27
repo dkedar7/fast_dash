@@ -455,8 +455,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-selecting-other-configurations" class="md-nav__link">
-    7. Selecting other configurations
+  <a href="#7-streaming-outputs" class="md-nav__link">
+    7. Streaming outputs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-selecting-other-configurations" class="md-nav__link">
+    8. Selecting other configurations
   </a>
   
 </li>
@@ -828,8 +835,15 @@
 </li>
       
         <li class="md-nav__item">
-  <a href="#7-selecting-other-configurations" class="md-nav__link">
-    7. Selecting other configurations
+  <a href="#7-streaming-outputs" class="md-nav__link">
+    7. Streaming outputs
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#8-selecting-other-configurations" class="md-nav__link">
+    8. Selecting other configurations
   </a>
   
 </li>
@@ -1230,7 +1244,7 @@ Here's what we want:</p>
 </code></pre></div></td></tr></table></div>
 <p>The first argument to <code>depends_on</code> is the <strong>parameter name</strong> of the parent input. The second is a <strong>resolver</strong> function that receives the parent's current value and returns one of:</p>
 <ul>
-<li>a <strong>list</strong> — sets the dependent dropdown's options and clears its value;</li>
+<li>a <strong>list</strong> — sets the dependent dropdown's options and selects the first one;</li>
 <li>a <strong>dict</strong> like <code>{"data": [...], "value": ...}</code> — sets either or both;</li>
 <li>a <strong>scalar</strong> — sets just the dependent's value (e.g. derived numbers, prefilled text).</li>
 </ul>
@@ -1290,7 +1304,39 @@ Here's what we want:</p>
 <li>Linear pipelines only — no conditional branching in this release.</li>
 <li>The cache lives in the FastDash process; a server restart or a multi-worker deployment loses session state. Acceptable for prototyping.</li>
 </ul>
-<h2 id="7-selecting-other-configurations">7. Selecting other configurations</h2>
+<h2 id="7-streaming-outputs">7. Streaming outputs</h2>
+<p>Set <code>stream=True</code> and <code>yield</code> partial results. Each yielded value replaces the
+output as it arrives, and the last one stays as the result. Yield a tuple to
+stream several outputs together.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">time</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">slow_count</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">3</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">out</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">):</span>
+        <span class="n">out</span> <span class="o">+=</span> <span class="sa">f</span><span class="s2">&quot;tick </span><span class="si">{</span><span class="n">i</span><span class="si">}</span>
+<span class="s2">&quot;</span>
+        <span class="n">time</span><span class="o">.</span><span class="n">sleep</span><span class="p">(</span><span class="mf">0.2</span><span class="p">)</span>
+        <span class="k">yield</span> <span class="n">out</span>
+</code></pre></div>
+<p>To push from a regular function instead, call <code>update(name, value)</code> and
+<code>return</code> the final value. <code>name</code> is the returned variable's name; the
+<code>output_</code>-prefixed id (<code>"output_text"</code>) works too.</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">fastdash</span><span class="p">,</span> <span class="n">update</span>
+
+<span class="nd">@fastdash</span><span class="p">(</span><span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="k">def</span><span class="w"> </span><span class="nf">type_out</span><span class="p">(</span><span class="n">prompt</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;hi&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
+    <span class="n">text</span> <span class="o">=</span> <span class="s2">&quot;&quot;</span>
+    <span class="k">for</span> <span class="n">char</span> <span class="ow">in</span> <span class="s2">&quot;Streaming, one character at a time.&quot;</span><span class="p">:</span>
+        <span class="n">text</span> <span class="o">+=</span> <span class="n">char</span>
+        <span class="n">update</span><span class="p">(</span><span class="s2">&quot;text&quot;</span><span class="p">,</span> <span class="n">text</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">text</span>
+</code></pre></div>
+<p>A generator also works without <code>stream=True</code>: it runs to completion and shows
+the last value. An AI agent calling <code>invoke()</code> over MCP always gets the last
+value. For token-by-token chat, use <a href="../chat/"><code>chat=True</code></a>.</p>
+<h2 id="8-selecting-other-configurations">8. Selecting other configurations</h2>
 <p>Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.</p>
 <p>In the <a href="../components/">next section</a>, we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.</p>
 

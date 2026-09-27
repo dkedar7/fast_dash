@@ -482,6 +482,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#deploying-an-app-with-mcp_servertrue" class="md-nav__link">
+    Deploying an app with mcp_server=True
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -764,6 +771,13 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#deploying-an-app-with-mcp_servertrue" class="md-nav__link">
+    Deploying an app with mcp_server=True
+  </a>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -832,6 +846,12 @@ CMD exec gunicorn wsgi:server --bind :$PORT
 </code></pre></div>
 <p>You will be asked to choose a few different settings for your deployment. Read Google Cloud Run's documentation here to understand what each of them mean.</p>
 <p>That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.</p>
+<h2 id="deploying-an-app-with-mcp_servertrue">Deploying an app with <code>mcp_server=True</code></h2>
+<p>Nothing extra is needed: <code>/mcp</code> is mounted when the app object is built, so <code>server = app.server</code> carries it and <code>gunicorn wsgi:server</code> serves it alongside the UI. For <code>backend="fastapi"</code>, <code>app.server</code> is an ASGI app, so serve it with <code>uvicorn wsgi:server</code> instead.</p>
+<div class="admonition warning">
+<p class="admonition-title">Warning</p>
+<p><code>/mcp</code> has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app.</p>
+</div>
 
 
 
