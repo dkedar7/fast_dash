@@ -118,3 +118,14 @@
   .twitter {
     color: #00acee;
   }
+  /* Home-page product film (docs/index.md) */
+  .fd-film {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 16 / 9;
+    margin: 1.2em 0 1.6em;
+    border-radius: 12px;
+    border: 1px solid var(--md-default-fg-color--lightest);
+    background: #F6F7FC;
+  }

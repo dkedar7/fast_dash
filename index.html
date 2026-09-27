@@ -898,7 +898,7 @@
 
   <h1>Home</h1>
 
-<!-- BEGIN INCLUDE ../README.md -->
+<!-- BEGIN INCLUDE ../README.md '' '&lt;!-- film:start --&gt;' -->
 <p align="center">
   <a href="https://fastdash.app/"><img src="https://storage.googleapis.com/fast_dash/0.1.8/logo.png" alt="Fast Dash" width=300></a>
 </p>
@@ -937,7 +937,12 @@
 <h2 id="what-is-fast-dash">What is Fast Dash?</h2>
 <p>Fast Dash inspects your Python function's signature, picks UI components from the type hints and default values, and serves the result as a <a href="https://github.com/plotly/dash">Plotly Dash</a> app — usually in under five lines of code. No frontend, no callbacks, no boilerplate.</p>
 <p>It exists for one job: collapse the gap between a working Python function and a shareable interactive web app.</p>
-<p><img alt="Fast Dash demo" src="https://storage.googleapis.com/fast_dash/0.2.6/FastDashDemo.png" /></p>
+<!-- END INCLUDE -->
+
+<video class="fd-film" src="assets/fast-dash-in-motion.mp4" poster="assets/fast-dash-in-motion-poster.jpg" controls autoplay muted loop playsinline preload="metadata" aria-label="Fast Dash in one minute: a typed Python function becomes a web app, then a chat app, then an app an AI agent drives over MCP"></video>
+
+<!-- BEGIN INCLUDE ../README.md '&lt;!-- film:end --&gt;' '' -->
+
 <h2 id="30-second-example">30-second example</h2>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>fast-dash
 </code></pre></div>
