@@ -1053,7 +1053,7 @@ def _describe_outputs(fd, state=None):
     the value currently on screen once something has run.
     """
     from fast_dash.Components import expand_return_annotation
-    from fast_dash.utils import _summarize_for_history
+    from fast_dash.utils import _output_for_mcp
 
     # DynamicDash stores its prepared outputs under the private name, same as
     # _enumerate_outputs already reaches for — without this fallback the output
@@ -1100,7 +1100,11 @@ def _describe_outputs(fd, state=None):
             "label": getattr(comp, "label_", None) or None,
         }
         if state is not None and cid in state.outputs:
-            entry["current_value"] = _summarize_for_history(state.outputs[cid])
+            # The value itself, not the history preview (#261) -- and masked:
+            # an output derived from a PasswordInput must not read back in the
+            # clear here any more than it does from invoke (#194).
+            entry["current_value"] = _scrub_secrets(
+                _output_for_mcp(state.outputs[cid]), _secret_values(fd, state))
         outputs.append(entry)
     return outputs
 
@@ -1126,6 +1130,11 @@ def _option_error(fd, component_id, value, snapshot, state=None):
             return None
         options = entry.get("options")
         if options:
+            if isinstance(value, (list, tuple)) and entry.get("type") != "array":
+                # A single-select emits one option, never a list -- not even a
+                # one-element one. Only a MultiSelect (type "array") takes a
+                # list; this is #150's type check for the dropdowns (#267).
+                return f"expected a single value from {options}, got an array {list(value)!r}"
             if isinstance(value, (list, tuple)):
                 bad = [v for v in value if v not in options]
                 if bad:
@@ -1320,7 +1329,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     """
     enable_mcp_server, configure_mcp_server, mcp_enabled = _ensure_dash_mcp()
 
-    from fast_dash.utils import _jsonify_for_mcp, _summarize_for_history
+    from fast_dash.utils import _jsonify_for_mcp, _output_for_mcp, _summarize_for_history
 
     if not hasattr(fd, "_mcp_state") or fd._mcp_state is None:
         fd._mcp_state = MCPState()
@@ -1556,11 +1565,14 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         # leak. The live browser still receives the real value; only what goes
         # back over /mcp is scrubbed (#194).
         secrets = _secret_values(fd, state)
-        out_summary = {}
+        out_summary, out_full, raw = {}, {}, {}
         for d, val in zip(_enumerate_outputs(fd), result_list):
             state.outputs[d["id"]] = val
             state.pending_outputs[d["id"]] = val
+            raw[d["id"]] = val
+            # History keeps the compact summary; the agent gets the value (#261).
             out_summary[d["id"]] = _scrub_secrets(_summarize_for_history(val), secrets)
+            out_full[d["id"]] = _scrub_secrets(_output_for_mcp(val), secrets)
 
         entry_summary = {
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -1568,12 +1580,13 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             "kwargs": _kwargs_summary(),
             "outputs": out_summary,
         }
-        entry_full = {**entry_summary, "_full_kwargs": kwargs, "_full_result": result}
+        entry_full = {**entry_summary, "_full_kwargs": kwargs, "_full_result": result,
+                      "_full_outputs": raw}
         idx = state.append_history(entry_summary, entry_full)
         return {
             "ok": True,
             "duration_ms": dt_ms,
-            "outputs": out_summary,
+            "outputs": out_full,
             "history_index": idx,
         }
 
@@ -1665,6 +1678,11 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             "duration_ms": entry["duration_ms"],
             "kwargs_summary": _scrub_secrets(entry["kwargs"], secrets),
             "outputs_summary": _scrub_secrets(entry["outputs"], secrets),
+            # The run's full outputs, as invoke returned them (#261).
+            "outputs": {
+                k: _scrub_secrets(_output_for_mcp(v), secrets)
+                for k, v in (entry.get("_full_outputs") or {}).items()
+            },
         }
 
     @mcp_enabled(name="list_component_types", expose_docstring=True)
