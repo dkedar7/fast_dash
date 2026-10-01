@@ -448,6 +448,118 @@ def _jsonify_for_mcp(value):
     return str(value)
 
 
+# Largest output (in characters of JSON) handed back to an agent whole. Past
+# it, an output comes back clipped and marked ``truncated`` rather than
+# flooding the agent's context.
+MCP_OUTPUT_CAP = 500_000
+
+
+def _plain_json(value):
+    """Recursively convert numpy, pandas, datetime and plotly typed-array values
+    into plain JSON types an agent can read (and any JSON encoder can write)."""
+    import base64
+    import datetime
+    import decimal
+    import math
+
+    try:
+        import numpy as np
+    except Exception:            # noqa: BLE001 - numpy is optional here
+        np = None
+
+    if value is None or isinstance(value, (bool, str, int)):
+        return value
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        # plotly >= 6 stores numpy arrays as {"dtype", "bdata"(, "shape")}:
+        # JSON-safe, but base64 an agent can't read. Decode back to lists.
+        if np is not None and "bdata" in value and "dtype" in value:
+            try:
+                arr = np.frombuffer(base64.b64decode(value["bdata"]), dtype=np.dtype(value["dtype"]))
+                shape = value.get("shape")
+                if shape:
+                    if isinstance(shape, str):
+                        shape = [int(s) for s in shape.split(",")]
+                    arr = arr.reshape(shape)
+                return _plain_json(arr.tolist())
+            except Exception:    # noqa: BLE001 - fall through to a plain dict
+                pass
+        return {str(k): _plain_json(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_plain_json(v) for v in value]
+    if np is not None:
+        if isinstance(value, np.ndarray):
+            return _plain_json(value.tolist())
+        if isinstance(value, np.generic):
+            return _plain_json(value.item())
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, decimal.Decimal):
+        return float(value)
+    return str(value)
+
+
+def _output_for_mcp(value, cap=MCP_OUTPUT_CAP):
+    """An output's value as an agent reads it from ``invoke`` / ``describe_app``
+    / ``get_invocation`` (issue #261).
+
+    These used the compact history summary, so a string over 200 characters
+    came back as an 80-character preview, and a table or figure as its shape
+    alone: an agent could not read the result of the app it had just run.
+    Return the value itself instead (text whole, a table's first 100 rows,
+    a figure's data and layout) and summarize only what an agent can't use
+    (images, binary data) or what would swamp its context (past ``cap``).
+    """
+    import json
+
+    # Pixels (a PIL image, a matplotlib figure) are no use to an agent as data;
+    # report the image the way the history does.
+    try:
+        import PIL.Image
+        if isinstance(value, (PIL.Image.Image, mpl.figure.Figure)):
+            return _summarize_for_history(value)
+    except Exception:            # noqa: BLE001
+        pass
+
+    out = None
+    try:
+        import plotly.graph_objects as go
+        if isinstance(value, go.Figure):
+            out = _plain_json(value.to_dict())
+    except Exception:            # noqa: BLE001
+        pass
+    if out is None:
+        try:
+            import pandas as pd
+            if isinstance(value, pd.DataFrame):
+                head = value.head(100)
+                out = {
+                    "type": "dataframe",
+                    "shape": list(value.shape),
+                    "columns": [str(c) for c in value.columns],
+                    "records": json.loads(head.to_json(orient="records", date_format="iso", default_handler=str)),
+                    "truncated": len(value) > len(head),
+                }
+        except Exception:        # noqa: BLE001
+            pass
+    if out is None:
+        out = _plain_json(_jsonify_for_mcp(value))
+
+    try:
+        size = len(json.dumps(out))
+    except (TypeError, ValueError):
+        return _summarize_for_history(value)
+    if size <= cap:
+        return out
+    if isinstance(value, str):
+        return {"type": "str", "len": len(value), "text": value[:cap], "truncated": True}
+    summary = _summarize_for_history(value)
+    if not isinstance(summary, dict):
+        summary = {"type": type(value).__name__}
+    return {**summary, "json_size": size, "truncated": True}
+
+
 def _summarize_for_history(value):
     """Compact summary of a value, suitable for the `state.history` deque.
 
