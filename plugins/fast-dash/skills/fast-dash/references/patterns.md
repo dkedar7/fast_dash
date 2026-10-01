@@ -213,7 +213,7 @@ def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
     return go.Figure(go.Bar(y=list(range(1, n + 1)), marker_color=color))
 ```
 
-Point the agent at it: `{"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}`. The agent starts with `describe_app()` (each input's id, type, default, options, current value, and `required`), then drives with `set_input` / `set_inputs` / `invoke(inputs={...})` and reads past runs with `get_invocation`. Values the UI couldn't produce (wrong type, outside a slider's range, not an option) are rejected. A `PasswordInput` value is never sent back to the agent.
+Point the agent at it: in Claude Code, `claude mcp add --transport http my-app http://localhost:8080/mcp`, or in `.mcp.json` (Claude Code, Cursor) `{"mcpServers": {"my-app": {"type": "http", "url": "http://localhost:8080/mcp"}}}`; VS Code's `.vscode/mcp.json` uses `"servers"` instead of `"mcpServers"`. The agent starts with `describe_app()` (each input's id, type, default, options, current value, and `required`), then drives with `set_input` / `set_inputs` / `invoke(inputs={...})` and reads past runs with `get_invocation`. Values the UI couldn't produce (wrong type, outside a slider's range, not an option) are rejected. A `PasswordInput` value is never sent back to the agent.
 
 - Keep it on `127.0.0.1` (the default): `/mcp` has no authentication.
 - One MCP-enabled app per process; multi-function and `steps=` apps skip MCP.

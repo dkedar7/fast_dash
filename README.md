@@ -330,14 +330,19 @@ import plotly.graph_objects as go
 
 @fastdash(mcp_server=True)            # web UI AND MCP on :8080/mcp
 def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
-    ...
+    bars = go.Figure(go.Bar(y=list(range(1, n + 1)), marker_color=color))
+    return bars
 ```
 
-Point an agent at `http://localhost:8080/mcp`:
+Point an agent at `http://localhost:8080/mcp`. In Claude Code that's
+`claude mcp add --transport http my-app http://localhost:8080/mcp`; for an
+`.mcp.json` (Claude Code, Cursor):
 
 ```json
-{"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}
+{"mcpServers": {"my-app": {"type": "http", "url": "http://localhost:8080/mcp"}}}
 ```
+
+VS Code uses `"servers"` in place of `"mcpServers"`. The [AI agents guide](https://docs.fastdash.app/User%20guide/ai_agents/) has each client's config and a Python client example.
 
 The agent calls **`describe_app()`** to discover the input contract (each input's id, type, default, options, and current value), then **drives** the app with `set_input` / `set_inputs` / `invoke` / `set_form` / `get_invocation` / `list_component_types`. Dash's native `dash://layout` / `dash://components` / `get_dash_component` expose the static component tree. Agent mutations apply to the live browser within ~500 ms (no reload).
 

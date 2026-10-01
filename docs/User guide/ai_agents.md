@@ -20,16 +20,39 @@ import plotly.graph_objects as go
 @fastdash(mcp_server=True)            # web UI AND MCP on :8080/mcp
 def plot_bars(n: int = 6, color: str = "#1c7ed6") -> go.Figure:
     """Plot a bar chart with n bars in the chosen color."""
-    ...
+    bars = go.Figure(go.Bar(y=list(range(1, n + 1)), marker_color=color))
+    return bars
 ```
 
 ## Connect an agent
 
-Point any MCP client at the app's `/mcp` endpoint (streamable HTTP):
+The endpoint is `http://localhost:8080/mcp`, served over MCP's streamable HTTP
+transport. Each client names its config key differently:
+
+**Claude Code**: run `claude mcp add --transport http my-app http://localhost:8080/mcp`,
+or add it to the project's `.mcp.json`:
 
 ```json
-{"servers": {"my-app": {"url": "http://localhost:8080/mcp"}}}
+{"mcpServers": {"my-app": {"type": "http", "url": "http://localhost:8080/mcp"}}}
 ```
+
+**Cursor**: in `.cursor/mcp.json` (project) or `~/.cursor/mcp.json` (global):
+
+```json
+{"mcpServers": {"my-app": {"url": "http://localhost:8080/mcp"}}}
+```
+
+**VS Code**: in `.vscode/mcp.json`:
+
+```json
+{"servers": {"my-app": {"type": "http", "url": "http://localhost:8080/mcp"}}}
+```
+
+!!! tip "Checking that MCP is up"
+    Opening `/mcp` in a browser (or with `curl`) shows the app's web page, not
+    an MCP response, so it can't tell you whether the server is running.
+    Connect with an MCP client instead, such as the
+    [Python example below](#drive-it-from-python).
 
 ## What the agent gets
 
@@ -61,13 +84,15 @@ use that to build a valid `invoke` call:
     {"id": "color", "tag": "ColorInput", "type": "string",  "default": "#1c7ed6", "options": null, "current_value": "#1c7ed6", "secret": false, "required": false}
   ],
   "outputs": [
-    {"id": "output_go_Figure", "tag": "Graph", "type": "object", "label": "Bar chart"}
+    {"id": "output_bars", "tag": "Graph", "type": "object", "label": "BARS"}
   ]
 }
 ```
 
 `required: true` marks a parameter with no default: `invoke` refuses to run
-without it and names what's missing. `tag` is the widget the hint became — a `str` input can be a text box, a
+without it and names what's missing. An output's `id` comes from the variable
+the function returns (`return bars` gives `output_bars`); a function that
+returns an expression gets `output_output_1`, `output_output_2`, and so on. `tag` is the widget the hint became — a `str` input can be a text box, a
 textarea or a colour picker, and they are not interchangeable. `outputs` lets an
 agent see what a run returns **without** having to run it.
 
@@ -109,6 +134,55 @@ invoke(inputs={"n": 12, "color": "#2f9e44"})
 
 Agent mutations are reflected in the **live browser** within ~500 ms (no
 reload), so a human watching the page sees what the agent does.
+
+## Drive it from Python
+
+To script an app, or test your own agent-driven app, connect with the official
+[`mcp`](https://pypi.org/project/mcp/) SDK. It is installed with Fast Dash.
+Start the app above, then run:
+
+```python
+import json
+
+import anyio
+from mcp import ClientSession
+
+try:
+    from mcp.client.streamable_http import streamable_http_client
+except ImportError:  # older mcp releases spell it streamablehttp_client
+    from mcp.client.streamable_http import streamablehttp_client as streamable_http_client
+
+URL = "http://127.0.0.1:8080/mcp"
+
+
+async def call(session, tool, args=None):
+    """Call a Fast Dash tool and return its JSON result."""
+    result = await session.call_tool(tool, args or {})
+    return json.loads(result.content[0].text)
+
+
+async def main():
+    async with streamable_http_client(URL) as (read, write, *_):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+
+            app = await call(session, "describe_app")
+            print([i["id"] for i in app["inputs"]])          # ['n', 'color']
+
+            run = await call(session, "invoke", {"inputs": {"n": 12, "color": "#2f9e44"}})
+            print(run["ok"], run["history_index"])           # True 0
+
+            past = await call(session, "get_invocation", {"index": run["history_index"]})
+            print(past["kwargs_summary"])                    # {'n': 12, 'color': '#2f9e44'}
+
+
+anyio.run(main)
+```
+
+Every tool takes keyword arguments named as in the table above:
+`set_input(component_id, value)`, `set_inputs(inputs)`, `invoke(inputs)`,
+`set_form(specs)` and `get_invocation(index)`. `describe_app` and
+`list_component_types` take none.
 
 ## Agent-generated UIs with DynamicDash
 
