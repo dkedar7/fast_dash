@@ -448,6 +448,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#drive-it-from-python" class="md-nav__link">
+    Drive it from Python
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agent-generated-uis-with-dynamicdash" class="md-nav__link">
     Agent-generated UIs with DynamicDash
   </a>
@@ -772,6 +779,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#drive-it-from-python" class="md-nav__link">
+    Drive it from Python
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#agent-generated-uis-with-dynamicdash" class="md-nav__link">
     Agent-generated UIs with DynamicDash
   </a>
@@ -827,12 +841,29 @@ web app, at <code>/mcp</code>.</p>
 <span class="nd">@fastdash</span><span class="p">(</span><span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>            <span class="c1"># web UI AND MCP on :8080/mcp</span>
 <span class="k">def</span><span class="w"> </span><span class="nf">plot_bars</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">6</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;#1c7ed6&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">:</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Plot a bar chart with n bars in the chosen color.&quot;&quot;&quot;</span>
-    <span class="o">...</span>
+    <span class="n">bars</span> <span class="o">=</span> <span class="n">go</span><span class="o">.</span><span class="n">Figure</span><span class="p">(</span><span class="n">go</span><span class="o">.</span><span class="n">Bar</span><span class="p">(</span><span class="n">y</span><span class="o">=</span><span class="nb">list</span><span class="p">(</span><span class="nb">range</span><span class="p">(</span><span class="mi">1</span><span class="p">,</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span><span class="p">)),</span> <span class="n">marker_color</span><span class="o">=</span><span class="n">color</span><span class="p">))</span>
+    <span class="k">return</span> <span class="n">bars</span>
 </code></pre></div>
 <h2 id="connect-an-agent">Connect an agent</h2>
-<p>Point any MCP client at the app's <code>/mcp</code> endpoint (streamable HTTP):</p>
-<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;my-app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:8080/mcp&quot;</span><span class="p">}}}</span>
+<p>The endpoint is <code>http://localhost:8080/mcp</code>, served over MCP's streamable HTTP
+transport. Each client names its config key differently:</p>
+<p><strong>Claude Code</strong>: run <code>claude mcp add --transport http my-app http://localhost:8080/mcp</code>,
+or add it to the project's <code>.mcp.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;my-app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:8080/mcp&quot;</span><span class="p">}}}</span>
 </code></pre></div>
+<p><strong>Cursor</strong>: in <code>.cursor/mcp.json</code> (project) or <code>~/.cursor/mcp.json</code> (global):</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;mcpServers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;my-app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:8080/mcp&quot;</span><span class="p">}}}</span>
+</code></pre></div>
+<p><strong>VS Code</strong>: in <code>.vscode/mcp.json</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;servers&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;my-app&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;url&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;http://localhost:8080/mcp&quot;</span><span class="p">}}}</span>
+</code></pre></div>
+<div class="admonition tip">
+<p class="admonition-title">Checking that MCP is up</p>
+<p>Opening <code>/mcp</code> in a browser (or with <code>curl</code>) shows the app's web page, not
+an MCP response, so it can't tell you whether the server is running.
+Connect with an MCP client instead, such as the
+<a href="#drive-it-from-python">Python example below</a>.</p>
+</div>
 <h2 id="what-the-agent-gets">What the agent gets</h2>
 <table>
 <thead>
@@ -898,12 +929,14 @@ use that to build a valid <code>invoke</code> call:</p>
 <span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;color&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;ColorInput&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;string&quot;</span><span class="p">,</span><span class="w">  </span><span class="nt">&quot;default&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;options&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">null</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;#1c7ed6&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;secret&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;required&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">false</span><span class="p">}</span>
 <span class="w">  </span><span class="p">],</span>
 <span class="w">  </span><span class="nt">&quot;outputs&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span>
-<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;output_go_Figure&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Graph&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Bar chart&quot;</span><span class="p">}</span>
+<span class="w">    </span><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;output_bars&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Graph&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;object&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;BARS&quot;</span><span class="p">}</span>
 <span class="w">  </span><span class="p">]</span>
 <span class="p">}</span>
 </code></pre></div>
 <p><code>required: true</code> marks a parameter with no default: <code>invoke</code> refuses to run
-without it and names what's missing. <code>tag</code> is the widget the hint became — a <code>str</code> input can be a text box, a
+without it and names what's missing. An output's <code>id</code> comes from the variable
+the function returns (<code>return bars</code> gives <code>output_bars</code>); a function that
+returns an expression gets <code>output_output_1</code>, <code>output_output_2</code>, and so on. <code>tag</code> is the widget the hint became — a <code>str</code> input can be a text box, a
 textarea or a colour picker, and they are not interchangeable. <code>outputs</code> lets an
 agent see what a run returns <strong>without</strong> having to run it.</p>
 <h3 id="the-contract-is-enforced">The contract is enforced</h3>
@@ -941,6 +974,50 @@ values.</p>
 </code></pre></div>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
+<h2 id="drive-it-from-python">Drive it from Python</h2>
+<p>To script an app, or test your own agent-driven app, connect with the official
+<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> SDK. It is installed with Fast Dash.
+Start the app above, then run:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">anyio</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientSession</span>
+
+<span class="k">try</span><span class="p">:</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mcp.client.streamable_http</span><span class="w"> </span><span class="kn">import</span> <span class="n">streamable_http_client</span>
+<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># older mcp releases spell it streamablehttp_client</span>
+    <span class="kn">from</span><span class="w"> </span><span class="nn">mcp.client.streamable_http</span><span class="w"> </span><span class="kn">import</span> <span class="n">streamablehttp_client</span> <span class="k">as</span> <span class="n">streamable_http_client</span>
+
+<span class="n">URL</span> <span class="o">=</span> <span class="s2">&quot;http://127.0.0.1:8080/mcp&quot;</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">tool</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Call a Fast Dash tool and return its JSON result.&quot;&quot;&quot;</span>
+    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">call_tool</span><span class="p">(</span><span class="n">tool</span><span class="p">,</span> <span class="n">args</span> <span class="ow">or</span> <span class="p">{})</span>
+    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
+
+
+<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
+    <span class="k">async</span> <span class="k">with</span> <span class="n">streamable_http_client</span><span class="p">(</span><span class="n">URL</span><span class="p">)</span> <span class="k">as</span> <span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">):</span>
+        <span class="k">async</span> <span class="k">with</span> <span class="n">ClientSession</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
+            <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
+
+            <span class="n">app</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;describe_app&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">([</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">app</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]])</span>          <span class="c1"># [&#39;n&#39;, &#39;color&#39;]</span>
+
+            <span class="n">run</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;invoke&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">}})</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">run</span><span class="p">[</span><span class="s2">&quot;ok&quot;</span><span class="p">],</span> <span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">])</span>           <span class="c1"># True 0</span>
+
+            <span class="n">past</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;get_invocation&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">]})</span>
+            <span class="nb">print</span><span class="p">(</span><span class="n">past</span><span class="p">[</span><span class="s2">&quot;kwargs_summary&quot;</span><span class="p">])</span>                    <span class="c1"># {&#39;n&#39;: 12, &#39;color&#39;: &#39;#2f9e44&#39;}</span>
+
+
+<span class="n">anyio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+</code></pre></div>
+<p>Every tool takes keyword arguments named as in the table above:
+<code>set_input(component_id, value)</code>, <code>set_inputs(inputs)</code>, <code>invoke(inputs)</code>,
+<code>set_form(specs)</code> and <code>get_invocation(index)</code>. <code>describe_app</code> and
+<code>list_component_types</code> take none.</p>
 <h2 id="agent-generated-uis-with-dynamicdash">Agent-generated UIs with DynamicDash</h2>
 <p><code>DynamicDash</code> is a Fast Dash app whose input form is generated at runtime —
 either by a parent control or by an agent calling the <code>set_form</code> tool. The form
