@@ -1,4 +1,39 @@
-# Release 0.7.0
+# Release 0.7.1
+
+## 0.7.1 (2026-10-02)
+
+Patch release: closes a secret leak in 0.7.0 and lets agents read the
+results of the apps they run.
+
+### Security
+- **`describe_app` returned secret-derived outputs unmasked.** After a run, an
+  output computed from a `PasswordInput` came back in the clear in
+  `describe_app`'s output `current_value`. 0.7.0 masked `invoke` and
+  `get_invocation` (#194) but not this path. All three now mask it.
+
+### Fixed
+- **Agents can read what an app returned** (#261). `invoke`, `describe_app`
+  and `get_invocation` returned the compact history summary: an 80-character
+  preview of any text over 200 characters, and only the shape of tables and
+  figures. They now return the value: text whole, a table's first 100 rows
+  (ISO dates, `truncated` when longer), and a figure's data with plain arrays.
+  Images stay summarized, and anything over 500 KB comes back clipped and
+  marked `truncated`. `get_invocation` gains an `outputs` field;
+  `outputs_summary` is unchanged.
+- **Single-select inputs reject a list over MCP** (#267). A `str` list
+  default, `Literal`, `Enum` or `Annotated[str, [...]]` input accepted a JSON
+  array, so the callback received a `list`. It's now rejected the way a wrong
+  type is (#150). MultiSelects still take lists.
+
+### Docs
+- **Connecting an agent** (#265): each client's real config. Claude Code and
+  Cursor use `mcpServers`, VS Code uses `servers`. The single `servers`
+  snippet was silently ignored by the first two.
+- **`describe_app` example** (#264) now shows the library's actual output.
+- **New "Drive it from Python" section** (#266): a tested `mcp`-SDK client
+  example.
+- The one-minute product film is on the README and the docs home page, served
+  from dkedar.com. 26 MB of unused legacy images were removed from the repo.
 
 ## 0.7.0 (2026-09-26)
 
