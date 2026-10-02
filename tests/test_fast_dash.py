@@ -12,6 +12,7 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import NoSuchElementException
+from tests._browser import click_run
 
 
 
@@ -108,8 +109,8 @@ def test_fdfd004_click_submit(dash_duo):
     form_textfield = dash_duo.find_element("#input_text")
     form_textfield.send_keys("Sample text")
 
-    # Click submit
-    dash_duo.multiple_click("#submit_inputs", 1)
+    # Click submit (once the page is idle and the text has landed, #250)
+    click_run(dash_duo, typed="Sample text", input_selector="#input_text")
     dash_duo.wait_for_text_to_equal("#output_output_text", "Sample text", timeout=20)
 
     # Click clear
@@ -137,8 +138,8 @@ def test_fdfd005_multiple_outputs(dash_duo):
     form_textfield = dash_duo.find_element("#input_text")
     form_textfield.send_keys("Sample text")
 
-    # Click submit
-    dash_duo.multiple_click("#submit_inputs", 1)
+    # Click submit (once the page is idle and the text has landed, #250)
+    click_run(dash_duo, typed="Sample text", input_selector="#input_text")
     dash_duo.wait_for_text_to_equal("#output_output_text1", "Sample text", timeout=20)
     dash_duo.wait_for_text_to_equal("#output_output_text2", "Sample text", timeout=20)
 
@@ -397,8 +398,8 @@ def test_fdfd016_stream_text_simple(dash_duo):
     form_textfield = dash_duo.find_element("#input_text")
     form_textfield.send_keys("Sample text")
 
-    # Click submit
-    dash_duo.multiple_click("#submit_inputs", 1)
+    # Click submit (once the page is idle and the text has landed, #250)
+    click_run(dash_duo, typed="Sample text", input_selector="#input_text")
 
     time.sleep(4)
     # Poll until text stops changing (streaming complete)
