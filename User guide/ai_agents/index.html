@@ -859,10 +859,14 @@ or add it to the project's <code>.mcp.json</code>:</p>
 </code></pre></div>
 <div class="admonition tip">
 <p class="admonition-title">Checking that MCP is up</p>
-<p>Opening <code>/mcp</code> in a browser (or with <code>curl</code>) shows the app's web page, not
-an MCP response, so it can't tell you whether the server is running.
-Connect with an MCP client instead, such as the
-<a href="#drive-it-from-python">Python example below</a>.</p>
+<p>A plain <code>GET /mcp</code> answers with MCP's event stream (<code>text/event-stream</code>,
+body <code>: mcp stream open</code>) when the MCP server is mounted, and with the
+app's web page when it isn't. That makes a one-line readiness check for a
+container health check or CI:</p>
+<div class="highlight"><pre><span></span><code>curl<span class="w"> </span>-fsS<span class="w"> </span>http://127.0.0.1:8080/mcp<span class="w"> </span><span class="p">|</span><span class="w"> </span>grep<span class="w"> </span>-q<span class="w"> </span><span class="s2">&quot;mcp stream open&quot;</span><span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;MCP is up&quot;</span>
+</code></pre></div>
+<p>Check <code>/mcp</code> itself: other paths under it, such as <code>/mcp/health</code>, return
+the web page even when MCP is running.</p>
 </div>
 <h2 id="what-the-agent-gets">What the agent gets</h2>
 <table>
