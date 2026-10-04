@@ -1,4 +1,21 @@
-# Release 0.7.1
+# Release 0.7.2
+
+## 0.7.2 (2026-10-03)
+
+Patch release for one MCP validation gap and a docs correction.
+
+### Fixed
+- **A MultiSelect accepted a bare option over MCP** (#270). `set_input` /
+  `invoke` took `"apple"` for a `list` (MultiSelect) input, and the callback
+  received a `str`, which it then iterated character by character. A bare
+  value is now rejected with a clear error, the mirror of #267. Lists still
+  work.
+
+### Docs
+- **The Python MCP client example needs `pip install mcp`** (#272). The docs
+  said the `mcp` SDK comes with Fast Dash. Dash 4.4 no longer installs it, so
+  the example failed on a clean install. The page now says to install it, and
+  the example uses `asyncio` instead of `anyio`.
 
 ## 0.7.1 (2026-10-02)
 
