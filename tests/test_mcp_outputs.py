@@ -120,3 +120,35 @@ def test_scalars_and_multiselect_lists_still_accepted():
     out = call("invoke", {"inputs": {"flavor": "choco", "col": "green", "many": ["a"]}})
     assert out["ok"] is True
     assert out["outputs"]["output_output_1"] == "'choco'|'p'|<Color.GREEN: 'green'>|['a']"
+
+
+# --- #270: the mirror of #267 ---------------------------------------------- #
+
+def _many(items: list = ["apple", "banana", "cherry"], cfg: dict = {"a": 1, "b": 2}) -> str:
+    return f"{type(items).__name__}:{items!r}|{type(cfg).__name__}:{cfg!r}"
+
+
+@pytest.mark.parametrize("key, value", [("items", "apple"), ("cfg", "a")])
+def test_multiselect_rejects_a_bare_option(key, value):
+    call = _mcp(FastDash(callback_fn=_many, mcp_server=True))
+    res = call("invoke", {"inputs": {key: value}})
+    assert res["ok"] is False and "expected an array" in res["errors"][key]
+    assert call("set_input", {"component_id": key, "value": value})["ok"] is False
+
+
+def test_multiselect_still_takes_a_list():
+    out = _mcp(FastDash(callback_fn=_many, mcp_server=True))(
+        "invoke", {"inputs": {"items": ["apple"], "cfg": ["b"]}})
+    assert out["outputs"]["output_output_1"] == "list:['apple']|dict:{'b': 2}"
+
+
+def test_dynamic_multiselect_rejects_a_bare_option():
+    from fast_dash import DynamicDash, Markdown
+
+    def echo(**fields):
+        return repr(fields)
+    call = _mcp(DynamicDash(callback_fn=echo, output_components=[Markdown], mcp_server=True))
+    call("set_form", {"specs": [{"name": "tags", "type": "MultiSelect",
+                                 "props": {"data": ["x", "y"]}}]})
+    assert call("set_input", {"component_id": "tags", "value": "x"})["ok"] is False
+    assert call("set_input", {"component_id": "tags", "value": ["x"]})["ok"] is True

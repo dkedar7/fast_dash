@@ -138,13 +138,19 @@ reload), so a human watching the page sees what the agent does.
 ## Drive it from Python
 
 To script an app, or test your own agent-driven app, connect with the official
-[`mcp`](https://pypi.org/project/mcp/) SDK. It is installed with Fast Dash.
+[`mcp`](https://pypi.org/project/mcp/) client SDK. It isn't installed with Fast
+Dash, so add it first:
+
+```bash
+pip install mcp
+```
+
 Start the app above, then run:
 
 ```python
+import asyncio
 import json
 
-import anyio
 from mcp import ClientSession
 
 try:
@@ -176,7 +182,7 @@ async def main():
             print(past["kwargs_summary"])                    # {'n': 12, 'color': '#2f9e44'}
 
 
-anyio.run(main)
+asyncio.run(main())
 ```
 
 Every tool takes keyword arguments named as in the table above:

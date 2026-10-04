@@ -1130,6 +1130,11 @@ def _option_error(fd, component_id, value, snapshot, state=None):
             return None
         options = entry.get("options")
         if options:
+            if entry.get("type") == "array" and not isinstance(value, (list, tuple)):
+                # A MultiSelect emits a list, never a bare option -- a str here
+                # would be iterated character by character (#270, the mirror
+                # of #267).
+                return f"expected an array of options from {options}, got {type(value).__name__} ({value!r})"
             if isinstance(value, (list, tuple)) and entry.get("type") != "array":
                 # A single-select emits one option, never a list -- not even a
                 # one-element one. Only a MultiSelect (type "array") takes a
