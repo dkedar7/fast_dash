@@ -49,10 +49,17 @@ or add it to the project's `.mcp.json`:
 ```
 
 !!! tip "Checking that MCP is up"
-    Opening `/mcp` in a browser (or with `curl`) shows the app's web page, not
-    an MCP response, so it can't tell you whether the server is running.
-    Connect with an MCP client instead, such as the
-    [Python example below](#drive-it-from-python).
+    A plain `GET /mcp` answers with MCP's event stream (`text/event-stream`,
+    body `: mcp stream open`) when the MCP server is mounted, and with the
+    app's web page when it isn't. That makes a one-line readiness check for a
+    container health check or CI:
+
+    ```bash
+    curl -fsS http://127.0.0.1:8080/mcp | grep -q "mcp stream open" && echo "MCP is up"
+    ```
+
+    Check `/mcp` itself: other paths under it, such as `/mcp/health`, return
+    the web page even when MCP is running.
 
 ## What the agent gets
 
