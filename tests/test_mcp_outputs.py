@@ -152,3 +152,20 @@ def test_dynamic_multiselect_rejects_a_bare_option():
                                  "props": {"data": ["x", "y"]}}]})
     assert call("set_input", {"component_id": "tags", "value": "x"})["ok"] is False
     assert call("set_input", {"component_id": "tags", "value": ["x"]})["ok"] is True
+
+
+# --- #275: GET /mcp is the readiness signal the docs promise --------------- #
+
+def test_get_mcp_is_a_readiness_signal():
+    def f(n: int = 1) -> str:
+        return str(n)
+    r = FastDash(callback_fn=f, mcp_server=True).app.server.test_client().get("/mcp")
+    assert r.status_code == 200 and r.mimetype == "text/event-stream"
+    assert "mcp stream open" in r.get_data(as_text=True)
+
+
+def test_get_mcp_without_mcp_server_is_the_web_page():
+    def f(n: int = 1) -> str:
+        return str(n)
+    r = FastDash(callback_fn=f).app.server.test_client().get("/mcp")
+    assert r.mimetype == "text/html" and "mcp stream open" not in r.get_data(as_text=True)
