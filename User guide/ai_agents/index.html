@@ -976,11 +976,14 @@ values.</p>
 reload), so a human watching the page sees what the agent does.</p>
 <h2 id="drive-it-from-python">Drive it from Python</h2>
 <p>To script an app, or test your own agent-driven app, connect with the official
-<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> SDK. It is installed with Fast Dash.
-Start the app above, then run:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK. It isn't installed with Fast
+Dash, so add it first:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mcp
+</code></pre></div>
+<p>Start the app above, then run:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
 
-<span class="kn">import</span><span class="w"> </span><span class="nn">anyio</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientSession</span>
 
 <span class="k">try</span><span class="p">:</span>
@@ -1012,7 +1015,7 @@ Start the app above, then run:</p>
             <span class="nb">print</span><span class="p">(</span><span class="n">past</span><span class="p">[</span><span class="s2">&quot;kwargs_summary&quot;</span><span class="p">])</span>                    <span class="c1"># {&#39;n&#39;: 12, &#39;color&#39;: &#39;#2f9e44&#39;}</span>
 
 
-<span class="n">anyio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">)</span>
+<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
 </code></pre></div>
 <p>Every tool takes keyword arguments named as in the table above:
 <code>set_input(component_id, value)</code>, <code>set_inputs(inputs)</code>, <code>invoke(inputs)</code>,
