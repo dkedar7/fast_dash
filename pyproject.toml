@@ -1,7 +1,7 @@
 [tool]
 [project]
 name = "fast_dash"
-version = "0.6.9"
+version = "0.7.2"
 homepage = "https://github.com/dkedar7/fast_dash"
 documentation = "https://docs.fastdash.app"
 description = "Turn your Python functions into interactive web applications. Fast Dash is an innovative way to build and deploy your Python code as interactive apps with minimal changes to your original code."
@@ -65,9 +65,12 @@ langstage = [
     "langstage-core[agui]>=1.0.0"
     ]
 
+# Everything the auto-built chat assistant needs, langstage bridge included
+# (#211); [langstage] alone still covers bringing your own LangGraph graph.
 agent = [
     "langchain>=1.0",
-    "langgraph"
+    "langgraph",
+    "langstage-core[agui]>=1.0.0"
     ]
 
 dev = ["tox", "pre-commit", "virtualenv", "twine", "toml"]

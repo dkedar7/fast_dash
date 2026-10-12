@@ -1,6 +1,6 @@
 ---
 name: fast-dash
-description: Build a Fast Dash web app from a Python function. Use when the user wants to turn a function into an interactive app, add a UI to an existing function, or build a dashboard / form / wizard. Fast Dash infers UI components from type hints, so a well-typed function becomes an app with one decorator.
+description: Build a Fast Dash web app from a Python function. Use when the user wants to turn a function into an interactive app, add a UI to an existing function, build a dashboard / form / wizard, add a chat assistant to an app, or make an app that AI agents can drive over MCP. Fast Dash infers UI components from type hints, so a well-typed function becomes an app with one decorator.
 ---
 
 # Fast Dash
@@ -13,6 +13,7 @@ Use this skill when the user:
 - has a Python function and wants a UI for it ("make this a web app", "add a form", "dashboard around this")
 - is prototyping an ML / data / API tool and wants shareable interactivity
 - needs cascading inputs, a multi-step wizard, or multiple tools in one app
+- wants an AI agent (Claude Code, Cursor, ...) to drive the app over MCP, or a chat assistant beside it
 
 Do **not** use this for: production apps with complex routing, custom auth, or non-Python frontends — Fast Dash is opinionated for the single-file-Python-function use case.
 
@@ -55,6 +56,9 @@ That is the whole app. Open the URL, type a name, click **Run**.
 | Streaming outputs | `yield` partial results (or `update("x", chunk)`) + `stream=True` | LLM / token-by-token / progress |
 | Notebook rendering | `@fastdash(mode="inline")` | Jupyter |
 | Wrap a custom component | `Fastify(dcc.Slider(...), "value")` | Any Dash component |
+| Drive from an AI agent | `@fastdash(mcp_server=True)` → agent connects to `:8080/mcp` | Human **and** agent use the same app |
+| Agent-built form | `DynamicDash(callback_fn=..., mcp_server=True)` + agent calls `set_form` | Form fields decided at runtime |
+| Chat assistant | `@fastdash(chat=True)` on a `yield`-ing function, or `chat=True, chat_model=...` on a normal app | Chat UI / assistant beside an app |
 
 Full examples for each: [references/patterns.md](references/patterns.md).
 
@@ -62,12 +66,14 @@ Full examples for each: [references/patterns.md](references/patterns.md).
 
 | Hint | Component |
 |---|---|
-| `str` | Textarea |
+| `str` | Single-line text input (a long / multi-line default → text area) |
+| `str` with `default=[...]` | Dropdown, starting on the first option |
 | `int`, `float` | Number input |
 | `bool` | Checkbox |
 | `Literal["a", "b"]` | Dropdown |
 | `Annotated[int, range(0, 100)]` | Slider |
-| `list` | Multi-select |
+| `list` | Multi-select (starts with nothing picked) |
+| `int` with `default=range(...)` | Slider, starting at the range start |
 | `datetime.date` | Date picker |
 | `pd.DataFrame` (return) | Table |
 | `plotly.graph_objects.Figure` (return) | Plotly chart |
@@ -123,6 +129,9 @@ Full list with reproducers: [references/gotchas.md](references/gotchas.md).
 - User wants **streaming / token-by-token output** (LLMs, progress) → `yield` partial results (or call `update(name, data)`, `name` = the returned variable) + `stream=True` on the app.
 - User wants the app **in a Jupyter notebook** → add `mode="inline"`.
 - User wants to **not start the server immediately** → use `FastDash(...)` class, skip `.run()`.
+- User wants an **AI agent to use the app** → add `mcp_server=True`; the agent connects to `http://localhost:8080/mcp` and starts with `describe_app()`. Add `backend="fastapi"` (needs `fast-dash[fastapi]`) for real-time push.
+- User wants **the agent to decide the form** → `DynamicDash(callback_fn=fn, placeholder=..., mcp_server=True)`; the agent calls `set_form(specs=[...])`.
+- User wants a **chat assistant** → `chat=True` (see [references/patterns.md](references/patterns.md)); an auto-built assistant needs `pip install "fast-dash[agent]"`.
 
 ## Before reporting complete
 

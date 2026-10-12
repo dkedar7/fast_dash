@@ -1,4 +1,124 @@
-# Release 0.6.9
+# Release 0.7.2
+
+## 0.7.2 (2026-10-03)
+
+Patch release for one MCP validation gap and a docs correction.
+
+### Fixed
+- **A MultiSelect accepted a bare option over MCP** (#270). `set_input` /
+  `invoke` took `"apple"` for a `list` (MultiSelect) input, and the callback
+  received a `str`, which it then iterated character by character. A bare
+  value is now rejected with a clear error, the mirror of #267. Lists still
+  work.
+
+### Docs
+- **The Python MCP client example needs `pip install mcp`** (#272). The docs
+  said the `mcp` SDK comes with Fast Dash. Dash 4.4 no longer installs it, so
+  the example failed on a clean install. The page now says to install it, and
+  the example uses `asyncio` instead of `anyio`.
+
+## 0.7.1 (2026-10-02)
+
+Patch release: closes a secret leak in 0.7.0 and lets agents read the
+results of the apps they run.
+
+### Security
+- **`describe_app` returned secret-derived outputs unmasked.** After a run, an
+  output computed from a `PasswordInput` came back in the clear in
+  `describe_app`'s output `current_value`. 0.7.0 masked `invoke` and
+  `get_invocation` (#194) but not this path. All three now mask it.
+
+### Fixed
+- **Agents can read what an app returned** (#261). `invoke`, `describe_app`
+  and `get_invocation` returned the compact history summary: an 80-character
+  preview of any text over 200 characters, and only the shape of tables and
+  figures. They now return the value: text whole, a table's first 100 rows
+  (ISO dates, `truncated` when longer), and a figure's data with plain arrays.
+  Images stay summarized, and anything over 500 KB comes back clipped and
+  marked `truncated`. `get_invocation` gains an `outputs` field;
+  `outputs_summary` is unchanged.
+- **Single-select inputs reject a list over MCP** (#267). A `str` list
+  default, `Literal`, `Enum` or `Annotated[str, [...]]` input accepted a JSON
+  array, so the callback received a `list`. It's now rejected the way a wrong
+  type is (#150). MultiSelects still take lists.
+
+### Docs
+- **Connecting an agent** (#265): each client's real config. Claude Code and
+  Cursor use `mcpServers`, VS Code uses `servers`. The single `servers`
+  snippet was silently ignored by the first two.
+- **`describe_app` example** (#264) now shows the library's actual output.
+- **New "Drive it from Python" section** (#266): a tested `mcp`-SDK client
+  example.
+- The one-minute product film is on the README and the docs home page, served
+  from dkedar.com. 26 MB of unused legacy images were removed from the repo.
+
+## 0.7.0 (2026-09-26)
+
+Backlog catch-up: the fixes from a full triage of the open issues, including two
+community contributions. The theme is **human ↔ agent parity**: an untouched UI
+Run and an agent's `invoke()` now hand the callback the same values, and
+`describe_app` describes exactly what `invoke` accepts and returns.
+
+### Security
+- **A `PasswordInput` default was served in plaintext** (#224). A key pre-filled
+  from config sat in `app.layout`, so `/_dash-layout`, Dash's native
+  `dash://layout` and `get_dash_component` all exposed it. Every served surface
+  now carries only the mask; the real value is swapped back in when the callback
+  runs.
+
+### Behaviour changes
+- **Collection defaults start on a real value** (#204, #219). `x: str = ["a", "b"]`
+  starts on `"a"`, `x: int = range(0, 10)` on `0`, and `x: list = [...]` passes
+  `[]`. All three used to pass `None` on an untouched Run. A `depends_on` list
+  resolver now selects its first option instead of clearing the value.
+- **A `dict` parameter receives a `dict`** (#231) of the selected entries, all
+  selected to start, not a list of key strings.
+- **`datetime.datetime` inputs render a date *and time* picker** (#242) and keep
+  the time on both surfaces (they were date-only, and dropped the time).
+- **Output labels come from the returned variable names** (#201). They're parsed,
+  not split on commas, so `return f"Hello, {name}!"` no longer invents a second
+  output. A string literal still labels itself.
+- **`port=` defaults to unset** (#203), so `run_kwargs={"port": N}` is honoured.
+  The effective default is still 8080; if both are given and disagree, it warns
+  and `port=` wins.
+- **`describe_app` contract**: every static input gains `required`; component-
+  class hints (`level: Slider = 3`) report the widget's JSON type (#198); a
+  `DateRange` is an `array` (#218); list, dict and range defaults report the
+  starting value as `default`; `datetime` values use the picker's
+  `YYYY-MM-DD HH:mm:ss` spelling. Short lists and dicts come back whole from
+  `invoke` / `get_invocation` instead of as `{"type": "list", "len": n}`.
+- **`fast-dash[agent]` now includes the langstage bridge** (#211), so it's the
+  only extra the auto-built chat assistant needs.
+
+### Fixed
+- **`stream=True` with `yield` crashed the Run** (#212, #207). Each yielded value
+  now streams live and the last one is the result, on the UI and over MCP
+  `invoke`. Without `stream=True` a generator runs to completion.
+- **`update()` rejected the id `describe_app` reports** (#233). It accepts the
+  bare name or the `output_`-prefixed id, and a bad name lists the valid ones.
+- **`app.run(debug=True)` / `run(port=...)` raised `TypeError`** (#205). `run()`
+  forwards Dash's run options, like `DynamicDash.run`.
+- **`steps=` apps threw a 500 on every page load** (#213), and the sidebar toggle
+  crashed on `backend="fastapi"` (#227).
+- **An unknown `accent=` blanked the whole page** (#234). It falls back to blue
+  with a warning.
+- **`mcp_server=True` served no `/mcp` under gunicorn/uvicorn** (#244). `/mcp` is
+  now mounted when the app is built, not in `run()`.
+- **Unannotated `Figure` / `DataFrame` returns didn't render** (#217). They
+  render as a graph / table (PIL and matplotlib as images).
+- **MCP parity:** a component-class hint accepted any string (#198); a no-default
+  parameter surfaced as a raw `TypeError` (#238); a single-output `list` return
+  was cut to its first element (#237); DynamicDash dropped fields left at their
+  default (#199) and treated Markdown blocks as inputs (#220).
+- **A mistyped chat callback pointed at the wrong fix** (#214, by @Georgefifth
+  in #215). It now names the `query` parameter rule.
+- **An integer `Literal` had an inconsistent contract** (#235, by
+  @wangzhengzhuo05 in #236). Both drive paths hand the callback the hinted type.
+
+### Docs
+- The Claude Code plugin skill is up to date (#247): widget table, starting
+  values, and new patterns for MCP, `DynamicDash` and chat.
+- New "Streaming outputs" and "Deploying an app with `mcp_server=True`" sections.
 
 ## 0.6.9 (2026-08-06)
 

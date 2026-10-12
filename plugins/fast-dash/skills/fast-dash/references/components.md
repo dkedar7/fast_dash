@@ -4,16 +4,19 @@
 
 | Type hint | Default value | Component |
 |---|---|---|
-| `str` | *(any or none)* | Textarea |
-| `str` | `["a", "b", "c"]` | Single-select dropdown |
+| `str` | short / none | Single-line text input |
+| `str` | long or multi-line | Text area |
+| `str` | hex color (`"#1c7ed6"`) | Color picker |
+| `str` | `["a", "b", "c"]` | Single-select dropdown, starting on `"a"` |
 | `int` | *(any)* | Number input |
-| `int` | `range(0, 100)` | Slider |
+| `int` | `range(0, 100)` | Slider, starting at `0` |
 | `float` | *(any)* | Number input |
-| `float` | `range(0, 10)` | Slider |
+| `float` | `range(0, 10)` | Slider, starting at `0` |
 | `bool` | `True` / `False` | Checkbox |
-| `list` | `[...]` | Multi-select dropdown (from the values) |
-| `dict` | `{"a": 1, "b": 2}` | Multi-select dropdown (keys are options, values ignored) |
+| `list` | `[...]` | Multi-select dropdown of the values, nothing picked (callback gets `[]`) |
+| `dict` | `{"a": 1, "b": 2}` | Multi-select of the keys, all picked; the callback gets a `dict` of the selected entries |
 | `datetime.date` | — | Date picker |
+| `datetime.datetime` | — | Date + time picker |
 | `PIL.Image.Image` | — | Image upload |
 | `Literal["a", "b", "c"]` | — | Single-select dropdown |
 | `enum.Enum` subclass | — | Single-select dropdown |

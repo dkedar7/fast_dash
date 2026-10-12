@@ -28,6 +28,7 @@ from .Components import (
 )
 
 from .utils import (
+    _bootswatch_name,
     _drain_generator,
     _find_stream_output,
     _assign_ids_to_inputs,
@@ -683,7 +684,9 @@ class FastDash(ChatAppMixin):
         self.branding = branding
         self.stream = stream
         self.about = about
-        self.theme = theme or "JOURNAL"
+        # Normalized once, so the stylesheet and the light/dark detection agree;
+        # an unknown name warns and falls back to JOURNAL (#281).
+        self.theme = _bootswatch_name(theme, warn=True)
         # Accent color (Mantine primaryColor): themes buttons, links, focus
         # rings, and the chat user bubble. One knob for "what colour is my app".
         self.accent = accent
@@ -809,8 +812,9 @@ class FastDash(ChatAppMixin):
         if importlib.util.find_spec("langstage_core") is None:
             raise ImportError(
                 "chat=True auto-builds an assistant, whose LangGraph agent is "
-                "streamed through the langstage bridge. Install it with:\n"
-                '    pip install "fast-dash[langstage]"'
+                "streamed through the langstage bridge. The agent extra "
+                "includes it (#211):\n"
+                '    pip install "fast-dash[agent]"'
             )
         has_model = self.chat_model is not None or os.environ.get("FASTDASH_MODEL")
         if not has_model:
