@@ -214,8 +214,8 @@ def test_union_str_int_input():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == dmc.Textarea().__doc__ or comp.__doc__ == Text.__doc__, \
-        "Union[str, int] should resolve to text component"
+    assert comp.__doc__ == dmc.TextInput().__doc__, \
+        "Union[str, int] with no default should be a single-line text input (#284)"
 
 
 ########### Backward compatibility ###########

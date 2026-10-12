@@ -307,9 +307,33 @@ def theme_mapper(theme_name):
         "ZEPHYR": dbc.themes.ZEPHYR,
     }
 
-    theme = theme_mapper_dict.get(theme_name.upper(), dbc.themes.YETI)
+    return theme_mapper_dict.get(_bootswatch_name(theme_name), dbc.themes.JOURNAL)
 
-    return theme
+
+DEFAULT_THEME = "JOURNAL"
+
+
+def _bootswatch_name(theme_name, warn=False):
+    """A known Bootswatch theme name (upper-case) for ``theme=``.
+
+    Case and stray spaces are ignored. An unknown name (a typo such as
+    ``"DARKY"``) used to fall back to YETI silently, which is neither what the
+    user asked for nor the documented default; it now falls back to JOURNAL,
+    with a warning naming the valid themes when ``warn`` is set (#281).
+    """
+    known = sorted(n for n in dir(dbc.themes) if n.isupper() and not n.startswith("_") and n != "GRID")
+    if not theme_name:
+        return DEFAULT_THEME
+    name = str(theme_name).strip().upper()
+    if name in known:
+        return name
+    if warn:
+        warnings.warn(
+            f"theme={theme_name!r} is not a Bootswatch theme; using {DEFAULT_THEME!r}. "
+            f"Choose one of: {', '.join(known)}.",
+            stacklevel=3,
+        )
+    return DEFAULT_THEME
 
 
 # Data type conversion utilities
