@@ -507,6 +507,51 @@ def _resolve_depends_on_options(fd, dep, snapshot):
     return list(data) if isinstance(data, list) else None
 
 
+def _rerun_dependents(fd, state, changed) -> list:
+    """Re-run each ``depends_on`` resolver whose parent this call changed (#279).
+
+    In the browser, changing a parent fires the child's cascade callback, which
+    sets the child to whatever the resolver returns: a scalar
+    (``depends_on("base", lambda b: b * 2)``), the ``value`` of a dict, or a
+    list's first option. The MCP mirror only re-seeded at load, so an agent that
+    changed ``base`` ran the callback with the load-time ``derived``. A child the
+    agent set explicitly in the same call keeps the agent's value. Returns the
+    ids re-resolved.
+    """
+    try:
+        import dash as _dash
+
+        from fast_dash.fast_dash import FastDash
+    except Exception:            # noqa: BLE001
+        return []
+    changed = {str(k) for k in (changed or ())}
+    if not changed:
+        return []
+    updated = []
+    for comp in list(getattr(fd, "inputs_with_ids", None) or []):
+        parent = getattr(comp, "_depends_on_parent", None)
+        resolver = getattr(comp, "_depends_on_resolver", None)
+        if parent is None or resolver is None or parent not in changed:
+            continue
+        cid = _stringify_id(comp.id)
+        param = _param_name_from_id(cid, getattr(fd, "callback_fn", None))
+        if cid in changed or param in changed:
+            continue
+        try:
+            _data, value = FastDash._apply_dependency_resolver(resolver, state.inputs.get(parent))
+        except Exception:        # noqa: BLE001 - a failing resolver leaves the child as is
+            continue
+        if value is _dash.no_update:
+            continue
+        for key in (cid, param):
+            state.inputs.pop(key, None)
+        if value is not None:
+            state.inputs[cid] = value
+        state.pending_inputs[cid] = value
+        updated.append(cid)
+    return updated
+
+
 def _clear_stale_dependents(fd, state) -> list:
     """Drop a ``depends_on`` child's value once the parent invalidates it (#191).
 
@@ -983,6 +1028,30 @@ _OUTPUT_KIND = {
 }
 
 
+def _value_kind(value):
+    """(tag, JSON type) for a rich output value, matching _OUTPUT_KIND; else None."""
+    try:
+        import plotly.graph_objects as go
+        if isinstance(value, go.Figure):
+            return _OUTPUT_KIND["Graph"]
+    except Exception:            # noqa: BLE001
+        pass
+    try:
+        import pandas as pd
+        if isinstance(value, pd.DataFrame):
+            return _OUTPUT_KIND["DataTable"]
+    except Exception:            # noqa: BLE001
+        pass
+    try:
+        import matplotlib.figure
+        import PIL.Image
+        if isinstance(value, (PIL.Image.Image, matplotlib.figure.Figure)):
+            return _OUTPUT_KIND["Img"]
+    except Exception:            # noqa: BLE001
+        pass
+    return None
+
+
 def _output_kind(comp):
     """(tag, JSON type) for one output component.
 
@@ -1099,6 +1168,13 @@ def _describe_outputs(fd, state=None):
             "type": jtype,
             "label": getattr(comp, "label_", None) or None,
         }
+        if state is not None and cid in state.outputs and entry["tag"] == "Text":
+            # An unannotated return renders a Figure / DataFrame / image inside
+            # the generic text shell (#217); once a run shows what it returns,
+            # describe it the way the annotated path would (#283).
+            kind = _value_kind(state.outputs[cid])
+            if kind:
+                entry["tag"], entry["type"] = kind
         if state is not None and cid in state.outputs:
             # The value itself, not the history preview (#261) -- and masked:
             # an output derived from a PasswordInput must not read back in the
@@ -1264,7 +1340,8 @@ def _describe_chat_settings(fd) -> list[dict]:
 
 def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
     """Register the chat-app MCP tools: ``describe_app`` + headless ``invoke``."""
-    from fast_dash.chat import run_turn, wire_safe
+    from fast_dash.chat import _ARTIFACT_FRAME_TYPES, run_turn, wire_safe
+    from fast_dash.utils import _output_for_mcp
     from fast_dash.utils import _jsonify_for_mcp
 
     @mcp_enabled(name="describe_app", expose_docstring=True)
@@ -1321,7 +1398,15 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
             return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
         fd.chat_history.append_turn(_MCP_CHAT_SID, query.strip(), result["content"])
-        safe_frames = [_jsonify_for_mcp(wire_safe(f)) for f in frames]
+        # The browser renders artifacts server-side, so the socket gets a
+        # placeholder. A headless agent has no browser: give it the artifact
+        # itself, as invoke does for a normal app's output (#280, #261).
+        safe_frames = [
+            {"type": f["type"], "content": _output_for_mcp(f.get("content"))}
+            if f.get("type") in _ARTIFACT_FRAME_TYPES
+            else _jsonify_for_mcp(wire_safe(f))
+            for f in frames
+        ]
         return {"ok": True, "content": result["content"], "frames": safe_frames}
 
 
@@ -1422,10 +1507,14 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             return {"ok": False, "error": bad, "id": component_id}
         state.inputs[component_id] = value
         state.pending_inputs[component_id] = value
-        # Changing a depends_on parent invalidates its child's value (#191).
+        # Changing a depends_on parent re-runs its child (#279) and drops a
+        # child value its new options no longer hold (#191).
+        updated = _rerun_dependents(fd, state, {component_id})
         cleared = _clear_stale_dependents(fd, state)
         out = {"ok": True, "id": component_id,
                "value": _echo(entries, component_id, value)}
+        if updated:
+            out["updated"] = updated
         if cleared:
             out["cleared"] = cleared
         return out
@@ -1454,8 +1543,11 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             state.pending_inputs[k] = v
             snapshot[k] = v
             applied[k] = _echo(entries, k, v)
+        updated = _rerun_dependents(fd, state, set(applied))   # #279
         cleared = _clear_stale_dependents(fd, state)          # #191
         out = {"ok": not errors, "applied": applied, "errors": errors}
+        if updated:
+            out["updated"] = updated
         if cleared:
             out["cleared"] = cleared
         return out
@@ -1501,6 +1593,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             for k, v in inputs.items():
                 state.inputs[k] = v
                 state.pending_inputs[k] = v
+            _rerun_dependents(fd, state, set(inputs))         # #279
             _clear_stale_dependents(fd, state)                # #191
 
         kwargs = {}
@@ -1660,7 +1753,10 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         # isn't part of the form.
         parent = getattr(fd, "parent_control", None) or {}
         state.set_current_specs(specs, keep={parent.get("name")} - {None})
-        return {"ok": True, "count": len(specs)}
+        display = sum(1 for sp in specs if isinstance(sp, dict) and sp.get("type") in _DISPLAY_ONLY)
+        # `count` is the number of inputs describe_app will list; display-only
+        # blocks are reported separately (#282).
+        return {"ok": True, "count": len(specs) - display, "display_only": display}
 
     @mcp_enabled(name="get_invocation", expose_docstring=True)
     @_structured_errors
@@ -1693,8 +1789,12 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     @mcp_enabled(name="list_component_types", expose_docstring=True)
     @_structured_errors
     def list_component_types() -> dict:
-        """List the legal ``type`` values for a DynamicDash UI spec."""
-        return {"types": _component_types()}
+        """List the legal ``type`` values for a DynamicDash UI spec.
+
+        ``display_only`` names the types that show content but are not inputs:
+        they never appear in describe_app and are never passed to the callback.
+        """
+        return {"types": _component_types(), "display_only": sorted(_DISPLAY_ONLY)}
 
     @mcp_enabled(name="describe_app", expose_docstring=True)
     @_structured_errors

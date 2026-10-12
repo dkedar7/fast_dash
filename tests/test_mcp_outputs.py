@@ -169,3 +169,65 @@ def test_get_mcp_without_mcp_server_is_the_web_page():
         return str(n)
     r = FastDash(callback_fn=f).app.server.test_client().get("/mcp")
     assert r.mimetype == "text/html" and "mcp stream open" not in r.get_data(as_text=True)
+
+
+# --- #279: a depends_on child re-runs when the parent changes over MCP ------ #
+
+def test_scalar_dependent_reruns_on_parent_change():
+    from fast_dash import depends_on
+
+    def calc(base: int = 10, derived: int = depends_on("base", lambda b: b * 2)) -> str:
+        return f"base={base} derived={derived}"
+    call = _mcp(FastDash(callback_fn=calc, mcp_server=True))
+    assert call("set_input", {"component_id": "base", "value": 7})["updated"] == ["derived"]
+    assert call("invoke")["outputs"]["output_output_1"] == "base=7 derived=14"
+    assert call("invoke", {"inputs": {"base": 3}})["outputs"]["output_output_1"] == "base=3 derived=6"
+    # a child the agent sets in the same call keeps the agent's value
+    out = call("invoke", {"inputs": {"base": 5, "derived": 99}})
+    assert out["outputs"]["output_output_1"] == "base=5 derived=99"
+
+
+# --- #280: chat artifacts are resolved, not "pending", over MCP ------------- #
+
+def test_chat_artifacts_resolve_over_mcp():
+    def analyst(query: str, history: list):
+        yield "Here: "
+        yield {"type": "artifact", "content": go.Figure(go.Scatter(x=[1, 2, 3], y=[1, 4, 9]))}
+        yield {"type": "artifact", "content": pd.DataFrame({"a": [1, 2]})}
+    res = _mcp(FastDash(callback_fn=analyst, chat=True, mcp_server=True))("invoke", {"query": "go"})
+    arts = [f for f in res["frames"] if f["type"] == "artifact"]
+    assert len(arts) == 2 and not any("pending" in f for f in arts)
+    assert arts[0]["content"]["data"][0]["y"] == [1, 4, 9]
+    assert arts[1]["content"]["records"] == [{"a": 1}, {"a": 2}]
+
+
+# --- #282: set_form counts inputs; display-only types are named ------------- #
+
+def test_set_form_count_matches_inputs_and_display_only_is_named():
+    from fast_dash import DynamicDash, Markdown
+
+    def score(**kw):
+        return repr(kw)
+    call = _mcp(DynamicDash(callback_fn=score, output_components=[Markdown], mcp_server=True))
+    res = call("set_form", {"specs": [{"name": "a", "type": "Text"},
+                                      {"name": "note", "type": "Markdown", "props": {"children": "hi"}}]})
+    assert res == {"ok": True, "count": 1, "display_only": 1}
+    assert len(call("describe_app")["inputs"]) == 1
+    types = call("list_component_types")
+    assert types["display_only"] == ["Markdown"] and "Markdown" in types["types"]
+
+
+# --- #283: an unannotated rich return is described by what it returned ------ #
+
+@pytest.mark.parametrize("make, kind", [
+    (lambda: pd.DataFrame({"x": [1, 2]}), ("Table", "array")),
+    (lambda: go.Figure(go.Bar(y=[1, 2])), ("Graph", "object")),
+    (lambda: "plain text", ("Text", "string")),
+])
+def test_unannotated_output_kind_after_a_run(make, kind):
+    def fn(n: int = 1):
+        return make()
+    call = _mcp(FastDash(callback_fn=fn, mcp_server=True))
+    call("invoke")
+    out = call("describe_app")["outputs"][0]
+    assert (out["tag"], out["type"]) == kind
