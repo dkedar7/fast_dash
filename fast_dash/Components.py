@@ -1472,7 +1472,10 @@ def _get_component_from_input(hint, default_value=None):
     hint = resolved.base_type
 
     # If hint is not type, assume that the user specified an object. Change it to type
-    if not isinstance(hint, type):
+    # A value used as a hint (`text: "Fast Dash"`) stands in for its type; note
+    # it, so only a real `str` annotation gets the single-line no-default box.
+    _hint_is_value = not isinstance(hint, type)
+    if _hint_is_value:
         hint = type(hint)
 
     _hint_type = _get_readable_names_from_parent_classes(hint)
@@ -1547,6 +1550,12 @@ def _get_component_from_input(hint, default_value=None):
             component = Fastify(
                 dmc.TextInput(value=str(default_value)), "value", tag=_hint_type
             )
+
+        elif default_value is None and not _hint_is_value:
+            # A required or Optional[str] = None field: the same single-line box
+            # as a short string default, not the tall Textarea the generic
+            # `Text` is, and nothing to warn about (#284).
+            component = Fastify(dmc.TextInput(), "value", tag=_hint_type)
 
         else:
             warnings.warn("Unknown or unsupported default value type. Assuming text.")
