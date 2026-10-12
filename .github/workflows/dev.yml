@@ -37,6 +37,13 @@ jobs:
           python -m pip install --upgrade pip
           pip install poetry tox tox-gh-actions
 
+      # The macOS image ships a chromedriver older than its Chrome (152 vs 153),
+      # which drops Selenium clicks without an error (#250). With it off PATH,
+      # Selenium Manager downloads the driver that matches the installed Chrome.
+      - name: Use a chromedriver matching Chrome (macOS)
+        if: runner.os == 'macOS'
+        run: sudo rm -f /usr/local/bin/chromedriver
+
       - name: test with tox
         run:
           tox

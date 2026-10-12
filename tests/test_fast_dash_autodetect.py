@@ -12,6 +12,7 @@ from selenium.webdriver.support import expected_conditions as EC
 
 import time
 import datetime
+from tests._browser import click_run, wait_for_text_in
 
 
 ########### Define callback functions ###########
@@ -785,25 +786,11 @@ def test_fdco017_output_is_chat(dash_duo):
     form_textfield = dash_duo.find_element("#query")
     form_textfield.send_keys("Why?")
 
-    # Click submit
-    dash_duo.multiple_click("#submit_inputs", 1)
+    # Click submit (once the page is idle and the text has landed, #250)
+    click_run(dash_duo, typed="Why?", input_selector="#query")
 
-    # Check if any child element has the text "Response to Why?"
-    output_div = dash_duo.find_element("#output_chat")
-
-    wait = WebDriverWait(dash_duo.driver, timeout=20)
-    wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#output_chat")))
-    time.sleep(4)
-
-    child_elements = output_div.find_elements(By.CSS_SELECTOR, "*")
-    text_found = False
-
-    for element in child_elements:
-        if "Response to Why?" in element.text:
-            text_found = True
-            break
-
-    assert text_found, "Response text not found in any child element of output-1"
+    # The response renders somewhere inside the chat output.
+    wait_for_text_in(dash_duo, "#output_chat", "Response to Why?")
 
 
 def test_fdco018_output_is_pandas(dash_duo):
@@ -822,8 +809,8 @@ def test_fdco018_output_is_pandas(dash_duo):
     dash_duo.start_server(app)
     dash_duo.wait_for_text_to_equal("#title8888928", "Simple Table", timeout=20)
 
-    # Click submit
-    dash_duo.multiple_click("#submit_inputs", 1)
+    # Click submit (once the page is idle, #250)
+    click_run(dash_duo)
 
     # Wait for the DataTable to render its first cell (Windows CI can be slow)
     WebDriverWait(dash_duo.driver, 20).until(
