@@ -1,4 +1,43 @@
-# Release 0.7.2
+# Release 0.7.3
+
+## 0.7.3 (2026-10-12)
+
+Fixes for the agent surface and two input/theming defaults.
+
+### Fixed
+- **A `depends_on` child re-runs when an agent changes its parent** (#279).
+  Over MCP, `set_input` / `set_inputs` / `invoke` re-resolved the child only at
+  load, so `base=7` still ran with the load-time `derived`. Changing a parent
+  now re-runs the child's resolver, as the browser does: a scalar, a dict's
+  `value`, or a list's first option. A child the agent sets in the same call
+  keeps the agent's value. Re-resolved ids are reported as `updated`.
+- **Chat artifacts carry their data over MCP** (#280). `invoke` on a chat app
+  returned each `artifact` frame as `{"pending": true}`, even on a finished
+  turn. Figures and tables now come back as data, like a normal app's output.
+- **An unannotated table or figure output is described as one** (#283). After
+  a run, `describe_app` reports `Table`/`array`, `Graph`/`object` or
+  `Image`/`string` instead of `Text`/`string`.
+- **`set_form` counts inputs only** (#282). `count` now matches the inputs
+  `describe_app` lists, with Markdown blocks reported as `display_only`.
+  `list_component_types` names the display-only types.
+- **A `str` with no default is a single-line text box** (#284). A required
+  `name: str` (or `Optional[str] = None`) rendered a tall textarea and printed
+  a spurious warning. It now gets the same single-line input as a short string
+  default.
+- **An unknown `theme=` warns and uses JOURNAL** (#281). A typo silently
+  rendered YETI, which is neither the requested theme nor the documented
+  default. Case and stray spaces are ignored.
+
+### Docs
+- **`GET /mcp` is a working readiness check** (#275). It returns MCP's event
+  stream (`: mcp stream open`) when MCP is mounted, so
+  `curl -fsS .../mcp | grep -q "mcp stream open"` works. The previous tip said
+  the opposite.
+
+### CI
+- The macOS runners pair chromedriver 152 with Chrome 155, so every browser
+  test errored. CI now uses a driver that matches Chrome, and the browser tests
+  click Run only once the page is idle (#250).
 
 ## 0.7.2 (2026-10-03)
 
