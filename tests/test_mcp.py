@@ -1088,16 +1088,18 @@ class TestChatMcp:
         bad = _call(c, "invoke", {"query": "x", "settings": {"nope": 1}})
         assert bad["ok"] is False and "unknown setting" in bad["error"]
 
-    def test_invoke_artifact_frame_is_wire_safe_placeholder(self):
-        # An artifact (a Figure) must never cross the MCP boundary raw; it is a
-        # JSON-safe placeholder, like on the socket wire.
+    def test_invoke_artifact_frame_is_json_safe_data(self):
+        # An artifact (a Figure) must never cross the MCP boundary raw. It used
+        # to become the socket's "pending" placeholder, which left a headless
+        # agent with nothing; it now resolves to JSON-safe data (#280).
         def bot(query: str):
             yield {"type": "artifact", "content": go.Figure(go.Bar(x=[1], y=[1]))}
             yield "done"
         c = _client_for(FastDash(callback_fn=bot, chat=True, mcp_server=True))
         out = _call(c, "invoke", {"query": "plot"})
         art = [f for f in out["frames"] if f["type"] == "artifact"]
-        assert art and art[0].get("pending") is True
+        assert art and "pending" not in art[0]
+        assert art[0]["content"]["data"][0]["type"] == "bar"
         json.dumps(out["frames"])
 
     @requires_langstage
