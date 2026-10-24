@@ -315,8 +315,7 @@ from fast_dash import fastdash
 def slow_count(n: int = 3) -> str:
     out = ""
     for i in range(1, n + 1):
-        out += f"tick {i}
-"
+        out += f"tick {i}\n"
         time.sleep(0.2)
         yield out
 ```
