@@ -443,7 +443,8 @@ def _json_type_name(annotation, default="string") -> str:
 # always stays in the ``tag`` field. (issue #131)
 _SPEC_JSON_TYPE = {
     "Text": "string", "TextArea": "string", "Select": "string",
-    "DateInput": "string", "ColorInput": "string", "PasswordInput": "string",
+    "DateInput": "string", "DateTimeInput": "string",
+    "ColorInput": "string", "PasswordInput": "string",
     "Markdown": "string", "Upload": "string", "UploadImage": "string",
     "NumberInput": "number", "Slider": "number",
     "Switch": "boolean",
@@ -762,12 +763,47 @@ def _type_error(entry, value):
             return f"expected an integer, got {value!r}"
     elif jtype == "boolean" and not isinstance(value, bool):
         return f"expected a boolean, got {type(value).__name__} ({value!r})"
+    elif jtype == "string" and entry.get("tag") in _STRING_WIDGETS:
+        # A text box, picker or upload can only emit a string (#295).
+        if not isinstance(value, str):
+            return f"expected a string, got {type(value).__name__} ({value!r})"
+        tag = entry.get("tag")
+        if tag == "DateInput" and value and not _is_iso_date(value):
+            return f"expected a date as YYYY-MM-DD (no time), got {value!r}"     # #288
+        if tag == "DateTimeInput" and value and not _is_iso_datetime(value):
+            return f"expected a date and time as YYYY-MM-DD HH:mm:ss, got {value!r}"
     elif jtype == "array":
         if not isinstance(value, (list, tuple)):
             return f"expected an array, got {type(value).__name__} ({value!r})"
         if entry.get("tag") == "DateRange" and not _is_date_pair(value):
             return f"expected [start, end] as two ISO dates, got {value!r}"   # #218
     return None
+
+
+# Widgets whose value is always a string; anything else is a value the UI
+# could never produce. A custom component with an unrecognized tag is left
+# permissive, since its value shape isn't known.
+_STRING_WIDGETS = {"Text", "TextArea", "ColorInput", "PasswordInput",
+                   "DateInput", "DateTimeInput", "Upload", "UploadImage"}
+
+_DATE_FORMATS = {"DateInput": "YYYY-MM-DD", "DateTimeInput": "YYYY-MM-DD HH:mm:ss"}
+
+
+def _is_iso_date(value):
+    """True for a bare ISO date (what a date-only picker emits)."""
+    try:
+        datetime.date.fromisoformat(value.strip())
+        return len(value.strip()) == 10
+    except (ValueError, AttributeError):
+        return False
+
+
+def _is_iso_datetime(value):
+    try:
+        datetime.datetime.fromisoformat(value.strip())
+        return True
+    except (ValueError, AttributeError):
+        return False
 
 
 def _is_date_pair(value):
@@ -1007,6 +1043,10 @@ def _describe_static_inputs(fd, snapshot):
         bounds = _component_bounds(components.get(cid))
         if bounds:
             entry["props"] = bounds                   # Slider min/max/step (issue #120)
+        if tag in _DATE_FORMATS:
+            # The value shape a date widget emits, so an agent can build one
+            # even for a required input with no default (#288).
+            entry["props"] = {**(entry.get("props") or {}), "format": _DATE_FORMATS[tag]}
         contract.append(entry)
     return contract
 
@@ -1082,7 +1122,7 @@ _INPUT_WIDGET_TAG = {
     "Checkbox": "Switch",
     "Switch": "Switch",
     "DatePickerSingle": "DateInput",
-    "DateTimePicker": "DateInput",
+    "DateTimePicker": "DateTimeInput",   # not DateInput: it carries a time (#288)
     "DateInput": "DateInput",
     "DatePickerRange": "DateRange",
     "DatePickerInput": "DateRange",
@@ -1381,6 +1421,17 @@ def _register_chat_mcp_tools(fd, mcp_enabled) -> None:
                 "error": f"unknown setting(s): {unknown}",
                 "known_settings": sorted(known),
             }
+        # Each value is held to the contract describe_app advertises for it,
+        # exactly as a regular input is (#294).
+        ids = {e["name"]: e["id"] for e in _describe_chat_settings(fd)}
+        snapshot = dict(fd._mcp_state.inputs)
+        errors = {}
+        for name, value in settings.items():
+            bad = _option_error(fd, ids.get(name, name), value, snapshot, fd._mcp_state)
+            if bad:
+                errors[name] = bad
+        if errors:
+            return {"ok": False, "error": "invalid setting value(s)", "errors": errors}
 
         frames = []
 
@@ -1465,6 +1516,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     if getattr(fd, "is_chat", False):
         _register_chat_mcp_tools(fd, mcp_enabled)
         _override_mcp_instructions()
+        _patch_get_dash_component()         # #297
         enable_mcp_server(fd.app, mcp_path)
         if getattr(fd, "_backend", None):
             _install_asgi_mcp_request_context(fd.app.server, mcp_path)
@@ -1842,6 +1894,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     # Mount the MCP routes on the Dash app (same port). Swap Dash's "stateless,
     # does NOT update the browser" handshake instructions for ours first (#173).
     _override_mcp_instructions()
+    _patch_get_dash_component()             # #297
     enable_mcp_server(fd.app, mcp_path)
 
     # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
@@ -1866,6 +1919,51 @@ _FASTDASH_MCP_INSTRUCTIONS = (
     "Values are validated against the contract describe_app() advertises, so you "
     "cannot set something the UI itself could not produce."
 )
+
+
+def _patch_get_dash_component() -> None:
+    """Make Dash's ``get_dash_component`` return plain JSON (#297).
+
+    Dash puts a component's raw prop values in the tool's structured result.
+    For a Fast Dash container (the Run button's icon, the app shell, the
+    input/output groups) those include Mantine / Iconify component objects in
+    ``children``, which the MCP layer can't serialize -- so the call failed
+    with -32603 while the same tree read fine from ``dash://layout``. Convert
+    the values the way Dash serializes a layout (``to_plotly_json``) before the
+    result leaves. Best-effort and idempotent: a Dash version without this tool
+    class, or one that already returns JSON, is left as it is.
+    """
+    try:
+        import json as _json
+
+        import plotly.utils
+        from dash.mcp.primitives.tools import tool_get_dash_component as _tool
+    except Exception:            # noqa: BLE001
+        return
+    # The tool module imports TextContent itself (from mcp.types in Dash 4.3,
+    # from dash.mcp.types in 4.4), so take it from there.
+    TextContent = getattr(_tool, "TextContent", None)
+    cls = getattr(_tool, "GetDashComponentTool", None)
+    if TextContent is None:
+        return
+    if cls is None or getattr(cls, "_fastdash_json_patched", False):
+        return
+    stock = cls.call_tool
+
+    def call_tool(klass, tool_name, arguments, task=None):
+        result = stock(tool_name, arguments, task)
+        structured = getattr(result, "structuredContent", None)
+        if structured:
+            try:
+                plain = _json.loads(_json.dumps(structured, cls=plotly.utils.PlotlyJSONEncoder))
+                result.structuredContent = plain
+                result.content = [TextContent(type="text", text=_json.dumps(plain))]
+            except Exception:    # noqa: BLE001 - leave Dash's result untouched
+                pass
+        return result
+
+    cls.call_tool = classmethod(call_tool)
+    cls._fastdash_json_patched = True
 
 
 def _override_mcp_instructions() -> None:

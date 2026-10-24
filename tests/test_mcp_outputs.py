@@ -231,3 +231,62 @@ def test_unannotated_output_kind_after_a_run(make, kind):
     call("invoke")
     out = call("describe_app")["outputs"][0]
     assert (out["tag"], out["type"]) == kind
+
+
+# --- #295: text widgets take strings ---------------------------------------- #
+
+def test_str_input_rejects_a_number():
+    def greet(name: str = "x") -> str:
+        return name.upper()
+    call = _mcp(FastDash(callback_fn=greet, mcp_server=True))
+    assert call("invoke", {"inputs": {"name": 99}})["errors"]["name"].startswith("expected a string")
+    assert call("set_input", {"component_id": "name", "value": True})["ok"] is False
+    assert call("invoke", {"inputs": {"name": "ok"}})["outputs"]["output_output_1"] == "OK"
+
+
+# --- #288: date vs date-and-time ------------------------------------------- #
+
+def test_date_and_datetime_inputs_are_distinct_and_enforced():
+    import datetime as dt
+
+    def book(d: dt.date = dt.date(2026, 1, 1), t: dt.datetime = dt.datetime(2026, 1, 1, 9, 30)) -> str:
+        return f"{type(d).__name__} {type(t).__name__}"
+    call = _mcp(FastDash(callback_fn=book, mcp_server=True))
+    ins = {i["id"]: i for i in call("describe_app")["inputs"]}
+    assert (ins["d"]["tag"], ins["d"]["props"]["format"]) == ("DateInput", "YYYY-MM-DD")
+    assert (ins["t"]["tag"], ins["t"]["props"]["format"]) == ("DateTimeInput", "YYYY-MM-DD HH:mm:ss")
+    assert call("set_input", {"component_id": "d", "value": "2026-03-04 17:45:00"})["ok"] is False
+    out = call("invoke", {"inputs": {"d": "2026-03-04", "t": "2026-03-04 17:45:00"}})
+    assert out["outputs"]["output_output_1"] == "date datetime"
+
+
+# --- #294: chat settings are held to their contract ------------------------ #
+
+def test_chat_settings_are_type_checked():
+    def assistant(query: str, temperature: float = 0.7, verbose: bool = False):
+        yield f"t={temperature!r} v={verbose!r}"
+    call = _mcp(FastDash(callback_fn=assistant, chat=True, mcp_server=True))
+    bad = call("invoke", {"query": "hi", "settings": {"temperature": "x", "verbose": "maybe"}})
+    assert bad["ok"] is False and set(bad["errors"]) == {"temperature", "verbose"}
+    good = call("invoke", {"query": "hi", "settings": {"temperature": 0.2, "verbose": True}})
+    assert good["content"] == "t=0.2 v=True"
+
+
+# --- #297: get_dash_component works on Fast Dash's containers -------------- #
+
+@pytest.mark.parametrize("cid", ["submit_inputs", "appshell"])
+def test_get_dash_component_serializes_containers(cid):
+    def f(n: int = 1) -> str:
+        return str(n)
+    client = FastDash(callback_fn=f, mcp_server=True).app.server.test_client()
+
+    def rpc(method, params=None):
+        body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}
+        return client.post("/mcp", data=json.dumps(body),
+                           headers={"Content-Type": "application/json"}).get_json()
+    rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                       "clientInfo": {"name": "t", "version": "0"}})
+    res = rpc("tools/call", {"name": "get_dash_component", "arguments": {"component_id": cid}})
+    assert "error" not in res
+    assert res["result"]["structuredContent"]["component_id"] == cid
+    assert "children" in res["result"]["structuredContent"]["properties"]
