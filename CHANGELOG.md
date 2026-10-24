@@ -1,4 +1,34 @@
-# Release 0.7.3
+# Release 0.7.4
+
+## 0.7.4 (2026-10-24)
+
+Tighter MCP validation, a working `get_dash_component`, and a mosaic check.
+
+### Fixed
+- **`str` inputs reject non-strings over MCP** (#295). A text box, textarea,
+  colour picker, password, date picker or upload input accepted a number or
+  boolean and passed it to the callback. It is now rejected like any other
+  wrong type.
+- **Date and date-and-time inputs are told apart** (#288). The date-and-time
+  picker reports `DateTimeInput` (it was `DateInput`), both advertise their
+  format in `props`, and a time sent to a date-only input is rejected instead
+  of silently dropped.
+- **Chat settings are type-checked** (#294). `invoke(settings=...)` on a chat
+  app holds each value to the contract `describe_app` advertises.
+- **`get_dash_component` works on Fast Dash's containers** (#297). It failed
+  with error -32603 on the Run button, the app shell and the input/output
+  groups, because Dash put raw component objects in its result. They now come
+  back as plain JSON.
+- **A mosaic must give every output a cell** (#296). A mosaic with fewer cells
+  than outputs raises at construction with a suggested mosaic. Before, one
+  output silently never rendered.
+
+### Docs
+- The deployment guide starts with `fastdash create`, and its manual steps use
+  Python 3.13 and `app:server` (#289, #290, #300).
+- Notebook modes don't need `jupyter-dash` (#292); the Fastify example imports
+  `fast_dash` (#293); the first streaming example is valid Python (#298,
+  thanks @Vamsi-2581).
 
 ## 0.7.3 (2026-10-12)
 
