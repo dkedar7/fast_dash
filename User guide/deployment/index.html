@@ -435,6 +435,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-quick-way-fastdash-create" class="md-nav__link">
+    The quick way: fastdash create
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#by-hand" class="md-nav__link">
+    By hand
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-google-cloud-run" class="md-nav__link">
     1. Google Cloud Run
   </a>
@@ -457,22 +471,22 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-3-create-dockerfile" class="md-nav__link">
-    Step 3. Create Dockerfile
+  <a href="#step-2-create-dockerfile" class="md-nav__link">
+    Step 2. Create Dockerfile
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-update-requirementstxt" class="md-nav__link">
-    Step 4. Update requirements.txt
+  <a href="#step-3-update-requirementstxt" class="md-nav__link">
+    Step 3. Update requirements.txt
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-5-deploy" class="md-nav__link">
-    Step 5. Deploy! 🚀
+  <a href="#step-4-deploy" class="md-nav__link">
+    Step 4. Deploy! 🚀
   </a>
   
 </li>
@@ -724,6 +738,20 @@
     <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
       
         <li class="md-nav__item">
+  <a href="#the-quick-way-fastdash-create" class="md-nav__link">
+    The quick way: fastdash create
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#by-hand" class="md-nav__link">
+    By hand
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#1-google-cloud-run" class="md-nav__link">
     1. Google Cloud Run
   </a>
@@ -746,22 +774,22 @@
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-3-create-dockerfile" class="md-nav__link">
-    Step 3. Create Dockerfile
+  <a href="#step-2-create-dockerfile" class="md-nav__link">
+    Step 2. Create Dockerfile
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-4-update-requirementstxt" class="md-nav__link">
-    Step 4. Update requirements.txt
+  <a href="#step-3-update-requirementstxt" class="md-nav__link">
+    Step 3. Update requirements.txt
   </a>
   
 </li>
         
           <li class="md-nav__item">
-  <a href="#step-5-deploy" class="md-nav__link">
-    Step 5. Deploy! 🚀
+  <a href="#step-4-deploy" class="md-nav__link">
+    Step 4. Deploy! 🚀
   </a>
   
 </li>
@@ -804,6 +832,22 @@
 <li>Add a <code>Dockerfile</code> in the same directory that contains the main Fast Dash app module.</li>
 <li>Build and run Docker container.</li>
 </ol>
+<h2 id="the-quick-way-fastdash-create">The quick way: <code>fastdash create</code></h2>
+<p>Fast Dash installs a <code>fastdash</code> command that scaffolds a project ready to
+deploy:</p>
+<div class="highlight"><pre><span></span><code>fastdash<span class="w"> </span>create<span class="w"> </span>my-app<span class="w"> </span>--port<span class="w"> </span><span class="m">8080</span><span class="w">     </span><span class="c1"># 8080 for Google Cloud Run, 7860 for Hugging Face Spaces</span>
+<span class="nb">cd</span><span class="w"> </span>my-app
+</code></pre></div>
+<p>It writes three files:</p>
+<ul>
+<li><code>app.py</code>: your function, wrapped in <code>FastDash(...)</code>, with <code>server = app.server</code></li>
+<li><code>requirements.txt</code>: <code>fast-dash</code> and <code>gunicorn</code></li>
+<li><code>Dockerfile</code>: a Python 3.13 image that serves <code>app:server</code> with gunicorn</li>
+</ul>
+<p>Replace the example function in <code>app.py</code> with yours, then deploy the folder as
+described below. To build the same files by hand, follow the steps in the rest
+of this page.</p>
+<h2 id="by-hand">By hand</h2>
 <p>The recommended directory structure is:</p>
 <div class="highlight"><pre><span></span><code>root\
 - app.py
@@ -824,9 +868,10 @@
 <span class="n">server</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">server</span>
 </code></pre></div>
 <p><code>server</code> is the Flask object that gets deployed. We need to isolate it so we can instruct <code>gunicorn</code> in the next step to deploy it inside our Docker container.</p>
-<h3 id="step-3-create-dockerfile">Step 3. Create <code>Dockerfile</code></h3>
+<h3 id="step-2-create-dockerfile">Step 2. Create <code>Dockerfile</code></h3>
 <p>Create a Dockerfile in the current path and modify it to reflect the following:</p>
-<div class="highlight"><pre><span></span><code>FROM python:3.9-slim
+<div class="highlight"><pre><span></span><code># Fast Dash needs Python 3.11 or newer
+FROM python:3.13-slim
 
 # Copy local code to the container image.
 ADD . /app
@@ -835,19 +880,23 @@ WORKDIR /app
 # Install production dependencies.
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Deploy app using gunicorn
-CMD exec gunicorn wsgi:server --bind :$PORT
+# Serve the `server` object from app.py with gunicorn
+CMD exec gunicorn app:server --bind :$PORT
 </code></pre></div>
-<h3 id="step-4-update-requirementstxt">Step 4. Update <code>requirements.txt</code></h3>
-<p>Add <code>gunicorn</code> to the list of dependencies in <code>requirements.txt</code>.</p>
-<h3 id="step-5-deploy">Step 5. Deploy! 🚀</h3>
+<p><code>app:server</code> means "the <code>server</code> object in <code>app.py</code>". If your module has a
+different name, change the part before the colon to match.</p>
+<h3 id="step-3-update-requirementstxt">Step 3. Update <code>requirements.txt</code></h3>
+<p>List <code>fast-dash</code> and <code>gunicorn</code> in <code>requirements.txt</code>. Fast Dash requires
+Python 3.11 or newer; on an older Python image, pip silently installs an old
+release that lacks most of the features in these docs.</p>
+<h3 id="step-4-deploy">Step 4. Deploy! 🚀</h3>
 <p>If the <code>gcloud</code> CLI was correctly installed in step 1, simply run this command from the root of your project directory:</p>
 <div class="highlight"><pre><span></span><code>gcloud run deploy
 </code></pre></div>
 <p>You will be asked to choose a few different settings for your deployment. Read Google Cloud Run's documentation here to understand what each of them mean.</p>
 <p>That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.</p>
 <h2 id="deploying-an-app-with-mcp_servertrue">Deploying an app with <code>mcp_server=True</code></h2>
-<p>Nothing extra is needed: <code>/mcp</code> is mounted when the app object is built, so <code>server = app.server</code> carries it and <code>gunicorn wsgi:server</code> serves it alongside the UI. For <code>backend="fastapi"</code>, <code>app.server</code> is an ASGI app, so serve it with <code>uvicorn wsgi:server</code> instead.</p>
+<p>Nothing extra is needed: <code>/mcp</code> is mounted when the app object is built, so <code>server = app.server</code> carries it and <code>gunicorn app:server</code> serves it alongside the UI. For <code>backend="fastapi"</code>, <code>app.server</code> is an ASGI app, so serve it with <code>uvicorn app:server --host 0.0.0.0 --port $PORT</code> instead (and add <code>uvicorn</code> to <code>requirements.txt</code>).</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
 <p><code>/mcp</code> has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app.</p>

@@ -1216,14 +1216,14 @@ widget's <em>option set</em> instead, and the widget starts on:</p>
     <span class="o">...</span>
 </code></pre></div>
 <h5 id="9-mode">9. Mode</h5>
-<p><code>mode</code> is an interesting setting that decides how Fast Dash apps are deployed. There are currently four supported modes. The default mode is <code>None</code>, and the other possible <code>mode</code> options specified below require the <a href="https://pypi.org/project/jupyter-dash/"><code>jupyter-dash</code></a> library installed. Read more about the library <a href="https://github.com/plotly/jupyter-dash">here</a>.</p>
+<p><code>mode</code> decides where a Fast Dash app is displayed. The default is <code>None</code>, which serves the app on its port. The other modes run it from a Jupyter notebook using Dash's built-in Jupyter support, so no extra package is needed.</p>
 <p><code>mode=None</code></p>
 <p>By default, <code>mode</code> is set to <code>None</code> which deploys the app at the chosen port (default port is 8080).</p>
-<p><code>mode="JupyterLab"</code></p>
-<p>When <code>mode</code> is <code>JupyterLab</code>, the app is deployed within Jupyter environments (like classic Notebook, JupyterLab, and VS Code notebooks). The app opens as a separate tab inside JupyterLab.</p>
+<p><code>mode="jupyterlab"</code></p>
+<p>When <code>mode</code> is <code>"jupyterlab"</code>, the app is deployed within Jupyter environments (like classic Notebook, JupyterLab, and VS Code notebooks). The app opens as a separate tab inside JupyterLab.</p>
 <p><code>mode="inline"</code></p>
 <p>With this <code>mode</code>, Fast Dash uses an IFrame to display the application inline in the notebook.</p>
-<p><code>mode="External"</code></p>
+<p><code>mode="external"</code></p>
 <p>This behaves like the default mode with the only difference that the app runs outside your Jupyter notebook environment. Fast Dash display a link that where you can navigate to see how the deployment will look to end users after this application is depoyed to production.</p>
 <div class="highlight"><pre><span></span><code><span class="hll"><span class="nd">@fastdash</span><span class="p">(</span><span class="n">mode</span><span class="o">=</span><span class="s1">&#39;jupyterlab&#39;</span><span class="p">)</span>
 </span><span class="k">def</span><span class="w"> </span><span class="nf">yourFunction</span><span class="p">(</span><span class="o">...</span><span class="p">):</span>
