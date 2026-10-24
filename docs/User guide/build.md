@@ -264,21 +264,21 @@ def yourFunction(...):
 
 ##### 9. Mode
 
-`mode` is an interesting setting that decides how Fast Dash apps are deployed. There are currently four supported modes. The default mode is `None`, and the other possible `mode` options specified below require the [`jupyter-dash`](https://pypi.org/project/jupyter-dash/) library installed. Read more about the library [here](https://github.com/plotly/jupyter-dash).
+`mode` decides where a Fast Dash app is displayed. The default is `None`, which serves the app on its port. The other modes run it from a Jupyter notebook using Dash's built-in Jupyter support, so no extra package is needed.
 
 `mode=None`
 
 By default, `mode` is set to `None` which deploys the app at the chosen port (default port is 8080).
 
-`mode="JupyterLab"`
+`mode="jupyterlab"`
 
-When `mode` is `JupyterLab`, the app is deployed within Jupyter environments (like classic Notebook, JupyterLab, and VS Code notebooks). The app opens as a separate tab inside JupyterLab.
+When `mode` is `"jupyterlab"`, the app is deployed within Jupyter environments (like classic Notebook, JupyterLab, and VS Code notebooks). The app opens as a separate tab inside JupyterLab.
 
 `mode="inline"`
 
 With this `mode`, Fast Dash uses an IFrame to display the application inline in the notebook.
 
-`mode="External"`
+`mode="external"`
 
 This behaves like the default mode with the only difference that the app runs outside your Jupyter notebook environment. Fast Dash display a link that where you can navigate to see how the deployment will look to end users after this application is depoyed to production.
 

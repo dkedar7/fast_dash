@@ -62,7 +62,7 @@ Use this syntax to do the conversion:
 
 ```py
 ...
-from fastdash import Fastify
+from fast_dash import Fastify
 
 fast_component = Fastify(component=dash_component, component_property=...)
 ```

@@ -8,6 +8,28 @@ Here're the general steps involved with the deployment process:
 2. Add a `Dockerfile` in the same directory that contains the main Fast Dash app module.
 3. Build and run Docker container.
 
+## The quick way: `fastdash create`
+
+Fast Dash installs a `fastdash` command that scaffolds a project ready to
+deploy:
+
+```bash
+fastdash create my-app --port 8080     # 8080 for Google Cloud Run, 7860 for Hugging Face Spaces
+cd my-app
+```
+
+It writes three files:
+
+- `app.py`: your function, wrapped in `FastDash(...)`, with `server = app.server`
+- `requirements.txt`: `fast-dash` and `gunicorn`
+- `Dockerfile`: a Python 3.13 image that serves `app:server` with gunicorn
+
+Replace the example function in `app.py` with yours, then deploy the folder as
+described below. To build the same files by hand, follow the steps in the rest
+of this page.
+
+## By hand
+
 The recommended directory structure is:
 
 ```
@@ -41,12 +63,13 @@ server = app.server
 
 `server` is the Flask object that gets deployed. We need to isolate it so we can instruct `gunicorn` in the next step to deploy it inside our Docker container.
 
-### Step 3. Create `Dockerfile`
+### Step 2. Create `Dockerfile`
 
 Create a Dockerfile in the current path and modify it to reflect the following:
 
 ```
-FROM python:3.9-slim
+# Fast Dash needs Python 3.11 or newer
+FROM python:3.13-slim
 
 # Copy local code to the container image.
 ADD . /app
@@ -55,15 +78,20 @@ WORKDIR /app
 # Install production dependencies.
 RUN pip3 install --no-cache-dir -r requirements.txt
 
-# Deploy app using gunicorn
-CMD exec gunicorn wsgi:server --bind :$PORT
+# Serve the `server` object from app.py with gunicorn
+CMD exec gunicorn app:server --bind :$PORT
 ```
 
-### Step 4. Update `requirements.txt`
+`app:server` means "the `server` object in `app.py`". If your module has a
+different name, change the part before the colon to match.
 
-Add `gunicorn` to the list of dependencies in `requirements.txt`.
+### Step 3. Update `requirements.txt`
 
-### Step 5. Deploy! 🚀
+List `fast-dash` and `gunicorn` in `requirements.txt`. Fast Dash requires
+Python 3.11 or newer; on an older Python image, pip silently installs an old
+release that lacks most of the features in these docs.
+
+### Step 4. Deploy! 🚀
 
 If the `gcloud` CLI was correctly installed in step 1, simply run this command from the root of your project directory:
 
@@ -77,7 +105,7 @@ That's it! Google Cloud will build your app inside a Docker container and displa
 
 ## Deploying an app with `mcp_server=True`
 
-Nothing extra is needed: `/mcp` is mounted when the app object is built, so `server = app.server` carries it and `gunicorn wsgi:server` serves it alongside the UI. For `backend="fastapi"`, `app.server` is an ASGI app, so serve it with `uvicorn wsgi:server` instead.
+Nothing extra is needed: `/mcp` is mounted when the app object is built, so `server = app.server` carries it and `gunicorn app:server` serves it alongside the UI. For `backend="fastapi"`, `app.server` is an ASGI app, so serve it with `uvicorn app:server --host 0.0.0.0 --port $PORT` instead (and add `uvicorn` to `requirements.txt`).
 
 !!! warning
     `/mcp` has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app.
