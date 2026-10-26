@@ -290,3 +290,22 @@ def test_get_dash_component_serializes_containers(cid):
     assert "error" not in res
     assert res["result"]["structuredContent"]["component_id"] == cid
     assert "children" in res["result"]["structuredContent"]["properties"]
+
+
+# --- #305 ------------------------------------------------------------------ #
+
+def test_figure_template_is_named_not_inlined():
+    def plot_bars(n: int = 3) -> go.Figure:
+        return go.Figure(go.Bar(y=list(range(n))), layout={"title": "Bars"})
+    call = _mcp(FastDash(callback_fn=plot_bars, mcp_server=True))
+    fig = next(iter(call("invoke", {"inputs": {"n": 3}})["outputs"].values()))
+    assert fig["layout"]["template"] == "plotly"
+    assert fig["layout"]["title"] == {"text": "Bars"}
+    assert fig["data"][0]["y"] == [0, 1, 2]
+    assert len(json.dumps(fig)) < 500
+
+
+def test_figure_custom_template_is_dropped():
+    fig = go.Figure(layout={"template": {"layout": {"font": {"size": 30}}}})
+    assert "template" not in _output_for_mcp(fig)["layout"]
+    assert _output_for_mcp(go.Figure(layout={"template": "plotly_dark"}))["layout"]["template"] == "plotly_dark"

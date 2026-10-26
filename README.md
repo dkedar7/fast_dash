@@ -149,10 +149,11 @@ Inputs (parameter type → UI component):
 | `str` with `default=[...]` | Single-select dropdown |
 | `int`, `float` | Number input |
 | `int`/`float` with `range(...)` default | Slider |
-| `bool` | Checkbox |
+| `bool` | Switch (toggle) |
 | `list` | Multi-select dropdown |
 | `dict` (with default) | Multi-select dropdown (keys) |
 | `datetime.date` | Date picker |
+| `datetime.datetime` | Date-and-time picker |
 | `PIL.Image.Image` | Image upload |
 | `Literal["a", "b"]` | Single-select dropdown |
 | `enum.Enum` subclass | Single-select dropdown |

@@ -550,7 +550,7 @@ def _output_for_mcp(value, cap=MCP_OUTPUT_CAP):
     try:
         import plotly.graph_objects as go
         if isinstance(value, go.Figure):
-            out = _plain_json(value.to_dict())
+            out = _figure_for_mcp(value)
     except Exception:            # noqa: BLE001
         pass
     if out is None:
@@ -582,6 +582,37 @@ def _output_for_mcp(value, cap=MCP_OUTPUT_CAP):
     if not isinstance(summary, dict):
         summary = {"type": type(value).__name__}
     return {**summary, "json_size": size, "truncated": True}
+
+
+def _figure_for_mcp(fig):
+    """A Plotly figure as an agent reads it: data and layout, minus the theme.
+
+    ``to_dict()`` embeds the fully resolved ``layout.template`` -- every
+    colorscale, font and axis default -- which on a simple chart is ~98% of
+    the payload and tells an agent nothing (#305). Name the template when it
+    is a registered one (``"plotly"``, ``"plotly_white"``, ...) and drop it
+    otherwise. The browser still renders the themed figure.
+    """
+    out = _plain_json(fig.to_dict())
+    layout = out.get("layout")
+    if isinstance(layout, dict) and "template" in layout:
+        name = None
+        try:
+            import plotly.io as pio
+            tpl = fig.layout.template
+            default = pio.templates.default
+            names = ([default] if isinstance(default, str) else []) + list(pio.templates)
+            for n in names:
+                if tpl == pio.templates[n]:
+                    name = n
+                    break
+        except Exception:        # noqa: BLE001
+            pass
+        if name:
+            layout["template"] = name
+        else:
+            del layout["template"]
+    return out
 
 
 def _summarize_for_history(value):
