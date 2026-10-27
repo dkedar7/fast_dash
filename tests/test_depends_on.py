@@ -214,8 +214,11 @@ def test_depends_on_parent_named_input_prefix_registers_callback():
 
     app = FastDash(callback_fn=pick)
     dependency_callbacks = [
-        callback for callback in app.app.callback_map.values()
-        if any(
+        callback
+        for output_id, callback in app.app.callback_map.items()
+        if "input_state.data" in output_id
+        and "input_state.value" in output_id
+        and any(
             dependency.get("id") == "input_country"
             for dependency in callback["inputs"]
         )
