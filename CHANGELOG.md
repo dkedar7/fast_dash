@@ -1,4 +1,28 @@
-# Release 0.7.4
+# Release 0.7.5
+
+## 0.7.5 (2026-10-28)
+
+Leaner figure results for agents, a buildable date-and-time field, and a
+`depends_on` fix.
+
+### Fixed
+- **Figures sent to agents name their theme instead of inlining it** (#305).
+  `invoke`, `describe_app` and `get_invocation` returned a figure's fully
+  resolved `layout.template`, about 98% of a simple chart. A built-in
+  template now comes back by name (`"plotly"`, `"plotly_dark"`, ...) and a
+  custom one is left out; `data` and the rest of `layout` are unchanged.
+- **`DateTimeInput` is a component type** (#309). 0.7.4 reported date-and-time
+  inputs as `DateTimeInput`, but `list_component_types()` didn't list it and
+  `set_form` rejected it. It is now exported and buildable with `set_form`, and
+  date fields in a dynamic form carry the same `props.format` hint as static
+  ones.
+- **`depends_on` works when the parent's name starts with `input_`** (#307,
+  thanks @Vamsi-2581). The browser never updated the child field, though MCP
+  did.
+
+### Docs
+- The README type table maps `bool` to `Switch`, not "Checkbox", and lists
+  `datetime.datetime` (#304).
 
 ## 0.7.4 (2026-10-24)
 
