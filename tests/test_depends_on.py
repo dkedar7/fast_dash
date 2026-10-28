@@ -198,3 +198,29 @@ def test_nested_depends_on_chain_builds():
     # Two dependency callbacks registered (one each for country and state)
     dep_ids = {c.id for c in app.inputs_with_ids if hasattr(c, "_depends_on_parent")}
     assert dep_ids == {"country", "state"}
+
+
+def test_depends_on_parent_named_input_prefix_registers_callback():
+    """A parameter's literal input_ prefix must not be stripped from its name."""
+    countries = {"USA": ["CA", "TX"], "India": ["MH", "KA"]}
+
+    def pick(
+        input_country: str = list(countries),
+        input_state: str = depends_on(
+            "input_country", lambda country: countries[country]
+        ),
+    ) -> str:
+        return input_state
+
+    app = FastDash(callback_fn=pick)
+    dependency_callbacks = [
+        callback
+        for output_id, callback in app.app.callback_map.items()
+        if "input_state.data" in output_id
+        and "input_state.value" in output_id
+        and any(
+            dependency.get("id") == "input_country"
+            for dependency in callback["inputs"]
+        )
+    ]
+    assert dependency_callbacks

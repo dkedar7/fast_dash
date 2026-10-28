@@ -2252,17 +2252,17 @@ class FastDash(ChatAppMixin):
 
     def _register_depends_on_callbacks(self, prefix=""):
         """Register callbacks for inputs that use depends_on."""
-        # Build a parameter-name → component lookup. Component ids are
-        # "input_<param_name>" (optionally prefixed), so strip both the
-        # shared prefix and the "input_" marker.
+        # Prefer the exact component id after removing the shared prefix.
+        # A real parameter may itself begin with "input_", so stripping that
+        # marker unconditionally makes depends_on("input_country", ...) miss.
         name_to_component = {}
         for inp in self.inputs_with_ids:
             key = inp.id
             if prefix and key.startswith(prefix):
                 key = key[len(prefix):]
-            if key.startswith("input_"):
-                key = key[len("input_"):]
             name_to_component[key] = inp
+            if key.startswith("input_"):
+                name_to_component.setdefault(key[len("input_"):], inp)
 
         for inp in self.inputs_with_ids:
             if not hasattr(inp, "_depends_on_parent"):
