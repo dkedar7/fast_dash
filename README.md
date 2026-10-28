@@ -196,6 +196,7 @@ The package exports ready-to-use Fast Dash components you can pass directly as `
 | `Switch` | input | Toggle (True / False) |
 | `MultiSelect` | input | Multi-select dropdown |
 | `DateInput`, `DateRange` | input | Single date / date range picker |
+| `DateTimeInput` | input | Date-and-time picker |
 | `ColorInput` | input | Color picker, returns hex |
 | `Upload`, `UploadImage` | input | File / image upload |
 | `Graph`, `Image`, `Table`, `Markdown` | output | Plotly chart, image, DataFrame table, rendered Markdown |

@@ -2103,6 +2103,20 @@ DateInput = Fastify(
     tag="Date",
 )
 
+# The date-and-time picker a ``datetime.datetime`` input renders, as a
+# reusable component (#309); same value format as the inferred one.
+DateTimeInput = Fastify(
+    component=dmc.DateTimePicker(
+        placeholder="Pick a date and time",
+        valueFormat="YYYY-MM-DD HH:mm:ss",
+        withSeconds=True,
+        clearable=True,
+        style={"width": "100%"},
+    ),
+    component_property="value",
+    tag="Date",
+)
+
 ColorInput = Fastify(
     component=dmc.ColorPicker(
         format="hex",

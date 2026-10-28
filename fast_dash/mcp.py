@@ -857,6 +857,9 @@ def _describe_dynamic_inputs(fd, snapshot, specs, state=None):
             "secret": name in secrets,
         }
         entry["props"] = _jsonify_for_mcp(_redact_props(entry, props))
+        if entry["tag"] in _DATE_FORMATS:
+            # Same value-shape hint a static date input carries (#288, #309).
+            entry["props"] = {**(entry["props"] or {}), "format": _DATE_FORMATS[entry["tag"]]}
         entry["default"] = _jsonify_for_mcp(_redact(entry, default))
         entry["current_value"] = _jsonify_for_mcp(_redact(entry, cur))
         contract.append(entry)
