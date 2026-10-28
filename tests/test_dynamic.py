@@ -26,7 +26,7 @@ from fast_dash.dynamic import _spec_to_component
 def test_registry_includes_expected_types():
     expected = {
         "Text", "TextArea", "NumberInput", "Slider", "Select", "MultiSelect",
-        "Switch", "DateInput", "DateRange", "ColorInput", "PasswordInput",
+        "Switch", "DateInput", "DateTimeInput", "DateRange", "ColorInput", "PasswordInput",
         "Markdown", "Upload", "UploadImage",
     }
     assert expected <= set(COMPONENT_REGISTRY.keys())
@@ -342,3 +342,44 @@ def test_dynamicdash_var_kw_with_positional_named_params():
     app = DynamicDash(callback_fn=fn, output_components=[Markdown])
     assert app._callback_param_names == {"a", "b"}
     assert app._has_var_kw is True
+
+
+def test_every_reported_input_tag_is_a_registered_type():
+    """#309: a tag describe_app can report is one set_form accepts (#147/#158)."""
+    from fast_dash.mcp import _INPUT_WIDGET_TAG
+
+    assert set(_INPUT_WIDGET_TAG.values()) <= set(COMPONENT_REGISTRY)
+
+
+def test_datetime_spec_builds_a_datetime_picker():
+    comp = _spec_to_component({"name": "when", "type": "DateTimeInput",
+                               "value": "2026-01-02 09:30:00"})
+    assert type(comp.component).__name__ == "DateTimePicker"
+    assert comp.value == "2026-01-02 09:30:00"
+
+
+def test_datetime_field_round_trips_over_mcp():
+    """#309: set_form accepts the DateTimeInput tag describe_app reports."""
+    import json
+
+    from fast_dash import DynamicDash, Text
+
+    def echo(**kw):
+        return repr(kw)
+
+    app = DynamicDash(callback_fn=echo, output_components=[Text], mcp_server=True)
+    client = app.app.server.test_client()
+
+    def call(name, args=None):
+        body = {"jsonrpc": "2.0", "id": 1, "method": "tools/call",
+                "params": {"name": name, "arguments": args or {}}}
+        res = client.post("/mcp", data=json.dumps(body),
+                          headers={"Content-Type": "application/json"}).get_json()
+        return res["result"]["structuredContent"]["result"]
+
+    assert "DateTimeInput" in call("list_component_types")["types"]
+    assert call("set_form", {"specs": [{"name": "ts", "type": "DateTimeInput"}]})["ok"]
+    entry = call("describe_app")["inputs"][0]
+    assert (entry["tag"], entry["props"]["format"]) == ("DateTimeInput", "YYYY-MM-DD HH:mm:ss")
+    assert "error" in call("set_input", {"component_id": "ts", "value": "notadate"})
+    assert call("set_input", {"component_id": "ts", "value": "2026-01-02 09:30:00"})["ok"]
