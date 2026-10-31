@@ -61,6 +61,7 @@ import collections
 import datetime
 import functools
 import inspect
+import json
 import os
 import time
 import warnings
@@ -2029,6 +2030,17 @@ def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
 
     suffix = "/" + mcp_path.strip("/")
 
+    def _replay(body, receive):
+        sent = False
+
+        async def replay():
+            nonlocal sent
+            if not sent:
+                sent = True
+                return {"type": "http.request", "body": body, "more_body": False}
+            return await receive()
+        return replay
+
     class _MCPRequestContext:
         def __init__(self, app):
             self.app = app
@@ -2038,18 +2050,21 @@ def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
                 "path", ""
             ).rstrip("/").endswith(suffix):
                 request = Request(scope, receive=receive)
+                body = await request.body()
                 try:
                     ct = request.headers.get("content-type", "")
                     request.state.json_body = (
-                        await request.json()
-                        if ct.startswith("application/json")
-                        else None
+                        json.loads(body) if ct.startswith("application/json") else None
                     )
                 except Exception:
                     request.state.json_body = None
                 token = set_current_request(request)
                 try:
-                    await self.app(scope, receive, send)
+                    # Replay the body we just read. Dash 4.5 reads it again in
+                    # its own middleware (it now treats /mcp as a Dash route);
+                    # handing it the drained stream left that read waiting
+                    # forever, so every POST /mcp hung (#313).
+                    await self.app(scope, _replay(body, receive), send)
                 finally:
                     reset_current_request(token)
             else:
