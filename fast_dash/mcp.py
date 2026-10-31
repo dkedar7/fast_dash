@@ -58,6 +58,7 @@ Limitations
 from __future__ import annotations
 
 import collections
+import contextvars
 import datetime
 import functools
 import inspect
@@ -1520,6 +1521,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         _register_chat_mcp_tools(fd, mcp_enabled)
         _override_mcp_instructions()
         _patch_get_dash_component()         # #297
+        _patch_tool_images()                # #312
         enable_mcp_server(fd.app, mcp_path)
         if getattr(fd, "_backend", None):
             _install_asgi_mcp_request_context(fd.app.server, mcp_path)
@@ -1726,6 +1728,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             # History keeps the compact summary; the agent gets the value (#261).
             out_summary[d["id"]] = _scrub_secrets(_summarize_for_history(val), secrets)
             out_full[d["id"]] = _scrub_secrets(_output_for_mcp(val), secrets)
+        _attach_images(raw, out_full)
 
         entry_summary = {
             "ts": datetime.datetime.now(datetime.timezone.utc).isoformat(),
@@ -1828,17 +1831,17 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         # secret can't survive in an entry written by some other path, and so a
         # value that became secret after the fact is still masked (#194).
         secrets = _secret_values(fd, state)
+        raw = entry.get("_full_outputs") or {}
+        # The run's full outputs, as invoke returned them (#261).
+        outputs = {k: _scrub_secrets(_output_for_mcp(v), secrets) for k, v in raw.items()}
+        _attach_images(raw, outputs)
         return {
             "ok": True,
             "ts": entry["ts"],
             "duration_ms": entry["duration_ms"],
             "kwargs_summary": _scrub_secrets(entry["kwargs"], secrets),
             "outputs_summary": _scrub_secrets(entry["outputs"], secrets),
-            # The run's full outputs, as invoke returned them (#261).
-            "outputs": {
-                k: _scrub_secrets(_output_for_mcp(v), secrets)
-                for k, v in (entry.get("_full_outputs") or {}).items()
-            },
+            "outputs": outputs,
         }
 
     @mcp_enabled(name="list_component_types", expose_docstring=True)
@@ -1898,6 +1901,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     # does NOT update the browser" handshake instructions for ours first (#173).
     _override_mcp_instructions()
     _patch_get_dash_component()             # #297
+    _patch_tool_images()                    # #312
     enable_mcp_server(fd.app, mcp_path)
 
     # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
@@ -1917,11 +1921,72 @@ _FASTDASH_MCP_INSTRUCTIONS = (
     "  - set_input(component_id, value) / set_inputs(inputs) -- set values; the "
     "browser's widgets update to match.\n"
     "  - invoke(inputs=None) -- set values and run the callback in one call; the "
-    "output renders in the browser and the result is returned to you.\n"
+    "output renders in the browser and the result is returned to you. An "
+    "image output (a PIL image or matplotlib figure) also comes back as an "
+    "image content block after the JSON, so you can see what the user sees.\n"
     "  - set_form(specs) -- DynamicDash only: build the input form at runtime.\n\n"
     "Values are validated against the contract describe_app() advertises, so you "
     "cannot set something the UI itself could not produce."
 )
+
+
+# Image blocks queued by the tool now running, for _patch_tool_images to
+# append to its result. A tool's JSON can't carry pixels a vision model sees;
+# an MCP ImageContent block can (#312).
+_PENDING_IMAGES = contextvars.ContextVar("fastdash_pending_images", default=None)
+
+
+def _attach_images(raw: dict, outputs: dict) -> None:
+    """Queue each image output as an image block and point its JSON entry at it."""
+    from fast_dash.utils import _image_for_mcp
+
+    pending = _PENDING_IMAGES.get()
+    if pending is None:
+        return                   # not inside a patched tool call: JSON only
+    for cid, value in raw.items():
+        img = _image_for_mcp(value)
+        if img is None:
+            continue
+        pending.append((cid, *img))
+        entry = outputs.get(cid)
+        if isinstance(entry, dict):
+            outputs[cid] = {**entry, "image": "attached as an image content block"}
+
+
+def _patch_tool_images() -> None:
+    """Append queued image blocks to a Fast Dash tool's result (#312).
+
+    Each image follows a short text block naming its output id. Best-effort and
+    idempotent, like _patch_get_dash_component.
+    """
+    try:
+        from dash.mcp.primitives.tools import tool_decorated_mcp_functions as _tool
+        try:
+            from dash.mcp.types import ImageContent, TextContent
+        except ImportError:      # Dash 4.3 uses the mcp package's types
+            from mcp.types import ImageContent, TextContent
+    except Exception:            # noqa: BLE001
+        return
+    cls = getattr(_tool, "DecoratedFunctionTools", None)
+    if cls is None or getattr(cls, "_fastdash_images_patched", False):
+        return
+    stock = cls.call_tool
+
+    def call_tool(klass, tool_name, arguments, task=None):
+        token = _PENDING_IMAGES.set([])
+        try:
+            result = stock(tool_name, arguments, task)
+            images = _PENDING_IMAGES.get()
+        finally:
+            _PENDING_IMAGES.reset(token)
+        if images and not getattr(result, "isError", False):
+            for cid, b64, mime in images:
+                result.content.append(TextContent(type="text", text=f"Image output {cid!r}:"))
+                result.content.append(ImageContent(type="image", data=b64, mimeType=mime))
+        return result
+
+    cls.call_tool = classmethod(call_tool)
+    cls._fastdash_images_patched = True
 
 
 def _patch_get_dash_component() -> None:

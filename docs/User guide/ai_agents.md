@@ -76,6 +76,15 @@ or add it to the project's `.mcp.json`:
 
 `component_id` is the **parameter name** itself (e.g. `"n"`, `"color"`).
 
+Outputs come back as data: text whole, a table's first 100 rows, a Plotly
+figure's `data` and `layout`. An **image output** (a PIL image, a matplotlib
+figure or a `data:image/...` string) can't be read as JSON, so `invoke` and
+`get_invocation` also return it as an MCP image content block: a PNG that a
+vision-capable agent sees just as the user does. Its JSON entry keeps the
+shape (`{"type": "Image", "size": [...], "image": "attached as an image content
+block"}`), and the image block follows a text block naming the output id.
+`describe_app` reports the shape only.
+
 ### Discover the contract
 
 Call **`describe_app()`** to learn the exact input ids, their Python types,
