@@ -615,6 +615,35 @@ def _figure_for_mcp(fig):
     return out
 
 
+# Largest image (base64 characters) handed to an agent as an image block;
+# past it the agent gets the shape stub alone.
+MCP_IMAGE_CAP = 4_000_000
+
+
+def _image_for_mcp(value):
+    """``(base64, mime)`` for an image output an agent can look at, else None.
+
+    Covers what an ``Image`` output renders: a PIL image, a matplotlib figure,
+    or a ``data:image/...;base64,`` string (#312).
+    """
+    url = None
+    try:
+        if isinstance(value, PIL.Image.Image):
+            url = _pil_to_b64(value)
+        elif isinstance(value, mpl.figure.Figure):
+            url = _mpl_to_b64(value)
+        elif isinstance(value, str) and value.startswith("data:image/") and ";base64," in value:
+            url = value
+    except Exception:            # noqa: BLE001 - an unrenderable image stays a stub
+        return None
+    if not url:
+        return None
+    header, b64 = url.split(",", 1)
+    if len(b64) > MCP_IMAGE_CAP:
+        return None
+    return b64, header.split(":", 1)[1].split(";", 1)[0]
+
+
 def _summarize_for_history(value):
     """Compact summary of a value, suitable for the `state.history` deque.
 

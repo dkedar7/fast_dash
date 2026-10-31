@@ -309,3 +309,66 @@ def test_figure_custom_template_is_dropped():
     fig = go.Figure(layout={"template": {"layout": {"font": {"size": 30}}}})
     assert "template" not in _output_for_mcp(fig)["layout"]
     assert _output_for_mcp(go.Figure(layout={"template": "plotly_dark"}))["layout"]["template"] == "plotly_dark"
+
+
+# --- #312 ------------------------------------------------------------------ #
+
+def _rpc_result(app, name, args=None):
+    client = app.app.server.test_client()
+
+    def rpc(method, params=None):
+        body = {"jsonrpc": "2.0", "id": 1, "method": method, "params": params or {}}
+        return client.post("/mcp", data=json.dumps(body),
+                           headers={"Content-Type": "application/json"}).get_json()
+
+    rpc("initialize", {"protocolVersion": "2025-06-18", "capabilities": {},
+                       "clientInfo": {"name": "t", "version": "0"}})
+    return lambda name, args=None: rpc("tools/call", {"name": name, "arguments": args or {}})["result"]
+
+
+def test_image_outputs_come_back_as_image_blocks():
+    import base64
+
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.figure
+    import PIL.Image
+
+    def draw(n: int = 3) -> (PIL.Image.Image, matplotlib.figure.Figure, str):
+        fig = matplotlib.figure.Figure()
+        fig.subplots().plot(range(n))
+        return PIL.Image.new("RGB", (8, 4), "red"), fig, "caption"
+
+    call = _rpc_result(FastDash(callback_fn=draw, mcp_server=True), "invoke")
+    res = call("invoke", {"inputs": {"n": 4}})
+    outputs = res["structuredContent"]["result"]["outputs"]
+    images = [b for b in res["content"] if b["type"] == "image"]
+    assert len(images) == 2
+    assert all(base64.b64decode(b["data"])[:4] == b"\x89PNG" for b in images)
+    assert all(b["mimeType"] == "image/png" for b in images)
+    labels = [b["text"] for b in res["content"][1:] if b["type"] == "text"]
+    assert len(labels) == 2 and all("Image output" in t for t in labels)
+    stubs = [v for v in outputs.values() if isinstance(v, dict)]
+    assert len(stubs) == 2 and all(v["type"] == "Image" and "image" in v for v in stubs)
+    assert "caption" in outputs.values()
+
+    past = call("get_invocation", {"index": res["structuredContent"]["result"]["history_index"]})
+    assert [b["type"] for b in past["content"]].count("image") == 2
+    assert [b["type"] for b in call("describe_app")["content"]] == ["text"]
+
+
+def test_non_image_outputs_attach_no_blocks():
+    def echo(n: int = 1) -> str:
+        return "x" * n
+    call = _rpc_result(FastDash(callback_fn=echo, mcp_server=True), "invoke")
+    assert [b["type"] for b in call("invoke", {"inputs": {"n": 2}})["content"]] == ["text"]
+
+
+def test_image_for_mcp_handles_data_urls_and_caps():
+    from fast_dash import utils
+
+    assert utils._image_for_mcp("data:image/jpeg;base64,AAAA") == ("AAAA", "image/jpeg")
+    assert utils._image_for_mcp("data:text/plain;base64,AAAA") is None
+    assert utils._image_for_mcp("plain text") is None
+    big = "data:image/png;base64," + "A" * (utils.MCP_IMAGE_CAP + 1)
+    assert utils._image_for_mcp(big) is None
