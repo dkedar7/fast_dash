@@ -187,6 +187,58 @@ class TestBackendOptIn:
         names = [getattr(m.cls, "__name__", "") for m in app.app.server.user_middleware]
         assert any("MCPRequestContext" in n for n in names)
 
+    @requires_fastapi
+    @requires_dash_mcp
+    def test_fastapi_mcp_post_answers_over_the_asgi_stack(self):
+        # #313: our /mcp middleware drained the request body, and Dash 4.5's
+        # own middleware then waited forever to read it again, so every
+        # POST /mcp (the initialize handshake) hung. Drive the real ASGI stack.
+        import asyncio
+
+        app = self._fig_app(backend="fastapi")
+        body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "initialize",
+                           "params": {"protocolVersion": "2025-06-18", "capabilities": {},
+                                      "clientInfo": {"name": "t", "version": "0"}}}).encode()
+        scope = {"type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+                 "method": "POST", "scheme": "http", "path": "/mcp", "raw_path": b"/mcp",
+                 "root_path": "", "query_string": b"", "server": ("127.0.0.1", 80),
+                 "client": ("127.0.0.1", 1234),
+                 "headers": [(b"host", b"127.0.0.1"), (b"content-type", b"application/json"),
+                             (b"accept", b"application/json, text/event-stream"),
+                             (b"content-length", str(len(body)).encode())]}
+        sent, done = [], asyncio.Event()
+
+        async def receive():
+            if not sent:
+                sent.append(True)
+                return {"type": "http.request", "body": body, "more_body": False}
+            await done.wait()          # like a real server: nothing more until the response
+            return {"type": "http.disconnect"}
+
+        messages = []
+
+        async def send(message):
+            messages.append(message)
+            if message["type"] == "http.response.body" and not message.get("more_body"):
+                done.set()
+
+        async def drive():
+            await asyncio.wait_for(app.app.server(scope, receive, send), timeout=20)
+
+        asyncio.run(drive())           # TimeoutError here = the #313 hang
+        start = next(m for m in messages if m["type"] == "http.response.start")
+        assert start["status"] == 200
+        payload = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
+        assert json.loads(payload)["result"]["serverInfo"]
+
+    def test_explicit_flask_backend_is_the_default(self):
+        # backend="flask" names the default; it must not take the ASGI paths
+        # (it crashed at startup with mcp_server=True: Flask has no
+        # add_middleware).
+        app = self._fig_app(backend="flask")
+        assert app._backend is None
+        assert type(app.server).__name__ == "Flask"
+
     def test_run_routes_to_asgi_on_backend(self, monkeypatch):
         # #99: run() must serve the ASGI app via uvicorn, not Dash's
         # frame-walking main-thread path.

@@ -703,6 +703,11 @@ class FastDash(ChatAppMixin):
         # callbacks for real-time server -> browser push (set_props) instead of
         # the ~500ms polling Interval drain used on Flask.
         self._backend = self.kwargs.pop("backend", None)
+        if isinstance(self._backend, str) and self._backend.lower() == "flask":
+            # Naming the default isn't opting into ASGI: without this, the
+            # ASGI-only paths (uvicorn, the /mcp middleware) ran on a Flask
+            # server and mcp_server=True crashed at startup.
+            self._backend = None
         # Native-WebSocket streaming: when streaming is requested on an ASGI
         # backend, partial updates are pushed with set_props instead of
         # flask-socketio (which is WSGI-only). A chat sidecar always streams, so
