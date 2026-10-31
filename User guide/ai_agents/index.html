@@ -921,6 +921,14 @@ the web page even when MCP is running.</p>
 </tbody>
 </table>
 <p><code>component_id</code> is the <strong>parameter name</strong> itself (e.g. <code>"n"</code>, <code>"color"</code>).</p>
+<p>Outputs come back as data: text whole, a table's first 100 rows, a Plotly
+figure's <code>data</code> and <code>layout</code>. An <strong>image output</strong> (a PIL image, a matplotlib
+figure or a <code>data:image/...</code> string) can't be read as JSON, so <code>invoke</code> and
+<code>get_invocation</code> also return it as an MCP image content block: a PNG that a
+vision-capable agent sees just as the user does. Its JSON entry keeps the
+shape (<code>{"type": "Image", "size": [...], "image": "attached as an image content
+block"}</code>), and the image block follows a text block naming the output id.
+<code>describe_app</code> reports the shape only.</p>
 <h3 id="discover-the-contract">Discover the contract</h3>
 <p>Call <strong><code>describe_app()</code></strong> to learn the exact input ids, their Python types,
 defaults, allowed options and <strong>current values</strong>, plus what a run produces — and
