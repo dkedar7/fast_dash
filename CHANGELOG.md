@@ -1,4 +1,32 @@
-# Release 0.7.5
+# Release 0.7.6
+
+## 0.7.6 (2026-10-31)
+
+A fix for blank pages on fresh installs, agents connecting over FastAPI on
+Dash 4.5, and image outputs agents can see.
+
+### Fixed
+- **Apps no longer render blank on a fresh install.** `dash-mantine-components`
+  3.0.0 needs React 19, which Dash doesn't serve yet, so any new install of
+  0.7.5 loaded an empty page. Fast Dash now requires
+  `dash-mantine-components<3`. On 0.7.5, run
+  `pip install "dash-mantine-components<3"`.
+- **Agents can connect on the FastAPI backend under Dash 4.5** (#313).
+  `POST /mcp` never answered, so `initialize` hung. Fast Dash's middleware
+  read the request body, and Dash 4.5 reads it again; the body is now passed
+  on.
+- **`backend="flask"` works with `mcp_server=True`.** Naming the default
+  backend explicitly crashed at startup.
+
+### Added
+- **Image outputs come back to agents as images** (#312). `invoke` and
+  `get_invocation` return each PIL image, matplotlib figure or `data:image`
+  output as an MCP image content block, after a text block naming its output
+  id. `describe_app` still reports the shape only.
+
+### Tests
+- CI installs `dash[fastapi]`, so the FastAPI backend tests run instead of
+  skipping.
 
 ## 0.7.5 (2026-10-28)
 
