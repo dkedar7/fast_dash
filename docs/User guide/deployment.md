@@ -28,6 +28,22 @@ Replace the example function in `app.py` with yours, then deploy the folder as
 described below. To build the same files by hand, follow the steps in the rest
 of this page.
 
+## If the page comes up blank: `fastdash doctor`
+
+A page that loads with nothing on it, and no error in the server log, is
+usually a version clash in the browser: `dash-mantine-components` 3 needs
+React 19, but Dash serves React 18 unless told otherwise. Fast Dash warns about
+this when it builds the app, and `fastdash doctor` checks the environment it
+runs in:
+
+```bash
+fastdash doctor
+```
+
+It prints the installed `fast-dash`, `dash` and component-library versions,
+the React version Dash serves, and the fix for any clash it knows about. It
+exits with status 1 when it finds one, so you can run it in a container build.
+
 ## By hand
 
 The recommended directory structure is:

@@ -46,7 +46,7 @@ from fast_dash.Components import (
     Upload,
     UploadImage,
 )
-from fast_dash.utils import Fastify, _drain_generator
+from fast_dash.utils import Fastify, _drain_generator, _warn_on_react_mismatch
 
 
 __all__ = [
@@ -273,6 +273,7 @@ class DynamicDash:
         # leaking it to dash.Dash() where it raises an opaque TypeError.
         self._port = dash_kwargs.pop("port", None)
 
+        _warn_on_react_mismatch()
         self.app = dash.Dash(
             __name__,
             external_stylesheets=dash_kwargs.pop("external_stylesheets", []),

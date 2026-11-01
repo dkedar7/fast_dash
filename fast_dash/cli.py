@@ -60,6 +60,35 @@ CMD gunicorn app:server --bind :${{PORT:-{port}}}
     
     return 0
 
+def doctor():
+    """Print the versions a Fast Dash web UI depends on, and any known clash.
+
+    A blank page with no server error is usually a dash-mantine-components /
+    React mismatch (#318); this names it.
+    """
+    from importlib.metadata import PackageNotFoundError, version
+
+    from fast_dash.utils import _served_react_version, react_mismatch
+
+    import fast_dash
+
+    print(f"{'fast-dash':28} {fast_dash.__version__}")
+    for pkg in ("dash", "dash-mantine-components", "dash-bootstrap-components"):
+        try:
+            v = version(pkg)
+        except PackageNotFoundError:
+            v = "not installed"
+        print(f"{pkg:28} {v}")
+    print(f"{'React (served by Dash)':28} {_served_react_version() or 'unknown'}")
+
+    problem = react_mismatch()
+    if problem:
+        print(f"\nProblem: {problem}")
+        return 1
+    print("\nNo known version conflicts.")
+    return 0
+
+
 def main():
     """Main entry point for the CLI"""
     parser = argparse.ArgumentParser(
@@ -79,10 +108,17 @@ def main():
         help="Port number for the FastDash app (default: 8080)"
     )
     
+    subparsers.add_parser(
+        "doctor", help="Check the installed versions for known conflicts"
+    )
+
     # Parse arguments
     args = parser.parse_args()
 
-    while args.port is None:
+    if args.command == "doctor":
+        return doctor()
+
+    while args.command == "create" and args.port is None:
         port_input = input("Enter a port number (8080 for Google Cloud Run and 7860 for HuggingFace Spaces). Leave blank to use 8080.\n")
         if port_input.strip() == "":
             args.port = 8080
@@ -96,9 +132,6 @@ def main():
             except ValueError:
                 print("Please enter a valid integer port number.")
 
-    if args.port is None:
-        args.port = 8080
-    
     # Handle commands
     if args.command == "create":
         return create_project(args.project_name, port=args.port)

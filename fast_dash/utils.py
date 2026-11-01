@@ -644,6 +644,69 @@ def _image_for_mcp(value):
     return b64, header.split(":", 1)[1].split(";", 1)[0]
 
 
+# The React major each dash-mantine-components major needs at least. DMC 3
+# aborts the render on React 18: the page comes up blank and the server logs
+# nothing (#318, #320).
+_DMC_MIN_REACT = {3: 19}
+
+
+def _served_react_version():
+    """The React version Dash will serve, e.g. ``"18.3.1"``, or None."""
+    try:
+        from dash import _dash_renderer
+        deps = repr(_dash_renderer._js_dist_dependencies)
+    except Exception:            # noqa: BLE001 - a private API; may move
+        return None
+    m = re.search(r"react@(\d+\.\d+\.\d+)", deps)
+    return m.group(1) if m else None
+
+
+def react_mismatch():
+    """Why the installed DMC can't render on the React Dash serves, or None.
+
+    A version check, no browser: it catches the blank-page class of #318
+    before the server starts.
+    """
+    try:
+        dmc_version = dmc.__version__
+        dmc_major = int(dmc_version.split(".")[0])
+    except Exception:            # noqa: BLE001
+        return None
+    need = max((r for d, r in _DMC_MIN_REACT.items() if dmc_major >= d), default=None)
+    served = _served_react_version()
+    if need is None or served is None or int(served.split(".")[0]) >= need:
+        return None
+    try:
+        from dash import _dash_renderer
+        offered = sorted(
+            v for v in _dash_renderer._available_react_versions
+            if int(v.split(".")[0]) >= need
+        )
+    except Exception:            # noqa: BLE001
+        offered = []
+    if offered:
+        opt_in = (
+            f"or serve React {offered[-1]} by calling "
+            f"dash._dash_renderer._set_react_version({offered[-1]!r}) before "
+            "building the app"
+        )
+    else:
+        opt_in = f"or upgrade to a Dash that can serve React {need}"
+    return (
+        f"dash-mantine-components {dmc_version} needs React {need}, but Dash "
+        f"{dash.__version__} serves React {served}, so the web UI will render "
+        f"a blank page. Install 'dash-mantine-components<{min(_DMC_MIN_REACT)}' "
+        f"(what fast-dash supports), {opt_in}."
+    )
+
+
+def _warn_on_react_mismatch():
+    """Warn once per build when the web UI would render blank (#320)."""
+    problem = react_mismatch()
+    if problem:
+        warnings.warn(problem, stacklevel=3)
+
+
 def _summarize_for_history(value):
     """Compact summary of a value, suitable for the `state.history` deque.
 
