@@ -28,6 +28,7 @@ from .Components import (
 )
 
 from .utils import (
+    _warn_on_react_mismatch,
     _bootswatch_name,
     _drain_generator,
     _find_stream_output,
@@ -714,6 +715,7 @@ class FastDash(ChatAppMixin):
         # it counts as requesting streaming even on an otherwise-static app.
         self._native_stream = (bool(stream) or self.has_chat_sidecar) and bool(self._backend)
         source = dash.Dash
+        _warn_on_react_mismatch()
         if self._backend:
             self.kwargs.setdefault("websocket_callbacks", True)
             self.app = source(
