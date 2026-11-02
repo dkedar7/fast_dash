@@ -191,7 +191,8 @@ The package exports ready-to-use Fast Dash components you can pass directly as `
 
 | Component | Use as | Notes |
 | --- | --- | --- |
-| `Text`, `TextArea`, `PasswordInput` | input or output | Single-line, multi-line, masked text |
+| `Text`, `TextArea` | input or output | Multi-line text box (`Text` starts 4 rows tall; `TextArea` 3, growing to 12). For a single-line input, annotate the parameter as `str` and let Fast Dash pick |
+| `PasswordInput` | input or output | Masked text |
 | `NumberInput`, `Slider` | input | Numeric with optional bounds |
 | `Switch` | input | Toggle (True / False) |
 | `MultiSelect` | input | Multi-select dropdown |
