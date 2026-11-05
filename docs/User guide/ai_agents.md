@@ -118,7 +118,9 @@ Whatever `describe_app()` advertises is what `set_input` / `set_inputs` /
 `invoke` accept — an agent cannot set a value the UI itself could never produce.
 A value outside a dropdown's `options`, outside a Slider's `min`/`max`, or of the
 wrong type (a string for a number, a string for a switch) is rejected with an
-error naming the constraint, and `invoke` is atomic: one bad value rejects the
+error naming the constraint. An upload takes what the browser sends, a
+`data:<mime>;base64,...` URI, and an `UploadImage` only one that decodes to an
+image. `invoke` is atomic: one bad value rejects the
 whole call without mutating anything. The same holds for a form an agent builds
 at runtime with `set_form` — the specs it declared become the contract it is
 then held to.

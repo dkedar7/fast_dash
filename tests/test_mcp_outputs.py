@@ -372,3 +372,50 @@ def test_image_for_mcp_handles_data_urls_and_caps():
     assert utils._image_for_mcp("plain text") is None
     big = "data:image/png;base64," + "A" * (utils.MCP_IMAGE_CAP + 1)
     assert utils._image_for_mcp(big) is None
+
+
+# --- #326: upload inputs take data URIs ------------------------------------ #
+
+def _png_data_uri():
+    import base64
+    import io
+
+    import PIL.Image
+
+    buf = io.BytesIO()
+    PIL.Image.new("RGB", (8, 8), (1, 2, 3)).save(buf, format="PNG")
+    return "data:image/png;base64," + base64.b64encode(buf.getvalue()).decode()
+
+
+def test_image_upload_rejects_what_the_widget_cannot_emit():
+    import PIL.Image
+
+    def describe_img(img: PIL.Image.Image) -> str:
+        return f"size={img.size}"
+    call = _mcp(FastDash(callback_fn=describe_img, mcp_server=True))
+    assert {i["id"]: i["tag"] for i in call("describe_app")["inputs"]} == {"img": "UploadImage"}
+
+    good = _png_data_uri()
+    bad = {
+        good.split(",", 1)[1]: "expected a data URI",                 # bare base64
+        "hello world": "expected a data URI",
+        "data:image/png;base64,***": "expected base64",
+        "data:text/plain;base64,aGVsbG8=": "expected an image",
+    }
+    for value, error in bad.items():
+        res = call("invoke", {"inputs": {"img": value}})
+        assert res["ok"] is False and res["errors"]["img"].startswith(error), (value, res)
+        assert "AttributeError" not in json.dumps(res)
+        assert call("set_input", {"component_id": "img", "value": value})["ok"] is False
+    assert call("invoke", {"inputs": {"img": good}})["outputs"]["output_output_1"] == "size=(8, 8)"
+
+
+def test_file_upload_takes_any_data_uri():
+    from fast_dash import Upload
+
+    def size(f: str) -> int:
+        return len(f)
+    call = _mcp(FastDash(callback_fn=size, inputs=Upload, mcp_server=True))
+    assert call("describe_app")["inputs"][0]["tag"] == "Upload"
+    assert call("invoke", {"inputs": {"f": "data:text/plain;base64,aGVsbG8="}})["ok"] is True
+    assert call("invoke", {"inputs": {"f": "hello world"}})["errors"]["f"].startswith("expected a data URI")
