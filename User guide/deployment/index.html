@@ -442,6 +442,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#if-the-page-comes-up-blank-fastdash-doctor" class="md-nav__link">
+    If the page comes up blank: fastdash doctor
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#by-hand" class="md-nav__link">
     By hand
   </a>
@@ -745,6 +752,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#if-the-page-comes-up-blank-fastdash-doctor" class="md-nav__link">
+    If the page comes up blank: fastdash doctor
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#by-hand" class="md-nav__link">
     By hand
   </a>
@@ -847,6 +861,17 @@ deploy:</p>
 <p>Replace the example function in <code>app.py</code> with yours, then deploy the folder as
 described below. To build the same files by hand, follow the steps in the rest
 of this page.</p>
+<h2 id="if-the-page-comes-up-blank-fastdash-doctor">If the page comes up blank: <code>fastdash doctor</code></h2>
+<p>A page that loads with nothing on it, and no error in the server log, is
+usually a version clash in the browser: <code>dash-mantine-components</code> 3 needs
+React 19, but Dash serves React 18 unless told otherwise. Fast Dash warns about
+this when it builds the app, and <code>fastdash doctor</code> checks the environment it
+runs in:</p>
+<div class="highlight"><pre><span></span><code>fastdash<span class="w"> </span>doctor
+</code></pre></div>
+<p>It prints the installed <code>fast-dash</code>, <code>dash</code> and component-library versions,
+the React version Dash serves, and the fix for any clash it knows about. It
+exits with status 1 when it finds one, so you can run it in a container build.</p>
 <h2 id="by-hand">By hand</h2>
 <p>The recommended directory structure is:</p>
 <div class="highlight"><pre><span></span><code>root\

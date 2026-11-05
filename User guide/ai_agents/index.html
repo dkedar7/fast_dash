@@ -452,6 +452,19 @@
     Drive it from Python
   </a>
   
+    <nav class="md-nav" aria-label="Drive it from Python">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-it-without-a-server" class="md-nav__link">
+    Test it without a server
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -783,6 +796,19 @@
     Drive it from Python
   </a>
   
+    <nav class="md-nav" aria-label="Drive it from Python">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#test-it-without-a-server" class="md-nav__link">
+    Test it without a server
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -956,7 +982,9 @@ agent see what a run returns <strong>without</strong> having to run it.</p>
 <code>invoke</code> accept — an agent cannot set a value the UI itself could never produce.
 A value outside a dropdown's <code>options</code>, outside a Slider's <code>min</code>/<code>max</code>, or of the
 wrong type (a string for a number, a string for a switch) is rejected with an
-error naming the constraint, and <code>invoke</code> is atomic: one bad value rejects the
+error naming the constraint. An upload takes what the browser sends, a
+<code>data:&lt;mime&gt;;base64,...</code> URI, and an <code>UploadImage</code> only one that decodes to an
+image. <code>invoke</code> is atomic: one bad value rejects the
 whole call without mutating anything. The same holds for a form an agent builds
 at runtime with <code>set_form</code> — the specs it declared become the contract it is
 then held to.</p>
@@ -987,8 +1015,9 @@ values.</p>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
 <h2 id="drive-it-from-python">Drive it from Python</h2>
-<p>To script an app, or test your own agent-driven app, connect with the official
-<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK. It isn't installed with Fast
+<p>To script a running app, connect with the official
+<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK. To test your own app's agent
+surface, use <a href="#test-it-without-a-server">the in-process test client</a> instead. It isn't installed with Fast
 Dash, so add it first:</p>
 <div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mcp
 </code></pre></div>
@@ -1033,6 +1062,29 @@ Dash, so add it first:</p>
 <code>set_input(component_id, value)</code>, <code>set_inputs(inputs)</code>, <code>invoke(inputs)</code>,
 <code>set_form(specs)</code> and <code>get_invocation(index)</code>. <code>describe_app</code> and
 <code>list_component_types</code> take none.</p>
+<h3 id="test-it-without-a-server">Test it without a server</h3>
+<p><code>app.mcp_test_client()</code> calls the same tools in-process and synchronously: no
+server, port, <code>asyncio</code> or <code>mcp</code> package. Each call is a JSON-RPC request to the
+app's real <code>/mcp</code> route, so a test sees exactly what an agent sees, validation
+errors included. Each tool is a method, and it returns the tool's JSON as a dict:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">FastDash</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">plot_bars</span><span class="p">(</span><span class="n">n</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">5</span><span class="p">,</span> <span class="n">color</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;#1c7ed6&quot;</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
+    <span class="k">return</span> <span class="n">n</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">test_agent_contract</span><span class="p">():</span>
+    <span class="n">client</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">plot_bars</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span><span class="o">.</span><span class="n">mcp_test_client</span><span class="p">()</span>
+
+    <span class="k">assert</span> <span class="p">[</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">client</span><span class="o">.</span><span class="n">describe_app</span><span class="p">()[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]]</span> <span class="o">==</span> <span class="p">[</span><span class="s2">&quot;n&quot;</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">]</span>
+    <span class="k">assert</span> <span class="nb">list</span><span class="p">(</span><span class="n">client</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">})[</span><span class="s2">&quot;outputs&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">values</span><span class="p">())</span> <span class="o">==</span> <span class="p">[</span><span class="mi">12</span><span class="p">]</span>
+
+    <span class="n">bad</span> <span class="o">=</span> <span class="n">client</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="s2">&quot;twelve&quot;</span><span class="p">})</span>
+    <span class="k">assert</span> <span class="n">bad</span><span class="p">[</span><span class="s2">&quot;ok&quot;</span><span class="p">]</span> <span class="ow">is</span> <span class="kc">False</span> <span class="ow">and</span> <span class="s2">&quot;n&quot;</span> <span class="ow">in</span> <span class="n">bad</span><span class="p">[</span><span class="s2">&quot;errors&quot;</span><span class="p">]</span>
+</code></pre></div>
+<p>Arguments go by name or by position (<code>client.set_input("n", 3)</code>). An image
+output's PNG bytes are in the result's <code>.images</code>, and <code>client.tools</code> lists the
+tool names. The client works with both the Flask and FastAPI backends. The app
+needs <code>mcp_server=True</code>, and the one-MCP-app-per-process rule still applies.</p>
 <h2 id="agent-generated-uis-with-dynamicdash">Agent-generated UIs with DynamicDash</h2>
 <p><code>DynamicDash</code> is a Fast Dash app whose input form is generated at runtime —
 either by a parent control or by an agent calling the <code>set_form</code> tool. The form
