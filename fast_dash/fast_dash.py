@@ -1441,6 +1441,16 @@ class FastDash(ChatAppMixin):
             next_disabled = current_idx not in (completed_set or [])
             return styles + [back_disabled, next_disabled]
 
+    def mcp_test_client(self):
+        """A synchronous client for this app's MCP tools, for tests (#325).
+
+        Calls go through the real ``/mcp`` route in-process: no server, port
+        or ``asyncio``. See ``fast_dash.mcp.MCPTestClient``.
+        """
+        from fast_dash.mcp import MCPTestClient
+
+        return MCPTestClient(self)
+
     def run(self, debug=None, port=None, host=None, **kwargs):
         """Start the server. Keyword arguments (``debug``, ``port``, ``host``,
         and any other Dash ``run()`` option) override the constructor's (#205)."""

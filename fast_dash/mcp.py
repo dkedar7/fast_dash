@@ -57,6 +57,7 @@ Limitations
 
 from __future__ import annotations
 
+import base64
 import collections
 import contextvars
 import datetime
@@ -2136,3 +2137,175 @@ def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
                 await self.app(scope, receive, send)
 
     server.add_middleware(_MCPRequestContext)
+
+
+# --------------------------------------------------------------------------- #
+# In-process test client (#325)
+# --------------------------------------------------------------------------- #
+
+class MCPError(Exception):
+    """A JSON-RPC error, or a tool that raised, seen by MCPTestClient."""
+
+
+class MCPToolResult(dict):
+    """A tool's JSON result, plus the content blocks it came in.
+
+    ``images`` holds the decoded bytes of each image block (#312), so an image
+    output can be checked without digging through ``content``.
+    """
+
+    def __init__(self, result, content):
+        super().__init__(result)
+        self.content = content
+        self.images = [
+            base64.b64decode(b["data"]) for b in content if b.get("type") == "image"
+        ]
+
+
+class MCPTestClient:
+    """Call an app's MCP tools in-process and synchronously, for tests.
+
+    Every call is a JSON-RPC POST to the app's real ``/mcp`` route, so a test
+    gets the validation, masking, history and errors an agent gets over HTTP,
+    with no server, port or ``asyncio``. Each tool is a method taking the
+    tool's arguments, positionally or by name, and returning its JSON::
+
+        client = app.mcp_test_client()
+        client.set_input("n", 5)
+        result = client.invoke()          # {"ok": True, "outputs": {...}, ...}
+
+    Get one from ``app.mcp_test_client()`` on an app built with
+    ``mcp_server=True``. Dash's MCP tool registry is process-wide, so the
+    one-MCP-app-per-process rule still holds.
+    """
+
+    def __init__(self, fd):
+        if not getattr(fd, "mcp_server_enabled", False):
+            raise RuntimeError(
+                "mcp_test_client() needs an app built with mcp_server=True."
+            )
+        self._fd = fd
+        self._next_id = 0
+        self._headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if not getattr(fd, "_backend", None):
+            self._http = fd.app.server.test_client()
+        init = self._rpc("initialize", {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "fast_dash.MCPTestClient", "version": "1"},
+        })
+        self.server_info = init.get("serverInfo")
+        self._schemas = {
+            t["name"]: list((t.get("inputSchema") or {}).get("properties") or {})
+            for t in self._rpc("tools/list").get("tools", [])
+        }
+
+    @property
+    def tools(self):
+        """The names of the tools the app serves."""
+        return list(self._schemas)
+
+    def call(self, name, *args, **arguments):
+        """Call tool ``name`` and return its JSON result."""
+        params = self._schemas.get(name)
+        if params is None:
+            raise MCPError(f"no tool named {name!r}; the app serves {self.tools}")
+        if len(args) > len(params):
+            raise TypeError(f"{name}() takes at most {len(params)} arguments")
+        arguments.update(zip(params, args))
+        result = self._rpc("tools/call", {"name": name, "arguments": arguments})
+        content = result.get("content") or []
+        text = " ".join(b.get("text", "") for b in content if b.get("type") == "text")
+        if result.get("isError"):
+            raise MCPError(text or f"{name} failed")
+        structured = result.get("structuredContent")
+        if isinstance(structured, dict):
+            payload = structured.get("result", structured)
+        else:
+            try:
+                payload = json.loads(text)
+            except ValueError:
+                payload = {"text": text}
+        if not isinstance(payload, dict):
+            payload = {"result": payload}
+        return MCPToolResult(payload, content)
+
+    def __getattr__(self, name):
+        if not name.startswith("_") and name in self.__dict__.get("_schemas", {}):
+            return functools.partial(self.call, name)
+        raise AttributeError(name)
+
+    def __dir__(self):
+        return sorted(set(super().__dir__()) | set(self._schemas))
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *exc):
+        return False
+
+    def _rpc(self, method, params=None):
+        self._next_id += 1
+        body = json.dumps({
+            "jsonrpc": "2.0", "id": self._next_id,
+            "method": method, "params": params or {},
+        }).encode()
+        status, content_type, data = (
+            self._post_asgi(body) if getattr(self._fd, "_backend", None)
+            else self._post_wsgi(body)
+        )
+        if status != 200:
+            raise MCPError(f"POST /mcp answered {status}: {data[:200]!r}")
+        text = data.decode("utf-8")
+        if "text/event-stream" in content_type:
+            events = [ln[5:].strip() for ln in text.splitlines() if ln.startswith("data:")]
+            text = events[-1] if events else "{}"
+        message = json.loads(text)
+        if "error" in message:
+            raise MCPError(message["error"].get("message", message["error"]))
+        return message.get("result") or {}
+
+    def _post_wsgi(self, body):
+        r = self._http.post("/mcp", data=body, headers=self._headers)
+        return r.status_code, r.headers.get("Content-Type", ""), r.get_data()
+
+    def _post_asgi(self, body):
+        import asyncio
+
+        headers = [(k.lower().encode(), v.encode()) for k, v in self._headers.items()]
+        headers += [(b"host", b"127.0.0.1"), (b"content-length", str(len(body)).encode())]
+        scope = {
+            "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+            "method": "POST", "scheme": "http", "path": "/mcp", "raw_path": b"/mcp",
+            "root_path": "", "query_string": b"", "headers": headers,
+            "server": ("127.0.0.1", 80), "client": ("127.0.0.1", 0),
+        }
+        messages = []
+
+        async def drive():
+            done = asyncio.Event()
+            sent = False
+
+            async def receive():
+                nonlocal sent
+                if not sent:
+                    sent = True
+                    return {"type": "http.request", "body": body, "more_body": False}
+                await done.wait()        # nothing more until the response is out
+                return {"type": "http.disconnect"}
+
+            async def send(message):
+                messages.append(message)
+                if message["type"] == "http.response.body" and not message.get("more_body"):
+                    done.set()
+
+            await asyncio.wait_for(self._fd.app.server(scope, receive, send), timeout=60)
+
+        asyncio.run(drive())
+        start = next(m for m in messages if m["type"] == "http.response.start")
+        content_type = dict(start.get("headers") or []).get(b"content-type", b"").decode()
+        data = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
+        return start["status"], content_type, data

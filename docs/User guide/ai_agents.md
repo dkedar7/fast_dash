@@ -153,8 +153,9 @@ reload), so a human watching the page sees what the agent does.
 
 ## Drive it from Python
 
-To script an app, or test your own agent-driven app, connect with the official
-[`mcp`](https://pypi.org/project/mcp/) client SDK. It isn't installed with Fast
+To script a running app, connect with the official
+[`mcp`](https://pypi.org/project/mcp/) client SDK. To test your own app's agent
+surface, use [the in-process test client](#test-it-without-a-server) instead. It isn't installed with Fast
 Dash, so add it first:
 
 ```bash
@@ -205,6 +206,34 @@ Every tool takes keyword arguments named as in the table above:
 `set_input(component_id, value)`, `set_inputs(inputs)`, `invoke(inputs)`,
 `set_form(specs)` and `get_invocation(index)`. `describe_app` and
 `list_component_types` take none.
+
+### Test it without a server
+
+`app.mcp_test_client()` calls the same tools in-process and synchronously: no
+server, port, `asyncio` or `mcp` package. Each call is a JSON-RPC request to the
+app's real `/mcp` route, so a test sees exactly what an agent sees, validation
+errors included. Each tool is a method, and it returns the tool's JSON as a dict:
+
+```python
+from fast_dash import FastDash
+
+def plot_bars(n: int = 5, color: str = "#1c7ed6") -> int:
+    return n
+
+def test_agent_contract():
+    client = FastDash(callback_fn=plot_bars, mcp_server=True).mcp_test_client()
+
+    assert [i["id"] for i in client.describe_app()["inputs"]] == ["n", "color"]
+    assert list(client.invoke(inputs={"n": 12})["outputs"].values()) == [12]
+
+    bad = client.invoke(inputs={"n": "twelve"})
+    assert bad["ok"] is False and "n" in bad["errors"]
+```
+
+Arguments go by name or by position (`client.set_input("n", 3)`). An image
+output's PNG bytes are in the result's `.images`, and `client.tools` lists the
+tool names. The client works with both the Flask and FastAPI backends. The app
+needs `mcp_server=True`, and the one-MCP-app-per-process rule still applies.
 
 ## Agent-generated UIs with DynamicDash
 

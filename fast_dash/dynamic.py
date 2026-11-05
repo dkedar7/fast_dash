@@ -556,6 +556,16 @@ class DynamicDash:
                     result.append(no_update)
                 return result[:n_out]
 
+    def mcp_test_client(self):
+        """A synchronous client for this app's MCP tools, for tests (#325).
+
+        Calls go through the real ``/mcp`` route in-process: no server, port
+        or ``asyncio``. See ``fast_dash.mcp.MCPTestClient``.
+        """
+        from fast_dash.mcp import MCPTestClient
+
+        return MCPTestClient(self)
+
     def run(self, debug: bool = False, port: int = None, **kwargs):
         """Convenience wrapper around the Dash dev server.
 
