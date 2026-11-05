@@ -1,4 +1,31 @@
-# Release 0.7.6
+# Release 0.7.7
+
+## 0.7.7 (2026-11-05)
+
+An in-process test client for the agent surface, a warning before a blank
+page, and stricter upload inputs over MCP.
+
+### Added
+- **`app.mcp_test_client()`** (#325). A synchronous client for an app's MCP
+  tools, for tests: no server, port or `asyncio`. Each call goes through the
+  app's real `/mcp` route in-process, on the Flask or FastAPI backend, so a
+  test sees what an agent sees. Each tool is a method returning its JSON as a
+  dict, and image outputs come back as bytes in `.images`.
+- **A warning when the page would render blank** (#320). Fast Dash checks the
+  installed `dash-mantine-components` against the React version Dash serves
+  when it builds the app, and warns with the fix if they clash (DMC 3 needs
+  React 19).
+- **`fastdash doctor`** (#320). Prints the installed versions and the served
+  React version, and names any known clash. It exits with status 1 if it finds
+  one. The deployment guide already documented it (#324); this release ships it.
+
+### Fixed
+- **Upload inputs over MCP take only what the browser sends** (#326). An
+  `UploadImage` input accepted any string, which reached the callback and
+  failed with a raw `AttributeError`. Uploads now need a
+  `data:<mime>;base64,...` URI, and `UploadImage` one that decodes to an image.
+  Anything else is rejected with an error naming the constraint.
+- **A bare `fastdash` prints help** instead of failing with `AttributeError`.
 
 ## 0.7.6 (2026-10-31)
 
