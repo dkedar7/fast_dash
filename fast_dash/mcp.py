@@ -58,6 +58,7 @@ Limitations
 from __future__ import annotations
 
 import base64
+import binascii
 import collections
 import contextvars
 import datetime
@@ -775,6 +776,8 @@ def _type_error(entry, value):
             return f"expected a date as YYYY-MM-DD (no time), got {value!r}"     # #288
         if tag == "DateTimeInput" and value and not _is_iso_datetime(value):
             return f"expected a date and time as YYYY-MM-DD HH:mm:ss, got {value!r}"
+        if tag in ("Upload", "UploadImage") and value:
+            return _upload_error(tag, value)                                      # #326
     elif jtype == "array":
         if not isinstance(value, (list, tuple)):
             return f"expected an array, got {type(value).__name__} ({value!r})"
@@ -790,6 +793,35 @@ _STRING_WIDGETS = {"Text", "TextArea", "ColorInput", "PasswordInput",
                    "DateInput", "DateTimeInput", "Upload", "UploadImage"}
 
 _DATE_FORMATS = {"DateInput": "YYYY-MM-DD", "DateTimeInput": "YYYY-MM-DD HH:mm:ss"}
+
+
+def _upload_error(tag, value):
+    """Why a string isn't what an upload widget emits, else None (#326).
+
+    dcc.Upload hands the callback a ``data:<mime>;base64,<payload>`` URI, and an
+    image upload's callback gets the payload opened as a PIL image. Anything
+    else (bare base64, "hello world") used to reach the callback and fail there
+    with a raw AttributeError instead of a contract error.
+    """
+    head, sep, payload = value.partition(",")
+    if not (sep and head.startswith("data:") and head.endswith(";base64")):
+        shown = value if len(value) <= 40 else value[:40] + "..."
+        return f"expected a data URI (data:<mime>;base64,...), got {shown!r}"
+    try:
+        data = base64.b64decode(payload, validate=True)
+    except (binascii.Error, ValueError):
+        return "expected base64 after ';base64,', got characters that don't decode"
+    if tag == "UploadImage":
+        import io
+
+        import PIL.Image
+
+        try:
+            with PIL.Image.open(io.BytesIO(data)) as img:
+                img.verify()
+        except Exception:        # noqa: BLE001 - any failure means "not an image"
+            return "expected an image (data:image/...;base64,...), got data that isn't one"
+    return None
 
 
 def _is_iso_date(value):
