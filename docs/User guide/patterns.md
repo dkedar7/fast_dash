@@ -37,7 +37,7 @@ Here are some examples:
 | List of items and users must choose from a fixed set of items | `list` | List of fixed set of items | `def enter_web_urls(urls: list = ["google.com", "youtube.com", "facebook.com", "bing.com"])` |
 <b>Numbers<b>
 | Number | `int` or `float` | Blank | `def enter_score(score: int)` or `def enter_score(score: float)` |
-| Bounded number | `int` or `float` | List of bounds and step size in the format: `range(min, max, step)` | `def enter_score(score: int = range(0, 10))` or `def enter_score(score: float = list(np.arange(0, 10, 0.1)))` |
+| Bounded number | `int` or `float` | A `range(start, stop, step)`. Like Python's `range`, `stop` is excluded: `range(0, 10)` gives a slider from 0 to 9 | `def enter_score(score: int = range(0, 10))` or `def enter_score(score: float = list(np.arange(0, 10, 0.1)))` |
 <b>Images and documents<b>
 | Image | `PIL.Image.Image` | Blank or default image (PIL format) | `def upload_image(image: PIL.Image.Image)` |
 | Any document | Built-in component `Upload` | Blank | `def upload_doc(doc: Upload)` |
@@ -46,7 +46,7 @@ Here are some examples:
 <b>Modern type hints<b>
 | Fixed set of string options | `Literal["a", "b", "c"]` | Any of the values | `def pick(choice: Literal["red", "green", "blue"])` |
 | Enum members | `enum.Enum` subclass | Any enum member | `class Color(Enum): RED = "red"`<br>`def pick(c: Color)` |
-| Bounded number via type hint | `Annotated[int, range(min, max, step)]` | Any int/float | `def score(s: Annotated[int, range(0, 100)])` |
+| Bounded number via type hint | `Annotated[int, range(start, stop, step)]` | Any int/float | `def score(s: Annotated[int, range(0, 101)])` (0 to 100) |
 | Dropdown via type hint | `Annotated[str, [list]]` | Any of the values | `def pick(c: Annotated[str, ["USA", "Canada"]])` |
 | Optional value | `Optional[T]` | Any `T` | `def ping(text: Optional[str])` |
 <b>Reactive inputs<b>

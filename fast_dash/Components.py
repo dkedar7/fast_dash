@@ -1250,6 +1250,18 @@ class AppLayout:
             raise PreventUpdate
 
 
+def _range_bounds(r):
+    """A range's slider bounds: (min, max, step) of the values it yields (#330).
+
+    ``range(0, 3)`` yields 0, 1, 2, so its slider tops out at 2, not at
+    ``r.stop``, which ``range`` never yields. An empty range collapses to its
+    start.
+    """
+    if not r:
+        return r.start, r.start, abs(r.step)
+    return min(r), max(r), abs(r.step)
+
+
 @dataclass
 class _ResolvedHint:
     """Result of resolving a typing generic into actionable info."""
@@ -1307,11 +1319,11 @@ def _resolve_typing_hint(hint, default_value=None):
 
         # Annotated[int, range(0, 100)] -> Slider
         if isinstance(metadata, range):
-            step = metadata.step if metadata.step != 1 else 1
+            low, high, step = _range_bounds(metadata)
             default = default_value if default_value is not None else metadata.start
             return _ResolvedHint(
                 component=Fastify(
-                    dmc.Slider(min=metadata.start, max=metadata.stop, step=step, value=default),
+                    dmc.Slider(min=low, max=high, step=step, value=default),
                     "value",
                     tag="Numeric",
                 ),
@@ -1591,11 +1603,7 @@ def _get_component_from_input(hint, default_value=None):
 
         elif _default_value_type == "Sequence":
             if isinstance(default_value, range):
-                start, step, stop = (
-                    default_value.start,
-                    default_value.step,
-                    default_value.stop,
-                )
+                start, stop, step = _range_bounds(default_value)
 
                 component = Fastify(
                     dmc.Slider(min=start, max=stop, step=step), "value", tag=_hint_type
@@ -1783,11 +1791,7 @@ def _get_component_from_input(hint, default_value=None):
 
             elif _default_value_type == "Sequence":
                 if isinstance(default_value, range):
-                    start, step, stop = (
-                        default_value.start,
-                        default_value.step,
-                        default_value.stop,
-                    )
+                    start, stop, step = _range_bounds(default_value)
                     component = Fastify(
                         dcc.Slider(
                             start,

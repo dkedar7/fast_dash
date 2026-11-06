@@ -491,7 +491,7 @@ class TestTools:
         assert by_id["items"]["options"] == ["a", "b"]        # dict -> MultiSelect keys
         assert by_id["items"]["current_value"] == ["a", "b"]  # real widget, not a text box
         assert by_id["fruit"]["options"] == ["x", "y", "z"]   # list -> Select dropdown
-        assert by_id["level"]["props"] == {"min": 0, "max": 10, "step": 1}  # Slider bounds
+        assert by_id["level"]["props"] == {"min": 0, "max": 9, "step": 1}  # range(0, 10) tops out at 9 (#330)
         assert "props" not in by_id["free"]                   # plain str stays free text
         assert by_id["free"]["options"] is None
         # the resolved Slider's bounds are enforced too.
@@ -511,8 +511,8 @@ class TestTools:
         by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
 
         # bounded sliders expose props; the plain number box does not.
-        assert by_id["via_annot"]["props"] == {"min": 0, "max": 100, "step": 1}
-        assert by_id["via_range"]["props"] == {"min": 0, "max": 100, "step": 1}
+        assert by_id["via_annot"]["props"] == {"min": 0, "max": 99, "step": 1}
+        assert by_id["via_range"]["props"] == {"min": 0, "max": 99, "step": 1}
         assert "props" not in by_id["plain_num"]          # genuinely unbounded
 
         # out-of-range rejected; in-range accepted; unbounded input stays free.

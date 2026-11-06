@@ -241,7 +241,7 @@ def test_fdco005_input_hint_is_numeric(dash_duo):
         and hasattr(input_component, "min")
         and input_component.min == 1
         and hasattr(input_component, "max")
-        and input_component.max == 10
+        and input_component.max == 9   # the last value range(1, 10, 2) yields (#330)
         and hasattr(input_component, "step")
         and input_component.step == 2
     ), "Default range failed"
@@ -525,7 +525,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
         and hasattr(input_component, "min")
         and input_component.min == 1
         and hasattr(input_component, "max")
-        and input_component.max == 1000
+        and input_component.max == 996   # last value of range(1, 1000, 5) (#330)
         and hasattr(input_component, "step")
         and input_component.step == 5
     ), "Default range failed"
