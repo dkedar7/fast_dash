@@ -1,4 +1,14 @@
-# Release 0.7.7
+# Release 0.7.8
+
+## 0.7.8 (2026-11-06)
+
+### Changed
+- **A slider built from `range()` stops at the last value the range yields**
+  (#330). `range(0, 3)` yields 0, 1, 2, but its slider, and the MCP contract
+  built from it, went up to 3, so a callback using the value as an index
+  crashed on the top value the slider offered. This applies to both
+  `x: int = range(...)` and `Annotated[int, range(...)]`. **If you relied on
+  the old inclusive top,** widen the range: `range(0, 101)` gives 0 to 100.
 
 ## 0.7.7 (2026-11-05)
 
