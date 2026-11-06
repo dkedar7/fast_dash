@@ -176,7 +176,7 @@ def test_annotated_range_input():
     comp = app.inputs_with_ids[0]
     assert comp.__doc__ == dmc.Slider().__doc__, "Annotated[int, range] should be a Slider"
     assert comp.min == 0, "Slider min should be 0"
-    assert comp.max == 100, "Slider max should be 100"
+    assert comp.max == 99, "Slider max is the last value range(0, 100) yields (#330)"
 
 
 def test_annotated_range_with_step():

@@ -104,6 +104,40 @@ def test_range_slider_starts_on_range_start():
     assert _invoke(app) == {"output_output_1": 6}
 
 
+# --- #330 ------------------------------------------------------------------ #
+
+def test_range_slider_max_is_the_last_value_the_range_yields():
+    # range(0, 3) yields 0, 1, 2: the slider and the MCP contract must not
+    # offer 3, or a range-faithful callback indexes past the end.
+    def pick(i: int = range(0, 3)) -> str:
+        return ["alpha", "beta", "gamma"][i]
+    app = FastDash(callback_fn=pick, mcp_server=True)
+    assert app.inputs_with_ids[0].max == 2
+    client = app.mcp_test_client()
+    (spec,) = client.describe_app()["inputs"]
+    assert spec["props"]["max"] == 2
+    assert client.invoke(inputs={"i": 2})["ok"] is True
+    assert client.invoke(inputs={"i": 3})["ok"] is False
+
+
+@pytest.mark.parametrize("r, bounds", [
+    (range(0, 3), (0, 2, 1)),
+    (range(1, 10, 2), (1, 9, 2)),
+    (range(10, 0, -2), (2, 10, 2)),
+    (range(5, 5), (5, 5, 1)),          # empty: collapses to its start
+])
+def test_range_bounds(r, bounds):
+    from fast_dash.Components import _range_bounds
+    assert _range_bounds(r) == bounds
+
+
+def test_annotated_range_slider_max():
+    from typing import Annotated
+    from fast_dash.Components import _resolve_typing_hint
+    resolved = _resolve_typing_hint(Annotated[int, range(0, 3)], 0)
+    assert resolved.component.max == 2
+
+
 # --- #231 ------------------------------------------------------------------ #
 
 def test_dict_param_receives_a_dict():
