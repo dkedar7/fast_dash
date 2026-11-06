@@ -946,7 +946,7 @@ you, the innovator, write as less UI development code as possible. </p>
 <tr>
 <td>Bounded number</td>
 <td><code>int</code> or <code>float</code></td>
-<td>List of bounds and step size in the format: <code>range(min, max, step)</code></td>
+<td>A <code>range(start, stop, step)</code>. Like Python's <code>range</code>, <code>stop</code> is excluded: <code>range(0, 10)</code> gives a slider from 0 to 9</td>
 <td><code>def enter_score(score: int = range(0, 10))</code> or <code>def enter_score(score: float = list(np.arange(0, 10, 0.1)))</code></td>
 </tr>
 <tr>
@@ -999,9 +999,9 @@ you, the innovator, write as less UI development code as possible. </p>
 </tr>
 <tr>
 <td>Bounded number via type hint</td>
-<td><code>Annotated[int, range(min, max, step)]</code></td>
+<td><code>Annotated[int, range(start, stop, step)]</code></td>
 <td>Any int/float</td>
-<td><code>def score(s: Annotated[int, range(0, 100)])</code></td>
+<td><code>def score(s: Annotated[int, range(0, 101)])</code> (0 to 100)</td>
 </tr>
 <tr>
 <td>Dropdown via type hint</td>
