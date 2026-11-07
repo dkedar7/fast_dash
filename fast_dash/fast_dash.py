@@ -29,6 +29,7 @@ from .Components import (
 
 from .utils import (
     _warn_on_react_mismatch,
+    _warn_no_socket,
     _bootswatch_name,
     _drain_generator,
     _find_stream_output,
@@ -2582,6 +2583,13 @@ class FastDash(ChatAppMixin):
         """A simple handler that prints to console and returns a response"""
 
         if self.stream == False:
+            return
+
+        # No socket.io connection (a plain sync-worker gunicorn deploy): skip the
+        # live pushes so the Run still returns its final output, and say why
+        # once instead of raising AttributeError on flask.request.sid (#333).
+        if socket_id is None:
+            _warn_no_socket()
             return
 
         if notification:

@@ -700,6 +700,32 @@ def react_mismatch():
     )
 
 
+NO_SOCKET_MESSAGE = (
+    "The browser has no socket.io connection, so {what} cannot stream. This "
+    "happens under a plain 'gunicorn app:server' deploy: gunicorn's default "
+    "sync worker cannot serve socket.io. Build the app with backend='fastapi' "
+    "and serve it with 'uvicorn app:server' (pip install 'fast-dash[fastapi]'), "
+    "or run gunicorn with a single eventlet or gevent worker. See "
+    "'Streaming and chat apps' in the deployment guide."
+)
+
+_warned_no_socket = False
+
+
+def _warn_no_socket():
+    """Warn once per process that streaming fell back to the final output (#333)."""
+    global _warned_no_socket
+    if _warned_no_socket:
+        return
+    _warned_no_socket = True
+    warnings.warn(
+        NO_SOCKET_MESSAGE.format(what="streamed updates")
+        + " Showing each Run's final output only.",
+        RuntimeWarning,
+        stacklevel=2,
+    )
+
+
 def _warn_on_react_mismatch():
     """Warn once per build when the web UI would render blank (#320)."""
     problem = react_mismatch()

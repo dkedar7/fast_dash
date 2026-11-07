@@ -301,6 +301,11 @@ your callback:
 - **ASGI** (`backend="fastapi"`, needs `fast-dash[fastapi]`): frames are pushed
   with Dash's native `set_props` over a WebSocket — no socket.io.
 
+To deploy, serve a FastAPI-backend app with `uvicorn app:server`. A
+Flask-backend chat app under a plain `gunicorn app:server` can't stream, because
+gunicorn's default worker doesn't serve socket.io; see
+[Streaming and chat apps](deployment.md#streaming-and-chat-apps).
+
 ## Human-in-the-loop (interrupts)
 
 A LangGraph agent that calls `interrupt(...)` pauses the turn and Fast Dash
