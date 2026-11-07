@@ -1,4 +1,16 @@
-# Release 0.7.8
+# Release 0.7.9
+
+## 0.7.9 (2026-11-07)
+
+### Fixed
+- **Streaming and chat apps under a plain `gunicorn app:server`** (#333). On
+  the Flask backend these push over socket.io, which gunicorn's default worker
+  can't serve, so a Run failed with `AttributeError: 'Request' object has no
+  attribute 'sid'` and showed nothing. A `stream=True` Run now shows its final
+  output and warns once with the fix; a chat turn answers with that fix as a
+  notification. To stream in production, use `backend="fastapi"` with
+  `uvicorn app:server`; the deployment guide has a new "Streaming and chat
+  apps" section.
 
 ## 0.7.8 (2026-11-06)
 
