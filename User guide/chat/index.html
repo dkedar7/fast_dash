@@ -1187,6 +1187,10 @@ your callback:</p>
 <li><strong>ASGI</strong> (<code>backend="fastapi"</code>, needs <code>fast-dash[fastapi]</code>): frames are pushed
   with Dash's native <code>set_props</code> over a WebSocket — no socket.io.</li>
 </ul>
+<p>To deploy, serve a FastAPI-backend app with <code>uvicorn app:server</code>. A
+Flask-backend chat app under a plain <code>gunicorn app:server</code> can't stream, because
+gunicorn's default worker doesn't serve socket.io; see
+<a href="../deployment/#streaming-and-chat-apps">Streaming and chat apps</a>.</p>
 <h2 id="human-in-the-loop-interrupts">Human-in-the-loop (interrupts)</h2>
 <p>A LangGraph agent that calls <code>interrupt(...)</code> pauses the turn and Fast Dash
 renders an <strong>approve / reject</strong> card (from the interrupt's <code>allowed_decisions</code>)

@@ -504,6 +504,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#streaming-and-chat-apps" class="md-nav__link">
+    Streaming and chat apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#deploying-an-app-with-mcp_servertrue" class="md-nav__link">
     Deploying an app with mcp_server=True
   </a>
@@ -814,6 +821,13 @@
 </li>
       
         <li class="md-nav__item">
+  <a href="#streaming-and-chat-apps" class="md-nav__link">
+    Streaming and chat apps
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
   <a href="#deploying-an-app-with-mcp_servertrue" class="md-nav__link">
     Deploying an app with mcp_server=True
   </a>
@@ -920,6 +934,25 @@ release that lacks most of the features in these docs.</p>
 </code></pre></div>
 <p>You will be asked to choose a few different settings for your deployment. Read Google Cloud Run's documentation here to understand what each of them mean.</p>
 <p>That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.</p>
+<h2 id="streaming-and-chat-apps">Streaming and chat apps</h2>
+<p>Apps built with <code>stream=True</code> or <code>chat=</code> push each update to the browser
+while the callback runs. On the default Flask backend that push goes over
+socket.io, and gunicorn's default worker can't serve socket.io. Under a plain
+<code>gunicorn app:server</code>, a streamed Run shows only its final output (the server
+log warns once), and a chat turn answers with an error naming the fix.</p>
+<p>To stream in production, build the app on the FastAPI backend and serve it
+with uvicorn. It streams over a native WebSocket, with no socket.io involved:</p>
+<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span><span class="s1">&#39;fast-dash[fastapi]&#39;</span><span class="w">      </span><span class="c1"># includes uvicorn</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code><span class="n">app</span> <span class="o">=</span> <span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">counter</span><span class="p">,</span> <span class="n">stream</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">backend</span><span class="o">=</span><span class="s2">&quot;fastapi&quot;</span><span class="p">)</span>
+<span class="n">server</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">server</span>
+</code></pre></div>
+<div class="highlight"><pre><span></span><code>CMD exec uvicorn app:server --host 0.0.0.0 --port $PORT
+</code></pre></div>
+<p>To stay on Flask, run gunicorn with a single eventlet or gevent worker, as
+the <a href="https://flask-socketio.readthedocs.io/en/latest/deployment.html">Flask-SocketIO deployment guide</a>
+describes. <code>app.run()</code> uses a socket.io-aware server, which is why streaming
+works locally either way.</p>
 <h2 id="deploying-an-app-with-mcp_servertrue">Deploying an app with <code>mcp_server=True</code></h2>
 <p>Nothing extra is needed: <code>/mcp</code> is mounted when the app object is built, so <code>server = app.server</code> carries it and <code>gunicorn app:server</code> serves it alongside the UI. For <code>backend="fastapi"</code>, <code>app.server</code> is an ASGI app, so serve it with <code>uvicorn app:server --host 0.0.0.0 --port $PORT</code> instead (and add <code>uvicorn</code> to <code>requirements.txt</code>).</p>
 <div class="admonition warning">

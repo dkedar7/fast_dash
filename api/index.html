@@ -2329,8 +2329,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
         <details class="quote">
           <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 277</span>
-<span class="normal"> 278</span>
+          <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal"> 278</span>
 <span class="normal"> 279</span>
 <span class="normal"> 280</span>
 <span class="normal"> 281</span>
@@ -4813,7 +4812,15 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2758</span>
 <span class="normal">2759</span>
 <span class="normal">2760</span>
-<span class="normal">2761</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
+<span class="normal">2761</span>
+<span class="normal">2762</span>
+<span class="normal">2763</span>
+<span class="normal">2764</span>
+<span class="normal">2765</span>
+<span class="normal">2766</span>
+<span class="normal">2767</span>
+<span class="normal">2768</span>
+<span class="normal">2769</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">class</span><span class="w"> </span><span class="nc">FastDash</span><span class="p">(</span><span class="n">ChatAppMixin</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;</span>
 <span class="sd">    Fast Dash app object containing automatically generated UI components and callbacks.</span>
 
@@ -7123,6 +7130,13 @@ sets all parameters required for Fast Dash app deployment.</p>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
             <span class="k">return</span>
 
+        <span class="c1"># No socket.io connection (a plain sync-worker gunicorn deploy): skip the</span>
+        <span class="c1"># live pushes so the Run still returns its final output, and say why</span>
+        <span class="c1"># once instead of raising AttributeError on flask.request.sid (#333).</span>
+        <span class="k">if</span> <span class="n">socket_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">_warn_no_socket</span><span class="p">()</span>
+            <span class="k">return</span>
+
         <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
             <span class="n">emit</span><span class="p">(</span><span class="n">component_id</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;value&quot;</span><span class="p">:</span> <span class="n">data</span><span class="p">,</span> <span class="s2">&quot;append&quot;</span><span class="p">:</span> <span class="kc">False</span><span class="p">},</span> <span class="n">namespace</span><span class="o">=</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="n">to</span><span class="o">=</span><span class="n">socket_id</span><span class="p">)</span>
             <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;Notification: </span><span class="si">{</span><span class="n">data</span><span class="si">}</span><span class="s2">&quot;</span>
@@ -7622,8 +7636,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">292</span>
-<span class="normal">293</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">293</span>
 <span class="normal">294</span>
 <span class="normal">295</span>
 <span class="normal">296</span>
@@ -8096,7 +8109,8 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">763</span>
 <span class="normal">764</span>
 <span class="normal">765</span>
-<span class="normal">766</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
+<span class="normal">766</span>
+<span class="normal">767</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span>
     <span class="bp">self</span><span class="p">,</span>
     <span class="n">callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
@@ -8593,15 +8607,7 @@ sets all parameters required for Fast Dash app deployment.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2672</span>
-<span class="normal">2673</span>
-<span class="normal">2674</span>
-<span class="normal">2675</span>
-<span class="normal">2676</span>
-<span class="normal">2677</span>
-<span class="normal">2678</span>
-<span class="normal">2679</span>
-<span class="normal">2680</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2680</span>
 <span class="normal">2681</span>
 <span class="normal">2682</span>
 <span class="normal">2683</span>
@@ -8682,7 +8688,15 @@ sets all parameters required for Fast Dash app deployment.</p>
 <span class="normal">2758</span>
 <span class="normal">2759</span>
 <span class="normal">2760</span>
-<span class="normal">2761</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">2761</span>
+<span class="normal">2762</span>
+<span class="normal">2763</span>
+<span class="normal">2764</span>
+<span class="normal">2765</span>
+<span class="normal">2766</span>
+<span class="normal">2767</span>
+<span class="normal">2768</span>
+<span class="normal">2769</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">add_streaming</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Add streaming functionality to the app.&quot;&quot;&quot;</span>
     <span class="c1"># Native-WebSocket streaming pushes via set_props directly; the</span>
     <span class="c1"># socket.io clientside listeners below are only for the Flask path.</span>
@@ -8796,15 +8810,15 @@ or <code>asyncio</code>. See <code>fast_dash.mcp.MCPTestClient</code>.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1444</span>
-<span class="normal">1445</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1445</span>
 <span class="normal">1446</span>
 <span class="normal">1447</span>
 <span class="normal">1448</span>
 <span class="normal">1449</span>
 <span class="normal">1450</span>
 <span class="normal">1451</span>
-<span class="normal">1452</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">mcp_test_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+<span class="normal">1452</span>
+<span class="normal">1453</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">mcp_test_client</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A synchronous client for this app&#39;s MCP tools, for tests (#325).</span>
 
 <span class="sd">    Calls go through the real ``/mcp`` route in-process: no server, port</span>
@@ -8836,8 +8850,7 @@ and any other Dash <code>run()</code> option) override the constructor's (#205).
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1454</span>
-<span class="normal">1455</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">1455</span>
 <span class="normal">1456</span>
 <span class="normal">1457</span>
 <span class="normal">1458</span>
@@ -8862,7 +8875,8 @@ and any other Dash <code>run()</code> option) override the constructor's (#205).
 <span class="normal">1477</span>
 <span class="normal">1478</span>
 <span class="normal">1479</span>
-<span class="normal">1480</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
+<span class="normal">1480</span>
+<span class="normal">1481</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">debug</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">port</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">host</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Start the server. Keyword arguments (``debug``, ``port``, ``host``,</span>
 <span class="sd">    and any other Dash ``run()`` option) override the constructor&#39;s (#205).&quot;&quot;&quot;</span>
     <span class="n">overrides</span> <span class="o">=</span> <span class="nb">dict</span><span class="p">(</span><span class="n">kwargs</span><span class="p">)</span>
@@ -8911,8 +8925,7 @@ and any other Dash <code>run()</code> option) override the constructor's (#205).
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2581</span>
-<span class="normal">2582</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2582</span>
 <span class="normal">2583</span>
 <span class="normal">2584</span>
 <span class="normal">2585</span>
@@ -8958,10 +8971,25 @@ and any other Dash <code>run()</code> option) override the constructor's (#205).
 <span class="normal">2625</span>
 <span class="normal">2626</span>
 <span class="normal">2627</span>
-<span class="normal">2628</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2628</span>
+<span class="normal">2629</span>
+<span class="normal">2630</span>
+<span class="normal">2631</span>
+<span class="normal">2632</span>
+<span class="normal">2633</span>
+<span class="normal">2634</span>
+<span class="normal">2635</span>
+<span class="normal">2636</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">socket_id</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;A simple handler that prints to console and returns a response&quot;&quot;&quot;</span>
 
     <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">stream</span> <span class="o">==</span> <span class="kc">False</span><span class="p">:</span>
+        <span class="k">return</span>
+
+    <span class="c1"># No socket.io connection (a plain sync-worker gunicorn deploy): skip the</span>
+    <span class="c1"># live pushes so the Run still returns its final output, and say why</span>
+    <span class="c1"># once instead of raising AttributeError on flask.request.sid (#333).</span>
+    <span class="k">if</span> <span class="n">socket_id</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="n">_warn_no_socket</span><span class="p">()</span>
         <span class="k">return</span>
 
     <span class="k">if</span> <span class="n">notification</span><span class="p">:</span>
@@ -9036,15 +9064,7 @@ rather than append on the native path.</p>
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2630</span>
-<span class="normal">2631</span>
-<span class="normal">2632</span>
-<span class="normal">2633</span>
-<span class="normal">2634</span>
-<span class="normal">2635</span>
-<span class="normal">2636</span>
-<span class="normal">2637</span>
-<span class="normal">2638</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2638</span>
 <span class="normal">2639</span>
 <span class="normal">2640</span>
 <span class="normal">2641</span>
@@ -9076,7 +9096,15 @@ rather than append on the native path.</p>
 <span class="normal">2667</span>
 <span class="normal">2668</span>
 <span class="normal">2669</span>
-<span class="normal">2670</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
+<span class="normal">2670</span>
+<span class="normal">2671</span>
+<span class="normal">2672</span>
+<span class="normal">2673</span>
+<span class="normal">2674</span>
+<span class="normal">2675</span>
+<span class="normal">2676</span>
+<span class="normal">2677</span>
+<span class="normal">2678</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">stream_handler_native</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">component_id</span><span class="p">,</span> <span class="n">data</span><span class="p">,</span> <span class="nb">property</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="n">notification</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">func_data</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Native-WebSocket streaming handler — pushes via ``set_props``.</span>
 
 <span class="sd">    The ASGI counterpart of :meth:`stream_handler`. Called by</span>
@@ -10271,15 +10299,7 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 
       <details class="quote">
         <summary>Source code in <code>fast_dash/fast_dash.py</code></summary>
-        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2764</span>
-<span class="normal">2765</span>
-<span class="normal">2766</span>
-<span class="normal">2767</span>
-<span class="normal">2768</span>
-<span class="normal">2769</span>
-<span class="normal">2770</span>
-<span class="normal">2771</span>
-<span class="normal">2772</span>
+        <div class="highlight"><table class="highlighttable"><tr><td class="linenos"><div class="linenodiv"><pre><span></span><span class="normal">2772</span>
 <span class="normal">2773</span>
 <span class="normal">2774</span>
 <span class="normal">2775</span>
@@ -10440,7 +10460,15 @@ For multi-function tabbed apps, use <code>FastDash([fn_a, fn_b, ...], tab_titles
 <span class="normal">2930</span>
 <span class="normal">2931</span>
 <span class="normal">2932</span>
-<span class="normal">2933</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
+<span class="normal">2933</span>
+<span class="normal">2934</span>
+<span class="normal">2935</span>
+<span class="normal">2936</span>
+<span class="normal">2937</span>
+<span class="normal">2938</span>
+<span class="normal">2939</span>
+<span class="normal">2940</span>
+<span class="normal">2941</span></pre></div></td><td class="code"><div><pre><span></span><code><span class="k">def</span><span class="w"> </span><span class="nf">fastdash</span><span class="p">(</span>
     <span class="n">_callback_fn</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
     <span class="o">*</span><span class="p">,</span>
     <span class="n">mosaic</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
