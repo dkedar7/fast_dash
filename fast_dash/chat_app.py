@@ -1466,6 +1466,18 @@ class ChatAppMixin:
             query = "" if is_run else submit["q"].strip()
             sid = session_id or "default"
 
+            # Flask streams a turn only over socket.io; without a connection
+            # (plain sync-worker gunicorn) the reply would never land. Say so
+            # in the UI and the log instead of an AttributeError (#333).
+            if not self._native_stream and not socket_id:
+                import logging
+
+                from fast_dash.utils import NO_SOCKET_MESSAGE
+
+                msg = NO_SOCKET_MESSAGE.format(what="chat replies")
+                logging.getLogger(__name__).error(msg)
+                return False, _get_error_notification_component(msg)
+
             sess = self._session(sid)
             # A pending interrupt must be answered (via the decision buttons)
             # before a new turn can start (HITL, Phase 4).

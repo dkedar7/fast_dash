@@ -119,6 +119,35 @@ You will be asked to choose a few different settings for your deployment. Read G
 
 That's it! Google Cloud will build your app inside a Docker container and display the URL once it's ready. The entire operation can take upto five minutes for simple applications. The build time highly depends on the complexity of your app and the number of dependencies.
 
+## Streaming and chat apps
+
+Apps built with `stream=True` or `chat=` push each update to the browser
+while the callback runs. On the default Flask backend that push goes over
+socket.io, and gunicorn's default worker can't serve socket.io. Under a plain
+`gunicorn app:server`, a streamed Run shows only its final output (the server
+log warns once), and a chat turn answers with an error naming the fix.
+
+To stream in production, build the app on the FastAPI backend and serve it
+with uvicorn. It streams over a native WebSocket, with no socket.io involved:
+
+```bash
+pip install 'fast-dash[fastapi]'      # includes uvicorn
+```
+
+```py
+app = FastDash(callback_fn=counter, stream=True, backend="fastapi")
+server = app.server
+```
+
+```
+CMD exec uvicorn app:server --host 0.0.0.0 --port $PORT
+```
+
+To stay on Flask, run gunicorn with a single eventlet or gevent worker, as
+the [Flask-SocketIO deployment guide](https://flask-socketio.readthedocs.io/en/latest/deployment.html)
+describes. `app.run()` uses a socket.io-aware server, which is why streaming
+works locally either way.
+
 ## Deploying an app with `mcp_server=True`
 
 Nothing extra is needed: `/mcp` is mounted when the app object is built, so `server = app.server` carries it and `gunicorn app:server` serves it alongside the UI. For `backend="fastapi"`, `app.server` is an ASGI app, so serve it with `uvicorn app:server --host 0.0.0.0 --port $PORT` instead (and add `uvicorn` to `requirements.txt`).
