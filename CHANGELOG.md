@@ -1,4 +1,12 @@
-# Release 0.7.9
+# Release 0.7.10
+
+## 0.7.10 (2026-11-08)
+
+### Changed
+- **A `bool` input renders a Switch toggle** (#336). It rendered a checkbox,
+  while the README, the MCP `describe_app` tag, the `Switch` built-in and
+  `set_form(type="Switch")` all called it a Switch. It binds the same `checked`
+  property, so values are unchanged; only the widget's look changes.
 
 ## 0.7.9 (2026-11-07)
 
