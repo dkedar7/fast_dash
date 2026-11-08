@@ -358,7 +358,7 @@ def test_fdco008_input_hint_is_boolean(dash_duo):
     app = FastDash(callback_fn=simple_bool)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dmc.Checkbox().__doc__
+        input_component.__doc__ == dmc.Switch().__doc__
         and hasattr(input_component, "checked")
         and input_component.checked is True
         and hasattr(input_component, "component_property")
@@ -372,7 +372,7 @@ def test_fdco008_input_hint_is_boolean(dash_duo):
     app = FastDash(callback_fn=simple_bool)
     input_component = app.inputs_with_ids[0]
     assert (
-        input_component.__doc__ == dmc.Checkbox().__doc__
+        input_component.__doc__ == dmc.Switch().__doc__
         and not hasattr(input_component, "checked")
         and hasattr(input_component, "component_property")
         and input_component.component_property == "checked"
@@ -552,7 +552,7 @@ def test_fdco012_input_hint_is_unknown(dash_duo):
     input_component = app.inputs_with_ids[0]
 
     assert (
-        input_component.__doc__ == dmc.Checkbox().__doc__
+        input_component.__doc__ == dmc.Switch().__doc__
         and hasattr(input_component, "component_property")
         and input_component.component_property == "checked"
         and hasattr(input_component, "checked")

@@ -253,7 +253,7 @@ def test_plain_bool_still_works():
 
     app = FastDash(callback_fn=func)
     comp = app.inputs_with_ids[0]
-    assert comp.__doc__ == dmc.Checkbox().__doc__, "Plain bool should produce a Checkbox"
+    assert comp.__doc__ == dmc.Switch().__doc__, "Plain bool should produce a Switch (#336)"
     assert comp.checked is True, "Plain bool default should be preserved"
 
 
@@ -363,3 +363,19 @@ def test_module_named_return_annotation_keeps_by_name_fallback():
     assert len(app.outputs_with_ids) == 1
     assert app.outputs_with_ids[0].tag == "Image"
     assert app.outputs_with_ids[0].component_property == "src"
+
+
+def test_bool_renders_the_switch_its_tag_names():
+    # The README, the MCP tag, the Switch built-in and set_form("Switch") all
+    # say Switch; a bool used to render a dmc.Checkbox instead (#336).
+    from fast_dash import Switch
+
+    def demo(flag: bool = True, off: bool = False) -> str:
+        return str(flag)
+
+    app = FastDash(callback_fn=demo, mcp_server=True)
+    widgets = [type(c.component).__name__ for c in app.inputs]
+    assert widgets == ["Switch", "Switch"]
+    assert type(Switch.component).__name__ == "Switch"
+    tags = [i["tag"] for i in app.mcp_test_client().describe_app()["inputs"]]
+    assert tags == ["Switch", "Switch"]
