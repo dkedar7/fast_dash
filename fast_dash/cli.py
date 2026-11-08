@@ -5,13 +5,18 @@ import sys
 import argparse
 from pathlib import Path
 
-def create_project(project_name, port=8080):
+def create_project(project_name, port=8080, backend="flask"):
     """
     Create a new project folder with required files:
     - Dockerfile
     - requirements.txt
     - app.py with FastDash import
+
+    ``backend="fastapi"`` scaffolds an ASGI app served by uvicorn, which
+    streams ``stream=True`` and ``chat=`` updates in production; the default
+    Flask app under plain gunicorn can't (#333).
     """
+    fastapi = backend == "fastapi"
     # Create project directory
     project_dir = Path(os.getcwd()) / project_name
     
@@ -25,11 +30,15 @@ def create_project(project_name, port=8080):
     print(f"Created project directory: {project_name}/")
     
     # Create Dockerfile
+    serve = (
+        f"uvicorn app:server --host 0.0.0.0 --port ${{PORT:-{port}}}" if fastapi
+        else f"gunicorn app:server --bind :${{PORT:-{port}}}"
+    )
     dockerfile_content = f"""FROM python:3.13-slim
 ADD . /app
 WORKDIR /app
 RUN pip install --no-cache-dir -r requirements.txt
-CMD gunicorn app:server --bind :${{PORT:-{port}}}
+CMD {serve}
 """
     
     with open(project_dir / "Dockerfile", "w") as f:
@@ -38,8 +47,11 @@ CMD gunicorn app:server --bind :${{PORT:-{port}}}
     
     # Create empty requirements.txt
     with open(project_dir / "requirements.txt", "w") as f:
-        f.write("fast-dash\n")
-        f.write("gunicorn\n")
+        if fastapi:
+            f.write("fast-dash[fastapi]\n")      # brings fastapi and uvicorn
+        else:
+            f.write("fast-dash\n")
+            f.write("gunicorn\n")
     print(f"Created requirements.txt: {project_name}/requirements.txt")
     
     # Create app.py with FastDash import
@@ -49,7 +61,8 @@ CMD gunicorn app:server --bind :${{PORT:-{port}}}
         f.write("def simple_text_to_text(input_text: str) -> str:\n")
         f.write("    return input_text\n\n\n")
         f.write("# Initialize your FastDash application here\n")
-        f.write(f"app = FastDash(simple_text_to_text, port={port})\n\n")
+        extra = ', backend="fastapi"' if fastapi else ""
+        f.write(f"app = FastDash(simple_text_to_text, port={port}{extra})\n\n")
         f.write("server = app.server\n\n")
         f.write("if __name__ == '__main__':\n")
         f.write("    app.run()\n")
@@ -107,6 +120,13 @@ def main():
         default=None,
         help="Port number for the FastDash app (default: 8080)"
     )
+    create_parser.add_argument(
+        "--backend",
+        choices=["flask", "fastapi"],
+        default="flask",
+        help="Server backend: flask (gunicorn, the default) or fastapi "
+             "(uvicorn; needed to stream stream=True / chat= apps in production)",
+    )
     
     subparsers.add_parser(
         "doctor", help="Check the installed versions for known conflicts"
@@ -134,7 +154,7 @@ def main():
 
     # Handle commands
     if args.command == "create":
-        return create_project(args.project_name, port=args.port)
+        return create_project(args.project_name, port=args.port, backend=args.backend)
     else:
         parser.print_help()
         return 1
