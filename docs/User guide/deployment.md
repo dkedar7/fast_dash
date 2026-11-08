@@ -24,6 +24,12 @@ It writes three files:
 - `requirements.txt`: `fast-dash` and `gunicorn`
 - `Dockerfile`: a Python 3.13 image that serves `app:server` with gunicorn
 
+For an app that streams (`stream=True` or `chat=`), add `--backend fastapi`.
+The scaffold then builds the app on the FastAPI backend, lists
+`fast-dash[fastapi]` in `requirements.txt`, and serves `app:server` with
+uvicorn, which streams in production (see
+[Streaming and chat apps](#streaming-and-chat-apps)).
+
 Replace the example function in `app.py` with yours, then deploy the folder as
 described below. To build the same files by hand, follow the steps in the rest
 of this page.
