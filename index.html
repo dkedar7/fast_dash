@@ -1156,9 +1156,14 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 </thead>
 <tbody>
 <tr>
-<td><code>Text</code>, <code>TextArea</code>, <code>PasswordInput</code></td>
+<td><code>Text</code>, <code>TextArea</code></td>
 <td>input or output</td>
-<td>Single-line, multi-line, masked text</td>
+<td>Multi-line text box (<code>Text</code> starts 4 rows tall; <code>TextArea</code> 3, growing to 12). For a single-line input, annotate the parameter as <code>str</code> and let Fast Dash pick</td>
+</tr>
+<tr>
+<td><code>PasswordInput</code></td>
+<td>input or output</td>
+<td>Masked text</td>
 </tr>
 <tr>
 <td><code>NumberInput</code>, <code>Slider</code></td>
