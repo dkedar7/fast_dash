@@ -1,4 +1,18 @@
-# Release 0.7.10
+# Release 0.7.11
+
+## 0.7.11 (2026-11-08)
+
+### Added
+- **`fastdash create --backend fastapi`** (#333 follow-up). Scaffolds an app
+  that streams in production: `backend="fastapi"` in `app.py`,
+  `fast-dash[fastapi]` in `requirements.txt`, and a Dockerfile that serves
+  `app:server` with uvicorn. The default scaffold (Flask with gunicorn) is
+  unchanged.
+
+### Docs
+- **The `Text` built-in is multi-line** (#322). The README called it
+  single-line; like `TextArea`, it's a multi-line box. A plain `str` hint gives
+  a single-line input.
 
 ## 0.7.10 (2026-11-08)
 
