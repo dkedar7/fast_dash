@@ -1145,8 +1145,9 @@ def _output_kind(comp):
 # Live widget class -> the canonical widget name from list_component_types()
 # (the DynamicDash COMPONENT_REGISTRY keys). What static inference *actually*
 # builds, empirically -- e.g. a hex-default str becomes a dmc.ColorInput, a
-# list-default str becomes a dmc.Select, a bool becomes a dmc.Checkbox (whose
-# spec-level equivalent is "Switch").
+# list-default str becomes a dmc.Select, a bool becomes a dmc.Switch (#336).
+# A dmc.Checkbox (a hand-built component) is still reported as a "Switch",
+# the nearest spec-level widget.
 _INPUT_WIDGET_TAG = {
     "TextInput": "Text",
     "Textarea": "TextArea",

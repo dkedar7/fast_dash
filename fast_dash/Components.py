@@ -1691,15 +1691,16 @@ def _get_component_from_input(hint, default_value=None):
         component.dict_default = mapping
 
     elif _hint_type == "Boolean":
-        # Mantine Checkbox follows the app's primary color and dark theme; the
-        # old dbc.Checkbox rendered with the Bootswatch accent (off-theme).
+        # A Mantine Switch: the toggle the README, the MCP tag, the Switch
+        # built-in and set_form("Switch") all name (#336). It follows the app's
+        # primary color and dark theme, unlike the old dbc.Checkbox.
         if _default_value_type == "Boolean":
             component = Fastify(
-                dmc.Checkbox(checked=default_value), "checked", tag=_hint_type
+                dmc.Switch(checked=default_value), "checked", tag=_hint_type
             )
 
         else:
-            component = Fastify(dmc.Checkbox(), "checked", tag=_hint_type)
+            component = Fastify(dmc.Switch(), "checked", tag=_hint_type)
 
     elif _hint_type == "Image":
         if _default_value_type == "Image":
@@ -1825,7 +1826,7 @@ def _get_component_from_input(hint, default_value=None):
 
             elif _default_value_type == "Boolean":
                 component = Fastify(
-                    dmc.Checkbox(checked=default_value), "checked", tag=_default_value_type
+                    dmc.Switch(checked=default_value), "checked", tag=_default_value_type
                 )
 
             elif _default_value_type == "Date":
