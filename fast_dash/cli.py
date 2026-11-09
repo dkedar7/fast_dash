@@ -102,6 +102,25 @@ def doctor():
     return 0
 
 
+def doctor_mcp(url, as_json=False, timeout=30.0):
+    """Smoke-test the MCP surface of the app running at ``url`` (#341).
+
+    Exits 0 when an MCP client can initialize, list the Fast Dash tools and
+    read a well-formed ``describe_app`` contract; 1 otherwise, so it works as
+    a container HEALTHCHECK or a CI step.
+    """
+    import json
+
+    from fast_dash.mcp_check import check_mcp, print_report
+
+    ok, report = check_mcp(url, timeout=timeout)
+    if as_json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        print_report(ok, report)
+    return 0 if ok else 1
+
+
 def main():
     """Main entry point for the CLI"""
     parser = argparse.ArgumentParser(
@@ -128,14 +147,35 @@ def main():
              "(uvicorn; needed to stream stream=True / chat= apps in production)",
     )
     
-    subparsers.add_parser(
-        "doctor", help="Check the installed versions for known conflicts"
+    doctor_parser = subparsers.add_parser(
+        "doctor",
+        help="Check the installed versions for known conflicts, or with --mcp "
+             "a running app's MCP surface",
+    )
+    doctor_parser.add_argument(
+        "--mcp",
+        metavar="URL",
+        help="Connect to a running app's MCP endpoint (e.g. "
+             "http://127.0.0.1:8080/mcp) as an MCP client and check it. "
+             "Needs the mcp package.",
+    )
+    doctor_parser.add_argument(
+        "--json", action="store_true",
+        help="With --mcp: print the report, contract included, as JSON",
+    )
+    doctor_parser.add_argument(
+        "--timeout", type=float, default=30.0,
+        help="With --mcp: seconds to wait for the whole check (default: 30)",
     )
 
     # Parse arguments
     args = parser.parse_args()
 
     if args.command == "doctor":
+        if args.mcp:
+            return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout)
+        if args.json:
+            parser.error("--json needs --mcp")
         return doctor()
 
     while args.command == "create" and args.port is None:
