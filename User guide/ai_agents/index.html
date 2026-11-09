@@ -893,6 +893,21 @@ container health check or CI:</p>
 </code></pre></div>
 <p>Check <code>/mcp</code> itself: other paths under it, such as <code>/mcp/health</code>, return
 the web page even when MCP is running.</p>
+<p>To check what an agent will actually see, run <code>fastdash doctor --mcp</code>
+against the running app. It connects as a real MCP client (it needs
+<code>pip install mcp</code>), initializes, lists the tools and resources, and reads
+<code>describe_app</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>fastdash<span class="w"> </span>doctor<span class="w"> </span>--mcp<span class="w"> </span>http://127.0.0.1:8080/mcp
+<span class="go">Connecting to http://127.0.0.1:8080/mcp (streamable HTTP) ...</span>
+<span class="go">  initialize       OK   protocol 2025-11-25, server Plotly Dash 4.5.0</span>
+<span class="go">  list_tools       OK   get_dash_component, set_input, set_inputs, invoke, ...</span>
+<span class="go">  list_resources   OK   dash://layout, dash://components</span>
+<span class="go">  describe_app     OK   Plot Bars: 2 inputs (n:integer, color:string), 1 output (output_bars:Graph)</span>
+<span class="go">MCP surface healthy.</span>
+</code></pre></div>
+<p>It exits with status 1 and names the likely cause when a step fails, for
+example when <code>/mcp</code> serves the web page because the app wasn't built with
+<code>mcp_server=True</code>. Add <code>--json</code> for the full report, contract included.</p>
 </div>
 <h2 id="what-the-agent-gets">What the agent gets</h2>
 <table>
