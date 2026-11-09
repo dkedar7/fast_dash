@@ -61,6 +61,25 @@ or add it to the project's `.mcp.json`:
     Check `/mcp` itself: other paths under it, such as `/mcp/health`, return
     the web page even when MCP is running.
 
+    To check what an agent will actually see, run `fastdash doctor --mcp`
+    against the running app. It connects as a real MCP client (it needs
+    `pip install mcp`), initializes, lists the tools and resources, and reads
+    `describe_app`:
+
+    ```console
+    $ fastdash doctor --mcp http://127.0.0.1:8080/mcp
+    Connecting to http://127.0.0.1:8080/mcp (streamable HTTP) ...
+      initialize       OK   protocol 2025-11-25, server Plotly Dash 4.5.0
+      list_tools       OK   get_dash_component, set_input, set_inputs, invoke, ...
+      list_resources   OK   dash://layout, dash://components
+      describe_app     OK   Plot Bars: 2 inputs (n:integer, color:string), 1 output (output_bars:Graph)
+    MCP surface healthy.
+    ```
+
+    It exits with status 1 and names the likely cause when a step fails, for
+    example when `/mcp` serves the web page because the app wasn't built with
+    `mcp_server=True`. Add `--json` for the full report, contract included.
+
 ## What the agent gets
 
 | Surface | Provided by | Use |
