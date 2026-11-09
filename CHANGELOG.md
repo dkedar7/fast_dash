@@ -1,4 +1,15 @@
-# Release 0.7.11
+# Release 0.7.12
+
+## 0.7.12 (2026-11-09)
+
+### Added
+- **`fastdash doctor --mcp URL`** (#341). Smoke-tests a running app's agent
+  surface as a real MCP client: `initialize`, the Fast Dash tools in
+  `list_tools`, `list_resources`, and a well-formed `describe_app` contract.
+  It exits with status 1 and names the likely cause when a step fails (for
+  example, `/mcp` serving the web page because the app wasn't built with
+  `mcp_server=True`), so it works as a container `HEALTHCHECK` or a CI step.
+  `--json` prints the report with the contract. Needs `pip install mcp`.
 
 ## 0.7.11 (2026-11-08)
 
