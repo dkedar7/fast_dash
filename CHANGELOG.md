@@ -1,4 +1,15 @@
-# Release 0.7.12
+# Release 0.7.13
+
+## 0.7.13 (2026-11-10)
+
+### Fixed
+- **MCP: a single-line text box is tagged `TextInput`** (#344). `describe_app`
+  reported a plain `str` input, which is a single-line box, as `tag="Text"`.
+  `Text` is the multi-line built-in, and `set_form(type="Text")` builds a
+  multi-line box, so an agent couldn't tell the two apart or rebuild the
+  single-line one. It now reports `TextInput`, which `list_component_types()`
+  lists and `set_form` builds. An agent that looked for `tag == "Text"` to find a
+  plain `str` input should look for `TextInput`.
 
 ## 0.7.12 (2026-11-09)
 
