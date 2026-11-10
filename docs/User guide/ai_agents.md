@@ -127,8 +127,10 @@ use that to build a valid `invoke` call:
 `required: true` marks a parameter with no default: `invoke` refuses to run
 without it and names what's missing. An output's `id` comes from the variable
 the function returns (`return bars` gives `output_bars`); a function that
-returns an expression gets `output_output_1`, `output_output_2`, and so on. `tag` is the widget the hint became — a `str` input can be a text box, a
-textarea or a colour picker, and they are not interchangeable. `outputs` lets an
+returns an expression gets `output_output_1`, `output_output_2`, and so on. `tag` is the widget the hint became — a `str` input can be a single-line
+`TextInput`, a multi-line `TextArea` or a `ColorInput`, and they are not
+interchangeable. Every input `tag` is a type `set_form` accepts, so an agent can
+rebuild the widget it found. `outputs` lets an
 agent see what a run returns **without** having to run it.
 
 ### The contract is enforced

@@ -26,7 +26,7 @@ import plotly.graph_objects as go
 import pytest
 from matplotlib.figure import Figure  # module-level so get_type_hints resolves `-> Figure` (#167)
 
-from fast_dash import DynamicDash, FastDash, Graph, Markdown, PasswordInput
+from fast_dash import DynamicDash, FastDash, Graph, Markdown, PasswordInput, Text, TextArea
 from fast_dash.mcp import MCPState, enable_mcp
 
 
@@ -747,7 +747,7 @@ class TestTools:
         by_id = {i["id"]: i for i in _call(c, "describe_app")["inputs"]}
         assert by_id["color"]["tag"] == "ColorInput"
         assert by_id["bio"]["tag"] == "TextArea"
-        assert by_id["name"]["tag"] == "Text"
+        assert by_id["name"]["tag"] == "TextInput"
 
     def test_every_static_input_tag_is_a_real_widget_type(self):
         # #158: #147 named the widget for the ColorInput/TextArea/Text branches
@@ -778,10 +778,10 @@ class TestTools:
         # The headline: a fixed-choice dropdown is no longer indistinguishable
         # from a free-text box.
         assert by_id["choice"]["tag"] == "Select"
-        assert by_id["plain"]["tag"] == "Text"
+        assert by_id["plain"]["tag"] == "TextInput"
         assert by_id["choice"]["tag"] != by_id["plain"]["tag"]
 
-        expected = {"plain": "Text", "choice": "Select", "lit": "Select",
+        expected = {"plain": "TextInput", "choice": "Select", "lit": "Select",
                     "n": "NumberInput", "rng": "Slider", "flag": "Switch",
                     "day": "DateInput", "tags": "MultiSelect"}
         assert {k: by_id[k]["tag"] for k in expected} == expected
@@ -1667,3 +1667,41 @@ class TestMcpMountedWithoutRun:
             return n
         rules = {r.rule for r in FastDash(callback_fn=f).app.server.url_map.iter_rules()}
         assert "/mcp" not in rules
+
+
+class TestSingleLineTextRoundTrip:
+    """#344: a single-line box is named, and rebuildable, as its own type."""
+
+    def test_static_single_line_str_rebuilds_as_single_line(self):
+        # Text/TextArea are imported at module level so get_type_hints resolves them.
+        from fast_dash.dynamic import _spec_to_component
+
+        def demo(single: str = "one line", multi: Text = "four rows",
+                 area: TextArea = "growing") -> str:
+            """Three text boxes."""
+            return single
+
+        c = _client_for(FastDash(callback_fn=demo, mcp_server=True))
+        legal = set(_call(c, "list_component_types")["types"])
+        tags = {i["id"]: i["tag"] for i in _call(c, "describe_app")["inputs"]}
+        # Single-line no longer shares "Text", which set_form builds multi-line.
+        assert tags["single"] == "TextInput" and "TextInput" in legal
+        assert tags["multi"] != "TextInput" and tags["area"] != "TextInput"
+
+        # Rebuilding each found tag gives the same kind of widget back.
+        def widget(spec_type):
+            return type(_spec_to_component({"name": "f", "type": spec_type}).component).__name__
+        assert widget(tags["single"]) == "TextInput"
+        assert widget(tags["multi"]) == widget(tags["area"]) == "Textarea"
+        assert widget("Text") == "Textarea"
+
+    def test_set_form_text_input_is_described_and_validated(self):
+        app = _dynamic_app()
+        c = _client_for(app)
+        assert _call(c, "set_form", {"specs": [{"name": "q", "type": "TextInput"}]})["ok"]
+        entry = _call(c, "describe_app")["inputs"][0]
+        assert entry["tag"] == "TextInput" and entry["type"] == "string"
+        # A string widget refuses a non-string, as Text and TextArea do.
+        res = _call(c, "set_input", {"component_id": "q", "value": 5})
+        assert res.get("ok") is not True
+        assert _call(c, "set_input", {"component_id": "q", "value": "hello"})["ok"]
