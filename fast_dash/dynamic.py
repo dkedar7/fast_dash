@@ -64,8 +64,19 @@ Select = Fastify(
 )
 
 
+# The single-line box a plain ``str`` input renders. ``Text`` and ``TextArea``
+# are both multi-line, so without this an agent that found a single-line input
+# in describe_app (tag "TextInput") couldn't rebuild it with set_form (#344).
+TextInput = Fastify(
+    component=dmc.TextInput(placeholder=""),
+    component_property="value",
+    tag="Text",
+)
+
+
 COMPONENT_REGISTRY: dict[str, Any] = {
     "Text": Text,
+    "TextInput": TextInput,
     "TextArea": TextArea,
     "NumberInput": NumberInput,
     "Slider": Slider,

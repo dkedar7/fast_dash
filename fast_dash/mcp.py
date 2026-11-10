@@ -446,7 +446,7 @@ def _json_type_name(annotation, default="string") -> str:
 # derives it from the spec's component name here. The component name itself
 # always stays in the ``tag`` field. (issue #131)
 _SPEC_JSON_TYPE = {
-    "Text": "string", "TextArea": "string", "Select": "string",
+    "Text": "string", "TextInput": "string", "TextArea": "string", "Select": "string",
     "DateInput": "string", "DateTimeInput": "string",
     "ColorInput": "string", "PasswordInput": "string",
     "Markdown": "string", "Upload": "string", "UploadImage": "string",
@@ -789,7 +789,7 @@ def _type_error(entry, value):
 # Widgets whose value is always a string; anything else is a value the UI
 # could never produce. A custom component with an unrecognized tag is left
 # permissive, since its value shape isn't known.
-_STRING_WIDGETS = {"Text", "TextArea", "ColorInput", "PasswordInput",
+_STRING_WIDGETS = {"Text", "TextInput", "TextArea", "ColorInput", "PasswordInput",
                    "DateInput", "DateTimeInput", "Upload", "UploadImage"}
 
 _DATE_FORMATS = {"DateInput": "YYYY-MM-DD", "DateTimeInput": "YYYY-MM-DD HH:mm:ss"}
@@ -1149,7 +1149,9 @@ def _output_kind(comp):
 # A dmc.Checkbox (a hand-built component) is still reported as a "Switch",
 # the nearest spec-level widget.
 _INPUT_WIDGET_TAG = {
-    "TextInput": "Text",
+    # Single-line, so not "Text": that names the multi-line built-in, which is
+    # what set_form(type="Text") builds (#344).
+    "TextInput": "TextInput",
     "Textarea": "TextArea",
     "ColorInput": "ColorInput",
     "PasswordInput": "PasswordInput",

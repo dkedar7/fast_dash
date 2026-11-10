@@ -25,7 +25,7 @@ from fast_dash.dynamic import _spec_to_component
 
 def test_registry_includes_expected_types():
     expected = {
-        "Text", "TextArea", "NumberInput", "Slider", "Select", "MultiSelect",
+        "Text", "TextInput", "TextArea", "NumberInput", "Slider", "Select", "MultiSelect",
         "Switch", "DateInput", "DateTimeInput", "DateRange", "ColorInput", "PasswordInput",
         "Markdown", "Upload", "UploadImage",
     }
