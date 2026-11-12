@@ -1,4 +1,20 @@
-# Release 0.7.13
+# Release 0.7.14
+
+## 0.7.14 (2026-11-12)
+
+### Fixed
+- **`inputs=` / `outputs=` counts are checked** (#348). An `inputs=` list
+  shorter than the callback's parameters left the trailing ones with no input,
+  in the UI or over MCP. Now a parameter with no default and no component
+  raises `ValueError` when the app is built, where it used to fail with a
+  `TypeError` on the first run. A parameter with a default that gets no
+  component, or extra components, gives a `UserWarning`. `outputs=` gives a
+  warning when the return annotation fixes a different count (`-> str` is 1,
+  `Tuple[A, B]` is 2). Callbacks with `*args`/`**kwargs` aren't checked.
+- **`fastdash create` without `--port` no longer crashes on a closed stdin**
+  (#347). In a Docker `RUN`, a CI step or with `< /dev/null`, the port prompt
+  raised `EOFError` and nothing was created. It now uses 8080, as it does for a
+  blank answer.
 
 ## 0.7.13 (2026-11-10)
 
