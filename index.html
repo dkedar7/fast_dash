@@ -1012,7 +1012,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 <li><strong>Picks components from type hints and defaults</strong> — <code>int</code> → number input, <code>bool</code> → checkbox, <code>pd.DataFrame</code> → table, etc. (full table below).</li>
 <li><strong>Builds a Dash app and starts the server</strong> — the function body is wired as the callback that runs when the user clicks Run.</li>
 </ol>
-<p>You can override any of this by passing components explicitly via <code>inputs=</code> and <code>outputs=</code>, or by skipping the decorator and using the <code>FastDash(...)</code> class directly.</p>
+<p>You can override any of this by passing components explicitly via <code>inputs=</code> and <code>outputs=</code>, or by skipping the decorator and using the <code>FastDash(...)</code> class directly. An <code>inputs=</code> list gives one component per parameter, in order: a parameter with no default and no component is an error, and a short or long list gets a warning.</p>
 <h2 id="type-hint-component-reference">Type hint → component reference</h2>
 <p>Inputs (parameter type → UI component):</p>
 <table>
