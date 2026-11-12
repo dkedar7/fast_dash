@@ -275,6 +275,94 @@ class _AutoAgentPlaceholder:
         return self._callback(query, ctx)
 
 
+def _fixed_return_count(callback_fn):
+    """How many values the return annotation says the callback returns, if fixed.
+
+    ``Tuple[A, B]`` / ``tuple[A, B]`` give 2 and a plain class gives 1. Anything
+    else (no annotation, a bare ``tuple``, ``Tuple[A, ...]``, ``Iterator[...]``,
+    ``Any``) gives None: the count isn't knowable from the hint.
+    """
+    import typing
+
+    ann = inspect.signature(callback_fn).return_annotation
+    if isinstance(ann, str):
+        try:
+            ann = eval(ann, getattr(callback_fn, "__globals__", {}))  # noqa: S307 - user's own annotation
+        except Exception:
+            return None
+    if ann in (tuple, inspect.Signature.empty, typing.Any, object):
+        return None
+    # A plain class (`-> str`, `-> go.Figure`) is one value. Generic aliases
+    # (Iterator[...] for streaming, Optional[...]), Any and None say nothing
+    # countable, so they're skipped.
+    if isinstance(ann, type) and typing.get_origin(ann) is None:
+        return 1
+    if typing.get_origin(ann) is not tuple:
+        return None
+    args = typing.get_args(ann)
+    if not args or Ellipsis in args or args == ((),):
+        return None
+    return len(args)
+
+
+def _check_component_counts(callback_fn, inputs, outputs):
+    """Fail loudly when ``inputs=`` / ``outputs=`` don't match the callback (#348).
+
+    One input component per parameter, in order. A list that is too short
+    used to strand the trailing parameters: no widget, no MCP input, stuck at
+    their defaults (or, with no default, a TypeError on the first run). Extra
+    components were dropped. Same spirit as the mosaic count check (#296).
+
+    ``inputs`` / ``outputs`` are the explicit lists, or None when inferred.
+    """
+    name = getattr(callback_fn, "__name__", "callback")
+    params = list(inspect.signature(callback_fn).parameters.values())
+    variadic = any(p.kind in (p.VAR_POSITIONAL, p.VAR_KEYWORD) for p in params)
+
+    if inputs is not None and not variadic:
+        n = len(inputs)
+        names = ", ".join(p.name for p in params)
+        uncovered = params[n:]
+        required = [p.name for p in uncovered if p.default is inspect.Parameter.empty]
+        if required:
+            raise ValueError(
+                f"inputs= has {n} component(s) but `{name}` has {len(params)} "
+                f"parameters ({names}); {', '.join(required)} would have no input "
+                "and no default. Pass one component per parameter, in order, or "
+                "omit inputs= to infer them."
+            )
+        if uncovered:
+            warnings.warn(
+                f"inputs= has {n} component(s) but `{name}` has {len(params)} "
+                f"parameters ({names}); {', '.join(p.name for p in uncovered)} "
+                "get no input, in the UI or over MCP, and always take their "
+                "defaults. Pass one component per parameter, in order, or omit "
+                "inputs= to infer them.",
+                UserWarning,
+                stacklevel=4,
+            )
+        elif n > len(params):
+            warnings.warn(
+                f"inputs= has {n} components but `{name}` has {len(params)} "
+                f"parameter(s) ({names}); the last {n - len(params)} are ignored. "
+                "Pass one component per parameter, in order.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+    if outputs is not None:
+        expected = _fixed_return_count(callback_fn)
+        n = len(outputs)
+        if expected is not None and n != expected:
+            warnings.warn(
+                f"outputs= has {n} component(s) but `{name}` is annotated to "
+                f"return {expected} value(s). Pass one component per returned "
+                "value.",
+                UserWarning,
+                stacklevel=4,
+            )
+
+
 class FastDash(ChatAppMixin):
     """
     Fast Dash app object containing automatically generated UI components and callbacks.
@@ -858,6 +946,11 @@ class FastDash(ChatAppMixin):
         self._outputs_inferred = outputs is None
         self.outputs = _infer_output_components(
             callback_fn, outputs, self.output_labels
+        )
+        _check_component_counts(
+            callback_fn,
+            None if inputs is None else self.inputs,
+            None if outputs is None else self.outputs,
         )
         self.update_live = (
             True
