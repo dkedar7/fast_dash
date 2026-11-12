@@ -179,7 +179,14 @@ def main():
         return doctor()
 
     while args.command == "create" and args.port is None:
-        port_input = input("Enter a port number (8080 for Google Cloud Run and 7860 for HuggingFace Spaces). Leave blank to use 8080.\n")
+        try:
+            port_input = input("Enter a port number (8080 for Google Cloud Run and 7860 for HuggingFace Spaces). Leave blank to use 8080.\n")
+        except EOFError:
+            # No one to answer (a Docker RUN, CI, `< /dev/null`): take the
+            # default the prompt promises for a blank answer (#347).
+            print("No input; using port 8080.")
+            args.port = 8080
+            break
         if port_input.strip() == "":
             args.port = 8080
         else:

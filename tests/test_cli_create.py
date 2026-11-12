@@ -35,3 +35,26 @@ def test_unknown_backend_is_rejected(monkeypatch, tmp_path):
     monkeypatch.setattr(sys, "argv", ["fastdash", "create", "x", "--port", "1", "--backend", "quart"])
     with pytest.raises(SystemExit):
         cli.main()
+
+
+def test_create_without_port_on_closed_stdin_uses_8080(monkeypatch, tmp_path, capsys):
+    # #347: no --port and stdin at EOF (Docker RUN, CI) raised EOFError and
+    # created nothing; it now takes the default the prompt promises.
+    import io
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", io.StringIO(""))
+    monkeypatch.setattr(sys, "argv", ["fastdash", "create", "my-app"])
+    assert cli.main() == 0
+    assert "using port 8080" in capsys.readouterr().out
+    assert "--bind :${PORT:-8080}" in (tmp_path / "my-app" / "Dockerfile").read_text()
+
+
+def test_create_without_port_takes_a_blank_answer_as_8080(monkeypatch, tmp_path):
+    import io
+
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setattr(sys, "stdin", io.StringIO("\n"))
+    monkeypatch.setattr(sys, "argv", ["fastdash", "create", "my-app"])
+    assert cli.main() == 0
+    assert "port=8080" in (tmp_path / "my-app" / "app.py").read_text()
