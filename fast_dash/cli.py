@@ -102,6 +102,25 @@ def doctor():
     return 0
 
 
+def doctor_stream(url, as_json=False, timeout=30.0):
+    """Check that a running ``stream=True`` app really streams to a client (#352).
+
+    Connects on the app's own transport (socket.io on Flask, the native
+    WebSocket on ``backend="fastapi"``), presses Run once and exits 0 when
+    updates arrive while the Run is still in flight; 1 otherwise.
+    """
+    import json
+
+    from fast_dash.stream_check import check_stream, print_report
+
+    ok, report = check_stream(url, timeout=timeout)
+    if as_json:
+        print(json.dumps(report, indent=2, default=str))
+    else:
+        print_report(ok, report)
+    return 0 if ok else 1
+
+
 def doctor_mcp(url, as_json=False, timeout=30.0):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
@@ -150,7 +169,7 @@ def main():
     doctor_parser = subparsers.add_parser(
         "doctor",
         help="Check the installed versions for known conflicts, or with --mcp "
-             "a running app's MCP surface",
+             "/ --stream a running app's MCP surface or streaming",
     )
     doctor_parser.add_argument(
         "--mcp",
@@ -160,22 +179,33 @@ def main():
              "Needs the mcp package.",
     )
     doctor_parser.add_argument(
+        "--stream",
+        metavar="URL",
+        help="Connect to a running stream=True app (e.g. http://127.0.0.1:8080/) "
+             "the way the page does, press Run once, and check that updates "
+             "arrive while it runs. Runs the app's function once.",
+    )
+    doctor_parser.add_argument(
         "--json", action="store_true",
-        help="With --mcp: print the report, contract included, as JSON",
+        help="With --mcp or --stream: print the full report as JSON",
     )
     doctor_parser.add_argument(
         "--timeout", type=float, default=30.0,
-        help="With --mcp: seconds to wait for the whole check (default: 30)",
+        help="With --mcp or --stream: seconds to wait for the whole check (default: 30)",
     )
 
     # Parse arguments
     args = parser.parse_args()
 
     if args.command == "doctor":
+        if args.mcp and args.stream:
+            parser.error("pass --mcp or --stream, not both")
         if args.mcp:
             return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout)
+        if args.stream:
+            return doctor_stream(args.stream, as_json=args.json, timeout=args.timeout)
         if args.json:
-            parser.error("--json needs --mcp")
+            parser.error("--json needs --mcp or --stream")
         return doctor()
 
     while args.command == "create" and args.port is None:

@@ -50,6 +50,10 @@ It prints the installed `fast-dash`, `dash` and component-library versions,
 the React version Dash serves, and the fix for any clash it knows about. It
 exits with status 1 when it finds one, so you can run it in a container build.
 
+For a `stream=True` app, `fastdash doctor --stream http://127.0.0.1:8080/`
+checks that updates reach a client while the callback runs; see
+[Streaming and chat apps](#streaming-and-chat-apps).
+
 For an app built with `mcp_server=True`, `fastdash doctor --mcp
 http://127.0.0.1:8080/mcp` checks the running app's agent surface the way an
 MCP client sees it, and exits with status 1 if an agent couldn't drive it.
@@ -159,6 +163,29 @@ To stay on Flask, run gunicorn with a single eventlet or gevent worker, as
 the [Flask-SocketIO deployment guide](https://flask-socketio.readthedocs.io/en/latest/deployment.html)
 describes. `app.run()` uses a socket.io-aware server, which is why streaming
 works locally either way.
+
+To check that a running app really streams, point `fastdash doctor --stream`
+at it. It connects the way the page does (socket.io on Flask, the WebSocket on
+the FastAPI backend), presses Run once with the inputs' current values, and
+counts the updates that arrive while the Run is still in flight:
+
+```console
+$ fastdash doctor --stream http://127.0.0.1:8080/
+Connecting to http://127.0.0.1:8080/ ...
+  transport        OK   socket.io (Flask backend), socket L-Tbua8nQS-tYtsyAAAF
+  run              OK   Run returned HTTP 200 after 1.23s
+  streaming        OK   3 updates arrived while the Run was in flight, 0.027s to 0.83s (tick 1
+ / tick 1
+tick 2
+ / ...)
+Streaming wire healthy.
+```
+
+It exits with status 1 and names the likely fix when only the final output
+arrives, or when the Run never returns while the socket is open, as under a
+single sync worker. `--json` prints every update with its timing. It runs your
+function once, so point it at an app where that's safe. Chat apps (`chat=`)
+aren't covered yet.
 
 ## Deploying an app with `mcp_server=True`
 
