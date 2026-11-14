@@ -1,4 +1,18 @@
-# Release 0.7.14
+# Release 0.7.15
+
+## 0.7.15 (2026-11-14)
+
+### Added
+- **`fast_dash.connect(url)` drives a running app from Python** (#354). It
+  returns a client with the same methods as `app.mcp_test_client()`, but it
+  talks over HTTP to an app in another process, container or machine:
+  `with connect("http://127.0.0.1:8080/mcp") as app: app.invoke(inputs={"n": 12})`.
+  Calls block until they return and give back the tool's JSON as a dict, with
+  image outputs in `.images`. It uses only the standard library, so it needs no
+  `asyncio` and no `mcp` package. Errors say what went wrong: the server can't be
+  reached, nothing is mounted at the path, the URL returned a web page, or the
+  session ended. `headers=` and `timeout=` are optional. The AI-agents guide's
+  "Drive it from Python" section now uses it instead of the async SDK example.
 
 ## 0.7.14 (2026-11-12)
 
