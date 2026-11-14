@@ -1032,53 +1032,36 @@ values.</p>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
 <h2 id="drive-it-from-python">Drive it from Python</h2>
-<p>To script a running app, connect with the official
-<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK. To test your own app's agent
-surface, use <a href="#test-it-without-a-server">the in-process test client</a> instead. It isn't installed with Fast
-Dash, so add it first:</p>
-<div class="highlight"><pre><span></span><code>pip<span class="w"> </span>install<span class="w"> </span>mcp
-</code></pre></div>
-<p>Start the app above, then run:</p>
-<div class="highlight"><pre><span></span><code><span class="kn">import</span><span class="w"> </span><span class="nn">asyncio</span>
-<span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+<p><code>fast_dash.connect()</code> drives a running app from a script, a notebook or another
+service. Its methods are the app's tools, it blocks until each answers, and it
+returns the tool's JSON as a dict. It needs no <code>asyncio</code> and no extra package.
+Start the app above, then run:</p>
+<div class="highlight"><pre><span></span><code><span class="kn">from</span><span class="w"> </span><span class="nn">fast_dash</span><span class="w"> </span><span class="kn">import</span> <span class="n">connect</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">mcp</span><span class="w"> </span><span class="kn">import</span> <span class="n">ClientSession</span>
+<span class="k">with</span> <span class="n">connect</span><span class="p">(</span><span class="s2">&quot;http://127.0.0.1:8080/mcp&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">app</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">([</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">app</span><span class="o">.</span><span class="n">describe_app</span><span class="p">()[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]])</span>   <span class="c1"># [&#39;n&#39;, &#39;color&#39;]</span>
 
-<span class="k">try</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">mcp.client.streamable_http</span><span class="w"> </span><span class="kn">import</span> <span class="n">streamable_http_client</span>
-<span class="k">except</span> <span class="ne">ImportError</span><span class="p">:</span>  <span class="c1"># older mcp releases spell it streamablehttp_client</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">mcp.client.streamable_http</span><span class="w"> </span><span class="kn">import</span> <span class="n">streamablehttp_client</span> <span class="k">as</span> <span class="n">streamable_http_client</span>
+    <span class="n">run</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">invoke</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">})</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">run</span><span class="p">[</span><span class="s2">&quot;ok&quot;</span><span class="p">],</span> <span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">])</span>                   <span class="c1"># True 0</span>
 
-<span class="n">URL</span> <span class="o">=</span> <span class="s2">&quot;http://127.0.0.1:8080/mcp&quot;</span>
-
-
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="n">tool</span><span class="p">,</span> <span class="n">args</span><span class="o">=</span><span class="kc">None</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Call a Fast Dash tool and return its JSON result.&quot;&quot;&quot;</span>
-    <span class="n">result</span> <span class="o">=</span> <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">call_tool</span><span class="p">(</span><span class="n">tool</span><span class="p">,</span> <span class="n">args</span> <span class="ow">or</span> <span class="p">{})</span>
-    <span class="k">return</span> <span class="n">json</span><span class="o">.</span><span class="n">loads</span><span class="p">(</span><span class="n">result</span><span class="o">.</span><span class="n">content</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">text</span><span class="p">)</span>
-
-
-<span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">main</span><span class="p">():</span>
-    <span class="k">async</span> <span class="k">with</span> <span class="n">streamable_http_client</span><span class="p">(</span><span class="n">URL</span><span class="p">)</span> <span class="k">as</span> <span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">,</span> <span class="o">*</span><span class="n">_</span><span class="p">):</span>
-        <span class="k">async</span> <span class="k">with</span> <span class="n">ClientSession</span><span class="p">(</span><span class="n">read</span><span class="p">,</span> <span class="n">write</span><span class="p">)</span> <span class="k">as</span> <span class="n">session</span><span class="p">:</span>
-            <span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">initialize</span><span class="p">()</span>
-
-            <span class="n">app</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;describe_app&quot;</span><span class="p">)</span>
-            <span class="nb">print</span><span class="p">([</span><span class="n">i</span><span class="p">[</span><span class="s2">&quot;id&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">i</span> <span class="ow">in</span> <span class="n">app</span><span class="p">[</span><span class="s2">&quot;inputs&quot;</span><span class="p">]])</span>          <span class="c1"># [&#39;n&#39;, &#39;color&#39;]</span>
-
-            <span class="n">run</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;invoke&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">12</span><span class="p">,</span> <span class="s2">&quot;color&quot;</span><span class="p">:</span> <span class="s2">&quot;#2f9e44&quot;</span><span class="p">}})</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">run</span><span class="p">[</span><span class="s2">&quot;ok&quot;</span><span class="p">],</span> <span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">])</span>           <span class="c1"># True 0</span>
-
-            <span class="n">past</span> <span class="o">=</span> <span class="k">await</span> <span class="n">call</span><span class="p">(</span><span class="n">session</span><span class="p">,</span> <span class="s2">&quot;get_invocation&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;index&quot;</span><span class="p">:</span> <span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">]})</span>
-            <span class="nb">print</span><span class="p">(</span><span class="n">past</span><span class="p">[</span><span class="s2">&quot;kwargs_summary&quot;</span><span class="p">])</span>                    <span class="c1"># {&#39;n&#39;: 12, &#39;color&#39;: &#39;#2f9e44&#39;}</span>
-
-
-<span class="n">asyncio</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">main</span><span class="p">())</span>
+    <span class="n">past</span> <span class="o">=</span> <span class="n">app</span><span class="o">.</span><span class="n">get_invocation</span><span class="p">(</span><span class="n">index</span><span class="o">=</span><span class="n">run</span><span class="p">[</span><span class="s2">&quot;history_index&quot;</span><span class="p">])</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">past</span><span class="p">[</span><span class="s2">&quot;kwargs_summary&quot;</span><span class="p">])</span>                            <span class="c1"># {&#39;n&#39;: 12, &#39;color&#39;: &#39;#2f9e44&#39;}</span>
 </code></pre></div>
 <p>Every tool takes keyword arguments named as in the table above:
 <code>set_input(component_id, value)</code>, <code>set_inputs(inputs)</code>, <code>invoke(inputs)</code>,
 <code>set_form(specs)</code> and <code>get_invocation(index)</code>. <code>describe_app</code> and
-<code>list_component_types</code> take none.</p>
+<code>list_component_types</code> take none. Arguments also go by position
+(<code>app.set_input("n", 3)</code>), <code>app.tools</code> lists the tool names, and an image
+output's PNG bytes are in the result's <code>.images</code>.</p>
+<p>A bad call raises <code>fast_dash.mcp.MCPError</code> with the reason: the server can't be
+reached, nothing is mounted at that path, or a tool failed. A rejected input is
+not an error; it comes back as <code>{"ok": False, "errors": {...}}</code>, as it does for
+an agent. A root URL gets <code>/mcp</code> added. <code>headers={...}</code> goes with every request,
+for example an <code>Authorization</code> header for a proxy in front of the app, and
+<code>timeout=</code> (default 30 seconds) caps each call.</p>
+<p>For async code, or to see the raw protocol, use the official
+<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK (<code>pip install mcp</code>) and its
+streamable-HTTP client against the same URL.</p>
 <h3 id="test-it-without-a-server">Test it without a server</h3>
 <p><code>app.mcp_test_client()</code> calls the same tools in-process and synchronously: no
 server, port, <code>asyncio</code> or <code>mcp</code> package. Each call is a JSON-RPC request to the
@@ -1102,6 +1085,8 @@ errors included. Each tool is a method, and it returns the tool's JSON as a dict
 output's PNG bytes are in the result's <code>.images</code>, and <code>client.tools</code> lists the
 tool names. The client works with both the Flask and FastAPI backends. The app
 needs <code>mcp_server=True</code>, and the one-MCP-app-per-process rule still applies.</p>
+<p>It has the same methods as <code>connect()</code>, so a script written against one runs
+against the other.</p>
 <h2 id="agent-generated-uis-with-dynamicdash">Agent-generated UIs with DynamicDash</h2>
 <p><code>DynamicDash</code> is a Fast Dash app whose input form is generated at runtime —
 either by a parent control or by an agent calling the <code>set_form</code> tool. The form
