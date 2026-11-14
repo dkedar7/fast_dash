@@ -176,59 +176,41 @@ reload), so a human watching the page sees what the agent does.
 
 ## Drive it from Python
 
-To script a running app, connect with the official
-[`mcp`](https://pypi.org/project/mcp/) client SDK. To test your own app's agent
-surface, use [the in-process test client](#test-it-without-a-server) instead. It isn't installed with Fast
-Dash, so add it first:
-
-```bash
-pip install mcp
-```
-
+`fast_dash.connect()` drives a running app from a script, a notebook or another
+service. Its methods are the app's tools, it blocks until each answers, and it
+returns the tool's JSON as a dict. It needs no `asyncio` and no extra package.
 Start the app above, then run:
 
 ```python
-import asyncio
-import json
+from fast_dash import connect
 
-from mcp import ClientSession
+with connect("http://127.0.0.1:8080/mcp") as app:
+    print([i["id"] for i in app.describe_app()["inputs"]])   # ['n', 'color']
 
-try:
-    from mcp.client.streamable_http import streamable_http_client
-except ImportError:  # older mcp releases spell it streamablehttp_client
-    from mcp.client.streamable_http import streamablehttp_client as streamable_http_client
+    run = app.invoke(inputs={"n": 12, "color": "#2f9e44"})
+    print(run["ok"], run["history_index"])                   # True 0
 
-URL = "http://127.0.0.1:8080/mcp"
-
-
-async def call(session, tool, args=None):
-    """Call a Fast Dash tool and return its JSON result."""
-    result = await session.call_tool(tool, args or {})
-    return json.loads(result.content[0].text)
-
-
-async def main():
-    async with streamable_http_client(URL) as (read, write, *_):
-        async with ClientSession(read, write) as session:
-            await session.initialize()
-
-            app = await call(session, "describe_app")
-            print([i["id"] for i in app["inputs"]])          # ['n', 'color']
-
-            run = await call(session, "invoke", {"inputs": {"n": 12, "color": "#2f9e44"}})
-            print(run["ok"], run["history_index"])           # True 0
-
-            past = await call(session, "get_invocation", {"index": run["history_index"]})
-            print(past["kwargs_summary"])                    # {'n': 12, 'color': '#2f9e44'}
-
-
-asyncio.run(main())
+    past = app.get_invocation(index=run["history_index"])
+    print(past["kwargs_summary"])                            # {'n': 12, 'color': '#2f9e44'}
 ```
 
 Every tool takes keyword arguments named as in the table above:
 `set_input(component_id, value)`, `set_inputs(inputs)`, `invoke(inputs)`,
 `set_form(specs)` and `get_invocation(index)`. `describe_app` and
-`list_component_types` take none.
+`list_component_types` take none. Arguments also go by position
+(`app.set_input("n", 3)`), `app.tools` lists the tool names, and an image
+output's PNG bytes are in the result's `.images`.
+
+A bad call raises `fast_dash.mcp.MCPError` with the reason: the server can't be
+reached, nothing is mounted at that path, or a tool failed. A rejected input is
+not an error; it comes back as `{"ok": False, "errors": {...}}`, as it does for
+an agent. A root URL gets `/mcp` added. `headers={...}` goes with every request,
+for example an `Authorization` header for a proxy in front of the app, and
+`timeout=` (default 30 seconds) caps each call.
+
+For async code, or to see the raw protocol, use the official
+[`mcp`](https://pypi.org/project/mcp/) client SDK (`pip install mcp`) and its
+streamable-HTTP client against the same URL.
 
 ### Test it without a server
 
@@ -257,6 +239,9 @@ Arguments go by name or by position (`client.set_input("n", 3)`). An image
 output's PNG bytes are in the result's `.images`, and `client.tools` lists the
 tool names. The client works with both the Flask and FastAPI backends. The app
 needs `mcp_server=True`, and the one-MCP-app-per-process rule still applies.
+
+It has the same methods as `connect()`, so a script written against one runs
+against the other.
 
 ## Agent-generated UIs with DynamicDash
 

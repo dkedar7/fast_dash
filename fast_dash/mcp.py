@@ -2197,46 +2197,31 @@ class MCPToolResult(dict):
         ]
 
 
-class MCPTestClient:
-    """Call an app's MCP tools in-process and synchronously, for tests.
+class _ToolClient:
+    """The synchronous tool-method surface shared by both MCP clients.
 
-    Every call is a JSON-RPC POST to the app's real ``/mcp`` route, so a test
-    gets the validation, masking, history and errors an agent gets over HTTP,
-    with no server, port or ``asyncio``. Each tool is a method taking the
-    tool's arguments, positionally or by name, and returning its JSON::
-
-        client = app.mcp_test_client()
-        client.set_input("n", 5)
-        result = client.invoke()          # {"ok": True, "outputs": {...}, ...}
-
-    Get one from ``app.mcp_test_client()`` on an app built with
-    ``mcp_server=True``. Dash's MCP tool registry is process-wide, so the
-    one-MCP-app-per-process rule still holds.
+    A subclass supplies ``_post(body) -> (status, content_type, data)`` (one
+    JSON-RPC POST to ``/mcp``) and calls ``_start()``; this does the rest.
     """
 
-    def __init__(self, fd):
-        if not getattr(fd, "mcp_server_enabled", False):
-            raise RuntimeError(
-                "mcp_test_client() needs an app built with mcp_server=True."
-            )
-        self._fd = fd
+    _client_name = "fast_dash.MCPTestClient"
+
+    def _start(self):
         self._next_id = 0
-        self._headers = {
-            "Content-Type": "application/json",
-            "Accept": "application/json, text/event-stream",
-        }
-        if not getattr(fd, "_backend", None):
-            self._http = fd.app.server.test_client()
         init = self._rpc("initialize", {
             "protocolVersion": "2025-06-18",
             "capabilities": {},
-            "clientInfo": {"name": "fast_dash.MCPTestClient", "version": "1"},
+            "clientInfo": {"name": self._client_name, "version": "1"},
         })
         self.server_info = init.get("serverInfo")
+        self._initialized(init)
         self._schemas = {
             t["name"]: list((t.get("inputSchema") or {}).get("properties") or {})
             for t in self._rpc("tools/list").get("tools", [])
         }
+
+    def _initialized(self, init):
+        """Hook run after ``initialize`` answers."""
 
     @property
     def tools(self):
@@ -2276,32 +2261,87 @@ class MCPTestClient:
     def __dir__(self):
         return sorted(set(super().__dir__()) | set(self._schemas))
 
+    def close(self):
+        """Release the connection. Nothing to do in-process."""
+
     def __enter__(self):
         return self
 
     def __exit__(self, *exc):
+        self.close()
         return False
+
+    def _status_error(self, status, data):
+        return f"POST /mcp answered {status}: {data[:200]!r}"
 
     def _rpc(self, method, params=None):
         self._next_id += 1
+        request_id = self._next_id
         body = json.dumps({
-            "jsonrpc": "2.0", "id": self._next_id,
+            "jsonrpc": "2.0", "id": request_id,
             "method": method, "params": params or {},
         }).encode()
-        status, content_type, data = (
-            self._post_asgi(body) if getattr(self._fd, "_backend", None)
-            else self._post_wsgi(body)
-        )
+        status, content_type, data = self._post(body)
         if status != 200:
-            raise MCPError(f"POST /mcp answered {status}: {data[:200]!r}")
+            raise MCPError(self._status_error(status, data))
         text = data.decode("utf-8")
         if "text/event-stream" in content_type:
-            events = [ln[5:].strip() for ln in text.splitlines() if ln.startswith("data:")]
-            text = events[-1] if events else "{}"
-        message = json.loads(text)
+            message = None
+            for line in text.splitlines():
+                if not line.startswith("data:"):
+                    continue
+                try:
+                    event = json.loads(line[5:].strip())
+                except ValueError:
+                    continue
+                # A stream can carry notifications first; the answer has our id.
+                if isinstance(event, dict) and (message is None or event.get("id") == request_id):
+                    message = event
+            message = message or {}
+        else:
+            message = json.loads(text)
         if "error" in message:
             raise MCPError(message["error"].get("message", message["error"]))
         return message.get("result") or {}
+
+
+class MCPTestClient(_ToolClient):
+    """Call an app's MCP tools in-process and synchronously, for tests.
+
+    Every call is a JSON-RPC POST to the app's real ``/mcp`` route, so a test
+    gets the validation, masking, history and errors an agent gets over HTTP,
+    with no server, port or ``asyncio``. Each tool is a method taking the
+    tool's arguments, positionally or by name, and returning its JSON::
+
+        client = app.mcp_test_client()
+        client.set_input("n", 5)
+        result = client.invoke()          # {"ok": True, "outputs": {...}, ...}
+
+    Get one from ``app.mcp_test_client()`` on an app built with
+    ``mcp_server=True``. Dash's MCP tool registry is process-wide, so the
+    one-MCP-app-per-process rule still holds. To drive an app running in
+    another process, use ``fast_dash.connect(url)``: same methods, real HTTP.
+    """
+
+    def __init__(self, fd):
+        if not getattr(fd, "mcp_server_enabled", False):
+            raise RuntimeError(
+                "mcp_test_client() needs an app built with mcp_server=True."
+            )
+        self._fd = fd
+        self._headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+        }
+        if not getattr(fd, "_backend", None):
+            self._http = fd.app.server.test_client()
+        self._start()
+
+    def _post(self, body):
+        return (
+            self._post_asgi(body) if getattr(self._fd, "_backend", None)
+            else self._post_wsgi(body)
+        )
 
     def _post_wsgi(self, body):
         r = self._http.post("/mcp", data=body, headers=self._headers)
@@ -2344,3 +2384,115 @@ class MCPTestClient:
         content_type = dict(start.get("headers") or []).get(b"content-type", b"").decode()
         data = b"".join(m.get("body", b"") for m in messages if m["type"] == "http.response.body")
         return start["status"], content_type, data
+
+
+class MCPClient(_ToolClient):
+    """Drive a running app's MCP tools from Python, synchronously (#354).
+
+    The same methods as ``app.mcp_test_client()``, over real HTTP to an app in
+    another process, container or machine. Plain JSON-RPC over streamable HTTP
+    with the standard library: no ``asyncio`` and no ``mcp`` package::
+
+        from fast_dash import connect
+
+        with connect("http://127.0.0.1:8080/mcp") as app:
+            app.describe_app()["inputs"]
+            app.invoke(inputs={"n": 12})["outputs"]
+
+    ``url`` is the app's ``/mcp`` endpoint; a bare root URL gets ``/mcp``
+    added. ``headers`` are sent with every request (for example an
+    ``Authorization`` header for a proxy in front of the app).
+    """
+
+    _client_name = "fast_dash.MCPClient"
+
+    def __init__(self, url, *, timeout=30.0, headers=None):
+        import urllib.parse
+
+        parts = urllib.parse.urlsplit(url)
+        if parts.scheme not in ("http", "https") or not parts.netloc:
+            raise ValueError(f"connect() needs an http(s) URL, got {url!r}")
+        if parts.path in ("", "/"):
+            parts = parts._replace(path="/mcp")
+        self.url = urllib.parse.urlunsplit(parts)
+        self.timeout = timeout
+        self._headers = {
+            "Content-Type": "application/json",
+            "Accept": "application/json, text/event-stream",
+            **(headers or {}),
+        }
+        self._session_id = None
+        self._start()
+
+    def __repr__(self):
+        return f"MCPClient({self.url!r})"
+
+    def _initialized(self, init):
+        version = init.get("protocolVersion")
+        if version:
+            self._headers["MCP-Protocol-Version"] = version
+        body = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode()
+        self._post(body)              # 202 Accepted; nothing to read
+
+    def _request(self, method, body=None):
+        import urllib.error
+        import urllib.request
+
+        headers = dict(self._headers)
+        if self._session_id:
+            headers["Mcp-Session-Id"] = self._session_id
+        req = urllib.request.Request(self.url, data=body, headers=headers, method=method)
+        try:
+            with urllib.request.urlopen(req, timeout=self.timeout) as r:
+                status, rheaders, data = r.status, r.headers, r.read()
+        except urllib.error.HTTPError as e:
+            status, rheaders, data = e.code, e.headers, e.read()
+        except (urllib.error.URLError, OSError) as e:
+            reason = getattr(e, "reason", e)
+            raise MCPError(f"could not reach {self.url}: {reason}. Is the app running?") from None
+        session = rheaders.get("Mcp-Session-Id") if rheaders is not None else None
+        if session:
+            self._session_id = session
+        content_type = (rheaders.get("Content-Type") if rheaders is not None else "") or ""
+        return status, content_type, data
+
+    def _post(self, body):
+        status, content_type, data = self._request("POST", body)
+        if status == 200 and "text/html" in content_type:
+            raise MCPError(
+                f"{self.url} returned a web page, not MCP. Was the app built with "
+                "mcp_server=True, and is the path /mcp?"
+            )
+        return status, content_type, data
+
+    def _status_error(self, status, data):
+        if status == 404 and self._session_id:
+            return (f"{self.url} answered 404: the MCP session ended (did the app "
+                    "restart?). Connect again.")
+        if status in (404, 405):
+            return (f"{self.url} answered {status}: nothing is mounted there. Was the app "
+                    "built with mcp_server=True, and is the path /mcp?")
+        if status in (401, 403):
+            return (f"{self.url} answered {status}: the server refused the request. "
+                    "Pass the credentials it needs with headers={...}.")
+        return f"{self.url} answered HTTP {status}: {data[:200]!r}"
+
+    def close(self):
+        """End the MCP session on the server. Safe to call twice."""
+        if self._session_id:
+            try:
+                self._request("DELETE")
+            except MCPError:
+                pass
+            self._session_id = None
+
+
+def connect(url, *, timeout=30.0, headers=None):
+    """Connect to a running Fast Dash app's MCP endpoint; see ``MCPClient``.
+
+    Returns a synchronous client whose methods are the app's tools::
+
+        with fast_dash.connect("http://127.0.0.1:8080/mcp") as app:
+            app.invoke(inputs={"n": 12})
+    """
+    return MCPClient(url, timeout=timeout, headers=headers)
