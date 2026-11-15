@@ -1,4 +1,20 @@
-# Release 0.7.15
+# Release 0.7.16
+
+## 0.7.16 (2026-11-15)
+
+### Added
+- **`fastdash doctor --mcp URL --invoke` runs the app once** (#357). Without
+  it, the check stops at `describe_app`, so an app whose callback raises on
+  every run was reported healthy. `--invoke` also calls the `invoke` tool with
+  the app's current values and fails with exit 1 if the callback raises, an
+  input has no value, or the app rejects an input. `--invoke-input NAME=VALUE`
+  (repeatable) supplies values and implies `--invoke`. `--json` adds the
+  result. It runs the real callback, so it is off by default.
+
+### Fixed
+- **`doctor --mcp` failures read as themselves.** A failure found inside the
+  MCP session, such as missing Fast Dash tools, was printed as
+  `ExceptionGroup: ...`. The report now shows the message alone.
 
 ## 0.7.15 (2026-11-14)
 
