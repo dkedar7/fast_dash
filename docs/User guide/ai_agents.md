@@ -80,6 +80,25 @@ or add it to the project's `.mcp.json`:
     example when `/mcp` serves the web page because the app wasn't built with
     `mcp_server=True`. Add `--json` for the full report, contract included.
 
+    A good contract doesn't prove the app runs. Add `--invoke` to also run it
+    once through the `invoke` tool, with its current values, the way an agent
+    would. The check then fails if the callback raises or the app can't run
+    from those values:
+
+    ```console
+    $ fastdash doctor --mcp http://127.0.0.1:8080/mcp --invoke
+      ...
+      invoke           OK   ran in 576.2 ms: output_bars={"data": [{"marker": {"color": "#1c7e...
+    MCP surface healthy.
+    ```
+
+    `--invoke` runs your real callback, side effects and cost included, so it
+    is off by default. An input with no default needs a value:
+    `--invoke-input n=7`, repeatable. The value is read as JSON when it parses
+    and as text otherwise. A failed run names the cause, for example
+    `Problem: invoke ran and the callback failed: RuntimeError: database
+    unavailable`.
+
 ## What the agent gets
 
 | Surface | Provided by | Use |

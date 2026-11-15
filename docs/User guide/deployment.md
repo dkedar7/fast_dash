@@ -53,7 +53,8 @@ exits with status 1 when it finds one, so you can run it in a container build.
 For an app built with `mcp_server=True`, `fastdash doctor --mcp
 http://127.0.0.1:8080/mcp` checks the running app's agent surface the way an
 MCP client sees it, and exits with status 1 if an agent couldn't drive it.
-It needs `pip install mcp`. See
+Add `--invoke` to also run the app once, so a callback that fails at run time
+fails the check too. It needs `pip install mcp`. See
 [Checking that MCP is up](ai_agents.md#connect-an-agent).
 
 ## By hand

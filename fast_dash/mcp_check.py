@@ -5,6 +5,11 @@ client path the AI-agents guide documents, and checks what an agent needs:
 ``initialize`` succeeds, the Fast Dash tools are listed, and ``describe_app``
 returns a well-formed contract. ``mcp_test_client()`` covers the in-process
 case; this covers a live local, containerized or remote server.
+
+With ``invoke=True`` (``--invoke``, #357) it also runs the app once through
+the ``invoke`` tool, so a callback that raises, or an app that can't run from
+its current values, fails the check instead of passing on its contract alone.
+That runs the real callback, side effects included, so it is opt-in.
 """
 
 import asyncio
@@ -70,7 +75,7 @@ def _summarize_fields(fields, key):
     return ", ".join(f"{f.get('id')}:{f.get(key) or f.get('type') or '?'}" for f in fields)
 
 
-async def _check(url, report):
+async def _check(url, report, invoke=False, invoke_inputs=None):
     ClientSession, streamable_http_client = _client()
 
     def step(name, detail):
@@ -123,12 +128,70 @@ async def _check(url, report):
                  f"{len(ins)} input{'s' * (len(ins) != 1)} ({_summarize_fields(ins, 'type')}), "
                  f"{len(outs)} output{'s' * (len(outs) != 1)} ({_summarize_fields(outs, 'tag')})")
 
+            if invoke:
+                await _check_invoke(session, contract, invoke_inputs or {}, report, step)
 
-def check_mcp(url, timeout=30.0):
-    """Run the checks against ``url``. Return ``(ok, report)``; never raises."""
+
+def _tool_payload(result):
+    """A tool result's JSON, from structured content or the text block."""
+    structured = _field(result, "structured_content", "structuredContent")
+    if isinstance(structured, dict) and "result" in structured:
+        return structured["result"]
+    text = "".join(getattr(b, "text", "") or "" for b in result.content)
+    try:
+        return json.loads(text)
+    except ValueError:
+        return {"text": text}
+
+
+def _short(value, n=40):
+    s = value if isinstance(value, str) else json.dumps(value, default=str)
+    s = s.replace("\n", "\\n")
+    return s if len(s) <= n else s[: n - 3] + "..."
+
+
+async def _check_invoke(session, contract, inputs, report, step):
+    """Run the app once through ``invoke`` and require ``ok: true``."""
+    known = [i.get("id") for i in contract["inputs"]]
+    unknown = [k for k in inputs if k not in known]
+    if unknown:
+        raise CheckFailed(f"--invoke-input names no input of this app: {', '.join(unknown)} "
+                          f"(its inputs: {', '.join(map(str, known)) or 'none'})")
+    result = await session.call_tool("invoke", {"inputs": inputs} if inputs else {})
+    payload = _tool_payload(result)
+    report["invoke"] = payload
+    if _field(result, "is_error", "isError"):
+        text = payload.get("text") if isinstance(payload, dict) else None
+        raise CheckFailed(f"invoke failed over MCP: {text or payload}")
+    if not isinstance(payload, dict) or payload.get("ok") is not True:
+        payload = payload if isinstance(payload, dict) else {"error": payload}
+        if payload.get("missing"):
+            names = ", ".join(map(str, payload["missing"]))
+            raise CheckFailed(f"invoke can't run from the current values: {names} "
+                              f"{'has' if len(payload['missing']) == 1 else 'have'} no value. "
+                              f"Pass one with --invoke-input NAME=VALUE.")
+        if payload.get("errors"):
+            errs = "; ".join(f"{k}: {v}" for k, v in payload["errors"].items())
+            raise CheckFailed(f"invoke rejected the inputs: {errs}")
+        raise CheckFailed(f"invoke ran and the callback failed: {payload.get('error') or payload}")
+    outputs = payload.get("outputs") or {}
+    shown = ", ".join(f"{k}={_short(v)}" for k, v in list(outputs.items())[:3])
+    more = ", ..." if len(outputs) > 3 else ""
+    took = payload.get("duration_ms")
+    step("invoke", f"ran{f' in {took:g} ms' if isinstance(took, (int, float)) else ''}: "
+                   f"{shown or 'no outputs'}{more}")
+
+
+def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None):
+    """Run the checks against ``url``. Return ``(ok, report)``; never raises.
+
+    ``invoke=True`` also runs the app once with its current values, updated by
+    ``invoke_inputs`` (``{input_id: value}``).
+    """
     report = {"url": url, "steps": []}
     try:
-        asyncio.run(asyncio.wait_for(_check(url, report), timeout))
+        asyncio.run(asyncio.wait_for(
+            _check(url, report, invoke=invoke, invoke_inputs=invoke_inputs), timeout))
         report["ok"] = True
         return True, report
     except CheckFailed as e:
@@ -139,15 +202,25 @@ def check_mcp(url, timeout=30.0):
     except (KeyboardInterrupt, SystemExit):
         raise
     except BaseException as e:                         # noqa: BLE001
-        error = _probe(url) or f"{type(e).__name__}: {_first_cause(e)}"
+        inner = _innermost(e)
+        if isinstance(inner, CheckFailed):             # raised inside the session's task group
+            error = str(inner)
+        else:
+            error = _probe(url) or f"{type(e).__name__}: {_first_cause(e)}"
     report.update(ok=False, error=error)
     return False, report
 
 
-def _first_cause(e):
-    """The innermost message of an ExceptionGroup or chained error."""
+def _innermost(e):
+    """The first leaf exception of an ExceptionGroup (or ``e`` itself)."""
     while isinstance(e, BaseExceptionGroup) and e.exceptions:
         e = e.exceptions[0]
+    return e
+
+
+def _first_cause(e):
+    """The innermost message of an ExceptionGroup or chained error."""
+    e = _innermost(e)
     return str(e) or type(e).__name__
 
 
