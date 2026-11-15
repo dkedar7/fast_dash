@@ -908,6 +908,21 @@ against the running app. It connects as a real MCP client (it needs
 <p>It exits with status 1 and names the likely cause when a step fails, for
 example when <code>/mcp</code> serves the web page because the app wasn't built with
 <code>mcp_server=True</code>. Add <code>--json</code> for the full report, contract included.</p>
+<p>A good contract doesn't prove the app runs. Add <code>--invoke</code> to also run it
+once through the <code>invoke</code> tool, with its current values, the way an agent
+would. The check then fails if the callback raises or the app can't run
+from those values:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>fastdash<span class="w"> </span>doctor<span class="w"> </span>--mcp<span class="w"> </span>http://127.0.0.1:8080/mcp<span class="w"> </span>--invoke
+<span class="go">  ...</span>
+<span class="go">  invoke           OK   ran in 576.2 ms: output_bars={&quot;data&quot;: [{&quot;marker&quot;: {&quot;color&quot;: &quot;#1c7e...</span>
+<span class="go">MCP surface healthy.</span>
+</code></pre></div>
+<p><code>--invoke</code> runs your real callback, side effects and cost included, so it
+is off by default. An input with no default needs a value:
+<code>--invoke-input n=7</code>, repeatable. The value is read as JSON when it parses
+and as text otherwise. A failed run names the cause, for example
+<code>Problem: invoke ran and the callback failed: RuntimeError: database
+unavailable</code>.</p>
 </div>
 <h2 id="what-the-agent-gets">What the agent gets</h2>
 <table>
