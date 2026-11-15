@@ -102,18 +102,35 @@ def doctor():
     return 0
 
 
-def doctor_mcp(url, as_json=False, timeout=30.0):
+def _parse_invoke_inputs(pairs):
+    """``["n=7", "label=hi"]`` as ``{"n": 7, "label": "hi"}``: JSON if it parses, else text."""
+    import json
+
+    inputs = {}
+    for pair in pairs or []:
+        name, sep, raw = pair.partition("=")
+        if not sep or not name:
+            raise ValueError(f"--invoke-input takes NAME=VALUE, got {pair!r}")
+        try:
+            inputs[name] = json.loads(raw)
+        except ValueError:
+            inputs[name] = raw
+    return inputs
+
+
+def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
     Exits 0 when an MCP client can initialize, list the Fast Dash tools and
     read a well-formed ``describe_app`` contract; 1 otherwise, so it works as
-    a container HEALTHCHECK or a CI step.
+    a container HEALTHCHECK or a CI step. ``invoke=True`` also runs the app
+    once through ``invoke`` and requires it to succeed (#357).
     """
     import json
 
     from fast_dash.mcp_check import check_mcp, print_report
 
-    ok, report = check_mcp(url, timeout=timeout)
+    ok, report = check_mcp(url, timeout=timeout, invoke=invoke, invoke_inputs=invoke_inputs)
     if as_json:
         print(json.dumps(report, indent=2, default=str))
     else:
@@ -167,13 +184,31 @@ def main():
         "--timeout", type=float, default=30.0,
         help="With --mcp: seconds to wait for the whole check (default: 30)",
     )
+    doctor_parser.add_argument(
+        "--invoke", action="store_true",
+        help="With --mcp: also run the app once through the invoke tool, with "
+             "its current values, and fail if that fails. Runs the real callback.",
+    )
+    doctor_parser.add_argument(
+        "--invoke-input", action="append", metavar="NAME=VALUE", default=[],
+        help="With --mcp: an input value for the --invoke run (implies "
+             "--invoke; repeatable; VALUE is JSON if it parses, else text)",
+    )
 
     # Parse arguments
     args = parser.parse_args()
 
     if args.command == "doctor":
+        if (args.invoke or args.invoke_input) and not args.mcp:
+            parser.error("--invoke needs --mcp")
         if args.mcp:
-            return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout)
+            try:
+                invoke_inputs = _parse_invoke_inputs(args.invoke_input)
+            except ValueError as e:
+                parser.error(str(e))
+            return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout,
+                              invoke=args.invoke or bool(invoke_inputs),
+                              invoke_inputs=invoke_inputs)
         if args.json:
             parser.error("--json needs --mcp")
         return doctor()
