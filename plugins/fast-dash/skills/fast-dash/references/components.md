@@ -12,7 +12,7 @@
 | `int` | `range(0, 100)` | Slider, starting at `0` |
 | `float` | *(any)* | Number input |
 | `float` | `range(0, 10)` | Slider, starting at `0` |
-| `bool` | `True` / `False` | Checkbox |
+| `bool` | `True` / `False` | Switch (toggle) |
 | `list` | `[...]` | Multi-select dropdown of the values, nothing picked (callback gets `[]`) |
 | `dict` | `{"a": 1, "b": 2}` | Multi-select of the keys, all picked; the callback gets a `dict` of the selected entries |
 | `datetime.date` | — | Date picker |

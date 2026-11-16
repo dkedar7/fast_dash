@@ -40,13 +40,13 @@ def app(x): return x
 def app(x): return x
 ```
 
-## 4. `theme` does not restyle Mantine chrome (v0.2.x)
+## 4. `theme` does not restyle Mantine chrome
 
 Since the UI overhaul, the chrome (header, navbar, buttons, inputs) is Mantine. Bootswatch `theme=` only affects:
 - Dark / light mode flip for known dark names (`CYBORG`, `DARKLY`, `QUARTZ`, `SLATE`, `SOLAR`, `SUPERHERO`, `VAPOR`)
 - `dbc`-rendered bits like Tables
 
-Per-theme accent colors / fonts (e.g. JOURNAL's orange serif) do **not** propagate to the Mantine layer. If a user expects different Bootswatch themes to look different, set their expectations early.
+Per-theme accent colors / fonts (e.g. JOURNAL's orange serif) do **not** propagate to the Mantine layer. If a user expects different Bootswatch themes to look different, set their expectations early. To change the accent color of buttons, links and focus rings, pass `accent="indigo"` (a Mantine color name: `red`, `teal`, `orange`, ...); a hex code or typo falls back to blue with a warning.
 
 ## 5. Jupyter: server + port conflicts across cells
 
