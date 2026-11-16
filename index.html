@@ -1009,7 +1009,7 @@ run it, set individual outputs, rearrange the layout, run Python — come from
 <p>The <code>@fastdash</code> decorator does three things at import time:</p>
 <ol>
 <li><strong>Inspects the function signature</strong> — each parameter becomes an input component, the return becomes an output component.</li>
-<li><strong>Picks components from type hints and defaults</strong> — <code>int</code> → number input, <code>bool</code> → checkbox, <code>pd.DataFrame</code> → table, etc. (full table below).</li>
+<li><strong>Picks components from type hints and defaults</strong> — <code>int</code> → number input, <code>bool</code> → switch, <code>pd.DataFrame</code> → table, etc. (full table below).</li>
 <li><strong>Builds a Dash app and starts the server</strong> — the function body is wired as the callback that runs when the user clicks Run.</li>
 </ol>
 <p>You can override any of this by passing components explicitly via <code>inputs=</code> and <code>outputs=</code>, or by skipping the decorator and using the <code>FastDash(...)</code> class directly. An <code>inputs=</code> list gives one component per parameter, in order: a parameter with no default and no component is an error, and a short or long list gets a warning.</p>
