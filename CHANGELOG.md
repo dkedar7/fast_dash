@@ -1,4 +1,15 @@
-# Release 0.7.16
+# Release 0.7.17
+
+## 0.7.17 (2026-11-16)
+
+### Fixed
+- **The Claude Code plugin skill says a `bool` is a Switch** (#360). Since
+  0.7.10 a `bool` input renders a Switch, and `describe_app` tags it
+  `Switch`, but the skill still said Checkbox in three places. No `Checkbox`
+  component or `set_form` type exists, so an agent following it described the
+  wrong widget. The README's "how it works" line said the same and is fixed
+  too. The skill's theme note now points to `accent=` for the Mantine accent
+  color. The plugin version is now 0.7.17, so installed copies update.
 
 ## 0.7.16 (2026-11-15)
 
