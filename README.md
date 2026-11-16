@@ -132,7 +132,7 @@ Install the extra with `pip install "fast-dash[agent]"`. See the
 The `@fastdash` decorator does three things at import time:
 
 1. **Inspects the function signature** — each parameter becomes an input component, the return becomes an output component.
-2. **Picks components from type hints and defaults** — `int` → number input, `bool` → checkbox, `pd.DataFrame` → table, etc. (full table below).
+2. **Picks components from type hints and defaults** — `int` → number input, `bool` → switch, `pd.DataFrame` → table, etc. (full table below).
 3. **Builds a Dash app and starts the server** — the function body is wired as the callback that runs when the user clicks Run.
 
 You can override any of this by passing components explicitly via `inputs=` and `outputs=`, or by skipping the decorator and using the `FastDash(...)` class directly. An `inputs=` list gives one component per parameter, in order: a parameter with no default and no component is an error, and a short or long list gets a warning.

@@ -40,7 +40,7 @@ That is the whole app. Open the URL, type a name, click **Run**.
 ## How to approach a Fast Dash task
 
 1. **Start from the user's function.** If they don't have one, write the smallest function that captures their intent.
-2. **Add type hints and defaults.** This is where the UI comes from — `int` → number input, `bool` → checkbox, `str` with a list default → dropdown, etc. See [references/components.md](references/components.md) for the full table.
+2. **Add type hints and defaults.** This is where the UI comes from — `int` → number input, `bool` → switch, `str` with a list default → dropdown, etc. See [references/components.md](references/components.md) for the full table.
 3. **Decorate with `@fastdash`.** For more control (tabbed multi-function apps, multi-step pipelines), use the `FastDash(...)` class directly.
 4. **Run and verify.** The decorator starts a server immediately on import. For notebooks, pass `mode="inline"`.
 
@@ -69,7 +69,7 @@ Full examples for each: [references/patterns.md](references/patterns.md).
 | `str` | Single-line text input (a long / multi-line default → text area) |
 | `str` with `default=[...]` | Dropdown, starting on the first option |
 | `int`, `float` | Number input |
-| `bool` | Checkbox |
+| `bool` | Switch (toggle) |
 | `Literal["a", "b"]` | Dropdown |
 | `Annotated[int, range(0, 100)]` | Slider |
 | `list` | Multi-select (starts with nothing picked) |
@@ -113,7 +113,7 @@ from fast_dash import (
 ## Non-obvious things that will bite you
 
 - **`@fastdash` starts the server on import.** Put it in a `if __name__ == "__main__":` guard if the file is imported elsewhere, or skip the decorator and use `FastDash(...).run()`.
-- **Default Bootswatch `theme=` does not restyle Mantine chrome** (v0.2.x). Only dark/light flips for known dark themes (`CYBORG`, `DARKLY`, `SLATE`, ...).
+- **Bootswatch `theme=` does not restyle the Mantine chrome.** It only flips dark/light for known dark themes (`CYBORG`, `DARKLY`, `SLATE`, ...). For the accent color of buttons, links and focus rings, pass `accent="indigo"` (a Mantine color name).
 - **Don't reuse a single component instance across inputs and outputs** — pass the class (`inputs=Text`) not an instance. Mutation surprises.
 - **Output labels come from the `return` line of the source.** REPL / `exec` contexts fall back to `OUTPUT_1`, `OUTPUT_2`. Pass `output_labels=[...]` to override.
 
