@@ -51,7 +51,10 @@ Limitations
   ``mcp_enabled`` registry keyed by tool name, so two MCP-enabled fast_dash
   apps in one process would collide.
 * **No auth on the MCP route.** It shares the web app's host/port; bind to
-  loopback in development.
+  loopback in development. ``run()`` warns when it binds a non-loopback host,
+  and the route itself warns, once, the first time a request reaches it from a
+  non-loopback address, which also covers ``gunicorn``/``uvicorn app:server``
+  deploys that never call ``run()`` (#363).
 * Multi-function and steps modes skip the MCP surface.
 """
 
@@ -64,6 +67,7 @@ import contextvars
 import datetime
 import functools
 import inspect
+import ipaddress
 import json
 import os
 import time
@@ -107,6 +111,9 @@ def warn_if_exposed(run_kwargs: dict | None, *, stacklevel: int = 3) -> None:
     host = effective_bind_host(run_kwargs)
     if host in LOOPBACK_HOSTS:
         return
+    owner = _mcp_owner() if _mcp_owner is not None else None
+    if owner is not None:
+        owner._mcp_exposure_warned = True    # one warning per app, not two (#363)
     warnings.warn(
         f"mcp_server=True with host={host!r} serves the /mcp endpoint on a "
         "non-loopback address. That endpoint has no authentication: anyone who "
@@ -114,6 +121,71 @@ def warn_if_exposed(run_kwargs: dict | None, *, stacklevel: int = 3) -> None:
         "Bind to 127.0.0.1 unless you have put an authenticating proxy in front.",
         stacklevel=stacklevel,
     )
+
+
+def _is_loopback(addr) -> bool:
+    """True for a loopback client address; also for one that isn't an IP.
+
+    A test client reports a name like ``"testclient"``; treating what can't be
+    parsed as local keeps the warning for real off-box clients.
+    """
+    try:
+        ip = ipaddress.ip_address(str(addr).strip("[]"))
+    except ValueError:
+        return True
+    mapped = getattr(ip, "ipv4_mapped", None)
+    return (mapped or ip).is_loopback
+
+
+def _warn_on_remote_client() -> None:
+    """Warn once when the unauthenticated /mcp is reached from off-box (#363).
+
+    ``run()`` checks the bind host, but ``gunicorn app:server`` and ``uvicorn
+    app:server`` never call ``run()``, and fast_dash never sees their
+    ``--bind``/``--host``. The client address of a request to /mcp is what
+    every serving path has, so the route checks that itself. Never raises.
+    """
+    try:
+        fd = _mcp_owner() if _mcp_owner is not None else None
+        if fd is None or getattr(fd, "_mcp_exposure_warned", False):
+            return
+        addr = fd.app.backend.request_adapter().remote_addr
+        if not addr or _is_loopback(addr):
+            return
+        fd._mcp_exposure_warned = True
+    except Exception:  # noqa: BLE001 - a warning must never break a request
+        return
+    warnings.warn(
+        f"mcp_server=True: the /mcp endpoint just took a request from {addr}, "
+        "a non-loopback address. That endpoint has no authentication: anyone "
+        "who can reach this server can read your app's state and invoke your "
+        "callback. If that isn't intended, bind the server to 127.0.0.1 "
+        "(gunicorn --bind / uvicorn --host) or put an authenticating proxy in "
+        "front. This warning is shown once.",
+        stacklevel=2,
+    )
+
+
+def _patch_remote_client_warning() -> None:
+    """Run _warn_on_remote_client before Dash handles each /mcp message.
+
+    Best-effort and idempotent, like _patch_tool_images.
+    """
+    try:
+        from dash.mcp import _server
+    except Exception:  # noqa: BLE001
+        return
+    stock = getattr(_server, "_process_mcp_message", None)
+    if stock is None or getattr(stock, "_fastdash_exposure_patched", False):
+        return
+
+    @functools.wraps(stock)
+    def process(data, *args, **kwargs):
+        _warn_on_remote_client()
+        return stock(data, *args, **kwargs)
+
+    process._fastdash_exposure_patched = True
+    _server._process_mcp_message = process
 
 
 class MCPState:
@@ -1559,6 +1631,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         _override_mcp_instructions()
         _patch_get_dash_component()         # #297
         _patch_tool_images()                # #312
+        _patch_remote_client_warning()      # #363
         enable_mcp_server(fd.app, mcp_path)
         if getattr(fd, "_backend", None):
             _install_asgi_mcp_request_context(fd.app.server, mcp_path)
@@ -1939,6 +2012,7 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     _override_mcp_instructions()
     _patch_get_dash_component()             # #297
     _patch_tool_images()                    # #312
+    _patch_remote_client_warning()          # #363
     enable_mcp_server(fd.app, mcp_path)
 
     # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
