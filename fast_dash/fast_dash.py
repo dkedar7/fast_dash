@@ -1623,8 +1623,9 @@ class FastDash(ChatAppMixin):
 
         # Native Dash MCP shares the web app's host/port; agents connect at
         # http://<host>:<port>/mcp. The legacy mcp_port/mcp_host kwargs are
-        # retained for compatibility but no longer open a second port. The
-        # exposure warning is run()'s job: the bind host is only final there.
+        # retained for compatibility but no longer open a second port. run()
+        # warns about a non-loopback bind host; under gunicorn/uvicorn, which
+        # never call run(), the route warns on its first off-box request (#363).
         enable_mcp(self)
 
     def _register_mcp_mirror(self):

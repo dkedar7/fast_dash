@@ -333,6 +333,9 @@ The same ASGI backend also powers native-WebSocket **streaming** for
     `127.0.0.1` (the default) during development, and put it behind your own
     auth before exposing it. Serving on a non-loopback host (e.g.
     `run_kwargs={"host": "0.0.0.0"}`) with `mcp_server=True` raises a warning.
+    `gunicorn app:server` and `uvicorn app:server` never call `run()`, so
+    there the route warns instead, once, the first time a request reaches it
+    from a non-loopback address.
 
 - **One MCP-enabled app per process** (Dash's tool registry is process-global).
 - **Multi-function and steps modes** skip the MCP surface.
