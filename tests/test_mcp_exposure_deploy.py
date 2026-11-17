@@ -66,18 +66,44 @@ def test_run_warning_is_not_repeated_by_the_route(monkeypatch):
     assert _exposure(lambda: _flask_post(app, "203.0.113.7")) == []
 
 
+def _asgi_post(asgi_app, addr, body=INIT):
+    """POST to /mcp straight through ASGI, so the client address is exact.
+
+    starlette's TestClient now needs httpx2, which the test env doesn't have.
+    """
+    import asyncio
+
+    payload = json.dumps(body).encode()
+    scope = {
+        "type": "http", "asgi": {"version": "3.0"}, "http_version": "1.1",
+        "method": "POST", "scheme": "http", "path": "/mcp", "raw_path": b"/mcp",
+        "root_path": "", "query_string": b"",
+        "headers": [(b"host", b"testserver"), (b"content-type", b"application/json"),
+                    (b"accept", b"application/json, text/event-stream"),
+                    (b"content-length", str(len(payload)).encode())],
+        "client": (addr, 50000), "server": ("testserver", 80),
+    }
+    sent, status = False, []
+
+    async def receive():
+        nonlocal sent
+        if not sent:
+            sent = True
+            return {"type": "http.request", "body": payload, "more_body": False}
+        await asyncio.sleep(3600)
+
+    async def send(message):
+        if message["type"] == "http.response.start":
+            status.append(message["status"])
+
+    asyncio.run(asyncio.wait_for(asgi_app(scope, receive, send), 30))
+    assert status == [200], status
+
+
 def test_fastapi_backend_warns_on_off_box_request():
     pytest.importorskip("fastapi")
-    from starlette.testclient import TestClient
-
     app = _app(backend="fastapi")
 
-    def post(addr):
-        with TestClient(app.server, client=(addr, 50000)) as c:
-            r = c.post("/mcp", json=INIT,
-                       headers={"Accept": "application/json, text/event-stream"})
-            assert r.status_code == 200, r.text[:200]
-
-    assert _exposure(lambda: post("127.0.0.1")) == []
-    warned = _exposure(lambda: post("203.0.113.9"))
+    assert _exposure(lambda: _asgi_post(app.server, "127.0.0.1")) == []
+    warned = _exposure(lambda: _asgi_post(app.server, "203.0.113.9"))
     assert len(warned) == 1 and "203.0.113.9" in warned[0]
