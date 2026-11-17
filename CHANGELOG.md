@@ -1,4 +1,16 @@
-# Release 0.7.17
+# Release 0.7.18
+
+## 0.7.18 (2026-11-17)
+
+### Fixed
+- **The no-auth `/mcp` warning now reaches gunicorn/uvicorn deploys** (#363).
+  It lived only in `run()`, which `gunicorn app:server` and
+  `uvicorn app:server` never call, and fast_dash never sees their bind host. So
+  a deployed `mcp_server=True` app served an unauthenticated `/mcp` with no
+  warning at all. Now the route itself warns, once, the first time a request
+  reaches it from a non-loopback address, naming that address. Loopback
+  clients stay silent, and an app whose `run()` already warned doesn't warn
+  twice. The deployment and AI-agents guides say so.
 
 ## 0.7.17 (2026-11-16)
 

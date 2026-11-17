@@ -2,7 +2,7 @@
 
 __author__ = """Kedar Dabhadkar"""
 __email__ = "kedar@fastdash.app"
-__version__ = "0.7.17"
+__version__ = "0.7.18"
 
 from fast_dash.Components import (
     Graph,
