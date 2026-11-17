@@ -1158,7 +1158,10 @@ on Dash's ASGI backend, where updates stream over a WebSocket with <code>set_pro
 anyone who can reach it can drive your callback. Keep it bound to
 <code>127.0.0.1</code> (the default) during development, and put it behind your own
 auth before exposing it. Serving on a non-loopback host (e.g.
-<code>run_kwargs={"host": "0.0.0.0"}</code>) with <code>mcp_server=True</code> raises a warning.</p>
+<code>run_kwargs={"host": "0.0.0.0"}</code>) with <code>mcp_server=True</code> raises a warning.
+<code>gunicorn app:server</code> and <code>uvicorn app:server</code> never call <code>run()</code>, so
+there the route warns instead, once, the first time a request reaches it
+from a non-loopback address.</p>
 </div>
 <ul>
 <li><strong>One MCP-enabled app per process</strong> (Dash's tool registry is process-global).</li>

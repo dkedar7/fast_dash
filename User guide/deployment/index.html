@@ -968,7 +968,7 @@ works locally either way.</p>
 <p>Nothing extra is needed: <code>/mcp</code> is mounted when the app object is built, so <code>server = app.server</code> carries it and <code>gunicorn app:server</code> serves it alongside the UI. For <code>backend="fastapi"</code>, <code>app.server</code> is an ASGI app, so serve it with <code>uvicorn app:server --host 0.0.0.0 --port $PORT</code> instead (and add <code>uvicorn</code> to <code>requirements.txt</code>).</p>
 <div class="admonition warning">
 <p class="admonition-title">Warning</p>
-<p><code>/mcp</code> has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app.</p>
+<p><code>/mcp</code> has no authentication — anyone who can reach it can run your callback. Put it behind your own auth (a reverse proxy or your platform's access controls) before exposing a deployed app. The scaffolded Dockerfiles bind all interfaces, as a container must, so a deployed <code>/mcp</code> is reachable by default. The first time a request reaches <code>/mcp</code> from a non-loopback address, the app logs a one-time warning naming that address.</p>
 </div>
 
 
