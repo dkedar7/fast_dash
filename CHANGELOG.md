@@ -1,4 +1,25 @@
-# Release 0.7.18
+# Release 0.7.19
+
+## 0.7.19 (2026-11-19)
+
+### Fixed
+- **`set_inputs` is all or nothing, like `invoke`** (#368). One rejected value
+  used to leave the call's valid values set while the call reported
+  `ok: false`, so the next `invoke()` ran on a half-changed mirror and
+  reported success with a wrong result. Now a rejected call changes nothing
+  and returns `{"ok": false, "applied": {}, "errors": {...}}`. Values are still
+  checked in order, so a `depends_on` child is validated against a parent set
+  in the same call.
+
+### Changed
+- **`describe_app` stays small after a run with a large output** (#366). An
+  output's `current_value` embedded the whole last-run value, so one run of a
+  100-row table made every later `describe_app` 55x bigger. A value up to
+  2,000 characters of JSON is still shown whole. A larger one is a compact
+  summary (a table's shape and columns, a figure's trace count, long text's
+  length and preview), marked `current_value_summarized: true`, with the
+  `history_index` that `get_invocation` returns it from in full. The AI-agents
+  guide now documents output `current_value`.
 
 ## 0.7.18 (2026-11-17)
 
