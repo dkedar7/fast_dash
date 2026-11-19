@@ -152,6 +152,20 @@ interchangeable. Every input `tag` is a type `set_form` accepts, so an agent can
 rebuild the widget it found. `outputs` lets an
 agent see what a run returns **without** having to run it.
 
+After a run, each output also carries the `current_value` that run produced.
+A small value (a number, a short string, a short list) is shown whole. A large
+one, such as a table, a figure or text over 2,000 characters, would make
+every `describe_app` call as big as the run itself. It is summarized instead and
+points at the full value:
+
+```json
+{"id": "output_report", "tag": "Table", "type": "array", "label": "REPORT",
+ "current_value": {"type": "DataFrame", "shape": [100, 12], "columns": ["metric_0", "..."]},
+ "current_value_summarized": true, "history_index": 3}
+```
+
+`get_invocation(3)` returns that run's outputs in full, as `invoke` did.
+
 ### The contract is enforced
 
 Whatever `describe_app()` advertises is what `set_input` / `set_inputs` /

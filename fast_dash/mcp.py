@@ -1266,16 +1266,25 @@ def _input_widget_tag(component, raw_tag):
     return _INPUT_WIDGET_TAG.get(name, raw_tag)
 
 
+# describe_app is the call an agent repeats all through a drive loop, so an
+# output's current_value stays whole only up to this many characters of JSON.
+# Past that it is the compact history summary, and get_invocation has the
+# value in full (#366).
+DESCRIBE_VALUE_MAX_CHARS = 2000
+
+
 def _describe_outputs(fd, state=None):
     """Per-output contract: what ``invoke`` will produce, without running it.
 
     ``describe_app`` used to report inputs only, so the sole way for a headless
     agent to learn what an app returns was to *call* it — discovery by side
-    effect (#152). Each entry is ``{id, tag, type, label}``, plus a summary of
-    the value currently on screen once something has run.
+    effect (#152). Each entry is ``{id, tag, type, label}``, plus the value of
+    the last run once something has run: whole when it's small, else a summary
+    with ``current_value_summarized`` and the ``history_index`` that
+    ``get_invocation`` returns it from in full (#366).
     """
     from fast_dash.Components import expand_return_annotation
-    from fast_dash.utils import _output_for_mcp
+    from fast_dash.utils import _output_for_mcp, _summarize_for_history
 
     # DynamicDash stores its prepared outputs under the private name, same as
     # _enumerate_outputs already reaches for — without this fallback the output
@@ -1332,8 +1341,17 @@ def _describe_outputs(fd, state=None):
             # The value itself, not the history preview (#261) -- and masked:
             # an output derived from a PasswordInput must not read back in the
             # clear here any more than it does from invoke (#194).
-            entry["current_value"] = _scrub_secrets(
-                _output_for_mcp(state.outputs[cid]), _secret_values(fd, state))
+            secrets = _secret_values(fd, state)
+            full = _scrub_secrets(_output_for_mcp(state.outputs[cid]), secrets)
+            if len(json.dumps(full, default=str)) <= DESCRIBE_VALUE_MAX_CHARS:
+                entry["current_value"] = full
+            else:
+                # A 100-row table made every describe_app 55x bigger (#366).
+                entry["current_value"] = _scrub_secrets(
+                    _summarize_for_history(state.outputs[cid]), secrets)
+                entry["current_value_summarized"] = True
+                if state.full_history:
+                    entry["history_index"] = next(reversed(state.full_history))
         outputs.append(entry)
     return outputs
 
@@ -1976,7 +1994,10 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         ``current_value`` — including values you set via ``set_input`` /
         ``set_inputs``. Each output reports its ``id``, the component ``tag`` it
         renders into, its JSON ``type`` and ``label``, so you can see what a run
-        will produce without having to run it. (The native ``dash://components``
+        will produce without having to run it. After a run, each output also
+        has the ``current_value`` it produced. A large one (a table, a figure)
+        is summarized, marked ``current_value_summarized: true``, and its
+        ``history_index`` gets it in full from ``get_invocation``. (The native ``dash://components``
         resource lists ids and Dash *widget* types only, and
         ``get_dash_component`` reflects the browser, not the agent's mirror, so
         neither shows agent-set values headlessly.)
