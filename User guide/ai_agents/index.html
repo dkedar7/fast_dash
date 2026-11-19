@@ -947,7 +947,7 @@ unavailable</code>.</p>
 <tr>
 <td><code>set_inputs(inputs)</code></td>
 <td>Fast Dash</td>
-<td>Set several inputs at once (<code>inputs</code> is a <code>{id: value}</code> dict)</td>
+<td>Set several inputs at once (<code>inputs</code> is a <code>{id: value}</code> dict); all or nothing</td>
 </tr>
 <tr>
 <td><code>invoke(inputs=None)</code></td>
@@ -1009,6 +1009,16 @@ returns an expression gets <code>output_output_1</code>, <code>output_output_2</
 interchangeable. Every input <code>tag</code> is a type <code>set_form</code> accepts, so an agent can
 rebuild the widget it found. <code>outputs</code> lets an
 agent see what a run returns <strong>without</strong> having to run it.</p>
+<p>After a run, each output also carries the <code>current_value</code> that run produced.
+A small value (a number, a short string, a short list) is shown whole. A large
+one, such as a table, a figure or text over 2,000 characters, would make
+every <code>describe_app</code> call as big as the run itself. It is summarized instead and
+points at the full value:</p>
+<div class="highlight"><pre><span></span><code><span class="p">{</span><span class="nt">&quot;id&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;output_report&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;tag&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;Table&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;array&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;label&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;REPORT&quot;</span><span class="p">,</span>
+<span class="w"> </span><span class="nt">&quot;current_value&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">{</span><span class="nt">&quot;type&quot;</span><span class="p">:</span><span class="w"> </span><span class="s2">&quot;DataFrame&quot;</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;shape&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="mi">100</span><span class="p">,</span><span class="w"> </span><span class="mi">12</span><span class="p">],</span><span class="w"> </span><span class="nt">&quot;columns&quot;</span><span class="p">:</span><span class="w"> </span><span class="p">[</span><span class="s2">&quot;metric_0&quot;</span><span class="p">,</span><span class="w"> </span><span class="s2">&quot;...&quot;</span><span class="p">]},</span>
+<span class="w"> </span><span class="nt">&quot;current_value_summarized&quot;</span><span class="p">:</span><span class="w"> </span><span class="kc">true</span><span class="p">,</span><span class="w"> </span><span class="nt">&quot;history_index&quot;</span><span class="p">:</span><span class="w"> </span><span class="mi">3</span><span class="p">}</span>
+</code></pre></div>
+<p><code>get_invocation(3)</code> returns that run's outputs in full, as <code>invoke</code> did.</p>
 <h3 id="the-contract-is-enforced">The contract is enforced</h3>
 <p>Whatever <code>describe_app()</code> advertises is what <code>set_input</code> / <code>set_inputs</code> /
 <code>invoke</code> accept — an agent cannot set a value the UI itself could never produce.
@@ -1016,8 +1026,10 @@ A value outside a dropdown's <code>options</code>, outside a Slider's <code>min<
 wrong type (a string for a number, a string for a switch) is rejected with an
 error naming the constraint. An upload takes what the browser sends, a
 <code>data:&lt;mime&gt;;base64,...</code> URI, and an <code>UploadImage</code> only one that decodes to an
-image. <code>invoke</code> is atomic: one bad value rejects the
-whole call without mutating anything. The same holds for a form an agent builds
+image. <code>invoke</code> and <code>set_inputs</code> are atomic: one bad value rejects the
+whole call without changing anything. <code>set_inputs</code> then returns
+<code>{"ok": false, "applied": {}, "errors": {...}}</code>, with each rejected key in
+<code>errors</code>. The same holds for a form an agent builds
 at runtime with <code>set_form</code> — the specs it declared become the contract it is
 then held to.</p>
 <div class="admonition warning">
