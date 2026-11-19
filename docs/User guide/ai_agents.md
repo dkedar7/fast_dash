@@ -105,7 +105,7 @@ or add it to the project's `.mcp.json`:
 |---|---|---|
 | `describe_app()` | Fast Dash | **Start here.** The full contract + current state: each input's id, type, default, options and current value, and each output the app produces |
 | `set_input(component_id, value)` | Fast Dash | Set one input |
-| `set_inputs(inputs)` | Fast Dash | Set several inputs at once (`inputs` is a `{id: value}` dict) |
+| `set_inputs(inputs)` | Fast Dash | Set several inputs at once (`inputs` is a `{id: value}` dict); all or nothing |
 | `invoke(inputs=None)` | Fast Dash | Run the callback (optionally setting inputs first), in one call |
 | `set_form(specs)` | Fast Dash | Generate a form at runtime (`DynamicDash` only) |
 | `get_invocation(index)` | Fast Dash | Fetch a past run's full kwargs + result |
@@ -174,8 +174,10 @@ A value outside a dropdown's `options`, outside a Slider's `min`/`max`, or of th
 wrong type (a string for a number, a string for a switch) is rejected with an
 error naming the constraint. An upload takes what the browser sends, a
 `data:<mime>;base64,...` URI, and an `UploadImage` only one that decodes to an
-image. `invoke` is atomic: one bad value rejects the
-whole call without mutating anything. The same holds for a form an agent builds
+image. `invoke` and `set_inputs` are atomic: one bad value rejects the
+whole call without changing anything. `set_inputs` then returns
+`{"ok": false, "applied": {}, "errors": {...}}`, with each rejected key in
+`errors`. The same holds for a form an agent builds
 at runtime with `set_form` — the specs it declared become the contract it is
 then held to.
 

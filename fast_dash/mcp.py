@@ -1710,12 +1710,18 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         """Bulk-update multiple input values (keyed by parameter name).
 
         The argument is named ``inputs`` to match ``invoke(inputs=...)``.
+        Atomic, like ``invoke``: if any value is rejected, nothing is set,
+        ``ok`` is false, ``applied`` is empty and ``errors`` names each bad key.
         """
         snapshot = dict(state.inputs)
         entries = _contract_index(snapshot)
         if not entries and _is_dynamic(fd) and inputs:
             return {"ok": False, "error": _NO_FORM, "applied": {}, "errors": {}}
-        applied, errors = {}, {}
+        staged, errors = {}, {}
+        # Validate everything against a snapshot first, in order, so a child is
+        # checked against a parent set earlier in the same call (#279). Commit
+        # only if every key passed: a partial apply behind ok=False left the
+        # mirror half-changed and the next invoke() ran on it (#368).
         for k, v in (inputs or {}).items():
             if entries and k not in entries:
                 errors[k] = "unknown id"
@@ -1724,9 +1730,14 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             if bad:
                 errors[k] = bad
                 continue
+            snapshot[k] = v
+            staged[k] = v
+        if errors:
+            return {"ok": False, "applied": {}, "errors": errors}
+        applied = {}
+        for k, v in staged.items():
             state.inputs[k] = v
             state.pending_inputs[k] = v
-            snapshot[k] = v
             applied[k] = _echo(entries, k, v)
         updated = _rerun_dependents(fd, state, set(applied))   # #279
         cleared = _clear_stale_dependents(fd, state)          # #191
