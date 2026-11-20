@@ -1,4 +1,21 @@
-# Release 0.7.19
+# Release 0.7.20
+
+## 0.7.20 (2026-11-20)
+
+### Added
+- **An agent can watch a long run while `invoke` runs** (#371). A callback
+  that `yield`s shows each frame in the browser as it comes, but an agent's
+  `invoke` only returned the final value. Now, when the `invoke` call carries
+  an MCP `progressToken` (the official SDK sends one when you pass
+  `progress_callback=`), each yielded frame arrives as a
+  `notifications/progress` while the run goes on, and the result is the final
+  value as before. A frame's message is its text; a multi-output frame is a
+  JSON object keyed by output id, a table or figure is its summary, a
+  `PasswordInput` value is masked, and a frame over 2,000 characters keeps
+  its last 2,000. From Python, `connect(url).invoke(..., on_progress=print)`
+  gets the frames as they arrive. Works on Flask and `backend="fastapi"`.
+  Without a `progressToken`, `invoke` answers exactly as before. See "Watch a
+  long run" in the AI-agents guide.
 
 ## 0.7.19 (2026-11-19)
 
