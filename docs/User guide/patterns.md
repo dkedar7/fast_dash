@@ -337,8 +337,10 @@ def type_out(prompt: str = "hi") -> str:
 ```
 
 A generator also works without `stream=True`: it runs to completion and shows
-the last value. An AI agent calling `invoke()` over MCP always gets the last
-value. For token-by-token chat, use [`chat=True`](chat.md).
+the last value. An AI agent calling `invoke()` over MCP gets the last value,
+and can watch the frames as they come by asking for progress (see
+[Watch a long run](ai_agents.md#watch-a-long-run)). For token-by-token chat,
+use [`chat=True`](chat.md).
 
 ## 8. Selecting other configurations
 

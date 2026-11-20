@@ -188,6 +188,142 @@ def _patch_remote_client_warning() -> None:
     _server._process_mcp_message = process
 
 
+# Set while an ``invoke`` runs on behalf of a caller that asked for progress
+# (#371): a function taking one frame's text. ``invoke`` reads it in the worker
+# thread the progress stream runs the tool on.
+_PROGRESS = contextvars.ContextVar("fastdash_mcp_progress", default=None)
+
+# A progress message is a frame's text, cut to its last this-many characters: a
+# growing stream's newest part is at the end.
+PROGRESS_MESSAGE_MAX_CHARS = 2000
+
+
+def _progress_message(fd, frame, secrets):
+    """One yielded frame as the text of a progress notification."""
+    from fast_dash.utils import _summarize_for_history
+
+    split = isinstance(frame, tuple) or (_is_dynamic(fd) and isinstance(frame, list))
+    if split:
+        ids = [d["id"] for d in _enumerate_outputs(fd)]
+        text = json.dumps({i: _summarize_for_history(v) for i, v in zip(ids, frame)},
+                          default=str)
+    elif isinstance(frame, str):
+        text = frame
+    else:
+        text = json.dumps(_summarize_for_history(frame), default=str)
+    text = _scrub_secrets(text, secrets)
+    if not isinstance(text, str):
+        text = json.dumps(text, default=str)
+    n = PROGRESS_MESSAGE_MAX_CHARS
+    return text if len(text) <= n else "..." + text[-(n - 3):]
+
+
+def _progress_token(data):
+    """The progressToken of an ``invoke`` call that asked for progress, else None."""
+    if not isinstance(data, dict) or data.get("method") != "tools/call":
+        return None
+    params = data.get("params") or {}
+    if not isinstance(params, dict) or params.get("name") != "invoke":
+        return None
+    token = (params.get("_meta") or {}).get("progressToken")
+    if isinstance(token, bool) or not isinstance(token, (str, int)):
+        return None
+    return token
+
+
+_STREAM_DONE = object()
+
+
+def _start_progress_run(data, token):
+    """Run the ``invoke`` call in a worker thread; return the event queue.
+
+    The queue gets one ``notifications/progress`` message per yielded frame,
+    then ``(_STREAM_DONE, response)``. The thread runs in a copy of this
+    context, so Dash's app lookup (and the ASGI request) carry over.
+    """
+    import itertools
+    import queue
+    import threading
+
+    from dash.mcp import _server
+
+    events = queue.Queue()
+    count = itertools.count(1)
+
+    def hook(message):
+        events.put({"jsonrpc": "2.0", "method": "notifications/progress",
+                    "params": {"progressToken": token, "progress": next(count),
+                               "message": message}})
+
+    def work():
+        _PROGRESS.set(hook)
+        try:
+            response = _server._process_mcp_message(data)
+        except Exception as e:  # noqa: BLE001 - always answer the call
+            response = {"jsonrpc": "2.0", "id": data.get("id"),
+                        "error": {"code": -32603, "message": f"{type(e).__name__}: {e}"}}
+        events.put((_STREAM_DONE, response))
+
+    ctx = contextvars.copy_context()
+    threading.Thread(target=ctx.run, args=(work,), daemon=True,
+                     name="fastdash-mcp-progress").start()
+    return events
+
+
+def _sse(message):
+    return f"event: message\ndata: {json.dumps(message)}\n\n"
+
+
+def _wants_progress(accept, data):
+    """The progressToken when this POST should be answered as a stream."""
+    if "text/event-stream" not in (accept or ""):
+        return None
+    return _progress_token(data)
+
+
+def _install_flask_progress_stream(fd, mcp_path):
+    """Answer an ``invoke`` that carries a progressToken as an SSE stream (#371).
+
+    Dash answers every POST /mcp with one JSON body, so a tool can't send
+    anything until it returns. For that one case this answers instead: one
+    progress notification per frame the callback yields, then the result.
+    Every other request goes to Dash unchanged.
+    """
+    server = getattr(fd.app, "server", None)
+    if server is None or not hasattr(server, "before_request"):
+        return
+    url = (fd.app.config.routes_pathname_prefix + mcp_path.strip("/")).rstrip("/")
+
+    def progress_stream():
+        from flask import Response, request
+
+        if request.method != "POST" or request.path.rstrip("/") != url:
+            return None
+        data = request.get_json(silent=True)
+        token = _wants_progress(request.headers.get("Accept"), data)
+        if token is None:
+            return None
+        _warn_on_remote_client()
+        events = _start_progress_run(data, token)
+
+        def body():
+            while True:
+                item = events.get()
+                if isinstance(item, tuple) and item[0] is _STREAM_DONE:
+                    yield _sse(item[1])
+                    return
+                yield _sse(item)
+
+        resp = Response(body(), mimetype="text/event-stream")
+        resp.headers["Cache-Control"] = "no-cache, no-transform"
+        session = request.headers.get("Mcp-Session-Id")
+        if session:
+            resp.headers["Mcp-Session-Id"] = session
+        return resp
+
+    server.before_request(progress_stream)
+
+
 class MCPState:
     """Server-side mirror of a fast_dash app's input/output state.
 
@@ -1841,7 +1977,20 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         t0 = time.time()
         try:
             from fast_dash.utils import _drain_generator
-            result = _drain_generator(fd.callback_fn(**kwargs))  # #207
+            result = fd.callback_fn(**kwargs)
+            progress = _PROGRESS.get()
+            push = None
+            if progress is not None and inspect.isgenerator(result):
+                # The caller asked for progress: each yielded frame goes out as
+                # a notification while the run goes on (#371).
+                frame_secrets = _secret_values(fd, state)
+
+                def push(frame):
+                    try:
+                        progress(_progress_message(fd, frame, frame_secrets))
+                    except Exception:  # noqa: BLE001 - progress never breaks a run
+                        pass
+            result = _drain_generator(result, push=push)  # #207
         except Exception as e:
             return {
                 "ok": False,
@@ -2048,9 +2197,12 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
     enable_mcp_server(fd.app, mcp_path)
 
     # On an ASGI backend, work around an upstream Dash 4.3 bug that breaks the
-    # /mcp route (see _install_asgi_mcp_request_context).
+    # /mcp route (see _install_asgi_mcp_request_context). It also streams
+    # invoke's progress there; on Flask a request hook does (#371).
     if getattr(fd, "_backend", None):
-        _install_asgi_mcp_request_context(fd.app.server, mcp_path)
+        _install_asgi_mcp_request_context(fd.app.server, mcp_path, progress=True)
+    else:
+        _install_flask_progress_stream(fd, mcp_path)
 
 
 _FASTDASH_MCP_INSTRUCTIONS = (
@@ -2212,7 +2364,7 @@ def _override_mcp_instructions() -> None:
         pass
 
 
-def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
+def _install_asgi_mcp_request_context(server, mcp_path: str, progress: bool = False) -> None:
     """Make Dash's native ``/mcp`` route work on the FastAPI/Quart backend.
 
     Dash 4.3's ``DashMiddleware`` only sets the per-request context (and the
@@ -2267,6 +2419,16 @@ def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
                     request.state.json_body = None
                 token = set_current_request(request)
                 try:
+                    stream_token = (
+                        _wants_progress(request.headers.get("accept"),
+                                        request.state.json_body)
+                        if progress else None
+                    )
+                    if stream_token is not None:
+                        # invoke with a progressToken: stream its frames (#371).
+                        await _asgi_progress_stream(
+                            request, stream_token, scope, receive, send)
+                        return
                     # Replay the body we just read. Dash 4.5 reads it again in
                     # its own middleware (it now treats /mcp as a Dash route);
                     # handing it the drained stream left that read waiting
@@ -2278,6 +2440,31 @@ def _install_asgi_mcp_request_context(server, mcp_path: str) -> None:
                 await self.app(scope, receive, send)
 
     server.add_middleware(_MCPRequestContext)
+
+
+async def _asgi_progress_stream(request, token, scope, receive, send):
+    """The ASGI side of _install_flask_progress_stream (#371)."""
+    import asyncio
+
+    from starlette.responses import StreamingResponse  # type: ignore[import-not-found]
+
+    _warn_on_remote_client()
+    events = _start_progress_run(request.state.json_body, token)
+
+    async def body():
+        while True:
+            item = await asyncio.to_thread(events.get)
+            if isinstance(item, tuple) and item[0] is _STREAM_DONE:
+                yield _sse(item[1])
+                return
+            yield _sse(item)
+
+    headers = {"Cache-Control": "no-cache, no-transform"}
+    session = request.headers.get("mcp-session-id")
+    if session:
+        headers["Mcp-Session-Id"] = session
+    await StreamingResponse(body(), media_type="text/event-stream",
+                            headers=headers)(scope, receive, send)
 
 
 # --------------------------------------------------------------------------- #
@@ -2306,8 +2493,10 @@ class MCPToolResult(dict):
 class _ToolClient:
     """The synchronous tool-method surface shared by both MCP clients.
 
-    A subclass supplies ``_post(body) -> (status, content_type, data)`` (one
-    JSON-RPC POST to ``/mcp``) and calls ``_start()``; this does the rest.
+    A subclass supplies ``_post(body, on_line=None) -> (status, content_type,
+    data)`` (one JSON-RPC POST to ``/mcp``; for an event-stream answer it calls
+    ``on_line`` with each line, live when it can) and calls ``_start()``; this
+    does the rest.
     """
 
     _client_name = "fast_dash.MCPTestClient"
@@ -2334,15 +2523,22 @@ class _ToolClient:
         """The names of the tools the app serves."""
         return list(self._schemas)
 
-    def call(self, name, *args, **arguments):
-        """Call tool ``name`` and return its JSON result."""
+    def call(self, name, *args, on_progress=None, **arguments):
+        """Call tool ``name`` and return its JSON result.
+
+        ``on_progress`` (``invoke`` only) is called with each frame's text as a
+        ``yield``-ing callback produces it (#371).
+        """
         params = self._schemas.get(name)
         if params is None:
             raise MCPError(f"no tool named {name!r}; the app serves {self.tools}")
         if len(args) > len(params):
             raise TypeError(f"{name}() takes at most {len(params)} arguments")
         arguments.update(zip(params, args))
-        result = self._rpc("tools/call", {"name": name, "arguments": arguments})
+        call = {"name": name, "arguments": arguments}
+        if on_progress is not None:
+            call["_meta"] = {"progressToken": f"fastdash-{self._next_id + 1}"}
+        result = self._rpc("tools/call", call, on_progress=on_progress)
         content = result.get("content") or []
         text = " ".join(b.get("text", "") for b in content if b.get("type") == "text")
         if result.get("isError"):
@@ -2380,32 +2576,41 @@ class _ToolClient:
     def _status_error(self, status, data):
         return f"POST /mcp answered {status}: {data[:200]!r}"
 
-    def _rpc(self, method, params=None):
+    def _rpc(self, method, params=None, on_progress=None):
         self._next_id += 1
         request_id = self._next_id
         body = json.dumps({
             "jsonrpc": "2.0", "id": request_id,
             "method": method, "params": params or {},
         }).encode()
-        status, content_type, data = self._post(body)
+        found = []
+
+        def on_line(line):
+            if isinstance(line, bytes):
+                line = line.decode("utf-8")
+            if not line.startswith("data:"):
+                return
+            try:
+                event = json.loads(line[5:].strip())
+            except ValueError:
+                return
+            if not isinstance(event, dict):
+                return
+            if event.get("method") == "notifications/progress":
+                if on_progress is not None:
+                    on_progress((event.get("params") or {}).get("message"))
+                return
+            # A stream can carry notifications first; the answer has our id.
+            if not found or event.get("id") == request_id:
+                found[:] = [event]
+
+        status, content_type, data = self._post(body, on_line)
         if status != 200:
             raise MCPError(self._status_error(status, data))
-        text = data.decode("utf-8")
         if "text/event-stream" in content_type:
-            message = None
-            for line in text.splitlines():
-                if not line.startswith("data:"):
-                    continue
-                try:
-                    event = json.loads(line[5:].strip())
-                except ValueError:
-                    continue
-                # A stream can carry notifications first; the answer has our id.
-                if isinstance(event, dict) and (message is None or event.get("id") == request_id):
-                    message = event
-            message = message or {}
+            message = found[0] if found else {}
         else:
-            message = json.loads(text)
+            message = json.loads(data.decode("utf-8"))
         if "error" in message:
             raise MCPError(message["error"].get("message", message["error"]))
         return message.get("result") or {}
@@ -2443,11 +2648,16 @@ class MCPTestClient(_ToolClient):
             self._http = fd.app.server.test_client()
         self._start()
 
-    def _post(self, body):
-        return (
+    def _post(self, body, on_line=None):
+        status, content_type, data = (
             self._post_asgi(body) if getattr(self._fd, "_backend", None)
             else self._post_wsgi(body)
         )
+        # In-process, the whole answer is here at once; replay its lines.
+        if on_line is not None and "text/event-stream" in content_type:
+            for line in data.decode("utf-8").splitlines():
+                on_line(line)
+        return status, content_type, data
 
     def _post_wsgi(self, body):
         r = self._http.post("/mcp", data=body, headers=self._headers)
@@ -2540,7 +2750,7 @@ class MCPClient(_ToolClient):
         body = json.dumps({"jsonrpc": "2.0", "method": "notifications/initialized"}).encode()
         self._post(body)              # 202 Accepted; nothing to read
 
-    def _request(self, method, body=None):
+    def _request(self, method, body=None, on_line=None):
         import urllib.error
         import urllib.request
 
@@ -2550,7 +2760,17 @@ class MCPClient(_ToolClient):
         req = urllib.request.Request(self.url, data=body, headers=headers, method=method)
         try:
             with urllib.request.urlopen(req, timeout=self.timeout) as r:
-                status, rheaders, data = r.status, r.headers, r.read()
+                status, rheaders = r.status, r.headers
+                if on_line is not None and "text/event-stream" in (
+                        r.headers.get("Content-Type") or ""):
+                    # Read the stream as it arrives, so progress is live (#371).
+                    chunks = []
+                    for raw in r:
+                        chunks.append(raw)
+                        on_line(raw.decode("utf-8").rstrip("\r\n"))
+                    data = b"".join(chunks)
+                else:
+                    data = r.read()
         except urllib.error.HTTPError as e:
             status, rheaders, data = e.code, e.headers, e.read()
         except (urllib.error.URLError, OSError) as e:
@@ -2562,8 +2782,8 @@ class MCPClient(_ToolClient):
         content_type = (rheaders.get("Content-Type") if rheaders is not None else "") or ""
         return status, content_type, data
 
-    def _post(self, body):
-        status, content_type, data = self._request("POST", body)
+    def _post(self, body, on_line=None):
+        status, content_type, data = self._request("POST", body, on_line)
         if status == 200 and "text/html" in content_type:
             raise MCPError(
                 f"{self.url} returned a web page, not MCP. Was the app built with "

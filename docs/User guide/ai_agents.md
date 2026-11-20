@@ -209,6 +209,29 @@ invoke(inputs={"n": 12, "color": "#2f9e44"})
 Agent mutations are reflected in the **live browser** within ~500 ms (no
 reload), so a human watching the page sees what the agent does.
 
+### Watch a long run
+
+A callback that `yield`s (a multi-step pipeline, a long simulation, an LLM
+loop) shows each frame in the browser as it comes. An agent can watch the same
+frames: when its `invoke` call asks for progress (an MCP `progressToken`, which
+a client SDK sends when you pass a progress handler), each yielded frame
+arrives as a `notifications/progress` message while the run goes on, and the
+result is the final value, as without progress. With the official
+[`mcp`](https://pypi.org/project/mcp/) SDK:
+
+```python
+async def show(progress, total, message):
+    print(progress, message)          # 1 tick 1 / 2 tick 1 tick 2 / ...
+
+await session.call_tool("invoke", {"inputs": {"n": 4}}, progress_callback=show)
+```
+
+A frame's `message` is its text. A multi-output frame is a JSON object keyed
+by output id, a table or figure is its compact summary, and anything longer
+than 2,000 characters keeps its last 2,000. A `PasswordInput` value is masked,
+as in every other result. Without a `progressToken`, `invoke` answers exactly
+as before.
+
 ## Drive it from Python
 
 `fast_dash.connect()` drives a running app from a script, a notebook or another
@@ -235,13 +258,17 @@ Every tool takes keyword arguments named as in the table above:
 `list_component_types` take none. Arguments also go by position
 (`app.set_input("n", 3)`), `app.tools` lists the tool names, and an image
 output's PNG bytes are in the result's `.images`.
+`app.invoke(inputs={...}, on_progress=print)` calls `on_progress` with each
+frame's text as a yielding callback produces it (see
+[Watch a long run](#watch-a-long-run)).
 
 A bad call raises `fast_dash.mcp.MCPError` with the reason: the server can't be
 reached, nothing is mounted at that path, or a tool failed. A rejected input is
 not an error; it comes back as `{"ok": False, "errors": {...}}`, as it does for
 an agent. A root URL gets `/mcp` added. `headers={...}` goes with every request,
 for example an `Authorization` header for a proxy in front of the app, and
-`timeout=` (default 30 seconds) caps each call.
+`timeout=` (default 30 seconds) caps each call, or with `on_progress` the wait
+between frames.
 
 For async code, or to see the raw protocol, use the official
 [`mcp`](https://pypi.org/project/mcp/) client SDK (`pip install mcp`) and its
