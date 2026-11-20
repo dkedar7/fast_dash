@@ -1333,8 +1333,10 @@ stream several outputs together.</p>
     <span class="k">return</span> <span class="n">text</span>
 </code></pre></div>
 <p>A generator also works without <code>stream=True</code>: it runs to completion and shows
-the last value. An AI agent calling <code>invoke()</code> over MCP always gets the last
-value. For token-by-token chat, use <a href="../chat/"><code>chat=True</code></a>.</p>
+the last value. An AI agent calling <code>invoke()</code> over MCP gets the last value,
+and can watch the frames as they come by asking for progress (see
+<a href="../ai_agents/#watch-a-long-run">Watch a long run</a>). For token-by-token chat,
+use <a href="../chat/"><code>chat=True</code></a>.</p>
 <h2 id="8-selecting-other-configurations">8. Selecting other configurations</h2>
 <p>Finally, customize your app by controlling various options like the theme of the app, social media branding links, subheaders, deployment mode and so on.</p>
 <p>In the <a href="../components/">next section</a>, we'll see what Fast Components are, what separates them from other Dash components, and how we can easily modify Dash components to make them compatible with Fast Dash.</p>

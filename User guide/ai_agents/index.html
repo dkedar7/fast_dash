@@ -445,6 +445,19 @@
     Drive it from the agent
   </a>
   
+    <nav class="md-nav" aria-label="Drive it from the agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#watch-a-long-run" class="md-nav__link">
+    Watch a long run
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -789,6 +802,19 @@
     Drive it from the agent
   </a>
   
+    <nav class="md-nav" aria-label="Drive it from the agent">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#watch-a-long-run" class="md-nav__link">
+    Watch a long run
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
 </li>
       
         <li class="md-nav__item">
@@ -1058,6 +1084,24 @@ values.</p>
 </code></pre></div>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
+<h3 id="watch-a-long-run">Watch a long run</h3>
+<p>A callback that <code>yield</code>s (a multi-step pipeline, a long simulation, an LLM
+loop) shows each frame in the browser as it comes. An agent can watch the same
+frames: when its <code>invoke</code> call asks for progress (an MCP <code>progressToken</code>, which
+a client SDK sends when you pass a progress handler), each yielded frame
+arrives as a <code>notifications/progress</code> message while the run goes on, and the
+result is the final value, as without progress. With the official
+<a href="https://pypi.org/project/mcp/"><code>mcp</code></a> SDK:</p>
+<div class="highlight"><pre><span></span><code><span class="k">async</span> <span class="k">def</span><span class="w"> </span><span class="nf">show</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="n">total</span><span class="p">,</span> <span class="n">message</span><span class="p">):</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">progress</span><span class="p">,</span> <span class="n">message</span><span class="p">)</span>          <span class="c1"># 1 tick 1 / 2 tick 1 tick 2 / ...</span>
+
+<span class="k">await</span> <span class="n">session</span><span class="o">.</span><span class="n">call_tool</span><span class="p">(</span><span class="s2">&quot;invoke&quot;</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;inputs&quot;</span><span class="p">:</span> <span class="p">{</span><span class="s2">&quot;n&quot;</span><span class="p">:</span> <span class="mi">4</span><span class="p">}},</span> <span class="n">progress_callback</span><span class="o">=</span><span class="n">show</span><span class="p">)</span>
+</code></pre></div>
+<p>A frame's <code>message</code> is its text. A multi-output frame is a JSON object keyed
+by output id, a table or figure is its compact summary, and anything longer
+than 2,000 characters keeps its last 2,000. A <code>PasswordInput</code> value is masked,
+as in every other result. Without a <code>progressToken</code>, <code>invoke</code> answers exactly
+as before.</p>
 <h2 id="drive-it-from-python">Drive it from Python</h2>
 <p><code>fast_dash.connect()</code> drives a running app from a script, a notebook or another
 service. Its methods are the app's tools, it blocks until each answers, and it
@@ -1079,13 +1123,17 @@ Start the app above, then run:</p>
 <code>set_form(specs)</code> and <code>get_invocation(index)</code>. <code>describe_app</code> and
 <code>list_component_types</code> take none. Arguments also go by position
 (<code>app.set_input("n", 3)</code>), <code>app.tools</code> lists the tool names, and an image
-output's PNG bytes are in the result's <code>.images</code>.</p>
+output's PNG bytes are in the result's <code>.images</code>.
+<code>app.invoke(inputs={...}, on_progress=print)</code> calls <code>on_progress</code> with each
+frame's text as a yielding callback produces it (see
+<a href="#watch-a-long-run">Watch a long run</a>).</p>
 <p>A bad call raises <code>fast_dash.mcp.MCPError</code> with the reason: the server can't be
 reached, nothing is mounted at that path, or a tool failed. A rejected input is
 not an error; it comes back as <code>{"ok": False, "errors": {...}}</code>, as it does for
 an agent. A root URL gets <code>/mcp</code> added. <code>headers={...}</code> goes with every request,
 for example an <code>Authorization</code> header for a proxy in front of the app, and
-<code>timeout=</code> (default 30 seconds) caps each call.</p>
+<code>timeout=</code> (default 30 seconds) caps each call, or with <code>on_progress</code> the wait
+between frames.</p>
 <p>For async code, or to see the raw protocol, use the official
 <a href="https://pypi.org/project/mcp/"><code>mcp</code></a> client SDK (<code>pip install mcp</code>) and its
 streamable-HTTP client against the same URL.</p>
