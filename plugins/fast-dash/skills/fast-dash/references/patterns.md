@@ -197,7 +197,7 @@ def stream_text(input_text: str = "hi") -> str:
 FastDash(callback_fn=stream_text, stream=True).run()
 ```
 
-Without `stream=True` a generator still works: it runs to completion and shows the last value. An MCP agent's `invoke()` always gets the last value. Use `notify(data, action="show")` to push a toast mid-run. For token-by-token chat, use `chat=True` (see the chat docs) rather than a `Chat` output.
+Without `stream=True` a generator still works: it runs to completion and shows the last value. An MCP agent's `invoke()` gets the last value; with a progress handler (an MCP `progressToken`) it also receives each yielded frame as a progress notification, and `connect(url).invoke(..., on_progress=print)` does the same from Python. Use `notify(data, action="show")` to push a toast mid-run. For token-by-token chat, use `chat=True` (see the chat docs) rather than a `Chat` output.
 
 ## 12. Drive the app from an AI agent (MCP)
 
