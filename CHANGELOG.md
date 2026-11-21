@@ -1,4 +1,14 @@
-# Release 0.7.20
+# Release 0.7.21
+
+## 0.7.21 (2026-11-21)
+
+### Fixed
+- **A `mosaic` with more cells than outputs now fails at construction**
+  (#374). `mosaic="ABC"` with a two-output function was accepted silently,
+  and the extra letter rendered as literal text in its own grid cell. The
+  #296 check covered only too few cells; it now requires exactly one letter
+  per output and names the mismatch either way, as the runtime `set_layout`
+  path already did.
 
 ## 0.7.20 (2026-11-20)
 
