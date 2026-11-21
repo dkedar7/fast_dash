@@ -666,16 +666,17 @@ class AppLayout:
                 self.output_component_mapper = {}
             else:
                 unique_locations = np.unique(mosaic_arr)
-                # Each letter places one output, in order; an output with no
+                # Each letter places one output, in order. An output with no
                 # letter has no place in the layout, and its callback fails at
-                # runtime with "ID not found in layout" (#296).
+                # runtime with "ID not found in layout" (#296); a letter with
+                # no output would render as its own literal text (#374).
                 # The last entry of self.outputs is not a mosaic output (see the
                 # [:-1] in the mapper below), so it doesn't need a letter.
                 n_outputs = len(self.outputs) - 1
-                if len(unique_locations) < n_outputs:
+                if len(unique_locations) != n_outputs:
                     raise ValueError(
                         "mosaic=%r has %d cell(s) (%s) but the function has %d "
-                        "outputs. Give every output its own letter, e.g. %r."
+                        "output(s). Give each output exactly one letter, e.g. %r."
                         % (mosaic, len(unique_locations),
                            ", ".join(str(u) for u in unique_locations),
                            n_outputs,
