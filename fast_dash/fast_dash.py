@@ -418,6 +418,7 @@ class FastDash(ChatAppMixin):
         mcp_server=False,
         mcp_port=8001,
         mcp_host="127.0.0.1",
+        agent_activity="notify",
         **kwargs
     ):
         """
@@ -507,6 +508,11 @@ class FastDash(ChatAppMixin):
                 Only used for a LangGraph agent (a graph / spec string / auto-built assistant); a plain \
                 ``(query, ctx)`` chat callable ignores this silently. Entries are validated at construction. \
                 Defaults to None.
+
+            agent_activity (str or None, optional): With ``mcp_server=True``, ``"notify"`` shows a short notice \
+                in the browser each time an agent sets an input, runs the app or rebuilds the form, so a human \
+                watching can tell the agent's change from their own. ``None`` keeps the mirror silent. \
+                Defaults to "notify".
         """
 
         # Detect pipeline (steps) mode
@@ -515,11 +521,16 @@ class FastDash(ChatAppMixin):
         self.mcp_server_enabled = bool(mcp_server)
         self.mcp_port = mcp_port
         self.mcp_host = mcp_host
+        from .mcp import check_agent_activity
+        self.agent_activity = check_agent_activity(agent_activity)
         self._mcp_thread = None
         self._mcp_state = None
         if self.mcp_server_enabled:
             from .mcp import MCPState
             self._mcp_state = MCPState()
+            # With mcp_server=True, an agent's set_input / invoke shows a notice
+            # in the browser so a human can tell it from their own edit (#377).
+            self._mcp_state.notify_activity = self.agent_activity == "notify"
             # The exposure warning lives in run(), keyed off the host we
             # actually bind to -- see mcp.warn_if_exposed (#149).
 
@@ -1683,9 +1694,35 @@ class FastDash(ChatAppMixin):
                 state.inputs[c.id] = _jsonify_for_mcp(v)
             return None
 
+        from dash import no_update
+
+        from .mcp import agent_notifications
+
+        # agent_activity="notify": agent notices go to the toast container
+        # (#377). They ride the input drain below, so they cost no extra
+        # request per tick; an app with no inputs gets a drain of its own.
+        notify = state.notify_activity
+        notice_out = (
+            [Output("notification-container", "sendNotifications", allow_duplicate=True)]
+            if notify else []
+        )
+
+        def _notices():
+            if not notify:
+                return []
+            notes = state.pop_pending_notices()
+            return [agent_notifications(notes) if notes else no_update]
+
         # No-op early-return when inputs_with_ids is empty: nothing to
         # drain to, no callback to register.
         if not self.inputs_with_ids:
+            if notify and not self._backend:
+                @self.app.callback(
+                    notice_out, Input("_mcp_poll", "n_intervals"),
+                    prevent_initial_call=True,
+                )
+                def _mcp_drain_notices(_n):
+                    return _notices()
             return
 
         # ASGI backend: push in real time over a persistent WebSocket callback
@@ -1694,21 +1731,21 @@ class FastDash(ChatAppMixin):
             self._register_mcp_ws_drain()
             return
 
-        from dash import no_update
-
         @self.app.callback(
             [
                 Output(c.id, c.component_property, allow_duplicate=True)
                 for c in self.inputs_with_ids
-            ],
+            ] + notice_out,
             Input("_mcp_poll", "n_intervals"),
             prevent_initial_call=True,
         )
         def _mcp_drain(_n):
             pending = state.pop_pending_inputs()
             if not pending:
-                return [no_update] * len(self.inputs_with_ids)
-            return [pending.get(c.id, no_update) for c in self.inputs_with_ids]
+                values = [no_update] * len(self.inputs_with_ids)
+            else:
+                values = [pending.get(c.id, no_update) for c in self.inputs_with_ids]
+            return values + _notices()
 
         # Output drain: invoke() → state.pending_outputs → browser output
         # components. Lets agent-triggered callbacks render in the live UI.
@@ -1751,6 +1788,8 @@ class FastDash(ChatAppMixin):
 
         from dash import ctx, no_update, set_props
 
+        from .mcp import agent_notifications
+
         state = self._mcp_state
         input_props = {c.id: c.component_property for c in self.inputs_with_ids}
 
@@ -1761,6 +1800,11 @@ class FastDash(ChatAppMixin):
                 pend_in = state.pop_pending_inputs()
                 for cid, value in pend_in.items():
                     set_props(cid, {input_props.get(cid, "value"): value})
+
+                notes = state.pop_pending_notices()             # #377
+                if notes:
+                    set_props("notification-container",
+                              {"sendNotifications": agent_notifications(notes)})
 
                 pend_out = state.pop_pending_outputs()
                 if pend_out:
@@ -2901,6 +2945,7 @@ def fastdash(
     mcp_server=False,
     mcp_port=8001,
     mcp_host="127.0.0.1",
+    agent_activity="notify",
     **kwargs
 ):
     """
@@ -3024,6 +3069,7 @@ def fastdash(
             mcp_server=mcp_server,
             mcp_port=mcp_port,
             mcp_host=mcp_host,
+            agent_activity=agent_activity,
             **kwargs
         )
 

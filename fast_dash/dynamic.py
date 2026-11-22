@@ -227,6 +227,7 @@ class DynamicDash:
         mcp_server: bool = False,
         mcp_port: int = 8001,
         mcp_host: str = "127.0.0.1",
+        agent_activity: str | None = "notify",
         **dash_kwargs,
     ):
         if parent_control is not None and spec_resolver is None:
@@ -251,11 +252,14 @@ class DynamicDash:
         self.mcp_server_enabled = bool(mcp_server)
         self.mcp_port = mcp_port
         self.mcp_host = mcp_host
+        from fast_dash.mcp import check_agent_activity
+        self.agent_activity = check_agent_activity(agent_activity)
         self._mcp_thread = None
         self._mcp_state = None
         if self.mcp_server_enabled:
             from fast_dash.mcp import MCPState
             self._mcp_state = MCPState()
+            self._mcp_state.notify_activity = self.agent_activity == "notify"  # #377
             # The form on screen at startup is the contract an agent connects to.
             # Without this, an app-authored form (initial_specs / placeholder) had
             # no MCP contract at all: no ids to check, no bounds to enforce, no
@@ -390,14 +394,18 @@ class DynamicDash:
                 dcc.Interval(id="_mcp_poll", interval=500, n_intervals=0)
             )
 
-        return dmc.MantineProvider(
-            dmc.AppShell(
-                shell_children,
-                header={"height": 56},
-                navbar={"width": 340, "breakpoint": "sm"},
-                padding="md",
-            )
+        shell = dmc.AppShell(
+            shell_children,
+            header={"height": 56},
+            navbar={"width": 340, "breakpoint": "sm"},
+            padding="md",
         )
+        if self.mcp_server_enabled and self.agent_activity == "notify":
+            # Where agent-activity notices show (#377).
+            return dmc.MantineProvider(
+                [dmc.NotificationContainer(id="notification-container"), shell]
+            )
+        return dmc.MantineProvider(shell)
 
     def _sync_form_contract(self, specs, parent_value=None):
         """Point the MCP contract at the form the parent cascade just rendered.
@@ -461,6 +469,19 @@ class DynamicDash:
                     return render_spec(specs).children
                 except Exception:
                     return no_update
+
+            if state.notify_activity:
+                from fast_dash.mcp import agent_notifications
+
+                @app.callback(
+                    Output("notification-container", "sendNotifications",
+                           allow_duplicate=True),
+                    Input("_mcp_poll", "n_intervals"),
+                    prevent_initial_call=True,
+                )
+                def drain_agent_notices(_n):                    # #377
+                    notes = state.pop_pending_notices()
+                    return agent_notifications(notes) if notes else no_update
 
             # Output drain: invoke() pushes results into pending_outputs;
             # this drain fans them into the actual output components.
