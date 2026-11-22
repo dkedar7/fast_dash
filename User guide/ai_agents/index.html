@@ -1084,6 +1084,16 @@ values.</p>
 </code></pre></div>
 <p>Agent mutations are reflected in the <strong>live browser</strong> within ~500 ms (no
 reload), so a human watching the page sees what the agent does.</p>
+<p>Each change also shows a short notice in the corner of the page, so the human
+can tell the agent's edit from their own: "An agent set n = 42", "An agent is
+running the app with factor = 5" (shown when the run starts, so a long run is
+announced before its result lands), "An agent rebuilt the form (2 fields)",
+or "The agent's run failed (ValueError)". A <code>PasswordInput</code> value shows as
+<code>********</code>, and a long value is shortened. A rejected call shows nothing. Pass
+<code>agent_activity=None</code> to keep the mirror silent:</p>
+<div class="highlight"><pre><span></span><code><span class="n">FastDash</span><span class="p">(</span><span class="n">callback_fn</span><span class="o">=</span><span class="n">fn</span><span class="p">,</span> <span class="n">mcp_server</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">agent_activity</span><span class="o">=</span><span class="kc">None</span><span class="p">)</span>
+</code></pre></div>
+<p>The notices cover <code>FastDash</code> and <code>DynamicDash</code> apps, not <code>chat=True</code> apps.</p>
 <h3 id="watch-a-long-run">Watch a long run</h3>
 <p>A callback that <code>yield</code>s (a multi-step pipeline, a long simulation, an LLM
 loop) shows each frame in the browser as it comes. An agent can watch the same
