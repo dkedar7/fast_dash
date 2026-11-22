@@ -209,6 +209,20 @@ invoke(inputs={"n": 12, "color": "#2f9e44"})
 Agent mutations are reflected in the **live browser** within ~500 ms (no
 reload), so a human watching the page sees what the agent does.
 
+Each change also shows a short notice in the corner of the page, so the human
+can tell the agent's edit from their own: "An agent set n = 42", "An agent is
+running the app with factor = 5" (shown when the run starts, so a long run is
+announced before its result lands), "An agent rebuilt the form (2 fields)",
+or "The agent's run failed (ValueError)". A `PasswordInput` value shows as
+`********`, and a long value is shortened. A rejected call shows nothing. Pass
+`agent_activity=None` to keep the mirror silent:
+
+```python
+FastDash(callback_fn=fn, mcp_server=True, agent_activity=None)
+```
+
+The notices cover `FastDash` and `DynamicDash` apps, not `chat=True` apps.
+
 ### Watch a long run
 
 A callback that `yield`s (a multi-step pipeline, a long simulation, an LLM

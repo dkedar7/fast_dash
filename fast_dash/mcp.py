@@ -71,6 +71,7 @@ import ipaddress
 import json
 import os
 import time
+import uuid
 import warnings
 import weakref
 from typing import Any
@@ -324,6 +325,62 @@ def _install_flask_progress_stream(fd, mcp_path):
     server.before_request(progress_stream)
 
 
+AGENT_ACTIVITY_MODES = (None, "notify")
+NOTICE_VALUE_MAX_CHARS = 40
+NOTICE_MAX_INPUTS = 4
+# A notice is news only while it is fresh: with no browser open nothing drains
+# the queue, so it keeps only the newest few and a page loaded later doesn't
+# get a burst of stale notices.
+NOTICE_MAX_AGE_S = 10.0
+NOTICE_MAX_QUEUED = 10
+
+
+def check_agent_activity(value):
+    """Validate the ``agent_activity=`` argument; return it unchanged."""
+    if value not in AGENT_ACTIVITY_MODES:
+        raise ValueError(
+            "agent_activity must be 'notify' (show a notice in the browser when "
+            "an agent sets an input or runs the app) or None (no notice), got "
+            "%r." % (value,)
+        )
+    return value
+
+
+def agent_notifications(messages):
+    """Mantine ``sendNotifications`` payload for queued agent-activity notices."""
+    return [
+        {
+            "action": "show",
+            "id": f"fd-agent-activity-{uuid.uuid4().hex}",
+            "title": "Agent",
+            "message": m,
+            "color": "violet",
+            "autoClose": 4000,
+        }
+        for m in messages
+    ]
+
+
+def _notice_value(value):
+    """A short, display-safe rendering of one value for a notice."""
+    try:
+        text = json.dumps(value, ensure_ascii=False, default=str)
+    except Exception:  # noqa: BLE001 - a notice never breaks a tool call
+        text = str(value)
+    if len(text) > NOTICE_VALUE_MAX_CHARS:
+        text = text[: NOTICE_VALUE_MAX_CHARS - 3] + "..."
+    return text
+
+
+def _notice_assignments(pairs):
+    """``n = 42, factor = 3`` for (id, value) pairs, capped at a few."""
+    pairs = list(pairs)
+    parts = [f"{k} = {_notice_value(v)}" for k, v in pairs[:NOTICE_MAX_INPUTS]]
+    if len(pairs) > NOTICE_MAX_INPUTS:
+        parts.append(f"{len(pairs) - NOTICE_MAX_INPUTS} more")
+    return ", ".join(parts)
+
+
 class MCPState:
     """Server-side mirror of a fast_dash app's input/output state.
 
@@ -354,6 +411,29 @@ class MCPState:
         # never shrinks: a credential that was in the mirror must stay masked
         # even after the form that declared it is replaced.
         self.secret_ids: set = set()
+        # agent_activity="notify": each agent change queues a short notice the
+        # browser drain shows as a toast, so a human watching can tell an
+        # agent's edit from their own (#377). Off unless the app turns it on.
+        self.notify_activity: bool = False
+        self._notices: collections.deque = collections.deque(maxlen=NOTICE_MAX_QUEUED)
+
+    @property
+    def pending_notices(self) -> list[str]:
+        return [m for _, m in self._notices]
+
+    def add_notice(self, message: str) -> None:
+        if self.notify_activity:
+            self._notices.append((time.monotonic(), message))
+
+    def pop_pending_notices(self) -> list[str]:
+        """The queued notices still fresh enough to show, oldest first."""
+        cutoff = time.monotonic() - NOTICE_MAX_AGE_S
+        out = []
+        while self._notices:
+            ts, message = self._notices.popleft()
+            if ts >= cutoff:
+                out.append(message)
+        return out
 
     def set_current_specs(self, specs, keep=()) -> None:
         """Point the contract at the form that is now on screen.
@@ -1828,12 +1908,13 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             return {"ok": False, "error": bad, "id": component_id}
         state.inputs[component_id] = value
         state.pending_inputs[component_id] = value
+        echoed = _echo(entries, component_id, value)
+        state.add_notice("An agent set " + _notice_assignments([(component_id, echoed)]))
         # Changing a depends_on parent re-runs its child (#279) and drops a
         # child value its new options no longer hold (#191).
         updated = _rerun_dependents(fd, state, {component_id})
         cleared = _clear_stale_dependents(fd, state)
-        out = {"ok": True, "id": component_id,
-               "value": _echo(entries, component_id, value)}
+        out = {"ok": True, "id": component_id, "value": echoed}
         if updated:
             out["updated"] = updated
         if cleared:
@@ -1875,6 +1956,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             state.inputs[k] = v
             state.pending_inputs[k] = v
             applied[k] = _echo(entries, k, v)
+        if applied:
+            state.add_notice("An agent set " + _notice_assignments(applied.items()))
         updated = _rerun_dependents(fd, state, set(applied))   # #279
         cleared = _clear_stale_dependents(fd, state)          # #191
         out = {"ok": not errors, "applied": applied, "errors": errors}
@@ -1963,6 +2046,14 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         # error echo, and not in the history a later get_invocation reads (#151).
         entries = _contract_index(snapshot)
 
+        # Announced before the run, so a human watching a long run knows the
+        # agent started it (#377). Values are masked like every echo.
+        notice = "An agent is running the app"
+        if inputs:
+            notice += " with " + _notice_assignments(
+                (k, _echo(entries, k, v)) for k, v in inputs.items())
+        state.add_notice(notice)
+
         def _kwargs_summary():
             out = {}
             for k, v in kwargs.items():
@@ -1992,6 +2083,8 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
                         pass
             result = _drain_generator(result, push=push)  # #207
         except Exception as e:
+            # Only the exception type: its text can carry an input value.
+            state.add_notice(f"The agent's run failed ({type(e).__name__})")
             return {
                 "ok": False,
                 "error": f"{type(e).__name__}: {e}",
@@ -2100,9 +2193,12 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         parent = getattr(fd, "parent_control", None) or {}
         state.set_current_specs(specs, keep={parent.get("name")} - {None})
         display = sum(1 for sp in specs if isinstance(sp, dict) and sp.get("type") in _DISPLAY_ONLY)
+        n_fields = len(specs) - display
+        state.add_notice(f"An agent rebuilt the form ({n_fields} field"
+                         f"{'' if n_fields == 1 else 's'})")
         # `count` is the number of inputs describe_app will list; display-only
         # blocks are reported separately (#282).
-        return {"ok": True, "count": len(specs) - display, "display_only": display}
+        return {"ok": True, "count": n_fields, "display_only": display}
 
     @mcp_enabled(name="get_invocation", expose_docstring=True)
     @_structured_errors
