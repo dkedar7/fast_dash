@@ -1,4 +1,17 @@
-# Release 0.7.21
+# Release 0.7.22
+
+## 0.7.22 (2026-11-22)
+
+### Added
+- **The browser shows when an agent changes the app** (#377). With
+  `mcp_server=True`, an agent's change used to reach the live page as a bare
+  value change, the same as the human's own edit. Each one now also shows a
+  short notice in the corner of the page: "An agent set n = 42", "An agent is
+  running the app with factor = 5" (sent when the run starts), "An agent
+  rebuilt the form (2 fields)", or "The agent's run failed (ValueError)". A
+  `PasswordInput` value is masked, long values are shortened, and a rejected
+  call shows nothing. Works on Flask, `backend="fastapi"` and `DynamicDash`.
+  Pass `agent_activity=None` to keep the mirror silent.
 
 ## 0.7.21 (2026-11-21)
 

@@ -1,6 +1,6 @@
 {
   "name": "fast-dash",
-  "version": "0.7.21",
+  "version": "0.7.22",
   "description": "Build Fast Dash apps: turn Python functions into web apps via type-hint inference. Supports cascading inputs (depends_on), multi-function tabs, multi-step pipelines (steps=), chat apps, and AI-agent control over MCP (mcp_server=True, DynamicDash).",
   "author": {
     "name": "Kedar Dabhadkar",
