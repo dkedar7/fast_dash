@@ -969,7 +969,7 @@ def _secret_values(fd, state=None) -> list:
     return values
 
 
-def _scrub_secrets(payload, secrets):
+def _scrub_secrets(payload, secrets, hits=None):
     """Mask any secret that shows up *inside* an output payload (#194).
 
     The input axis of this leak was closed in #151 (describe_app's
@@ -983,6 +983,12 @@ def _scrub_secrets(payload, secrets):
     Redaction is by *content*, not by field: the secret is masked wherever it
     appears in a summary, including nested inside a str/list/dict, because a
     field-level mask leaks through siblings and stringified containers.
+
+    A short or common secret (a PIN, a word) also masks the same text where it
+    means something else: with ``pin="42"`` every ``42`` in the output becomes
+    ``********``. That is on purpose -- any of them could be the PIN -- so the
+    callers report which outputs were masked (``hits`` collects a True per
+    replacement) instead of handing back silently changed data (#380).
     """
     if not secrets:
         return payload
@@ -991,12 +997,25 @@ def _scrub_secrets(payload, secrets):
         for secret in secrets:
             if secret in scrubbed:
                 scrubbed = scrubbed.replace(secret, REDACTED)
+                if hits is not None:
+                    hits.append(True)
         return scrubbed
     if isinstance(payload, dict):
-        return {k: _scrub_secrets(v, secrets) for k, v in payload.items()}
+        return {k: _scrub_secrets(v, secrets, hits) for k, v in payload.items()}
     if isinstance(payload, (list, tuple)):
-        return type(payload)(_scrub_secrets(v, secrets) for v in payload)
+        return type(payload)(_scrub_secrets(v, secrets, hits) for v in payload)
     return payload
+
+
+def _scrub_outputs(outputs, secrets):
+    """Scrub each output; also return the ids where something was masked."""
+    scrubbed, redacted = {}, []
+    for cid, value in outputs.items():
+        hits = []
+        scrubbed[cid] = _scrub_secrets(value, secrets, hits)
+        if hits:
+            redacted.append(cid)
+    return scrubbed, redacted
 
 
 def _redact(entry, value):
@@ -1558,7 +1577,8 @@ def _describe_outputs(fd, state=None):
             # an output derived from a PasswordInput must not read back in the
             # clear here any more than it does from invoke (#194).
             secrets = _secret_values(fd, state)
-            full = _scrub_secrets(_output_for_mcp(state.outputs[cid]), secrets)
+            hits = []
+            full = _scrub_secrets(_output_for_mcp(state.outputs[cid]), secrets, hits)
             if len(json.dumps(full, default=str)) <= DESCRIBE_VALUE_MAX_CHARS:
                 entry["current_value"] = full
             else:
@@ -1568,6 +1588,9 @@ def _describe_outputs(fd, state=None):
                 entry["current_value_summarized"] = True
                 if state.full_history:
                     entry["history_index"] = next(reversed(state.full_history))
+            if hits:
+                # Some ******** in it is a masked secret, not the app's text (#380).
+                entry["redacted"] = True
         outputs.append(entry)
     return outputs
 
@@ -2101,14 +2124,15 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         # leak. The live browser still receives the real value; only what goes
         # back over /mcp is scrubbed (#194).
         secrets = _secret_values(fd, state)
-        out_summary, out_full, raw = {}, {}, {}
+        out_summary, raw = {}, {}
         for d, val in zip(_enumerate_outputs(fd), result_list):
             state.outputs[d["id"]] = val
             state.pending_outputs[d["id"]] = val
             raw[d["id"]] = val
             # History keeps the compact summary; the agent gets the value (#261).
             out_summary[d["id"]] = _scrub_secrets(_summarize_for_history(val), secrets)
-            out_full[d["id"]] = _scrub_secrets(_output_for_mcp(val), secrets)
+        out_full, redacted = _scrub_outputs(
+            {k: _output_for_mcp(v) for k, v in raw.items()}, secrets)
         _attach_images(raw, out_full)
 
         entry_summary = {
@@ -2120,12 +2144,16 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         entry_full = {**entry_summary, "_full_kwargs": kwargs, "_full_result": result,
                       "_full_outputs": raw}
         idx = state.append_history(entry_summary, entry_full)
-        return {
+        out = {
             "ok": True,
             "duration_ms": dt_ms,
             "outputs": out_full,
             "history_index": idx,
         }
+        if redacted:
+            # These outputs had a secret's value masked out of them (#380).
+            out["redacted"] = redacted
+        return out
 
     @mcp_enabled(name="set_form", expose_docstring=True)
     @_structured_errors
@@ -2217,9 +2245,10 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
         secrets = _secret_values(fd, state)
         raw = entry.get("_full_outputs") or {}
         # The run's full outputs, as invoke returned them (#261).
-        outputs = {k: _scrub_secrets(_output_for_mcp(v), secrets) for k, v in raw.items()}
+        outputs, redacted = _scrub_outputs(
+            {k: _output_for_mcp(v) for k, v in raw.items()}, secrets)
         _attach_images(raw, outputs)
-        return {
+        out = {
             "ok": True,
             "ts": entry["ts"],
             "duration_ms": entry["duration_ms"],
@@ -2227,6 +2256,9 @@ def enable_mcp(fd, *, mcp_path: str = "mcp") -> None:
             "outputs_summary": _scrub_secrets(entry["outputs"], secrets),
             "outputs": outputs,
         }
+        if redacted:
+            out["redacted"] = redacted                          # #380
+        return out
 
     @mcp_enabled(name="list_component_types", expose_docstring=True)
     @_structured_errors
