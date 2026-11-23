@@ -1067,6 +1067,14 @@ read it. A <code>PasswordInput</code> <strong>default</strong> (say, a key pre-f
 never leaves the server either: the served page and Dash's native
 <code>dash://layout</code> / <code>get_dash_component</code> carry only <code>********</code>, and the real
 value is swapped back in when the callback runs.</p>
+<p>The same goes for <strong>outputs</strong>: if the callback's result contains a secret's
+value, the agent gets <code>********</code> in its place (the browser still shows the
+real result). The match is on the text, so a short or common secret masks
+more than the secret: with a <code>PasswordInput</code> of <code>42</code>, every <code>42</code> in the
+output is masked, because any of them could be the PIN. When that happens,
+<code>invoke</code> and <code>get_invocation</code> list the masked outputs under <code>"redacted"</code>,
+and <code>describe_app</code> marks the output <code>"redacted": true</code>, so an agent knows
+a <code>********</code> is a mask and not the app's own text.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
