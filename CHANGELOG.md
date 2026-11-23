@@ -1,4 +1,15 @@
-# Release 0.7.22
+# Release 0.7.23
+
+## 0.7.23 (2026-11-23)
+
+### Changed
+- **An agent is told when a secret was masked out of an output** (#380). A
+  `PasswordInput`'s value is masked from outputs by its text, so a short or
+  common secret also masks the same text where it means something else (with
+  `pin="42"`, every `42` becomes `********`). That stays, since any of them
+  could be the PIN, but it is no longer silent: `invoke` and `get_invocation`
+  list the masked outputs under `"redacted"`, and `describe_app` marks such an
+  output `"redacted": true`. The AI-agents guide's Secrets note explains it.
 
 ## 0.7.22 (2026-11-22)
 
