@@ -190,6 +190,15 @@ then held to.
     `dash://layout` / `get_dash_component` carry only `********`, and the real
     value is swapped back in when the callback runs.
 
+    The same goes for **outputs**: if the callback's result contains a secret's
+    value, the agent gets `********` in its place (the browser still shows the
+    real result). The match is on the text, so a short or common secret masks
+    more than the secret: with a `PasswordInput` of `42`, every `42` in the
+    output is masked, because any of them could be the PIN. When that happens,
+    `invoke` and `get_invocation` list the masked outputs under `"redacted"`,
+    and `describe_app` marks the output `"redacted": true`, so an agent knows
+    a `********` is a mask and not the app's own text.
+
 !!! note
     The drive tools' (`invoke` / `set_inputs` / `set_input`) raw MCP *input
     schemas* are generic objects — the per-parameter contract lives in
