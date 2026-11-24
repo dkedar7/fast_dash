@@ -118,19 +118,23 @@ def _parse_invoke_inputs(pairs):
     return inputs
 
 
-def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None):
+def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None,
+               config=None):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
     Exits 0 when an MCP client can initialize, list the Fast Dash tools and
     read a well-formed ``describe_app`` contract; 1 otherwise, so it works as
     a container HEALTHCHECK or a CI step. ``invoke=True`` also runs the app
-    once through ``invoke`` and requires it to succeed (#357).
+    once through ``invoke`` and requires it to succeed (#357). ``config``
+    (``claude``, ``cursor``, ``vscode`` or ``all``) prints the client config
+    for ``url`` after a healthy check (#383).
     """
     import json
 
     from fast_dash.mcp_check import check_mcp, print_report
 
-    ok, report = check_mcp(url, timeout=timeout, invoke=invoke, invoke_inputs=invoke_inputs)
+    ok, report = check_mcp(url, timeout=timeout, invoke=invoke,
+                           invoke_inputs=invoke_inputs, config=config)
     if as_json:
         print(json.dumps(report, indent=2, default=str))
     else:
@@ -194,6 +198,11 @@ def main():
         help="With --mcp: an input value for the --invoke run (implies "
              "--invoke; repeatable; VALUE is JSON if it parses, else text)",
     )
+    doctor_parser.add_argument(
+        "--config", choices=("claude", "cursor", "vscode", "all"), default=None,
+        help="With --mcp: after a healthy check, print the paste-ready MCP "
+             "client config for the URL (all = every client)",
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -201,6 +210,8 @@ def main():
     if args.command == "doctor":
         if (args.invoke or args.invoke_input) and not args.mcp:
             parser.error("--invoke needs --mcp")
+        if args.config and not args.mcp:
+            parser.error("--config needs --mcp")
         if args.mcp:
             try:
                 invoke_inputs = _parse_invoke_inputs(args.invoke_input)
@@ -208,7 +219,7 @@ def main():
                 parser.error(str(e))
             return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout,
                               invoke=args.invoke or bool(invoke_inputs),
-                              invoke_inputs=invoke_inputs)
+                              invoke_inputs=invoke_inputs, config=args.config)
         if args.json:
             parser.error("--json needs --mcp")
         return doctor()

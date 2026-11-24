@@ -80,6 +80,22 @@ or add it to the project's `.mcp.json`:
     example when `/mcp` serves the web page because the app wasn't built with
     `mcp_server=True`. Add `--json` for the full report, contract included.
 
+    Add `--config claude`, `cursor`, `vscode` or `all` to end a healthy check
+    with the client config for that URL, in the client's own shape and named
+    after the app's title, ready to paste:
+
+    ```console
+    $ fastdash doctor --mcp http://127.0.0.1:8080/mcp --config claude
+      ...
+    MCP surface healthy.
+
+    Client config for Claude Code (.mcp.json):
+      {"mcpServers": {"plot-bars": {"type": "http", "url": "http://127.0.0.1:8080/mcp"}}}
+    Or run: claude mcp add --transport http plot-bars http://127.0.0.1:8080/mcp
+    ```
+
+    With `--json`, the same configs are under `"config"` in the report.
+
     A good contract doesn't prove the app runs. Add `--invoke` to also run it
     once through the `invoke` tool, with its current values, the way an agent
     would. The check then fails if the callback raises or the app can't run
