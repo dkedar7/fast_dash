@@ -176,3 +176,57 @@ def test_invoke_flag_misuse_is_an_error(monkeypatch, argv):
     monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", *argv])
     with pytest.raises(SystemExit):
         cli.main()
+
+
+# --config: paste-ready client config after a healthy check (#383)
+
+def test_config_claude_prints_the_paste_ready_block(serve, monkeypatch, capsys):
+    url = serve(FastDash(callback_fn=plot_bars, mcp_server=True, title="Plot Bars"))
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "claude",
+                        "--timeout", "60")
+    assert code == 0, out
+    assert "Client config for Claude Code (.mcp.json):" in out
+    block = json.dumps({"mcpServers": {"plot-bars": {"type": "http", "url": url}}})
+    assert f"  {block}" in out
+    assert f"claude mcp add --transport http plot-bars {url}" in out
+    assert "Cursor" not in out and "VS Code" not in out
+    assert out.isascii()
+
+
+def test_config_all_uses_each_clients_shape(serve, monkeypatch, capsys):
+    url = serve(FastDash(callback_fn=plot_bars, mcp_server=True, title="Plot Bars"))
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "all",
+                        "--json", "--timeout", "60")
+    report = json.loads(out)
+    assert code == 0 and report["ok"] is True
+    assert report["config"] == {
+        "claude": {"mcpServers": {"plot-bars": {"type": "http", "url": url}}},
+        "cursor": {"mcpServers": {"plot-bars": {"url": url}}},
+        "vscode": {"servers": {"plot-bars": {"type": "http", "url": url}}},
+    }
+
+
+def test_config_is_not_printed_for_a_broken_surface(serve, monkeypatch, capsys):
+    url = serve(FastDash(callback_fn=plot_bars))          # no mcp_server=True
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "all",
+                        "--timeout", "20")
+    assert code == 1
+    assert "Problem:" in out and "Client config" not in out
+
+
+def test_config_without_mcp_is_an_error(monkeypatch, capsys):
+    monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", "--config", "claude"])
+    with pytest.raises(SystemExit):
+        cli.main()
+
+
+@pytest.mark.parametrize("title,name", [
+    ("Plot Bars", "plot-bars"),
+    ("  My App: v2!! ", "my-app-v2"),
+    ("", "fast-dash-app"),
+    (None, "fast-dash-app"),
+    ("***", "fast-dash-app"),
+])
+def test_server_name_slugs_the_title(title, name):
+    from fast_dash.mcp_check import server_name
+    assert server_name(title) == name

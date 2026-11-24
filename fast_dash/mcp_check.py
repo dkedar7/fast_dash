@@ -10,15 +10,25 @@ With ``invoke=True`` (``--invoke``, #357) it also runs the app once through
 the ``invoke`` tool, so a callback that raises, or an app that can't run from
 its current values, fails the check instead of passing on its contract alone.
 That runs the real callback, side effects included, so it is opt-in.
+
+With ``config=`` (``--config``, #383) a healthy check ends with the client
+config for that exact URL, in each client's own shape (``mcpServers`` vs
+``servers``), named after the app's title.
 """
 
 import asyncio
 import json
+import re
 import urllib.error
 import urllib.request
 
 # The tools every Fast Dash MCP app serves (DynamicDash adds none we require).
 REQUIRED_TOOLS = ("describe_app", "invoke", "set_input", "set_inputs")
+
+# --config choices; "all" prints every one. Shapes match the AI-agents guide.
+CONFIG_CLIENTS = ("claude", "cursor", "vscode")
+CONFIG_CHOICES = CONFIG_CLIENTS + ("all",)
+DEFAULT_SERVER_NAME = "fast-dash-app"
 
 
 class CheckFailed(Exception):
@@ -182,17 +192,39 @@ async def _check_invoke(session, contract, inputs, report, step):
                    f"{shown or 'no outputs'}{more}")
 
 
-def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None):
+def server_name(title):
+    """A config key from the app's title: ``"Plot Bars"`` -> ``plot-bars``."""
+    slug = re.sub(r"[^a-z0-9]+", "-", str(title or "").lower()).strip("-")
+    return slug or DEFAULT_SERVER_NAME
+
+
+def client_configs(url, name, which="all"):
+    """``{client: config}`` for ``url``; ``which`` is a client or ``"all"``."""
+    shapes = {
+        "claude": {"mcpServers": {name: {"type": "http", "url": url}}},
+        "cursor": {"mcpServers": {name: {"url": url}}},
+        "vscode": {"servers": {name: {"type": "http", "url": url}}},
+    }
+    clients = CONFIG_CLIENTS if which == "all" else (which,)
+    return {c: shapes[c] for c in clients}
+
+
+def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None):
     """Run the checks against ``url``. Return ``(ok, report)``; never raises.
 
     ``invoke=True`` also runs the app once with its current values, updated by
-    ``invoke_inputs`` (``{input_id: value}``).
+    ``invoke_inputs`` (``{input_id: value}``). ``config`` (a client or
+    ``"all"``) adds ``report["config"]`` when the check passes.
     """
     report = {"url": url, "steps": []}
     try:
         asyncio.run(asyncio.wait_for(
             _check(url, report, invoke=invoke, invoke_inputs=invoke_inputs), timeout))
         report["ok"] = True
+        if config:
+            # Only for a healthy surface: a config for a broken one wastes a paste.
+            name = server_name((report.get("contract") or {}).get("title"))
+            report["config"] = client_configs(url, name, config)
         return True, report
     except CheckFailed as e:
         error = str(e)
@@ -230,5 +262,23 @@ def print_report(ok, report):
         print(f"  {s['step']:16} OK   {s['detail']}")
     if ok:
         print("MCP surface healthy.")
+        _print_configs(report.get("config"))
     else:
         print(f"Problem: {report['error']}")
+
+
+_CONFIG_WHERE = {
+    "claude": "Claude Code (.mcp.json)",
+    "cursor": "Cursor (.cursor/mcp.json or ~/.cursor/mcp.json)",
+    "vscode": "VS Code (.vscode/mcp.json)",
+}
+
+
+def _print_configs(configs):
+    for client, cfg in (configs or {}).items():
+        print()
+        print(f"Client config for {_CONFIG_WHERE[client]}:")
+        print(f"  {json.dumps(cfg)}")
+        if client == "claude":
+            (name, entry), = cfg["mcpServers"].items()
+            print(f"Or run: claude mcp add --transport http {name} {entry['url']}")
