@@ -1,4 +1,15 @@
-# Release 0.7.23
+# Release 0.7.24
+
+## 0.7.24 (2026-11-24)
+
+### Added
+- **`fastdash doctor --mcp URL --config claude|cursor|vscode|all`** (#383).
+  After a healthy check, it prints the paste-ready MCP client config for the
+  URL it just connected to, in each client's own shape (`mcpServers` for
+  Claude Code and Cursor, `servers` for VS Code), named after the app's title
+  (`Plot Bars` -> `plot-bars`). Claude Code also gets the `claude mcp add`
+  line. With `--json` the configs are under `"config"`. Nothing is printed
+  after a failed check.
 
 ## 0.7.23 (2026-11-23)
 
