@@ -934,6 +934,18 @@ against the running app. It connects as a real MCP client (it needs
 <p>It exits with status 1 and names the likely cause when a step fails, for
 example when <code>/mcp</code> serves the web page because the app wasn't built with
 <code>mcp_server=True</code>. Add <code>--json</code> for the full report, contract included.</p>
+<p>Add <code>--config claude</code>, <code>cursor</code>, <code>vscode</code> or <code>all</code> to end a healthy check
+with the client config for that URL, in the client's own shape and named
+after the app's title, ready to paste:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>fastdash<span class="w"> </span>doctor<span class="w"> </span>--mcp<span class="w"> </span>http://127.0.0.1:8080/mcp<span class="w"> </span>--config<span class="w"> </span>claude
+<span class="go">  ...</span>
+<span class="go">MCP surface healthy.</span>
+
+<span class="go">Client config for Claude Code (.mcp.json):</span>
+<span class="go">  {&quot;mcpServers&quot;: {&quot;plot-bars&quot;: {&quot;type&quot;: &quot;http&quot;, &quot;url&quot;: &quot;http://127.0.0.1:8080/mcp&quot;}}}</span>
+<span class="go">Or run: claude mcp add --transport http plot-bars http://127.0.0.1:8080/mcp</span>
+</code></pre></div>
+<p>With <code>--json</code>, the same configs are under <code>"config"</code> in the report.</p>
 <p>A good contract doesn't prove the app runs. Add <code>--invoke</code> to also run it
 once through the <code>invoke</code> tool, with its current values, the way an agent
 would. The check then fails if the callback raises or the app can't run
