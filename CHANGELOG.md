@@ -1,4 +1,16 @@
-# Release 0.7.24
+# Release 0.7.25
+
+## 0.7.25 (2026-11-25)
+
+### Fixed
+- **`stream=True` frames show in the browser as they arrive** (#386). The
+  page showed a skeleton for the whole run and then only the final value, on
+  both backends. On Flask, the outputs were never registered for the stream,
+  so the browser received each frame and dropped it; on both backends, the
+  run's loading skeleton hid the output until the callback returned. Each
+  frame now replaces the output as it arrives, and the first one lifts the
+  skeleton. Flask frames are also sent in the output's own shape (a
+  DataFrame as a table, an image as an image), as on FastAPI.
 
 ## 0.7.24 (2026-11-24)
 
