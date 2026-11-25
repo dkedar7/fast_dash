@@ -976,6 +976,7 @@ class FastDash(ChatAppMixin):
         # Assign IDs to components
         self.inputs_with_ids = _assign_ids_to_inputs(self.inputs, self.callback_fn)
         self.outputs_with_ids = _assign_ids_to_outputs(self.outputs, self.callback_fn)
+        self._mark_streaming_outputs(self.outputs_with_ids)
         # Attach per-input help text from the callback docstring (rendered as a
         # caption under each input label).
         _param_docs = _parse_param_docs(self.callback_fn)
@@ -1048,6 +1049,7 @@ class FastDash(ChatAppMixin):
 
             inputs_with_ids = _assign_ids_to_inputs(fn_inputs, fn, prefix=prefix)
             outputs_with_ids = _assign_ids_to_outputs(fn_outputs, fn, prefix=prefix)
+            self._mark_streaming_outputs(outputs_with_ids)
 
             ack_mask = [
                 False if (not hasattr(input_, "ack") or (input_.ack is None)) else True
@@ -2706,6 +2708,22 @@ class FastDash(ChatAppMixin):
                 ]
                 return ack_components + [[]]
 
+    def _mark_streaming_outputs(self, outputs):
+        """In a ``stream=True`` app, every output takes live frames (#386).
+
+        The per-output ``stream`` flag decides which outputs get a socket.io
+        listener (``eventNames``) and a clientside apply callback on Flask. It
+        was only ever set on streaming Chat components, so a yielded frame for
+        a Text/Markdown/Graph output reached the browser and was dropped there:
+        the page showed nothing until the final value. Chat keeps its own flag,
+        since a streaming Chat also gets per-turn response slots.
+        """
+        if self.stream is not True:
+            return
+        for component in outputs:
+            if getattr(component, "tag", None) != "Chat":
+                component.stream = True
+
     def _stream_push(self, handler, outputs=None):
         """Push one yielded value (a tuple for multiple outputs) to the page."""
         outputs = outputs if outputs is not None else self.outputs_with_ids
@@ -2769,7 +2787,11 @@ class FastDash(ChatAppMixin):
             emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
 
         else:
-            emit(component_id, {"value": data, "append": False}, namespace="/", to=socket_id)
+            # Send the frame in the output's own shape (a DataFrame as table
+            # records, an image as a data URI), as the ASGI path does; the raw
+            # value isn't JSON for those (#386).
+            value = json.loads(to_json_plotly(component_state_func(data)))
+            emit(component_id, {"value": value, "append": False}, namespace="/", to=socket_id)
 
         return f"Received: {data}"
 
@@ -2814,6 +2836,11 @@ class FastDash(ChatAppMixin):
             component_property=getattr(component, "component_property", None),
         )
         set_props(component.id, {component.component_property: transform(data)})
+        # The run's skeleton (.fd-loading, set by the `running` bracket) hides
+        # the output until the callback returns; a frame means there is
+        # something to show, so lift it now (#386).
+        if not func_data:
+            set_props("output-loading-wrap", {"className": ""})
 
     def add_streaming(self):
         """Add streaming functionality to the app."""
@@ -2863,6 +2890,18 @@ class FastDash(ChatAppMixin):
             }
             """
 
+        # Outputs also lift the run's skeleton (.fd-loading hides the content
+        # until the callback returns) once a frame lands (#386). Only for
+        # outputs: notifications and chat slots shouldn't reveal the pane.
+        output_update_func = update_func.replace(
+            "                return new_value;\n            }",
+            "                if (document.getElementById('output-loading-wrap')) {\n"
+            "                    dash_clientside.set_props('output-loading-wrap', {className: ''});\n"
+            "                }\n"
+            "                return new_value;\n            }",
+        )
+        assert output_update_func != update_func
+
         # Collect all output components (multi or single)
         if self.is_multi:
             all_outputs = []
@@ -2878,7 +2917,7 @@ class FastDash(ChatAppMixin):
 
             # All clientside callbacks
             self.app.clientside_callback(
-                update_func,
+                update_func if component.tag == "Chat" else output_update_func,
                 Output(component.id, component.component_property, allow_duplicate=True),
                 Input("socketio", f"data-{component.id}"),
                 State(component.id, component.component_property),
