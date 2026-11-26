@@ -13,11 +13,14 @@ That runs the real callback, side effects included, so it is opt-in.
 
 With ``config=`` (``--config``, #383) a healthy check ends with the client
 config for that exact URL, in each client's own shape (``mcpServers`` vs
-``servers``), named after the app's title.
+``servers``), named after the app's title. Adding ``write=True``
+(``--write``, #389) merges that entry into the client's config file instead,
+keeping every other server in it.
 """
 
 import asyncio
 import json
+import os
 import re
 import urllib.error
 import urllib.request
@@ -29,6 +32,13 @@ REQUIRED_TOOLS = ("describe_app", "invoke", "set_input", "set_inputs")
 CONFIG_CLIENTS = ("claude", "cursor", "vscode")
 CONFIG_CHOICES = CONFIG_CLIENTS + ("all",)
 DEFAULT_SERVER_NAME = "fast-dash-app"
+
+# Where --write puts each client's config (project-level, relative to the cwd).
+CONFIG_PATHS = {
+    "claude": ".mcp.json",
+    "cursor": os.path.join(".cursor", "mcp.json"),
+    "vscode": os.path.join(".vscode", "mcp.json"),
+}
 
 
 class CheckFailed(Exception):
@@ -209,12 +219,86 @@ def client_configs(url, name, which="all"):
     return {c: shapes[c] for c in clients}
 
 
-def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None):
+class ConfigWriteError(Exception):
+    """The config file was left untouched; the message says why."""
+
+
+def write_client_config(path, client, url, name, force=False):
+    """Merge this app's server entry into the client config file at ``path``.
+
+    Every other server in the file is kept. The file (and its folder) is
+    created if missing. Re-running with the same entry changes nothing. An
+    existing entry of the same name that differs (another server, or this
+    one at an old URL) is only replaced with ``force=True``. A file that isn't
+    plain JSON -- VS Code allows comments in mcp.json -- is never rewritten,
+    since rewriting it would drop the comments.
+
+    Returns ``{"path", "name", "added", "updated", "kept"}``; raises
+    :class:`ConfigWriteError` without touching the file.
+    """
+    (wrapper, servers), = client_configs(url, name, client)[client].items()
+    entry = servers[name]
+    snippet = json.dumps({wrapper: {name: entry}})
+    data = {}
+    if os.path.exists(path):
+        try:
+            with open(path, encoding="utf-8-sig") as f:
+                text = f.read()
+        except OSError as e:
+            raise ConfigWriteError(f"could not read {path}: {e}") from None
+        if text.strip():
+            try:
+                data = json.loads(text)
+            except ValueError:
+                raise ConfigWriteError(
+                    f"{path} isn't plain JSON (comments, or a syntax error?), so "
+                    f"it was left untouched. Add the entry by hand: {snippet}"
+                ) from None
+        if not isinstance(data, dict):
+            raise ConfigWriteError(f"{path} doesn't hold a JSON object; left it untouched.")
+    existing = data.get(wrapper)
+    if existing is None:
+        existing = {}
+    if not isinstance(existing, dict):
+        raise ConfigWriteError(f'"{wrapper}" in {path} isn\'t an object; left it untouched.')
+    kept = sum(1 for k in existing if k != name)
+    old = existing.get(name)
+    result = {"path": path, "name": name, "added": old is None,
+              "updated": False, "kept": kept}
+    if old == entry:
+        result["added"] = False
+        return result
+    if old is not None and not force:
+        raise ConfigWriteError(
+            f'{path} already has a server named "{name}": {json.dumps(old)}. '
+            "Left it untouched; add --force to replace it."
+        )
+    existing[name] = entry
+    data[wrapper] = existing
+    folder = os.path.dirname(path)
+    try:
+        if folder:
+            os.makedirs(folder, exist_ok=True)
+        tmp = path + ".tmp"
+        with open(tmp, "w", encoding="utf-8", newline="\n") as f:
+            f.write(json.dumps(data, indent=2) + "\n")
+        os.replace(tmp, path)                       # never a half-written file
+    except OSError as e:
+        raise ConfigWriteError(f"could not write {path}: {e}") from None
+    result["updated"] = old is not None
+    return result
+
+
+def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
+              write=False, config_path=None, force=False):
     """Run the checks against ``url``. Return ``(ok, report)``; never raises.
 
     ``invoke=True`` also runs the app once with its current values, updated by
     ``invoke_inputs`` (``{input_id: value}``). ``config`` (a client or
-    ``"all"``) adds ``report["config"]`` when the check passes.
+    ``"all"``) adds ``report["config"]`` when the check passes. With
+    ``write=True`` (one client), the entry is also merged into
+    ``config_path`` (default: the client's project file) and the outcome goes
+    to ``report["wrote"]``, or ``report["write_error"]`` if it was refused.
     """
     report = {"url": url, "steps": []}
     try:
@@ -225,6 +309,12 @@ def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None):
             # Only for a healthy surface: a config for a broken one wastes a paste.
             name = server_name((report.get("contract") or {}).get("title"))
             report["config"] = client_configs(url, name, config)
+            if write:
+                try:
+                    report["wrote"] = write_client_config(
+                        config_path or CONFIG_PATHS[config], config, url, name, force=force)
+                except ConfigWriteError as e:
+                    report["write_error"] = str(e)
         return True, report
     except CheckFailed as e:
         error = str(e)
@@ -262,7 +352,12 @@ def print_report(ok, report):
         print(f"  {s['step']:16} OK   {s['detail']}")
     if ok:
         print("MCP surface healthy.")
-        _print_configs(report.get("config"))
+        if "wrote" in report:
+            _print_wrote(report["wrote"])
+        elif "write_error" in report:
+            print(f"Not written: {report['write_error']}")
+        else:
+            _print_configs(report.get("config"))
     else:
         print(f"Problem: {report['error']}")
 
@@ -272,6 +367,16 @@ _CONFIG_WHERE = {
     "cursor": "Cursor (.cursor/mcp.json or ~/.cursor/mcp.json)",
     "vscode": "VS Code (.vscode/mcp.json)",
 }
+
+
+def _print_wrote(w):
+    others = f"{w['kept']} other server{'s' * (w['kept'] != 1)} kept"
+    if w["added"]:
+        print(f'Wrote server "{w["name"]}" to {w["path"]} (added; {others}).')
+    elif w["updated"]:
+        print(f'Wrote server "{w["name"]}" to {w["path"]} (replaced; {others}).')
+    else:
+        print(f'Server "{w["name"]}" is already in {w["path"]}; nothing to change.')
 
 
 def _print_configs(configs):

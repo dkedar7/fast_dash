@@ -119,7 +119,7 @@ def _parse_invoke_inputs(pairs):
 
 
 def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None,
-               config=None):
+               config=None, write=False, config_path=None, force=False):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
     Exits 0 when an MCP client can initialize, list the Fast Dash tools and
@@ -127,19 +127,21 @@ def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=Non
     a container HEALTHCHECK or a CI step. ``invoke=True`` also runs the app
     once through ``invoke`` and requires it to succeed (#357). ``config``
     (``claude``, ``cursor``, ``vscode`` or ``all``) prints the client config
-    for ``url`` after a healthy check (#383).
+    for ``url`` after a healthy check (#383); ``write=True`` merges it into
+    the client's config file instead, and exits 1 if that was refused (#389).
     """
     import json
 
     from fast_dash.mcp_check import check_mcp, print_report
 
     ok, report = check_mcp(url, timeout=timeout, invoke=invoke,
-                           invoke_inputs=invoke_inputs, config=config)
+                           invoke_inputs=invoke_inputs, config=config,
+                           write=write, config_path=config_path, force=force)
     if as_json:
         print(json.dumps(report, indent=2, default=str))
     else:
         print_report(ok, report)
-    return 0 if ok else 1
+    return 0 if ok and "write_error" not in report else 1
 
 
 def main():
@@ -203,6 +205,20 @@ def main():
         help="With --mcp: after a healthy check, print the paste-ready MCP "
              "client config for the URL (all = every client)",
     )
+    doctor_parser.add_argument(
+        "--write", action="store_true",
+        help="With --config CLIENT: merge the server into that client's config "
+             "file (.mcp.json, .cursor/mcp.json or .vscode/mcp.json), keeping "
+             "the servers already there",
+    )
+    doctor_parser.add_argument(
+        "--config-path", metavar="PATH", default=None,
+        help="With --write: the config file to merge into instead",
+    )
+    doctor_parser.add_argument(
+        "--force", action="store_true",
+        help="With --write: replace an existing server of the same name",
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -212,6 +228,12 @@ def main():
             parser.error("--invoke needs --mcp")
         if args.config and not args.mcp:
             parser.error("--config needs --mcp")
+        if args.write and not args.config:
+            parser.error("--write needs --config CLIENT")
+        if args.write and args.config == "all":
+            parser.error("--write takes one client: --config claude, cursor or vscode")
+        if (args.config_path or args.force) and not args.write:
+            parser.error("--config-path and --force need --write")
         if args.mcp:
             try:
                 invoke_inputs = _parse_invoke_inputs(args.invoke_input)
@@ -219,7 +241,9 @@ def main():
                 parser.error(str(e))
             return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout,
                               invoke=args.invoke or bool(invoke_inputs),
-                              invoke_inputs=invoke_inputs, config=args.config)
+                              invoke_inputs=invoke_inputs, config=args.config,
+                              write=args.write, config_path=args.config_path,
+                              force=args.force)
         if args.json:
             parser.error("--json needs --mcp")
         return doctor()
