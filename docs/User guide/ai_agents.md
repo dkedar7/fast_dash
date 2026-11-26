@@ -96,6 +96,25 @@ or add it to the project's `.mcp.json`:
 
     With `--json`, the same configs are under `"config"` in the report.
 
+    To skip the paste, add `--write` with a single client. It merges the
+    server into that client's project config file (`.mcp.json`,
+    `.cursor/mcp.json` or `.vscode/mcp.json`, or the file given with
+    `--config-path`), creating it if needed and keeping every server already
+    in it:
+
+    ```console
+    $ fastdash doctor --mcp http://127.0.0.1:8080/mcp --config cursor --write
+      ...
+    MCP surface healthy.
+    Wrote server "plot-bars" to .cursor/mcp.json (added; 2 other servers kept).
+    ```
+
+    Running it again changes nothing. If the file already has a different
+    entry under that name (another server, or this app at an old URL), it is
+    left alone unless you add `--force`. A file with comments (VS Code allows
+    them) is never rewritten, since that would drop them; the command prints
+    the entry to add by hand instead. In these cases it exits with status 1.
+
     A good contract doesn't prove the app runs. Add `--invoke` to also run it
     once through the `invoke` tool, with its current values, the way an agent
     would. The check then fails if the callback raises or the app can't run

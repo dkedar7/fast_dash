@@ -230,3 +230,141 @@ def test_config_without_mcp_is_an_error(monkeypatch, capsys):
 def test_server_name_slugs_the_title(title, name):
     from fast_dash.mcp_check import server_name
     assert server_name(title) == name
+
+
+# --write: merge the entry into the client's config file (#389)
+
+from fast_dash.mcp_check import ConfigWriteError, write_client_config  # noqa: E402
+
+URL = "http://127.0.0.1:8080/mcp"
+
+
+def _read(p):
+    with open(p, encoding="utf-8") as f:
+        return json.load(f)
+
+
+def test_write_creates_missing_file_and_folder(tmp_path):
+    p = str(tmp_path / ".vscode" / "mcp.json")
+    w = write_client_config(p, "vscode", URL, "plot-bars")
+    assert w == {"path": p, "name": "plot-bars", "added": True, "updated": False, "kept": 0}
+    assert _read(p) == {"servers": {"plot-bars": {"type": "http", "url": URL}}}
+
+
+def test_write_keeps_other_servers_and_keys(tmp_path):
+    p = tmp_path / "mcp.json"
+    p.write_text(json.dumps({
+        "mcpServers": {"github": {"command": "gh-mcp"}, "db": {"url": "http://x/mcp"}},
+        "other": 1,
+    }), encoding="utf-8")
+    w = write_client_config(str(p), "cursor", URL, "plot-bars")
+    assert w["added"] and w["kept"] == 2
+    data = _read(p)
+    assert data["other"] == 1
+    assert data["mcpServers"] == {"github": {"command": "gh-mcp"},
+                                  "db": {"url": "http://x/mcp"},
+                                  "plot-bars": {"url": URL}}
+
+
+def test_write_is_idempotent(tmp_path):
+    p = str(tmp_path / ".mcp.json")
+    write_client_config(p, "claude", URL, "plot-bars")
+    before = open(p, encoding="utf-8").read()
+    w = write_client_config(p, "claude", URL, "plot-bars")
+    assert w["added"] is False and w["updated"] is False
+    assert open(p, encoding="utf-8").read() == before
+
+
+def test_write_refuses_a_different_entry_without_force(tmp_path):
+    p = tmp_path / ".mcp.json"
+    original = {"mcpServers": {"plot-bars": {"type": "http", "url": "http://old/mcp"}}}
+    p.write_text(json.dumps(original), encoding="utf-8")
+    with pytest.raises(ConfigWriteError, match="--force"):
+        write_client_config(str(p), "claude", URL, "plot-bars")
+    assert _read(p) == original
+    w = write_client_config(str(p), "claude", URL, "plot-bars", force=True)
+    assert w["updated"] is True and w["added"] is False
+    assert _read(p)["mcpServers"]["plot-bars"]["url"] == URL
+
+
+def test_write_never_rewrites_a_file_with_comments(tmp_path):
+    p = tmp_path / "mcp.json"
+    text = '{\n  // my servers\n  "servers": {}\n}\n'
+    p.write_text(text, encoding="utf-8")
+    with pytest.raises(ConfigWriteError, match="isn't plain JSON") as e:
+        write_client_config(str(p), "vscode", URL, "plot-bars")
+    assert '"plot-bars"' in str(e.value)                 # the entry to add by hand
+    assert p.read_text(encoding="utf-8") == text
+
+
+@pytest.mark.parametrize("content", ["[]", '{"servers": []}'])
+def test_write_refuses_unexpected_shapes(tmp_path, content):
+    p = tmp_path / "mcp.json"
+    p.write_text(content, encoding="utf-8")
+    with pytest.raises(ConfigWriteError):
+        write_client_config(str(p), "vscode", URL, "plot-bars")
+    assert p.read_text(encoding="utf-8") == content
+
+
+def test_write_accepts_empty_file_and_bom(tmp_path):
+    p = tmp_path / "a.json"
+    p.write_text("", encoding="utf-8")
+    assert write_client_config(str(p), "vscode", URL, "x")["added"]
+    q = tmp_path / "b.json"
+    q.write_bytes(b"\xef\xbb\xbf" + json.dumps({"servers": {"y": {"url": "u"}}}).encode())
+    assert write_client_config(str(q), "vscode", URL, "x")["kept"] == 1
+
+
+def test_cli_write_merges_into_the_default_path(serve, monkeypatch, capsys, tmp_path):
+    import os
+    monkeypatch.chdir(tmp_path)
+    os.makedirs(".cursor")
+    with open(os.path.join(".cursor", "mcp.json"), "w", encoding="utf-8") as f:
+        json.dump({"mcpServers": {"github": {"command": "gh-mcp"}}}, f)
+    url = serve(FastDash(callback_fn=plot_bars, mcp_server=True, title="Plot Bars"))
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "cursor",
+                        "--write", "--timeout", "60")
+    assert code == 0, out
+    path = os.path.join(".cursor", "mcp.json")
+    assert f'Wrote server "plot-bars" to {path} (added; 1 other server kept).' in out
+    assert "Client config for" not in out
+    assert _read(path)["mcpServers"] == {"github": {"command": "gh-mcp"},
+                                         "plot-bars": {"url": url}}
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "cursor",
+                        "--write", "--timeout", "60")
+    assert code == 0 and "nothing to change" in out
+
+
+def test_cli_write_conflict_exits_1_and_reports_json(serve, monkeypatch, capsys, tmp_path):
+    p = tmp_path / "custom.json"
+    p.write_text(json.dumps({"servers": {"plot-bars": {"url": "http://old/mcp"}}}),
+                 encoding="utf-8")
+    url = serve(FastDash(callback_fn=plot_bars, mcp_server=True, title="Plot Bars"))
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "vscode", "--write",
+                        "--config-path", str(p), "--json", "--timeout", "60")
+    report = json.loads(out)
+    assert code == 1 and report["ok"] is True and "--force" in report["write_error"]
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "vscode", "--write",
+                        "--config-path", str(p), "--force", "--json", "--timeout", "60")
+    report = json.loads(out)
+    assert code == 0 and report["wrote"]["updated"] is True
+
+
+def test_cli_write_is_not_attempted_after_a_failed_check(serve, monkeypatch, capsys, tmp_path):
+    p = tmp_path / "never.json"
+    url = serve(FastDash(callback_fn=plot_bars))          # no mcp_server=True
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--config", "vscode", "--write",
+                        "--config-path", str(p), "--timeout", "20")
+    assert code == 1 and not p.exists()
+
+
+@pytest.mark.parametrize("args", [
+    ["--mcp", "http://x/mcp", "--write"],
+    ["--mcp", "http://x/mcp", "--config", "all", "--write"],
+    ["--mcp", "http://x/mcp", "--config", "claude", "--force"],
+    ["--mcp", "http://x/mcp", "--config", "claude", "--config-path", "a.json"],
+])
+def test_write_flag_usage_errors(monkeypatch, args):
+    monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", *args])
+    with pytest.raises(SystemExit):
+        cli.main()
