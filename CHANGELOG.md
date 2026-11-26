@@ -1,4 +1,17 @@
-# Release 0.7.25
+# Release 0.7.26
+
+## 0.7.26 (2026-11-26)
+
+### Added
+- **`fastdash doctor --mcp URL --config CLIENT --write`** (#389). After a
+  healthy check, it merges the app's server entry into the client's project
+  config file (`.mcp.json`, `.cursor/mcp.json` or `.vscode/mcp.json`, or
+  `--config-path PATH`) instead of printing it. It creates the file if
+  needed and keeps every server already there. Re-running changes nothing. A
+  different entry under the same name is only replaced with `--force`, and a
+  file with comments is never rewritten (the entry to add by hand is printed
+  instead); both exit with status 1. With `--json`, the outcome is under
+  `"wrote"` or `"write_error"`.
 
 ## 0.7.25 (2026-11-25)
 
