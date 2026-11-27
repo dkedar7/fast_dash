@@ -119,7 +119,7 @@ def _parse_invoke_inputs(pairs):
 
 
 def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None,
-               config=None, write=False, config_path=None, force=False):
+               config=None, write=False, config_path=None, force=False, wait=None):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
     Exits 0 when an MCP client can initialize, list the Fast Dash tools and
@@ -129,18 +129,25 @@ def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=Non
     (``claude``, ``cursor``, ``vscode`` or ``all``) prints the client config
     for ``url`` after a healthy check (#383); ``write=True`` merges it into
     the client's config file instead, and exits 1 if that was refused (#389).
+    ``wait`` (seconds) polls until an app that is still starting comes up,
+    so the check works as a startup gate (#392).
     """
     import json
+    import sys
 
-    from fast_dash.mcp_check import check_mcp, print_report
+    from fast_dash.mcp_check import check_mcp, print_report, wait_banner
 
+    if wait and not as_json:
+        print(wait_banner(url, wait))
+        sys.stdout.flush()                      # visible in logs while polling
     ok, report = check_mcp(url, timeout=timeout, invoke=invoke,
                            invoke_inputs=invoke_inputs, config=config,
-                           write=write, config_path=config_path, force=force)
+                           write=write, config_path=config_path, force=force,
+                           wait=wait)
     if as_json:
         print(json.dumps(report, indent=2, default=str))
     else:
-        print_report(ok, report)
+        print_report(ok, report, header=not wait)
     return 0 if ok and "write_error" not in report else 1
 
 
@@ -188,7 +195,13 @@ def main():
     )
     doctor_parser.add_argument(
         "--timeout", type=float, default=30.0,
-        help="With --mcp: seconds to wait for the whole check (default: 30)",
+        help="With --mcp: seconds to wait for the whole check (default: 30); "
+             "with --wait, for each attempt",
+    )
+    doctor_parser.add_argument(
+        "--wait", type=float, nargs="?", const=30.0, default=None, metavar="SECONDS",
+        help="With --mcp: if the app isn't up yet, keep retrying for up to "
+             "SECONDS (default: 30) instead of failing at once",
     )
     doctor_parser.add_argument(
         "--invoke", action="store_true",
@@ -228,6 +241,10 @@ def main():
             parser.error("--invoke needs --mcp")
         if args.config and not args.mcp:
             parser.error("--config needs --mcp")
+        if args.wait is not None and not args.mcp:
+            parser.error("--wait needs --mcp")
+        if args.wait is not None and not args.wait > 0:
+            parser.error("--wait takes a positive number of seconds")
         if args.write and not args.config:
             parser.error("--write needs --config CLIENT")
         if args.write and args.config == "all":
@@ -243,7 +260,7 @@ def main():
                               invoke=args.invoke or bool(invoke_inputs),
                               invoke_inputs=invoke_inputs, config=args.config,
                               write=args.write, config_path=args.config_path,
-                              force=args.force)
+                              force=args.force, wait=args.wait)
         if args.json:
             parser.error("--json needs --mcp")
         return doctor()

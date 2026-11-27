@@ -368,3 +368,124 @@ def test_write_flag_usage_errors(monkeypatch, args):
     monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", *args])
     with pytest.raises(SystemExit):
         cli.main()
+
+
+# --- --wait: a startup gate, not a point-in-time probe (#392) ---------------
+
+import socket  # noqa: E402
+import time  # noqa: E402
+
+
+@pytest.fixture
+def serve_late():
+    """Serve ``app`` on a free port, but only after ``delay`` seconds."""
+    servers = []
+
+    def _serve(app, delay):
+        with socket.socket() as s:
+            s.bind(("127.0.0.1", 0))
+            port = s.getsockname()[1]
+
+        def boot():
+            time.sleep(delay)
+            srv = make_server("127.0.0.1", port, app.server, threaded=True)
+            servers.append(srv)
+            srv.serve_forever()
+
+        threading.Thread(target=boot, daemon=True).start()
+        return f"http://127.0.0.1:{port}/mcp"
+
+    yield _serve
+    for srv in servers:
+        srv.shutdown()
+
+
+def test_wait_passes_once_a_late_app_comes_up(serve_late, monkeypatch, capsys, tmp_path):
+    url = serve_late(FastDash(callback_fn=plot_bars, mcp_server=True, title="Plot Bars"), 8)
+    p = tmp_path / "mcp.json"
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--wait", "60", "--timeout", "30",
+                        "--config", "claude", "--write", "--config-path", str(p))
+    assert code == 0, out
+    lines = out.splitlines()
+    assert lines[0] == f"Waiting for {url} (up to 60s) ..."
+    assert lines[1].startswith("  ready after ") and "Connecting to" not in out
+    assert "MCP surface healthy." in out and out.isascii()
+    assert _read(p)["mcpServers"]["plot-bars"]["url"] == url      # written once, after
+
+
+def test_without_wait_a_late_app_fails_at_once(serve_late, monkeypatch, capsys):
+    url = serve_late(FastDash(callback_fn=plot_bars, mcp_server=True), 30)
+    t = time.monotonic()
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--timeout", "20")
+    assert code == 1 and "could not reach" in out
+    assert time.monotonic() - t < 15
+
+
+def test_wait_alone_defaults_to_30s(monkeypatch):
+    seen = {}
+    monkeypatch.setattr(cli, "doctor_mcp", lambda url, **kw: seen.update(kw) or 0)
+    monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", "--mcp", "http://x/mcp",
+                                      "--wait", "--json"])
+    assert cli.main() == 0
+    assert seen["wait"] == 30.0 and seen["as_json"] is True
+    monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", "--mcp", "http://x/mcp"])
+    cli.main()
+    assert seen["wait"] is None
+
+
+def test_wait_expiry_exits_1_with_the_last_cause(monkeypatch, capsys):
+    t = time.monotonic()
+    code, out = _doctor(monkeypatch, capsys, "--mcp", "http://127.0.0.1:9/mcp",
+                        "--wait", "10", "--json")
+    elapsed = time.monotonic() - t
+    report = json.loads(out)
+    assert code == 1 and report["ok"] is False
+    assert report["error"].startswith("not ready within 10s (")
+    assert "last problem: " in report["error"] and "could not reach" in report["error"]
+    assert report["wait"]["attempts"] > 1 and elapsed < 30
+
+
+def test_wait_retries_while_mcp_serves_the_web_page(serve, monkeypatch, capsys):
+    url = serve(FastDash(callback_fn=plot_bars))          # no mcp_server=True
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--wait", "3", "--timeout", "20")
+    assert code == 1
+    assert "Problem: not ready within 3s" in out and "mcp_server=True" in out
+
+
+def test_wait_does_not_spin_on_a_hard_failure(serve, monkeypatch, capsys):
+    url = serve(FastDash(callback_fn=broken, mcp_server=True))
+    t = time.monotonic()
+    code, out = _doctor(monkeypatch, capsys, "--mcp", url, "--invoke", "--wait", "120",
+                        "--timeout", "60", "--json")
+    report = json.loads(out)
+    assert code == 1 and report["wait"]["attempts"] == 1
+    assert report["error"].startswith("invoke ran and the callback failed")
+    assert time.monotonic() - t < 60
+
+
+def test_check_mcp_wait_stops_retrying_on_success(monkeypatch):
+    from fast_dash import mcp_check
+    results = [(False, {"url": "u", "steps": [], "ok": False, "error": "down"}, True)] * 2
+    results.append((True, {"url": "u", "steps": [], "ok": True}, False))
+    calls = []
+
+    def fake(url, timeout, invoke, invoke_inputs):
+        calls.append(timeout)
+        return results[len(calls) - 1]
+
+    monkeypatch.setattr(mcp_check, "_attempt", fake)
+    monkeypatch.setattr(mcp_check.time, "sleep", lambda s: None)
+    ok, report = mcp_check.check_mcp("u", timeout=5, wait=30)
+    assert ok and len(calls) == 3 and report["wait"]["attempts"] == 3
+    assert all(t <= 5 for t in calls)                     # --timeout bounds each attempt
+
+
+@pytest.mark.parametrize("args", [
+    ["--wait", "10"],
+    ["--mcp", "http://x/mcp", "--wait", "0"],
+    ["--mcp", "http://x/mcp", "--wait", "-5"],
+])
+def test_wait_flag_usage_errors(monkeypatch, args):
+    monkeypatch.setattr(sys, "argv", ["fastdash", "doctor", *args])
+    with pytest.raises(SystemExit):
+        cli.main()

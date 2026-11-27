@@ -115,6 +115,26 @@ or add it to the project's `.mcp.json`:
     them) is never rewritten, since that would drop them; the command prints
     the entry to add by hand instead. In these cases it exits with status 1.
 
+    By default the check is a single probe, so it fails at once if the app
+    hasn't finished starting. Add `--wait` to make it a startup gate: it
+    retries while the app is unreachable, `/mcp` still serves the web page, or
+    nothing answers, and exits 0 as soon as the check passes (status 1 if the
+    window runs out, with the last problem). `--wait` alone waits up to 30
+    seconds; `--wait 60` sets the window, and `--timeout` then bounds each
+    attempt. A failure from a server that did answer, such as a bad contract
+    or a failed `--invoke`, still fails at once. It combines with the other
+    flags, so starting an app and registering it is one line:
+
+    ```console
+    $ python app.py &
+    $ fastdash doctor --mcp http://127.0.0.1:8080/mcp --wait --config claude --write
+    Waiting for http://127.0.0.1:8080/mcp (up to 30s) ...
+      ready after 4 attempts (3.6s)
+      ...
+    MCP surface healthy.
+    Wrote server "plot-bars" to .mcp.json (added; 0 other servers kept).
+    ```
+
     A good contract doesn't prove the app runs. Add `--invoke` to also run it
     once through the `invoke` tool, with its current values, the way an agent
     would. The check then fails if the callback raises or the app can't run

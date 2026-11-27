@@ -16,12 +16,20 @@ config for that exact URL, in each client's own shape (``mcpServers`` vs
 ``servers``), named after the app's title. Adding ``write=True``
 (``--write``, #389) merges that entry into the client's config file instead,
 keeping every other server in it.
+
+With ``wait=SECONDS`` (``--wait``, #392) it is a startup gate rather than a
+point-in-time probe: an app that isn't up yet (connection refused, /mcp still
+serving the web page or a 404, no answer) is retried with a short backoff
+until it passes or the window runs out. A failure from a server that did
+answer (missing tools, a bad contract, a failed --invoke) won't fix itself by
+waiting, so it still fails at once.
 """
 
 import asyncio
 import json
 import os
 import re
+import time
 import urllib.error
 import urllib.request
 
@@ -289,8 +297,45 @@ def write_client_config(path, client, url, name, force=False):
     return result
 
 
+# --wait backoff between attempts: 0.5s, doubling, capped at 2s.
+WAIT_FIRST_DELAY = 0.5
+WAIT_MAX_DELAY = 2.0
+
+
+def _attempt(url, timeout, invoke, invoke_inputs):
+    """One check. Return ``(ok, report, retryable)``.
+
+    ``retryable`` is True for the not-up-yet failures a startup race produces
+    (unreachable, wrong page, no answer), False for a ``CheckFailed`` raised
+    after the server answered, which waiting won't fix.
+    """
+    report = {"url": url, "steps": []}
+    try:
+        asyncio.run(asyncio.wait_for(
+            _check(url, report, invoke=invoke, invoke_inputs=invoke_inputs), timeout))
+        report["ok"] = True
+        return True, report, False
+    except CheckFailed as e:
+        error, retryable = str(e), False
+    except asyncio.TimeoutError:
+        cause = _probe(url)
+        error = f"no answer within {timeout:g}s" + (f": {cause}" if cause else "")
+        retryable = True
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except BaseException as e:                         # noqa: BLE001
+        inner = _innermost(e)
+        if isinstance(inner, CheckFailed):             # raised inside the session's task group
+            error, retryable = str(inner), False
+        else:
+            error = _probe(url) or f"{type(e).__name__}: {_first_cause(e)}"
+            retryable = True
+    report.update(ok=False, error=error)
+    return False, report, retryable
+
+
 def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
-              write=False, config_path=None, force=False):
+              write=False, config_path=None, force=False, wait=None):
     """Run the checks against ``url``. Return ``(ok, report)``; never raises.
 
     ``invoke=True`` also runs the app once with its current values, updated by
@@ -299,38 +344,44 @@ def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
     ``write=True`` (one client), the entry is also merged into
     ``config_path`` (default: the client's project file) and the outcome goes
     to ``report["wrote"]``, or ``report["write_error"]`` if it was refused.
+
+    ``wait`` (seconds) retries a not-up-yet failure until the check passes or
+    the window ends; ``timeout`` then bounds each attempt (and never runs past
+    the window). ``report["wait"]`` records the attempts and elapsed time.
+    Config and ``write`` happen once, after the passing attempt.
     """
-    report = {"url": url, "steps": []}
-    try:
-        asyncio.run(asyncio.wait_for(
-            _check(url, report, invoke=invoke, invoke_inputs=invoke_inputs), timeout))
-        report["ok"] = True
-        if config:
-            # Only for a healthy surface: a config for a broken one wastes a paste.
-            name = server_name((report.get("contract") or {}).get("title"))
-            report["config"] = client_configs(url, name, config)
-            if write:
-                try:
-                    report["wrote"] = write_client_config(
-                        config_path or CONFIG_PATHS[config], config, url, name, force=force)
-                except ConfigWriteError as e:
-                    report["write_error"] = str(e)
-        return True, report
-    except CheckFailed as e:
-        error = str(e)
-    except asyncio.TimeoutError:
-        cause = _probe(url)
-        error = f"no answer within {timeout:g}s" + (f": {cause}" if cause else "")
-    except (KeyboardInterrupt, SystemExit):
-        raise
-    except BaseException as e:                         # noqa: BLE001
-        inner = _innermost(e)
-        if isinstance(inner, CheckFailed):             # raised inside the session's task group
-            error = str(inner)
-        else:
-            error = _probe(url) or f"{type(e).__name__}: {_first_cause(e)}"
-    report.update(ok=False, error=error)
-    return False, report
+    if not wait:
+        ok, report, _ = _attempt(url, timeout, invoke, invoke_inputs)
+    else:
+        start = time.monotonic()
+        deadline = start + wait
+        delay, attempts = WAIT_FIRST_DELAY, 0
+        while True:
+            attempts += 1
+            budget = min(timeout, max(deadline - time.monotonic(), 0.5))
+            ok, report, retryable = _attempt(url, budget, invoke, invoke_inputs)
+            if ok or not retryable:
+                break
+            if time.monotonic() + delay >= deadline:
+                report["error"] = (f"not ready within {wait:g}s ({attempts} "
+                                   f"attempt{'s' * (attempts != 1)}); last problem: "
+                                   f"{report['error']}")
+                break
+            time.sleep(delay)
+            delay = min(delay * 2, WAIT_MAX_DELAY)
+        report["wait"] = {"seconds": wait, "attempts": attempts,
+                          "elapsed": round(time.monotonic() - start, 1)}
+    if ok and config:
+        # Only for a healthy surface: a config for a broken one wastes a paste.
+        name = server_name((report.get("contract") or {}).get("title"))
+        report["config"] = client_configs(url, name, config)
+        if write:
+            try:
+                report["wrote"] = write_client_config(
+                    config_path or CONFIG_PATHS[config], config, url, name, force=force)
+            except ConfigWriteError as e:
+                report["write_error"] = str(e)
+    return ok, report
 
 
 def _innermost(e):
@@ -346,8 +397,17 @@ def _first_cause(e):
     return str(e) or type(e).__name__
 
 
-def print_report(ok, report):
-    print(f"Connecting to {report['url']} (streamable HTTP) ...")
+def wait_banner(url, wait):
+    """The line ``--wait`` prints before it starts polling."""
+    return f"Waiting for {url} (up to {wait:g}s) ..."
+
+
+def print_report(ok, report, header=True):
+    if header:
+        print(f"Connecting to {report['url']} (streamable HTTP) ...")
+    w = report.get("wait")
+    if ok and w and w["attempts"] > 1:
+        print(f"  ready after {w['attempts']} attempts ({w['elapsed']:g}s)")
     for s in report.get("steps", []):
         print(f"  {s['step']:16} OK   {s['detail']}")
     if ok:
