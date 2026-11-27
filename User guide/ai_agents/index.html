@@ -961,6 +961,23 @@ entry under that name (another server, or this app at an old URL), it is
 left alone unless you add <code>--force</code>. A file with comments (VS Code allows
 them) is never rewritten, since that would drop them; the command prints
 the entry to add by hand instead. In these cases it exits with status 1.</p>
+<p>By default the check is a single probe, so it fails at once if the app
+hasn't finished starting. Add <code>--wait</code> to make it a startup gate: it
+retries while the app is unreachable, <code>/mcp</code> still serves the web page, or
+nothing answers, and exits 0 as soon as the check passes (status 1 if the
+window runs out, with the last problem). <code>--wait</code> alone waits up to 30
+seconds; <code>--wait 60</code> sets the window, and <code>--timeout</code> then bounds each
+attempt. A failure from a server that did answer, such as a bad contract
+or a failed <code>--invoke</code>, still fails at once. It combines with the other
+flags, so starting an app and registering it is one line:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>python<span class="w"> </span>app.py<span class="w"> </span><span class="p">&amp;</span>
+<span class="gp">$ </span>fastdash<span class="w"> </span>doctor<span class="w"> </span>--mcp<span class="w"> </span>http://127.0.0.1:8080/mcp<span class="w"> </span>--wait<span class="w"> </span>--config<span class="w"> </span>claude<span class="w"> </span>--write
+<span class="go">Waiting for http://127.0.0.1:8080/mcp (up to 30s) ...</span>
+<span class="go">  ready after 4 attempts (3.6s)</span>
+<span class="go">  ...</span>
+<span class="go">MCP surface healthy.</span>
+<span class="go">Wrote server &quot;plot-bars&quot; to .mcp.json (added; 0 other servers kept).</span>
+</code></pre></div>
 <p>A good contract doesn't prove the app runs. Add <code>--invoke</code> to also run it
 once through the <code>invoke</code> tool, with its current values, the way an agent
 would. The check then fails if the callback raises or the app can't run
