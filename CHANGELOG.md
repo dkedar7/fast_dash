@@ -1,4 +1,16 @@
-# Release 0.7.26
+# Release 0.7.27
+
+## 0.7.27 (2026-11-27)
+
+### Added
+- **`fastdash doctor --mcp URL --wait [SECONDS]`** (#392). The check becomes
+  a startup gate: while the app is unreachable, `/mcp` still serves the web
+  page, or nothing answers, it retries with a short backoff and exits 0 as
+  soon as the check passes (status 1 with the last problem if the window,
+  30s by default, runs out). A failure from a server that did answer, such
+  as a bad contract or a failed `--invoke`, still fails at once. `--timeout`
+  bounds each attempt, and `--config`/`--write` run once after the passing
+  attempt. `check_mcp(wait=)` is the library form.
 
 ## 0.7.26 (2026-11-26)
 
