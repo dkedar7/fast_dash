@@ -119,7 +119,8 @@ def _parse_invoke_inputs(pairs):
 
 
 def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=None,
-               config=None, write=False, config_path=None, force=False, wait=None):
+               config=None, write=False, config_path=None, force=False, wait=None,
+               app=None):
     """Smoke-test the MCP surface of the app running at ``url`` (#341).
 
     Exits 0 when an MCP client can initialize, list the Fast Dash tools and
@@ -130,7 +131,9 @@ def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=Non
     for ``url`` after a healthy check (#383); ``write=True`` merges it into
     the client's config file instead, and exits 1 if that was refused (#389).
     ``wait`` (seconds) polls until an app that is still starting comes up,
-    so the check works as a startup gate (#392).
+    so the check works as a startup gate (#392). ``app`` (an
+    ``AppProcess``, from ``--app``) ends the wait early if the app exits and
+    adds its details to the report (#395).
     """
     import json
     import sys
@@ -143,12 +146,39 @@ def doctor_mcp(url, as_json=False, timeout=30.0, invoke=False, invoke_inputs=Non
     ok, report = check_mcp(url, timeout=timeout, invoke=invoke,
                            invoke_inputs=invoke_inputs, config=config,
                            write=write, config_path=config_path, force=force,
-                           wait=wait)
+                           wait=wait, give_up=app.died if app else None)
+    if app is not None:
+        report["app"] = app.info()
     if as_json:
         print(json.dumps(report, indent=2, default=str))
     else:
         print_report(ok, report, header=not wait)
     return 0 if ok and "write_error" not in report else 1
+
+
+APP_WAIT = 60.0          # --app waits this long for the app to boot unless --wait says
+
+
+def doctor_app(target, wait=None, as_json=False, **kwargs):
+    """Boot ``target`` as a child process, run the ``--mcp`` check, stop it (#395).
+
+    ``target`` is ``app.py``, ``app.py:app`` or ``mypkg.server:app``. The app
+    serves on a free loopback port; the check waits for it (``wait``, default
+    60s), fails at once with the app's exit code and output if it dies, and
+    the app is stopped however the check ends.
+    """
+    from fast_dash.doctor_app import AppProcess
+
+    proc = AppProcess(target)
+    if not as_json:
+        print(f"Starting {target} on port {proc.port} ...")
+    try:
+        with proc:
+            return doctor_mcp(proc.url, as_json=as_json, wait=wait or APP_WAIT,
+                              app=proc, **kwargs)
+    except KeyboardInterrupt:
+        print("Interrupted; the app was stopped.", file=sys.stderr)
+        return 130
 
 
 def main():
@@ -188,6 +218,13 @@ def main():
         help="Connect to a running app's MCP endpoint (e.g. "
              "http://127.0.0.1:8080/mcp) as an MCP client and check it. "
              "Needs the mcp package.",
+    )
+    doctor_parser.add_argument(
+        "--app",
+        metavar="TARGET",
+        help="Start the app yourself, check its MCP surface as --mcp does, "
+             "then stop it. TARGET is app.py (a script that calls .run()), "
+             "app.py:app or mypkg.server:app. Runs on a free local port.",
     )
     doctor_parser.add_argument(
         "--json", action="store_true",
@@ -237,12 +274,19 @@ def main():
     args = parser.parse_args()
 
     if args.command == "doctor":
-        if (args.invoke or args.invoke_input) and not args.mcp:
-            parser.error("--invoke needs --mcp")
-        if args.config and not args.mcp:
-            parser.error("--config needs --mcp")
-        if args.wait is not None and not args.mcp:
-            parser.error("--wait needs --mcp")
+        if args.mcp and args.app:
+            parser.error("--mcp checks a running app and --app starts one; use one")
+        checks_mcp = bool(args.mcp or args.app)
+        if (args.invoke or args.invoke_input) and not checks_mcp:
+            parser.error("--invoke needs --mcp or --app")
+        if args.config and not checks_mcp:
+            parser.error("--config needs --mcp or --app")
+        if args.wait is not None and not checks_mcp:
+            parser.error("--wait needs --mcp or --app")
+        if args.app and args.config:
+            parser.error("--config needs --mcp: with --app the URL is a temporary "
+                         "port that is gone once the check ends. Check with --app, "
+                         "then register the app with --mcp at its real address.")
         if args.wait is not None and not args.wait > 0:
             parser.error("--wait takes a positive number of seconds")
         if args.write and not args.config:
@@ -251,18 +295,26 @@ def main():
             parser.error("--write takes one client: --config claude, cursor or vscode")
         if (args.config_path or args.force) and not args.write:
             parser.error("--config-path and --force need --write")
-        if args.mcp:
+        if checks_mcp:
             try:
                 invoke_inputs = _parse_invoke_inputs(args.invoke_input)
             except ValueError as e:
                 parser.error(str(e))
-            return doctor_mcp(args.mcp, as_json=args.json, timeout=args.timeout,
-                              invoke=args.invoke or bool(invoke_inputs),
-                              invoke_inputs=invoke_inputs, config=args.config,
-                              write=args.write, config_path=args.config_path,
-                              force=args.force, wait=args.wait)
+            options = dict(as_json=args.json, timeout=args.timeout,
+                           invoke=args.invoke or bool(invoke_inputs),
+                           invoke_inputs=invoke_inputs, config=args.config,
+                           write=args.write, config_path=args.config_path,
+                           force=args.force, wait=args.wait)
+            if args.app:
+                from fast_dash.doctor_app import parse_target
+                try:
+                    parse_target(args.app)
+                except ValueError as e:
+                    parser.error(str(e))
+                return doctor_app(args.app, **options)
+            return doctor_mcp(args.mcp, **options)
         if args.json:
-            parser.error("--json needs --mcp")
+            parser.error("--json needs --mcp or --app")
         return doctor()
 
     while args.command == "create" and args.port is None:
