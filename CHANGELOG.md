@@ -1,4 +1,18 @@
-# Release 0.7.27
+# Release 0.7.28
+
+## 0.7.28 (2026-11-28)
+
+### Added
+- **`fastdash doctor --app TARGET`** (#395). Starts the app itself on a free
+  local port, runs the same check as `--mcp` once it is up, and always stops
+  it, so it is one self-contained CI step. TARGET is a script that calls
+  `.run()` (`app.py`), a script and its app object (`app.py:app`), or a
+  module and its app object (`mypkg.server:app`). The app's own `run()`
+  serves on doctor's port with the reloader off. It waits up to 60s
+  (`--wait` changes that); if the app exits first, the check fails at once
+  with its exit code and last output. `--invoke`, `--json` and `--timeout`
+  work as with `--mcp`; `--config`/`--write` need `--mcp`, since the
+  temporary port is gone once the check ends.
 
 ## 0.7.27 (2026-11-27)
 
