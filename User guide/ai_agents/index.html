@@ -978,6 +978,25 @@ flags, so starting an app and registering it is one line:</p>
 <span class="go">MCP surface healthy.</span>
 <span class="go">Wrote server &quot;plot-bars&quot; to .mcp.json (added; 0 other servers kept).</span>
 </code></pre></div>
+<p>To skip the separate start and stop, give <code>--app</code> instead of <code>--mcp</code>.
+Doctor starts the app itself on a free local port, runs the same check
+once it is up, and stops it however the check ends, so it is one
+self-contained CI step. The target is a script that calls <code>.run()</code>
+(<code>app.py</code>), a script and its app object (<code>app.py:app</code>), or a module and
+its app object (<code>mypkg.server:app</code>). Whatever port and host the app's own
+<code>run()</code> asks for is replaced by that local port, and the reloader is off.
+It waits up to 60 seconds for the app to boot (<code>--wait</code> changes that). If
+the app exits first, the check fails at once with its exit code and last
+output. <code>--invoke</code>, <code>--json</code> and <code>--timeout</code> work as with <code>--mcp</code>:</p>
+<div class="highlight"><pre><span></span><code><span class="gp">$ </span>fastdash<span class="w"> </span>doctor<span class="w"> </span>--app<span class="w"> </span>app.py<span class="w"> </span>--invoke
+<span class="go">Starting app.py on port 52817 ...</span>
+<span class="go">Waiting for http://127.0.0.1:52817/mcp (up to 60s) ...</span>
+<span class="go">  ...</span>
+<span class="go">MCP surface healthy.</span>
+</code></pre></div>
+<p><code>--config</code> and <code>--write</code> aren't offered with <code>--app</code>: the URL they would
+give an agent is the temporary port, which is gone once the check ends.
+Register the app with <code>--mcp</code> at the address it really runs on.</p>
 <p>A good contract doesn't prove the app runs. Add <code>--invoke</code> to also run it
 once through the <code>invoke</code> tool, with its current values, the way an agent
 would. The check then fails if the callback raises or the app can't run
