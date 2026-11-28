@@ -135,6 +135,29 @@ or add it to the project's `.mcp.json`:
     Wrote server "plot-bars" to .mcp.json (added; 0 other servers kept).
     ```
 
+    To skip the separate start and stop, give `--app` instead of `--mcp`.
+    Doctor starts the app itself on a free local port, runs the same check
+    once it is up, and stops it however the check ends, so it is one
+    self-contained CI step. The target is a script that calls `.run()`
+    (`app.py`), a script and its app object (`app.py:app`), or a module and
+    its app object (`mypkg.server:app`). Whatever port and host the app's own
+    `run()` asks for is replaced by that local port, and the reloader is off.
+    It waits up to 60 seconds for the app to boot (`--wait` changes that). If
+    the app exits first, the check fails at once with its exit code and last
+    output. `--invoke`, `--json` and `--timeout` work as with `--mcp`:
+
+    ```console
+    $ fastdash doctor --app app.py --invoke
+    Starting app.py on port 52817 ...
+    Waiting for http://127.0.0.1:52817/mcp (up to 60s) ...
+      ...
+    MCP surface healthy.
+    ```
+
+    `--config` and `--write` aren't offered with `--app`: the URL they would
+    give an agent is the temporary port, which is gone once the check ends.
+    Register the app with `--mcp` at the address it really runs on.
+
     A good contract doesn't prove the app runs. Add `--invoke` to also run it
     once through the `invoke` tool, with its current values, the way an agent
     would. The check then fails if the callback raises or the app can't run

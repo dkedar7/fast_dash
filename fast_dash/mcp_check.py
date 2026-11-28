@@ -335,7 +335,7 @@ def _attempt(url, timeout, invoke, invoke_inputs):
 
 
 def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
-              write=False, config_path=None, force=False, wait=None):
+              write=False, config_path=None, force=False, wait=None, give_up=None):
     """Run the checks against ``url``. Return ``(ok, report)``; never raises.
 
     ``invoke=True`` also runs the app once with its current values, updated by
@@ -349,6 +349,9 @@ def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
     the window ends; ``timeout`` then bounds each attempt (and never runs past
     the window). ``report["wait"]`` records the attempts and elapsed time.
     Config and ``write`` happen once, after the passing attempt.
+    ``give_up`` (a callable returning a reason or None) is asked after each
+    not-up-yet failure; a reason ends the wait at once with that error (used
+    by ``--app`` when the app process has exited, #395).
     """
     if not wait:
         ok, report, _ = _attempt(url, timeout, invoke, invoke_inputs)
@@ -361,6 +364,10 @@ def check_mcp(url, timeout=30.0, invoke=False, invoke_inputs=None, config=None,
             budget = min(timeout, max(deadline - time.monotonic(), 0.5))
             ok, report, retryable = _attempt(url, budget, invoke, invoke_inputs)
             if ok or not retryable:
+                break
+            reason = give_up() if give_up else None
+            if reason:
+                report["error"] = reason
                 break
             if time.monotonic() + delay >= deadline:
                 report["error"] = (f"not ready within {wait:g}s ({attempts} "
